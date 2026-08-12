@@ -1,0 +1,202 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  TENANT
+  OWNER
+  MODERATOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  PENDING
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  PAUSED
+  REJECTED
+  RENTED
+}
+
+enum VerificationLevelType {
+  PHONE
+  PASSPORT
+  SELFIE
+  CADASTRE
+  PREMIUM_OWNER
+}
+
+enum ReportReason {
+  SCAM
+  BROKER
+  FAKE_LISTING
+  FAKE_IMAGE
+  WRONG_PRICE
+  SPAM
+  HARASSMENT
+}
+
+model User {
+  id            String         @id @default(uuid())
+  phone         String         @unique
+  email         String?        @unique
+  passwordHash  String?
+  role          Role           @default(TENANT)
+  status        UserStatus     @default(ACTIVE)
+  trustScore    Int            @default(10)
+  riskScore     Int            @default(0)
+  isVerified    Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  profile       Profile?
+  ownerProfile  OwnerProfile?
+  properties    Property[]
+  listings      Listing[]
+  verifications Verification[]
+  reportsSent   Report[]
+  auditLogs     AuditLog[]
+}
+
+model Profile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName String
+  lastName  String
+  avatar    String?
+  city      String?
+  district  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OwnerProfile {
+  id                      String   @id @default(uuid())
+  userId                  String   @unique
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ownerType               String   @default("INDIVIDUAL")
+  verifiedPropertiesCount Int      @default(0)
+  successfulRentals       Int      @default(0)
+  brokerRiskScore         Int      @default(0) // 0-100% broker probability
+  trustLevel              String   @default("GREEN")
+  createdAt               DateTime @default(now())
+}
+
+model Property {
+  id               String    @id @default(uuid())
+  ownerId          String
+  owner            User      @relation(fields: [ownerId], references: [id])
+  title            String
+  description      String
+  propertyType     String
+  rooms            Int
+  area             Float
+  floor            Int
+  totalFloors      Int
+  price            Float
+  deposit          Float     @default(0)
+  region           String
+  district         String
+  address          String
+  latitude         Float?
+  longitude        Float?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  listings         Listing[]
+}
+
+model Listing {
+  id             String        @id @default(uuid())
+  propertyId     String
+  property       Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  ownerId        String
+  owner          User          @relation(fields: [ownerId], references: [id])
+  status         ListingStatus @default(PENDING_REVIEW)
+  title          String
+  description    String
+  price          Float
+  trustScore     Int           @default(50)
+  riskScore      Int           @default(0)
+  aiCheckStatus  String        @default("APPROVED")
+  viewsCount     Int           @default(0)
+  favoritesCount Int           @default(0)
+  contactCount   Int           @default(0)
+  publishedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  images         ListingImage[]
+}
+
+model ListingImage {
+  id          String   @id @default(uuid())
+  listingId   String
+  listing     Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  storageKey  String
+  hash        String?  // pHash / dHash for duplicate image detection
+  sortOrder   Int      @default(0)
+  aiRiskScore Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model Verification {
+  id          String                @id @default(uuid())
+  userId      String
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        VerificationLevelType
+  status      String                @default("PENDING")
+  documentUrl String?
+  verifiedAt  DateTime?
+  createdAt   DateTime              @default(now())
+}
+
+model Report {
+  id          String       @id @default(uuid())
+  reporterId  String
+  reporter    User         @relation(fields: [reporterId], references: [id])
+  targetType  String       // LISTING or USER
+  targetId    String
+  reason      ReportReason
+  description String
+  status      String       @default("OPEN")
+  priority    String       @default("MEDIUM")
+  aiRiskScore Int          @default(0)
+  createdAt   DateTime     @default(now())
+}
+
+model AIAnalysis {
+  id           String   @id @default(uuid())
+  entityType   String   // LISTING, IMAGE, BROKER, TEXT
+  entityId     String
+  model        String   @default("shield-ai-v1")
+  riskScore    Int
+  confidence   Float
+  reasonsJson  String   // JSON string of risk reasons
+  createdAt    DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  actor      User     @relation(fields: [actorId], references: [id])
+  action     String
+  targetType String
+  targetId   String
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+}
