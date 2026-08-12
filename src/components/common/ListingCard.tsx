@@ -1,121 +1,138 @@
 import React from 'react';
-import { Heart, MapPin, Train, ShieldCheck, Sparkles, CheckCircle2 } from 'lucide-react';
+import { 
+  Heart, ShieldCheck, MapPin, Train, Eye, Video, 
+  Sparkles, CheckCircle2, AlertTriangle, ArrowRight 
+} from 'lucide-react';
 import { Listing } from '../../types';
-import { TrustScoreBadge } from './TrustScoreBadge';
 import { useAppStore } from '../../stores/useAppStore';
+import { TrustScoreBadge } from './TrustScoreBadge';
 
 interface ListingCardProps {
   listing: Listing;
 }
 
 export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
-  const { favorites, toggleFavorite, setCurrentView } = useAppStore();
-  const isFav = favorites.includes(listing.id);
+  const { 
+    setCurrentView, 
+    toggleFavorite, favorites 
+  } = useAppStore();
 
-  const formatPrice = (amount: number) => {
-    return new Intl.NumberFormat('uz-UZ').format(amount);
+  const favorite = favorites.includes(listing.id);
+
+  const handleCardClick = () => {
+    setCurrentView('LISTING_DETAIL', listing.id);
   };
 
   return (
-    <div
-      onClick={() => setCurrentView('LISTING_DETAIL', listing.id)}
-      className="group bg-white rounded-2xl border border-slate-200 shadow-card hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col cursor-pointer hover:-translate-y-1 relative"
-    >
-      {/* Listing Image Container */}
-      <div className="relative aspect-[4/3] w-full bg-slate-100 overflow-hidden">
+    <div className="group bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-card hover:shadow-xl transition-all duration-300 flex flex-col justify-between w-full max-w-full">
+      {/* Top Image Section */}
+      <div className="relative aspect-[4/3] w-full bg-slate-100 overflow-hidden cursor-pointer" onClick={handleCardClick}>
         <img
           src={listing.images[0]}
           alt={listing.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
-        
-        {/* Top Floating Badges */}
-        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10">
-          <TrustScoreBadge score={listing.trustScore} size="sm" showText={false} />
-          {listing.owner.isVerified && (
-            <span className="bg-emerald-600/95 text-white text-[11px] font-semibold px-2 py-0.5 rounded-full backdrop-blur-md flex items-center gap-1 shadow-sm">
-              <CheckCircle2 className="w-3 h-3" /> Egasi Verified
-            </span>
-          )}
-          {listing.isFeatured && (
-            <span className="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
-              <Sparkles className="w-3 h-3 fill-white" /> Top E'lon
-            </span>
-          )}
+
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-black/30 pointer-events-none" />
+
+        {/* Top Badges: Trust Score & Favorite */}
+        <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
+          <TrustScoreBadge score={listing.trustScore} />
+          
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFavorite(listing.id);
+            }}
+            className={`p-2 rounded-full backdrop-blur-md transition-transform active:scale-90 ${
+              favorite
+                ? 'bg-rose-500 text-white shadow-md'
+                : 'bg-slate-900/60 text-white hover:bg-slate-900/80'
+            }`}
+          >
+            <Heart className={`w-4 h-4 ${favorite ? 'fill-white' : ''}`} />
+          </button>
         </div>
 
-        {/* Favorite Heart Button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleFavorite(listing.id);
-          }}
-          className={`absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-md transition-transform active:scale-90 ${
-            isFav
-              ? 'bg-rose-500 text-white shadow-md'
-              : 'bg-slate-900/40 text-white hover:bg-slate-900/70'
-          }`}
-          title={isFav ? "Saralangandan chiqarish" : "Saralanganlarga qo'shish"}
-        >
-          <Heart className={`w-4 h-4 ${isFav ? 'fill-current' : ''}`} />
-        </button>
-
-        {/* Room & Area Overlay */}
-        <div className="absolute bottom-3 left-3 bg-slate-900/70 text-white text-xs px-2.5 py-1 rounded-lg backdrop-blur-sm">
-          {listing.rooms} xonali • {listing.area} m² • {listing.floor}/{listing.totalFloors}-qavat
-        </div>
-      </div>
-
-      {/* Listing Content */}
-      <div className="p-4 flex flex-col flex-1 justify-between">
-        <div>
-          <div className="flex items-baseline justify-between gap-2 mb-1.5">
-            <div className="text-lg font-bold text-slate-900">
-              {formatPrice(listing.price)}{' '}
-              <span className="text-xs font-normal text-slate-500">so'm/oy</span>
-            </div>
-            {listing.depositPrice > 0 && (
-              <span className="text-[11px] text-slate-500 font-medium">
-                Depozit: {formatPrice(listing.depositPrice)} so'm
+        {/* Bottom Image Overlay Badges */}
+        <div className="absolute bottom-3 left-3 right-3 flex flex-wrap items-center justify-between gap-1.5 text-white text-[10px] sm:text-xs">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="bg-slate-900/80 backdrop-blur-md px-2 py-0.5 rounded-md font-semibold border border-white/20">
+              {listing.rooms} xona • {listing.area} m²
+            </span>
+            {listing.hasVirtualTour && (
+              <span className="bg-emerald-600/90 backdrop-blur-md text-white font-bold px-2 py-0.5 rounded-md flex items-center gap-1 border border-emerald-400/30">
+                <Sparkles className="w-3 h-3 text-amber-300" /> 360° Tour
               </span>
             )}
           </div>
 
-          <h3 className="font-semibold text-slate-800 text-sm line-clamp-2 mb-2 group-hover:text-emerald-700 transition-colors">
+          {listing.owner.isVerified && (
+            <span className="bg-emerald-600 text-white font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5" /> Verified Owner
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Content Section */}
+      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3 w-full">
+        <div className="space-y-2">
+          {/* Location & District */}
+          <div className="flex items-center justify-between text-xs text-slate-500 flex-wrap gap-1">
+            <div className="flex items-center gap-1 font-medium text-slate-700 truncate max-w-[200px]">
+              <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span className="truncate">{listing.region}, {listing.district}</span>
+            </div>
+
+            {listing.metroStation && (
+              <div className="flex items-center gap-1 text-[11px] text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
+                <Train className="w-3 h-3" />
+                <span>{listing.metroStation} ({listing.metroDistanceMinutes} daq)</span>
+              </div>
+            )}
+          </div>
+
+          {/* Title */}
+          <h3 
+            onClick={handleCardClick}
+            className="font-extrabold text-sm sm:text-base text-slate-900 line-clamp-2 hover:text-emerald-700 cursor-pointer transition-colors leading-snug"
+          >
             {listing.title}
           </h3>
 
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-2">
-            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span className="truncate">{listing.district}, {listing.region}</span>
+          {/* AI Check Status Pill */}
+          <div className="flex items-center gap-2 pt-1 flex-wrap">
+            {listing.aiCheckStatus === 'APPROVED' ? (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" /> AI Checked • 0% Makler
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                <AlertTriangle className="w-3 h-3 text-amber-600" /> AI Review
+              </span>
+            )}
           </div>
-
-          {listing.metroStation && (
-            <div className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 text-[11px] px-2 py-0.5 rounded-md mb-2">
-              <Train className="w-3 h-3 text-blue-600" />
-              <span>{listing.metroStation} ({listing.metroDistanceMinutes} min)</span>
-            </div>
-          )}
         </div>
 
-        {/* Owner Info & Safety Signal */}
-        <div className="pt-3 border-t border-slate-100 flex items-center justify-between mt-2 text-xs">
-          <div className="flex items-center gap-2">
-            <img
-              src={listing.owner.avatar}
-              alt={listing.owner.name}
-              className="w-6 h-6 rounded-full object-cover border border-slate-200"
-            />
-            <span className="font-medium text-slate-700 truncate max-w-[120px]">
-              {listing.owner.name}
-            </span>
+        {/* Footer Price & Details CTA */}
+        <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+          <div>
+            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Oylik Ijara</div>
+            <div className="text-base sm:text-lg font-black text-emerald-800 tracking-tight">
+              {(listing.price / 1000000).toFixed(1)} <span className="text-xs font-bold text-slate-600">mln so'm</span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1 text-[11px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            Maklersiz
-          </div>
+          <button
+            onClick={handleCardClick}
+            className="bg-slate-900 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl transition-colors flex items-center gap-1 shadow-sm shrink-0"
+          >
+            <span>Batafsil</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
     </div>

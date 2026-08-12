@@ -1,20 +1,47 @@
 @import "tailwindcss";
 
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden !important;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 @layer base {
   body {
     background-color: #f8fafc;
     color: #0f172a;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
+  }
+  
+  img, video, iframe {
+    max-width: 100%;
+    height: auto;
+  }
+
+  button, input, select, textarea {
+    max-width: 100%;
   }
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: #f1f5f9;
@@ -33,6 +60,7 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.3);
+  max-width: 100%;
 }
 
 .glass-dark {
@@ -40,6 +68,7 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  max-width: 100%;
 }
 
 /* Shimmer / Skeleton pulse */
@@ -56,4 +85,26 @@
   background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
+}
+
+/* Media query overrides for 375px and 480px small screens */
+@media (max-width: 480px) {
+  .hero-title {
+    font-size: 1.75rem !important;
+    line-height: 1.25 !important;
+  }
+
+  .mobile-p-small {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  .mobile-text-shrink {
+    font-size: 0.75rem !important;
+  }
+
+  .mobile-stack {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
 }
