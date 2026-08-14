@@ -1,5 +1,5 @@
 import React from 'react';
-import { GraduationCap, Users, Train, Banknote, Sparkles } from 'lucide-react';
+import { GraduationCap, Users, Train, Banknote, Sparkles, ArrowRight } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 
 export const QuickCategories: React.FC = () => {
@@ -9,10 +9,11 @@ export const QuickCategories: React.FC = () => {
     {
       id: 'students',
       name: 'Talabalar uchun',
-      desc: 'TATU, INHA, WIUT yaqinida',
+      desc: 'TATU, INHA, WIUT',
       icon: GraduationCap,
-      color: 'bg-blue-500 text-white',
+      color: 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-blue-500/20',
       badge: 'Ommabop',
+      badgeColor: 'bg-amber-400 text-slate-900',
       action: () => {
         setCurrentView('STUDENT_PROGRAM');
       }
@@ -22,7 +23,7 @@ export const QuickCategories: React.FC = () => {
       name: 'Oilalar uchun',
       desc: '2-3 xonali tinch uylar',
       icon: Users,
-      color: 'bg-emerald-600 text-white',
+      color: 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-emerald-500/20',
       action: () => {
         setFilters({ roomsCount: 2, maxPrice: 8000000 });
         setCurrentView('SEARCH');
@@ -31,9 +32,9 @@ export const QuickCategories: React.FC = () => {
     {
       id: 'metro',
       name: 'Metro yaqinida',
-      desc: 'Piyoda 1-5 daqiqa masofa',
+      desc: '1-5 daqiqa masofa',
       icon: Train,
-      color: 'bg-indigo-600 text-white',
+      color: 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-indigo-500/20',
       action: () => {
         setFilters({ selectedMetro: 'Oybek' });
         setCurrentView('SEARCH');
@@ -42,9 +43,9 @@ export const QuickCategories: React.FC = () => {
     {
       id: 'affordable',
       name: 'Arzon uylar',
-      desc: '4.5 mln so\'mgacha uylar',
+      desc: '4.5 mln so\'mgacha',
       icon: Banknote,
-      color: 'bg-teal-600 text-white',
+      color: 'bg-gradient-to-br from-teal-500 to-emerald-700 text-white shadow-teal-500/20',
       action: () => {
         setFilters({ maxPrice: 4500000 });
         setCurrentView('SEARCH');
@@ -53,9 +54,11 @@ export const QuickCategories: React.FC = () => {
     {
       id: 'premium',
       name: 'Premium uylar',
-      desc: 'Top 90+ Trust Score uylar',
+      desc: 'Top 90+ Trust Score',
       icon: Sparkles,
-      color: 'bg-amber-500 text-white',
+      color: 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-amber-500/20',
+      badge: 'VIP',
+      badgeColor: 'bg-slate-900 text-amber-300 border border-amber-400/30',
       action: () => {
         setFilters({ minTrustScore: 85, onlyVerified: true });
         setCurrentView('SEARCH');
@@ -64,36 +67,39 @@ export const QuickCategories: React.FC = () => {
   ];
 
   return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-      <div className="flex items-center justify-between mb-4">
+    <section className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-8 w-full max-w-full overflow-x-hidden">
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-900">Tezkor Toifalar</h2>
-          <p className="text-xs text-slate-500">Kerakli turdagi kvartiralarni bir bosing va toping</p>
+          <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">Tezkor Toifalar</h2>
+          <p className="text-[11px] sm:text-xs text-slate-500">Kerakli turdagi kvartiralarni bir bosing va toping</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+      {/* Swipeable Pill Grid for Mobile */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 sm:gap-3 w-full">
         {categories.map((cat) => {
           const Icon = cat.icon;
           return (
             <button
               key={cat.id}
               onClick={cat.action}
-              className="group p-4 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all text-left flex flex-col justify-between relative overflow-hidden"
+              className="group p-3 sm:p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all text-left flex flex-col justify-between relative overflow-hidden active:scale-95"
             >
               {cat.badge && (
-                <span className="absolute top-2 right-2 bg-amber-400 text-slate-900 font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase">
+                <span className={`absolute top-2 right-2 font-extrabold text-[8px] sm:text-[9px] px-1.5 py-0.5 rounded ${cat.badgeColor}`}>
                   {cat.badge}
                 </span>
               )}
-              <div className={`w-10 h-10 rounded-xl ${cat.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
-                <Icon className="w-5 h-5" />
+
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl ${cat.color} flex items-center justify-center mb-2 sm:mb-3 shadow-md group-hover:scale-110 transition-transform`}>
+                <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
+
               <div>
-                <h3 className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors">
+                <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 group-hover:text-emerald-700 transition-colors leading-tight">
                   {cat.name}
                 </h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">{cat.desc}</p>
+                <p className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 font-medium truncate">{cat.desc}</p>
               </div>
             </button>
           );

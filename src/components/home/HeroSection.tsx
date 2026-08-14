@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, ShieldCheck, Sparkles, MapPin, Train, Home, CheckCircle2 } from 'lucide-react';
+import { Search, ShieldCheck, Sparkles, MapPin, Home, CheckCircle2, SlidersHorizontal } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { UZBEKISTAN_REGIONS } from '../../data/mockLocations';
 
@@ -15,6 +15,7 @@ export const HeroSection: React.FC = () => {
   const [localDistrict, setLocalDistrict] = useState(selectedDistrict);
   const [localRooms, setLocalRooms] = useState<number | null>(roomsCount);
   const [localMaxPrice, setLocalMaxPrice] = useState(maxPrice);
+  const [showAdvancedMobile, setShowAdvancedMobile] = useState(false);
 
   const activeRegionObj = UZBEKISTAN_REGIONS.find((r) => r.name === localRegion) || UZBEKISTAN_REGIONS[0];
   const availableDistricts = ['Barchasi', ...activeRegionObj.districts];
@@ -31,52 +32,52 @@ export const HeroSection: React.FC = () => {
   };
 
   return (
-    <section className="relative bg-gradient-to-b from-slate-900 via-slate-850 to-slate-900 text-white pt-12 pb-20 px-4 sm:px-6 overflow-hidden">
-      {/* Background Glow & Pattern */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full overflow-hidden pointer-events-none opacity-20">
-        <div className="absolute -top-40 left-1/4 w-96 h-96 bg-emerald-500 rounded-full blur-3xl" />
-        <div className="absolute top-20 right-1/4 w-96 h-96 bg-indigo-600 rounded-full blur-3xl" />
+    <section className="relative bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white pt-6 sm:pt-12 pb-10 sm:pb-16 px-3 sm:px-6 overflow-hidden">
+      {/* Background Glow & Ambient Light */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full overflow-hidden pointer-events-none opacity-25">
+        <div className="absolute -top-24 left-1/4 w-72 h-72 sm:w-96 sm:h-96 bg-emerald-500 rounded-full blur-3xl" />
+        <div className="absolute top-10 right-1/4 w-72 h-72 sm:w-96 sm:h-96 bg-teal-600 rounded-full blur-3xl" />
       </div>
 
-      <div className="max-w-5xl mx-auto text-center relative z-10 space-y-6">
+      <div className="max-w-4xl mx-auto text-center relative z-10 space-y-3 sm:space-y-5">
         {/* Shield AI Pill Badge */}
-        <div className="inline-flex items-center gap-2 bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs px-4 py-1.5 rounded-full shadow-emerald backdrop-blur-md">
-          <ShieldCheck className="w-4 h-4 text-emerald-400" />
+        <div className="inline-flex items-center gap-1.5 bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-[10px] sm:text-xs px-3 sm:px-4 py-1 rounded-full shadow-emerald backdrop-blur-md">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
           <span className="font-semibold">AI Anti-Scam & Trust Score Bilan Himoyalangan</span>
-          <Sparkles className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+          <Sparkles className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />
         </div>
 
         {/* Hero Title & Subtitle */}
-        <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight text-white">
-          Maklersiz <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-200">Kvartira Toping</span>
+        <h1 className="text-2xl xs:text-3xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight text-white">
+          Maklersiz <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-200">Kvartira Toping</span>
         </h1>
 
-        <p className="text-slate-300 text-sm sm:text-lg max-w-2xl mx-auto leading-relaxed">
-          O'zbekistonning barcha 12 viloyati hamda Toshkent bo'yicha to'g'ridan-to'g'ri egasidan ijaraga oling. 0% komissiya, 100% AI tekshiruvi.
+        <p className="text-slate-300 text-xs sm:text-base max-w-xl mx-auto leading-relaxed px-2">
+          O'zbekistonning 12 viloyati va Toshkent bo'yicha to'g'ridan-to'g'ri egasidan ijaraga oling. 0% komissiya, 100% AI tekshiruvi.
         </p>
 
-        {/* Hero Interactive Search Card */}
-        <div className="bg-white/95 backdrop-blur-xl text-slate-900 rounded-3xl p-4 sm:p-6 shadow-2xl border border-white/20 max-w-5xl mx-auto text-left mt-8">
-          <form onSubmit={handleHeroSearch} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              {/* Search Keyword */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-600 flex items-center gap-1">
-                  <Search className="w-3.5 h-3.5 text-emerald-600" /> Qidiruv
-                </label>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Kvartira yoki metro..."
-                  className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
+        {/* Hero Compact Mobile-Optimized Search Card */}
+        <div className="bg-white/95 backdrop-blur-xl text-slate-900 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-2xl border border-white/20 max-w-4xl mx-auto text-left mt-4 sm:mt-6">
+          <form onSubmit={handleHeroSearch} className="space-y-3 sm:space-y-4">
+            
+            {/* Top Search Input */}
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tuman, kvartira yoki metro..."
+                className="w-full bg-slate-100/90 border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all shadow-inner"
+              />
+              <Search className="w-4 h-4 text-emerald-600 absolute left-3 top-3" />
+            </div>
 
+            {/* Grid Selectors */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-xs">
               {/* Region Selector */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-600 flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-emerald-600" /> Viloyat / Shahar
+                <label className="text-[10px] sm:text-xs font-bold text-slate-600 flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-emerald-600 shrink-0" /> Viloyat
                 </label>
                 <select
                   value={localRegion}
@@ -84,9 +85,9 @@ export const HeroSection: React.FC = () => {
                     setLocalRegion(e.target.value);
                     setLocalDistrict('Barchasi');
                   }}
-                  className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full bg-slate-100 border border-slate-200 rounded-xl px-2.5 py-2 font-semibold text-[11px] sm:text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
-                  <option value="Barchasi">Barcha Hududlar</option>
+                  <option value="Barchasi">Barchasi</option>
                   {UZBEKISTAN_REGIONS.map((r) => (
                     <option key={r.id} value={r.name}>{r.name}</option>
                   ))}
@@ -95,13 +96,13 @@ export const HeroSection: React.FC = () => {
 
               {/* District Selector */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-600 flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-emerald-600" /> Tuman / Shahar
+                <label className="text-[10px] sm:text-xs font-bold text-slate-600 flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-emerald-600 shrink-0" /> Tuman
                 </label>
                 <select
                   value={localDistrict}
                   onChange={(e) => setLocalDistrict(e.target.value)}
-                  className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full bg-slate-100 border border-slate-200 rounded-xl px-2.5 py-2 font-semibold text-[11px] sm:text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   {availableDistricts.map((d) => (
                     <option key={d} value={d}>{d}</option>
@@ -111,28 +112,28 @@ export const HeroSection: React.FC = () => {
 
               {/* Rooms Selector */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-600 flex items-center gap-1">
-                  <Home className="w-3.5 h-3.5 text-emerald-600" /> Xonalar Soni
+                <label className="text-[10px] sm:text-xs font-bold text-slate-600 flex items-center gap-1">
+                  <Home className="w-3 h-3 text-emerald-600 shrink-0" /> Xonalar
                 </label>
                 <select
                   value={localRooms ?? ''}
                   onChange={(e) => setLocalRooms(e.target.value ? Number(e.target.value) : null)}
-                  className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full bg-slate-100 border border-slate-200 rounded-xl px-2.5 py-2 font-semibold text-[11px] sm:text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   <option value="">Barchasi</option>
-                  <option value="1">1 xonali</option>
-                  <option value="2">2 xonali</option>
-                  <option value="3">3 xonali</option>
-                  <option value="4">4+ xonali</option>
+                  <option value="1">1 xona</option>
+                  <option value="2">2 xona</option>
+                  <option value="3">3 xona</option>
+                  <option value="4">4+ xona</option>
                 </select>
               </div>
 
-              {/* Max Price Range */}
+              {/* Max Price Range Slider */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-600 flex items-center justify-between">
+                <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold text-slate-600">
                   <span>Maks Narx</span>
-                  <span className="text-emerald-700 font-bold">{(localMaxPrice / 1000000).toFixed(1)} mln so'm</span>
-                </label>
+                  <span className="text-emerald-700 font-extrabold">{(localMaxPrice / 1000000).toFixed(1)}m</span>
+                </div>
                 <input
                   type="range"
                   min={2000000}
@@ -146,15 +147,15 @@ export const HeroSection: React.FC = () => {
             </div>
 
             {/* CTA Search Button & Trust Indicator */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-100">
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>O'zbekistonning 12 ta viloyati va 120+ tumanida halol va maklersiz e'lonlar!</span>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-2 border-t border-slate-100">
+              <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-500 font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>12 viloyat va 120+ tumanida halol e'lonlar!</span>
               </div>
 
               <button
                 type="submit"
-                className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 text-sm transition-all hover:scale-105"
+                className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold px-6 py-2.5 sm:py-3 rounded-xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 text-xs sm:text-sm transition-all hover:scale-105 active:scale-95"
               >
                 <Search className="w-4 h-4" />
                 <span>Kvartira Izlash</span>

@@ -6,58 +6,59 @@ export const TrustStats: React.FC = () => {
     {
       label: 'Verified Uy Egalari',
       value: '1,240+',
-      sub: 'Pasport va kadastr bilan tasdiqlangan',
+      sub: 'Pasport & kadastr bilan',
       icon: UserCheck,
-      color: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+      color: 'text-emerald-400 bg-emerald-950/60 border-emerald-500/30',
     },
     {
-      label: 'Bloklangan Makler va Firibgarlar',
+      label: 'Bloklangan Maklerlar',
       value: '840+',
-      sub: 'AI anti-scam tizimi tomonidan aniqlangan',
+      sub: 'AI aniqlagan firibgarlar',
       icon: ShieldAlert,
-      color: 'text-rose-600 bg-rose-50 border-rose-200',
+      color: 'text-rose-400 bg-rose-950/60 border-rose-500/30',
     },
     {
       label: 'Faol E\'lonlar',
       value: '3,500+',
-      sub: 'Barchasi AI riski past deb baholangan',
+      sub: 'AI riski past deb baholangan',
       icon: ShieldCheck,
-      color: 'text-blue-600 bg-blue-50 border-blue-200',
+      color: 'text-blue-400 bg-blue-950/60 border-blue-500/30',
     },
     {
-      label: 'Muvaffaqiyatli Ijaralar',
+      label: 'Komissiyasiz Ijaralar',
       value: '2,100+',
-      sub: 'Komissiyasiz va halol amalga oshirilgan',
+      sub: 'Halol va bevosita ijara',
       icon: CheckCircle,
-      color: 'text-amber-600 bg-amber-50 border-amber-200',
+      color: 'text-amber-400 bg-amber-950/60 border-amber-500/30',
     },
   ];
 
   return (
-    <section className="bg-slate-900 text-white py-12 px-4 sm:px-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center max-w-2xl mx-auto mb-8 space-y-2">
-          <h2 className="text-2xl font-black text-white">Platformadagi Ishonch Ko'rsatkichlari</h2>
-          <p className="text-xs text-slate-400">
-            Maklersiz.uz foydalanuvchilarining xavfsizligini ta'minlash uchun har kuni 24/7 rejimida AI va Moderatorlar ishlaydi.
+    <section className="bg-slate-950 text-white py-8 sm:py-12 px-3 sm:px-6 w-full max-w-full overflow-x-hidden border-y border-slate-850">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="text-center max-w-xl mx-auto space-y-1.5 px-2">
+          <h2 className="text-lg sm:text-2xl font-black text-white tracking-tight">Platformadagi Ishonch Ko'rsatkichlari</h2>
+          <p className="text-[11px] sm:text-xs text-slate-400 leading-relaxed">
+            Maklersiz.uz foydalanuvchilarining xavfsizligini ta'minlash uchun har kuni 24/7 AI va Moderatorlar ishlaydi.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Compact 2x2 Grid for Mobile */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4 w-full">
           {stats.map((stat, idx) => {
             const Icon = stat.icon;
             return (
               <div
                 key={idx}
-                className="bg-slate-850 p-5 rounded-2xl border border-slate-800 flex flex-col justify-between hover:border-slate-700 transition-colors"
+                className="bg-slate-900/90 p-3.5 sm:p-5 rounded-2xl border border-slate-800 flex flex-col justify-between hover:border-emerald-500/40 transition-colors shadow-sm"
               >
-                <div className={`w-10 h-10 rounded-xl border flex items-center justify-center mb-3 ${stat.color}`}>
-                  <Icon className="w-5 h-5" />
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl border flex items-center justify-center mb-2 sm:mb-3 ${stat.color}`}>
+                  <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
                 <div>
-                  <div className="text-3xl font-extrabold text-white tracking-tight">{stat.value}</div>
-                  <div className="text-sm font-bold text-slate-200 mt-1">{stat.label}</div>
-                  <div className="text-[11px] text-slate-400 mt-1">{stat.sub}</div>
+                  <div className="text-xl sm:text-3xl font-black text-white tracking-tight">{stat.value}</div>
+                  <div className="text-xs sm:text-sm font-extrabold text-slate-200 mt-0.5 leading-snug">{stat.label}</div>
+                  <div className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 truncate">{stat.sub}</div>
                 </div>
               </div>
             );
