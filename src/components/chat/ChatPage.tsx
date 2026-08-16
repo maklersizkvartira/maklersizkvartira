@@ -28,7 +28,7 @@ export const ChatPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 min-h-[85vh] flex flex-col md:flex-row gap-6">
+    <div className="max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6 min-h-[70vh] flex flex-col md:flex-row gap-4 sm:gap-6 w-full overflow-x-hidden">
       {/* Left Column: Conversations List */}
       <div className="w-full md:w-80 bg-white rounded-2xl border border-slate-200 shadow-card flex flex-col overflow-hidden shrink-0">
         <div className="p-4 border-b border-slate-100 bg-slate-50">

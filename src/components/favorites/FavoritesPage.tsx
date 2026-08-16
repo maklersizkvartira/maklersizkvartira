@@ -9,25 +9,26 @@ export const FavoritesPage: React.FC = () => {
   const favListings = listings.filter((l) => favorites.includes(l.id));
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 min-h-[85vh] space-y-6">
-      <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-            <Heart className="w-6 h-6 text-rose-600 fill-rose-600" /> Saralangan Kvartiralar
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-5 sm:py-8 min-h-[85vh] space-y-5">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-3">
+        <div className="min-w-0">
+          <h1 className="text-lg sm:text-2xl font-black text-slate-900 flex items-center gap-2">
+            <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-rose-600 fill-rose-600 shrink-0" />
+            <span className="truncate">Saralanganlar</span>
           </h1>
-          <p className="text-xs text-slate-500">Saqlab qo'yilgan e'lonlar ({favListings.length} ta)</p>
+          <p className="text-xs text-slate-500">{favListings.length} ta e'lon</p>
         </div>
 
         <button
           onClick={() => setCurrentView('SEARCH')}
-          className="text-xs font-bold text-slate-700 hover:text-emerald-700 bg-white border border-slate-200 px-3.5 py-2 rounded-xl"
+          className="text-xs font-bold text-slate-700 bg-white border border-slate-200 px-3 py-2 rounded-xl shrink-0"
         >
-          ← Qidiruvga O'tish
+          Qidiruv
         </button>
       </div>
 
       {favListings.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-6">
           {favListings.map((listing) => (
             <ListingCard key={listing.id} listing={listing} />
           ))}

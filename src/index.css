@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+@theme {
+  --breakpoint-xs: 25rem;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
 }
@@ -10,6 +14,7 @@ html, body {
   overflow-x: hidden !important;
   margin: 0;
   padding: 0;
+  -webkit-text-size-adjust: 100%;
 }
 
 #root {
@@ -17,6 +22,7 @@ html, body {
   max-width: 100%;
   overflow-x: hidden;
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -54,7 +60,6 @@ html, body {
   background: #94a3b8;
 }
 
-/* Glassmorphism & custom components */
 .glass-panel {
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
@@ -71,14 +76,9 @@ html, body {
   max-width: 100%;
 }
 
-/* Shimmer / Skeleton pulse */
 @keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 .animate-shimmer {
@@ -87,11 +87,22 @@ html, body {
   animation: shimmer 1.5s infinite;
 }
 
-/* Media query overrides for 375px and 480px small screens */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 @media (max-width: 480px) {
   .hero-title {
-    font-size: 1.75rem !important;
-    line-height: 1.25 !important;
+    font-size: 1.65rem !important;
+    line-height: 1.2 !important;
   }
 
   .mobile-p-small {
@@ -107,4 +118,37 @@ html, body {
     flex-direction: column !important;
     align-items: stretch !important;
   }
+}
+
+
+@keyframes sheet-up {
+  from { transform: translateY(110%); }
+  to { transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modal-pop {
+  from { transform: scale(0.96) translateY(12px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+.auth-overlay {
+  animation: fade-in 0.2s ease-out;
+}
+.auth-sheet {
+  animation: sheet-up 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+}
+@media (min-width: 640px) {
+  .auth-sheet {
+    animation: modal-pop 0.28s ease-out;
+  }
+}
+
+@keyframes listing-swap {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.listing-swap {
+  animation: listing-swap 0.45s ease-out;
 }

@@ -1,41 +1,81 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { ListingCard } from '../common/ListingCard';
 
+const PAGE_SIZE = 4;
+
 export const AIRecommended: React.FC = () => {
   const { listings, setCurrentView } = useAppStore();
+  const [start, setStart] = useState(0);
+  const [paused, setPaused] = useState(false);
 
-  // Filter listings with highest trust score
-  const recommendedListings = listings
-    .filter((l) => l.trustScore >= 70 && l.aiCheckStatus === 'APPROVED')
-    .slice(0, 4);
+  const pool = useMemo(() => listings, [listings]);
+
+  useEffect(() => {
+    if (pool.length <= 1 || paused) return;
+    const id = window.setInterval(() => {
+      setStart((s) => (s + 1) % pool.length);
+    }, 3000);
+    return () => window.clearInterval(id);
+  }, [pool.length, paused]);
+
+  const visible = useMemo(() => {
+    if (pool.length === 0) return [];
+    const size = Math.min(PAGE_SIZE, pool.length);
+    return Array.from({ length: size }, (_, i) => pool[(start + i) % pool.length]);
+  }, [pool, start]);
+
+  const pageCount = Math.max(1, pool.length);
+  const pageIndex = start % pageCount;
 
   return (
-    <section className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-10 w-full max-w-full overflow-x-hidden">
+    <section className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-10 w-full overflow-x-hidden">
       <div className="flex flex-row items-center justify-between mb-4 gap-2">
         <div>
           <div className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold text-emerald-800 bg-emerald-100/80 px-2.5 py-0.5 rounded-full mb-1 border border-emerald-200">
             <Sparkles className="w-3 h-3 fill-emerald-600" /> Shield AI Tavsiyalari
           </div>
           <h2 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight">Eng Ishonchli E'lonlar</h2>
-          <p className="text-[11px] sm:text-xs text-slate-500 hidden xs:block">AI va hujjatlar orqali 100% tekshirilgan uylar</p>
+          <p className="text-[11px] sm:text-xs text-slate-500">Maklersiz, egasidan to'g'ridan-to'g'ri</p>
         </div>
 
         <button
           onClick={() => setCurrentView('SEARCH')}
-          className="text-xs font-extrabold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 hover:underline group shrink-0 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 transition-colors"
+          className="text-xs font-extrabold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 group shrink-0 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 transition-colors"
         >
           <span>Barchasi</span>
           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full">
-        {recommendedListings.map((listing) => (
-          <ListingCard key={listing.id} listing={listing} />
+      <div
+        className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-6 w-full"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onTouchStart={() => setPaused(true)}
+      >
+        {visible.map((listing) => (
+          <div key={`${start}-${listing.id}`} className="listing-swap min-w-0">
+            <ListingCard listing={listing} />
+          </div>
         ))}
       </div>
+
+      {pageCount > 1 && (
+        <div className="flex items-center justify-center gap-1.5 mt-4">
+          {Array.from({ length: pageCount }).map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setStart(i)}
+              className={`h-1.5 rounded-full transition-all ${
+                i === pageIndex ? 'w-5 bg-emerald-600' : 'w-1.5 bg-slate-300'
+              }`}
+              aria-label={`Sahifa ${i + 1}`}
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 };

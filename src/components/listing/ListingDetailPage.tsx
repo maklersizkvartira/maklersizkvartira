@@ -26,6 +26,7 @@ export const ListingDetailPage: React.FC = () => {
   const listing = listings.find((l) => l.id === selectedListingId) || listings[0];
   const isFav = favorites.includes(listing.id);
 
+
   const formatPrice = (amount: number) => new Intl.NumberFormat('uz-UZ').format(amount);
 
   const handleReportSubmit = (e: React.FormEvent) => {
@@ -38,25 +39,25 @@ export const ListingDetailPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8 min-h-[85vh]">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-5 sm:py-6 space-y-6 sm:space-y-8 min-h-[85vh] w-full overflow-x-hidden">
       {/* Back Button & Top Actions */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 min-w-0">
         <button
           onClick={() => setCurrentView('SEARCH')}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-emerald-700 bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-emerald-700 bg-white border border-slate-200 px-2.5 sm:px-3 py-1.5 rounded-xl shadow-sm transition-colors shrink-0"
         >
-          <ArrowLeft className="w-4 h-4" /> Orqaga (Qidiruv)
+          <ArrowLeft className="w-4 h-4" /> <span className="hidden xs:inline">Orqaga</span>
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             onClick={() => toggleFavorite(listing.id)}
-            className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border transition-all ${
+            className={`flex items-center gap-1.5 text-xs font-bold px-2.5 sm:px-3 py-1.5 rounded-xl border transition-all ${
               isFav ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
             }`}
           >
             <Heart className={`w-4 h-4 ${isFav ? 'fill-current' : ''}`} />
-            {isFav ? 'Saralangan' : 'Saqlash'}
+            <span className="hidden sm:inline">{isFav ? 'Saralangan' : 'Saqlash'}</span>
           </button>
 
           <button
@@ -64,16 +65,16 @@ export const ListingDetailPage: React.FC = () => {
               navigator.clipboard.writeText(window.location.href);
               alert("E'lon havolasi ko'chirildi!");
             }}
-            className="flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 px-3 py-1.5 rounded-xl hover:bg-slate-50 transition-colors"
+            className="flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 px-2.5 sm:px-3 py-1.5 rounded-xl hover:bg-slate-50 transition-colors"
           >
-            <Share2 className="w-4 h-4" /> Ulashish
+            <Share2 className="w-4 h-4" /> <span className="hidden sm:inline">Ulashish</span>
           </button>
 
           <button
             onClick={() => setShowReportModal(true)}
-            className="flex items-center gap-1 text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-xl hover:bg-rose-100 transition-colors"
+            className="flex items-center gap-1 text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2.5 sm:px-3 py-1.5 rounded-xl hover:bg-rose-100 transition-colors"
           >
-            <Flag className="w-4 h-4" /> Shikoyat Qilish
+            <Flag className="w-4 h-4" /> <span className="hidden sm:inline">Shikoyat</span>
           </button>
         </div>
       </div>
@@ -117,7 +118,7 @@ export const ListingDetailPage: React.FC = () => {
       {/* Media Gallery Section */}
       <div className="space-y-3">
         {/* Media Switcher Tabs */}
-        <div className="flex items-center gap-2 border-b border-slate-200 pb-2 text-xs font-bold">
+        <div className="flex items-center gap-2 border-b border-slate-200 pb-2 text-xs font-bold overflow-x-auto hide-scrollbar">
           <button
             onClick={() => setActiveMedia('IMAGE')}
             className={`px-3 py-1.5 rounded-lg flex items-center gap-1 ${activeMedia === 'IMAGE' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
@@ -143,7 +144,7 @@ export const ListingDetailPage: React.FC = () => {
         </div>
 
         {/* Media Display Viewer */}
-        <div className="aspect-[16/9] md:aspect-[21/9] w-full bg-slate-900 rounded-3xl overflow-hidden relative shadow-lg">
+        <div className="aspect-[4/3] sm:aspect-[16/9] md:aspect-[21/9] w-full bg-slate-900 rounded-2xl sm:rounded-3xl overflow-hidden relative shadow-lg">
           {activeMedia === 'IMAGE' && (
             <img
               src={listing.images[activeImageIndex]}

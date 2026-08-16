@@ -1,5 +1,5 @@
 import React from 'react';
-import { GraduationCap, Users, Train, Banknote, Sparkles, ArrowRight } from 'lucide-react';
+import { GraduationCap, Users, Train, Banknote, Sparkles } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 
 export const QuickCategories: React.FC = () => {
@@ -67,7 +67,7 @@ export const QuickCategories: React.FC = () => {
   ];
 
   return (
-    <section className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-8 w-full max-w-full overflow-x-hidden">
+    <section className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-8 w-full overflow-x-hidden">
       <div className="flex items-center justify-between mb-3 sm:mb-4">
         <div>
           <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">Tezkor Toifalar</h2>
@@ -75,15 +75,14 @@ export const QuickCategories: React.FC = () => {
         </div>
       </div>
 
-      {/* Swipeable Pill Grid for Mobile */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 sm:gap-3 w-full">
+      <div className="flex md:grid md:grid-cols-5 gap-2.5 sm:gap-3 overflow-x-auto hide-scrollbar snap-x snap-mandatory pb-1 -mx-3 px-3 md:mx-0 md:px-0 md:overflow-visible">
         {categories.map((cat) => {
           const Icon = cat.icon;
           return (
             <button
               key={cat.id}
               onClick={cat.action}
-              className="group p-3 sm:p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all text-left flex flex-col justify-between relative overflow-hidden active:scale-95"
+              className="group p-3 sm:p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all text-left flex flex-col justify-between relative overflow-hidden active:scale-95 min-w-[148px] w-[148px] sm:min-w-[160px] sm:w-[160px] md:w-auto md:min-w-0 snap-start shrink-0"
             >
               {cat.badge && (
                 <span className={`absolute top-2 right-2 font-extrabold text-[8px] sm:text-[9px] px-1.5 py-0.5 rounded ${cat.badgeColor}`}>

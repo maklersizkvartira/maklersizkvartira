@@ -9,7 +9,7 @@ export const ShieldMascot: React.FC = () => {
   if (!aiMascotMessage) return null;
 
   return (
-    <div className="fixed bottom-20 right-4 z-40 md:bottom-6 md:right-6 max-w-sm transition-all duration-300">
+    <div className="fixed bottom-[5.75rem] right-3 left-3 z-40 md:left-auto md:bottom-6 md:right-6 max-w-sm md:w-auto ml-auto transition-all duration-300 pb-safe">
       {isExpanded ? (
         <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-2xl border border-emerald-500/40 backdrop-blur-lg animate-in slide-in-from-bottom-5">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">

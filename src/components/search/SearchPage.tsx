@@ -90,7 +90,7 @@ export const SearchPage: React.FC = () => {
   }, [listings, searchQuery, selectedRegion, selectedDistrict, selectedMetro, selectedUniversity, maxPrice, roomsCount, onlyVerified, minTrustScore, sortBy]);
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-8 min-h-[80vh] w-full max-w-full overflow-x-hidden">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-5 sm:py-8 min-h-[80vh] w-full overflow-x-hidden">
       {/* Search Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
@@ -116,7 +116,7 @@ export const SearchPage: React.FC = () => {
             <select
               value={sortBy}
               onChange={(e) => setFilters({ sortBy: e.target.value as any })}
-              className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+              className="bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm max-w-[180px] sm:max-w-none min-w-0"
             >
               <option value="TRUST">Eng Ishonchli (Trust Score)</option>
               <option value="PRICE_LOW">Eng Arzon Narx</option>
@@ -282,7 +282,7 @@ export const SearchPage: React.FC = () => {
         {/* Right Listings Grid */}
         <div className="lg:col-span-3 w-full">
           {filteredListings.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-6 w-full">
               {filteredListings.map((listing) => (
                 <ListingCard key={listing.id} listing={listing} />
               ))}
