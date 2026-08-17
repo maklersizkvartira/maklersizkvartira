@@ -88,3 +88,9 @@ backend/dist
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Python cache
+__pycache__/
+*.pyc
+backend/__pycache__/
+backend/app/__pycache__/
