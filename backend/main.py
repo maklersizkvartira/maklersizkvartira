@@ -6,7 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from app.services.ai_engine import scan_listing_ai, estimate_listing_price, generate_listing_copy
+try:
+    from app.services.ai_engine import scan_listing_ai, estimate_listing_price, generate_listing_copy
+except ImportError:
+    from backend.app.services.ai_engine import scan_listing_ai, estimate_listing_price, generate_listing_copy
 
 app = FastAPI(
     title="Maklersiz.uz Python Backend API",
