@@ -109,15 +109,18 @@ export const AuthModal: React.FC = () => {
               type="button"
               disabled={busy}
               onClick={async () => {
+                const userRealName = name.trim() || prompt("Google Akkauntingizdagi Ismingizni kiriting:", "");
+                if (!userRealName || !userRealName.trim()) return;
+                const userRealPhone = phone.trim() || prompt("Bog'lanish uchun Telefon Raqamingizni kiriting:", "+998 90 123 45 67");
+                if (!userRealPhone || !userRealPhone.trim()) return;
+
                 setBusy(true);
                 setError('');
-                const gName = role === 'OWNER' ? 'Google Egasi' : 'Google Talaba';
-                const gPhone = `+998 93 ${Math.floor(1000000 + Math.random() * 9000000)}`;
                 try {
-                  const user = await ApiService.register(gName, gPhone, role);
+                  const user = await ApiService.register(userRealName.trim(), userRealPhone.trim(), role);
                   login(user);
                 } catch {
-                  login({ id: `user-${Date.now()}`, name: gName, phone: gPhone, role });
+                  login({ id: `user-${Date.now()}`, name: userRealName.trim(), phone: userRealPhone.trim(), role });
                 } finally {
                   setBusy(false);
                 }
