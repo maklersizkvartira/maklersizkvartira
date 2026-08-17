@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { PlusCircle, Upload, CheckCircle2, ShieldCheck, AlertTriangle, ArrowRight } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { PlusCircle, Upload, CheckCircle2, ShieldCheck, AlertTriangle, ArrowRight, Trash2 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { Listing } from '../../types';
 import { MOCK_OWNERS } from '../../data/mockUsers';
@@ -10,6 +10,7 @@ import { writeListingCopy, estimatePrice, analyzePhotos, scanListingDeep, format
 
 export const CreateListingPage: React.FC = () => {
   const { addListing, setCurrentView, currentUser, setShowAuth, listings } = useAppStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState(1);
   const [title, setTitle] = useState('');
@@ -30,10 +31,7 @@ export const CreateListingPage: React.FC = () => {
   const [utilities, setUtilities] = useState(true);
   const [pets, setPets] = useState(false);
   const [parking, setParking] = useState(true);
-  const [images] = useState<string[]>([
-    'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=1200',
-    'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=1200'
-  ]);
+  const [images, setImages] = useState<string[]>([]);
   const [isScanningAI, setIsScanningAI] = useState(false);
   const [scan, setScan] = useState<ListingScanResult | null>(null);
 
@@ -61,6 +59,31 @@ export const CreateListingPage: React.FC = () => {
     );
   }
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setImages((prev) => [...prev, reader.result as string]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  const removeImage = (indexToRemove: number) => {
+    setImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const finalImages = images.length > 0 ? images : [
+    'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=1200',
+    'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=1200'
+  ];
+
   const runScan = async () => {
     setStep(4);
     setIsScanningAI(true);
@@ -69,7 +92,7 @@ export const CreateListingPage: React.FC = () => {
     const descText = description || "To'g'ridan-to'g'ri egasidan shinam kvartira.";
     const local = scanListingDeep(titleText, descText, price, rooms, {
       phone: currentUser.phone,
-      images,
+      images: finalImages,
       district,
       area,
       otherListings: listings.map((l) => ({ images: l.images, phone: l.owner.phone, price: l.price, district: l.district, rooms: l.rooms })),
@@ -123,7 +146,7 @@ export const CreateListingPage: React.FC = () => {
       internet: true,
       airConditioning: true,
       washingMachine: true,
-      images,
+      images: finalImages,
       hasVirtualTour: true,
       owner,
       trustScore: scan.trustScore,
@@ -325,26 +348,91 @@ export const CreateListingPage: React.FC = () => {
 
         {step === 3 && (
           <div className="space-y-4">
-            <h3 className="font-bold text-base text-slate-900 border-b pb-2">Rasmlar</h3>
-            <div className="border-2 border-dashed border-emerald-300 bg-emerald-50/40 rounded-2xl p-6 text-center space-y-2">
-              <Upload className="w-8 h-8 text-emerald-600 mx-auto" />
-              <div className="font-bold text-slate-800">Hozircha namuna rasmlar qo'yildi</div>
-              <p className="text-sm text-slate-500">Keyin o'z rasmlaringizni yuklaysiz.</p>
+            <div className="flex items-center justify-between border-b pb-2">
+              <h3 className="font-bold text-base text-slate-900">Rasmlar ({images.length} ta yuklandi)</h3>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-colors flex items-center gap-1.5"
+              >
+                <PlusCircle className="w-4 h-4" /> Rasm qo'shish
+              </button>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              {images.map((img, idx) => (
-                <div key={idx} className="relative aspect-[4/3] rounded-xl overflow-hidden border border-slate-200">
-                  <img src={img} alt="preview" className="w-full h-full object-cover" />
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleImageUpload}
+            />
+
+            {/* Clickable Upload Zone */}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-emerald-400 hover:border-emerald-600 bg-emerald-50/50 hover:bg-emerald-50 rounded-2xl p-6 text-center space-y-2 cursor-pointer transition-all"
+            >
+              <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                <Upload className="w-6 h-6" />
+              </div>
+              <div className="font-bold text-slate-800 text-sm">
+                Kvartirangiz rasmlarini yuklash uchun bosing
+              </div>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Telefoningiz yoki kompyuteringizdan rasmlarni tanlang (JPG, PNG, WEBP). Bir vaqtda bir nechta rasm tanlashingiz mumkin.
+              </p>
+              <button
+                type="button"
+                className="bg-white border border-slate-300 text-slate-800 font-bold text-xs px-4 py-2 rounded-xl shadow-sm hover:bg-slate-50 transition-colors"
+              >
+                Fayllarni tanlash
+              </button>
+            </div>
+
+            {/* Uploaded Images Preview Grid */}
+            {images.length > 0 ? (
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-slate-700">Yuklangan rasmlaringiz:</span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {images.map((img, idx) => (
+                    <div key={idx} className="relative aspect-[4/3] rounded-xl overflow-hidden border border-slate-200 group shadow-sm">
+                      <img src={img} alt={`preview-${idx}`} className="w-full h-full object-cover" />
+                      {idx === 0 && (
+                        <span className="absolute top-1.5 left-1.5 bg-emerald-600 text-white font-bold text-[10px] px-2 py-0.5 rounded-md shadow-md">
+                          Asosiy rasm
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeImage(idx);
+                        }}
+                        className="absolute top-1.5 right-1.5 bg-slate-900/80 hover:bg-rose-600 text-white p-1.5 rounded-full transition-colors shadow-md"
+                        title="O'chirish"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl text-xs text-amber-800 font-medium">
+                Siz hali shaxsiy rasm yuklamadingiz. Yuqoridagi yashil joyni bosib telefoningizdan kvartira rasmlarini tanlang.
+              </div>
+            )}
+
             {(() => {
-              const photo = analyzePhotos({ rooms, furnished, images, washingMachine: true, airConditioning: true });
+              const photo = analyzePhotos({ rooms, furnished, images: finalImages, washingMachine: true, airConditioning: true });
               return (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-left text-sm">
-                  <div className="font-black text-slate-900 mb-1">AI rasm tahlili</div>
-                  <div className="text-slate-700">Xonalar: {photo.roomsFound.join(', ')}</div>
-                  <div className="text-slate-700">{photo.furnishedText}. {photo.condition}</div>
+                  <div className="font-black text-slate-900 mb-1 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" /> AI rasm tahlili
+                  </div>
+                  <div className="text-slate-700 text-xs">Xonalar: {photo.roomsFound.join(', ')}</div>
+                  <div className="text-slate-700 text-xs">{photo.furnishedText}. {photo.condition}</div>
                 </div>
               );
             })()}
