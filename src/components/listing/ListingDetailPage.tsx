@@ -311,23 +311,23 @@ export const ListingDetailPage: React.FC = () => {
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
               <div className="flex items-center gap-3">
                 <img
-                  src={listing.owner.avatar}
-                  alt={listing.owner.name}
+                  src={listing.owner?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300'}
+                  alt={listing.owner?.name || 'Uy Egasi'}
                   className="w-12 h-12 rounded-full object-cover border-2 border-emerald-500"
                 />
                 <div>
                   <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1">
-                    {listing.owner.name}
+                    {listing.owner?.name || 'Uy Egasi'}
                   </h4>
                   <p className="text-[11px] text-slate-500">
-                    A'zo bo'lgan: {listing.owner.joinedDate} • {listing.owner.successfulRentals} muvaffaqiyatli ijara
+                    A'zo bo'lgan: {listing.owner?.joinedDate || '2024'} • {listing.owner?.successfulRentals || 0} muvaffaqiyatli ijara
                   </p>
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-1.5 pt-1">
-                <TrustScoreBadge score={listing.owner.trustScore} size="sm" />
-                <VerificationBadge level={listing.owner.verificationLevel} size="sm" />
+                <TrustScoreBadge score={listing.owner?.trustScore || 90} size="sm" />
+                <VerificationBadge level={listing.owner?.verificationLevel || 4} size="sm" />
               </div>
             </div>
 

@@ -3,6 +3,7 @@ import { UserRole, Listing, ReportItem, VerificationRequest, ChatMessage, Conver
 import { MOCK_LISTINGS } from '../data/mockListings';
 import { MOCK_OWNERS } from '../data/mockUsers';
 import { MOCK_REPORTS, MOCK_VERIFICATIONS } from '../data/mockAdminData';
+import { ApiService } from '../services/apiService';
 
 export type ViewState =
   | 'HOME'
@@ -57,6 +58,7 @@ interface AppStore {
   addXp: (amount: number, reason: string) => void;
 
   listings: Listing[];
+  fetchListings: () => Promise<void>;
   addListing: (newListing: Listing) => void;
   removeListing: (listingId: string) => void;
 
@@ -154,6 +156,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
   }),
 
   listings: [...extraListings, ...MOCK_LISTINGS],
+  fetchListings: async () => {
+    try {
+      const remote = await ApiService.getListings();
+      if (remote && remote.length > 0) {
+        set((state) => {
+          const extras = state.listings.filter((l) => l.id.startsWith('listing-') && !remote.some((r) => r.id === l.id));
+          return { listings: [...extras, ...remote] };
+        });
+      }
+    } catch { /* mock fallback */ }
+  },
   addListing: (newListing) => set((state) => {
     const listings = [newListing, ...state.listings];
     const extras = listings.filter((l) => l.id.startsWith('listing-') && !MOCK_LISTINGS.some((m) => m.id === l.id));

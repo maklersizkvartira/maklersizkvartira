@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAppStore } from './stores/useAppStore';
 import { Header } from './components/layout/Header';
 import { BottomNav } from './components/layout/BottomNav';
@@ -24,9 +24,13 @@ import { FavoritesPage } from './components/favorites/FavoritesPage';
 import { AdminPage } from './components/admin/AdminPage';
 
 export const App: React.FC = () => {
-  const { currentView, currentUser } = useAppStore();
+  const { currentView, currentUser, fetchListings } = useAppStore();
   const isOwner = currentUser?.role === 'OWNER';
   const isStudent = currentUser?.role === 'STUDENT';
+
+  useEffect(() => {
+    fetchListings();
+  }, [fetchListings]);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-white">

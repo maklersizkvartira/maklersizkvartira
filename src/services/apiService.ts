@@ -4,7 +4,7 @@ import { MOCK_REPORTS, MOCK_VERIFICATIONS, MOCK_FRAUD_SIGNALS } from '../data/mo
 import { ListingScanResult, scanListingLocal } from './aiGuard';
 import { scanListingDeep } from './aiEngine';
 
-export const API_BASE_URL = '/api/v1';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://maklersizkvartira-production.up.railway.app/api/v1';
 
 async function postJson<T>(path: string, body: unknown): Promise<T | null> {
   try {
@@ -25,13 +25,17 @@ async function postJson<T>(path: string, body: unknown): Promise<T | null> {
 
 export const ApiService = {
   register: async (name: string, phone: string, role: SignupRole): Promise<CurrentUser> => {
-    const remote = await postJson<{ status: string; user?: CurrentUser }>(`/auth/register`, { name, phone, role });
+    const defaultAvatar = role === 'OWNER'
+      ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300'
+      : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300';
+    const remote = await postJson<{ status: string; user?: CurrentUser }>(`/auth/register`, { name, phone, role, avatar: defaultAvatar });
     if (remote?.user) return remote.user;
     return {
       id: `user-${Date.now()}`,
       name,
       phone,
       role,
+      avatar: defaultAvatar,
     };
   },
 
@@ -63,13 +67,20 @@ export const ApiService = {
       const res = await fetch(`${API_BASE_URL}/listings`);
       if (res.ok) {
         const json = await res.json();
-        if (Array.isArray(json.data) && json.data.length > 1) return json.data as Listing[];
+        if (Array.isArray(json.data) && json.data.length > 0) return json.data as Listing[];
       }
     } catch { /* mock fallback */ }
     return MOCK_LISTINGS;
   },
 
   getListingById: async (id: string): Promise<Listing | undefined> => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/listings/${id}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data) return json.data as Listing;
+      }
+    } catch { /* mock fallback */ }
     return MOCK_LISTINGS.find((l) => l.id === id);
   },
 
