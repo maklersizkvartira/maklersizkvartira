@@ -241,7 +241,7 @@ export function scanListingDeep(
       riskScore,
       brokerProbability,
       reasons,
-      message: "Bu e'lon makler yoki firibgar e'loniga o'xshaydi. Joylashtirilmadi.",
+      message: "Bu e'lon makler yoki firibgar e'loniga o'xshaydi. Maklersiz.uz faqat uyning o'z egasidan e'lon qabul qiladi. E'lon joylashtirilmadi. Agarda xatolik yuz bergan bo'lsa, Telegram orqali admin bilan bog'laning: @MaklersizUy_Support",
     };
   }
 

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { PlusCircle, Upload, CheckCircle2, ShieldCheck, AlertTriangle, ArrowRight, Trash2 } from 'lucide-react';
+import { PlusCircle, Upload, CheckCircle2, ShieldCheck, AlertTriangle, ArrowRight, Trash2, Send } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { Listing } from '../../types';
 import { MOCK_OWNERS } from '../../data/mockUsers';
@@ -455,20 +455,52 @@ export const CreateListingPage: React.FC = () => {
               </div>
             ) : scan && !scan.allowed ? (
               <div className="space-y-4 max-w-md mx-auto text-left">
-                <div className="bg-rose-50 border border-rose-200 p-4 rounded-2xl">
-                  <div className="font-black text-rose-900 flex items-center gap-1.5 mb-2">
-                    <AlertTriangle className="w-5 h-5" /> E'lon joylanmadi
+                <div className="bg-rose-50 border border-rose-200 p-5 rounded-2xl space-y-3 shadow-sm">
+                  <div className="font-black text-rose-900 flex items-center gap-2 text-base">
+                    <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" /> E'lon joylanmadi
                   </div>
-                  <p className="text-sm text-rose-800 leading-relaxed">{scan.message}</p>
-                  <ul className="text-sm text-rose-700 mt-2 space-y-1">
+                  <p className="text-xs sm:text-sm text-rose-800 leading-relaxed font-medium">{scan.message}</p>
+                  <ul className="text-xs text-rose-700 space-y-1 pl-1">
                     {scan.reasons.map((r) => (
                       <li key={r}>• {r}</li>
                     ))}
                   </ul>
+
+                  {/* Telegram Support Notice Box */}
+                  <div className="bg-white/90 border border-rose-200 rounded-xl p-3.5 space-y-2 mt-3 text-slate-800">
+                    <div className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                      <Send className="w-4 h-4 text-sky-500 shrink-0" />
+                      <span>AI adashgan bo'lishi mumkin!</span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Agar siz haqiqatdan ham kvartira egasi bo'lsangiz va AI e'loningizni noto'g'ri bloklagan bo'lsa, ma'lumotni darhol ko'rib chiqishimiz uchun Telegram orqali bog'laning.
+                    </p>
+                    <a
+                      href="https://t.me/MaklersizUy_Support"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 text-xs transition-all shadow-sm"
+                    >
+                      <Send className="w-4 h-4" />
+                      Telegram: @MaklersizUy_Support
+                    </a>
+                  </div>
                 </div>
-                <button onClick={() => setStep(1)} className="w-full bg-slate-900 text-white font-black py-4 rounded-xl">
-                  Matnni o'zgartirish
-                </button>
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button onClick={() => setStep(1)} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-4 rounded-xl text-xs transition-colors">
+                    Matnni o'zgartirish
+                  </button>
+                  <a
+                    href="https://t.me/MaklersizUy_Support"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-bold py-3.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm text-center"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    Admin bilan bog'lanish
+                  </a>
+                </div>
               </div>
             ) : scan ? (
               <div className="space-y-4 max-w-md mx-auto">
