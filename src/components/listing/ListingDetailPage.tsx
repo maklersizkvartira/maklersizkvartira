@@ -12,7 +12,8 @@ import { ListingCard } from '../common/ListingCard';
 export const ListingDetailPage: React.FC = () => {
   const { 
     selectedListingId, listings, favorites, toggleFavorite, 
-    openChatWithListing, setCurrentView, resolveReport 
+    openChatWithListing, setCurrentView, resolveReport,
+    currentUser, setShowAuth
   } = useAppStore();
 
   const [activeMedia, setActiveMedia] = useState<'IMAGE' | 'VIDEO' | 'TOUR360'>('IMAGE');
@@ -347,7 +348,13 @@ export const ListingDetailPage: React.FC = () => {
                 </div>
               ) : (
                 <button
-                  onClick={() => setShowPhone(true)}
+                  onClick={() => {
+                    if (!currentUser) {
+                      setShowAuth(true);
+                    } else {
+                      setShowPhone(true);
+                    }
+                  }}
                   className="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold py-3 px-4 rounded-xl border border-slate-300 flex items-center justify-center gap-2 text-sm transition-colors"
                 >
                   <Phone className="w-4 h-4 text-emerald-600" />

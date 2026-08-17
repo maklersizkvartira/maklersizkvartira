@@ -369,6 +369,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   openChatWithListing: (listing) => set((state) => {
+    if (!state.currentUser) {
+      return { showAuth: true };
+    }
     const existing = state.conversations.find((c) => c.listingId === listing.id);
     if (existing) {
       return { activeConversationId: existing.id, currentView: 'CHAT' };
