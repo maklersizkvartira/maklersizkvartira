@@ -76,15 +76,6 @@ export const ProfilePage: React.FC = () => {
         </button>
       )}
 
-      <a
-        href="https://maklersizuy-admin.vercel.app"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-4 rounded-xl flex items-center justify-center gap-2 text-center transition-colors shadow-md"
-      >
-        <ShieldCheck className="w-5 h-5 text-emerald-400" /> Admin Panelni Ochish
-      </a>
-
       <button
         onClick={() => {
           logout();

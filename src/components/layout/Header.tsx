@@ -4,7 +4,7 @@ import { useAppStore } from '../../stores/useAppStore';
 import { AuthModal } from '../auth/AuthModal';
 
 export const Header: React.FC = () => {
-  const { setCurrentView, currentUser, setShowAuth } = useAppStore();
+  const { setCurrentView, currentView, currentUser, setShowAuth } = useAppStore();
 
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-white border-b border-slate-200 shadow-sm">
@@ -27,6 +27,46 @@ export const Header: React.FC = () => {
             </div>
           </div>
         </button>
+
+        {/* Desktop Navigation Links */}
+        <nav className="hidden md:flex items-center gap-6 text-sm font-bold text-slate-700">
+          <button
+            onClick={() => setCurrentView('HOME')}
+            className={`hover:text-emerald-600 transition-colors ${currentView === 'HOME' ? 'text-emerald-600' : ''}`}
+          >
+            Bosh sahifa
+          </button>
+          <button
+            onClick={() => setCurrentView('SEARCH')}
+            className={`hover:text-emerald-600 transition-colors ${currentView === 'SEARCH' ? 'text-emerald-600' : ''}`}
+          >
+            Kvartiralar
+          </button>
+
+          {currentUser?.role === 'OWNER' ? (
+            <>
+              <button
+                onClick={() => setCurrentView('MY_LISTINGS')}
+                className={`hover:text-emerald-600 transition-colors ${currentView === 'MY_LISTINGS' ? 'text-emerald-600' : ''}`}
+              >
+                Mening e'lonlarim
+              </button>
+              <button
+                onClick={() => setCurrentView('CREATE_LISTING')}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-1.5 rounded-xl transition-colors text-xs flex items-center gap-1 shadow-sm"
+              >
+                + E'lon joylash
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setCurrentView('STUDENT_PROGRAM')}
+              className={`hover:text-emerald-600 transition-colors ${currentView === 'STUDENT_PROGRAM' ? 'text-emerald-600' : ''}`}
+            >
+              Talabalar uchun
+            </button>
+          )}
+        </nav>
 
         {currentUser ? (
           <button
