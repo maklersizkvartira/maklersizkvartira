@@ -297,6 +297,25 @@ LISTINGS_DB: List[Dict[str, Any]] = [
 
 # --- API Endpoints ---
 
+USERS_DB: List[Dict[str, Any]] = [
+    {
+        "id": "user-zayniddin",
+        "name": "Zayniddin",
+        "phone": "+998 93 718 88 85",
+        "role": "STUDENT",
+        "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300",
+        "createdAt": "2026-08-18T03:00:00Z"
+    },
+    {
+        "id": "owner_jasur",
+        "name": "Jasur Karimov",
+        "phone": "+998 90 123 45 67",
+        "role": "OWNER",
+        "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300",
+        "createdAt": "2023-04-12T00:00:00Z"
+    }
+]
+
 @app.get("/api/v1/health")
 def health_check():
     return {
@@ -315,15 +334,33 @@ def register_user(req: RegisterRequest):
         else "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300"
     )
     user_id = f"user-{int(time.time() * 1000)}"
+    new_user = {
+        "id": user_id,
+        "name": req.name,
+        "phone": req.phone,
+        "role": req.role,
+        "avatar": req.avatar or default_avatar,
+        "createdAt": time.strftime("%Y-%m-%dT%H:%M:%SZ")
+    }
+
+    # Upsert by phone number if already exists
+    existing = next((u for u in USERS_DB if u.get("phone") == req.phone), None)
+    if existing:
+        existing.update(new_user)
+    else:
+        USERS_DB.insert(0, new_user)
+
     return {
         "status": "success",
-        "user": {
-            "id": user_id,
-            "name": req.name,
-            "phone": req.phone,
-            "role": req.role,
-            "avatar": req.avatar or default_avatar
-        }
+        "user": new_user
+    }
+
+@app.get("/api/v1/users")
+def get_all_users():
+    return {
+        "status": "success",
+        "totalCount": len(USERS_DB),
+        "data": USERS_DB
     }
 
 @app.get("/api/v1/listings")
