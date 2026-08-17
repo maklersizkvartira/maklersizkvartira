@@ -7,7 +7,7 @@ export const HeroSection: React.FC = () => {
   const { 
     searchQuery, setSearchQuery, 
     selectedRegion, selectedDistrict,
-    roomsCount, maxPrice,
+    roomsCount, maxPrice, audience,
     setFilters, setCurrentView 
   } = useAppStore();
 
@@ -27,6 +27,7 @@ export const HeroSection: React.FC = () => {
       selectedDistrict: localDistrict,
       roomsCount: localRooms,
       maxPrice: localMaxPrice,
+      sortBy: 'AI',
     });
     setCurrentView('SEARCH');
   };
@@ -69,6 +70,12 @@ export const HeroSection: React.FC = () => {
               <Search className="w-4 h-4 text-emerald-600 absolute left-3 top-3.5" />
             </div>
 
+
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setFilters({ audience: 'ALL' })} className={`flex-1 py-2.5 rounded-xl text-xs font-black border ${audience === 'ALL' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>Hammaga</button>
+              <button type="button" onClick={() => setFilters({ audience: 'STUDENT' })} className={`flex-1 py-2.5 rounded-xl text-xs font-black border ${audience === 'STUDENT' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>Talabaga</button>
+              <button type="button" onClick={() => setFilters({ audience: 'FAMILY' })} className={`flex-1 py-2.5 rounded-xl text-xs font-black border ${audience === 'FAMILY' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>Oilaga</button>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-xs">
               <div className="space-y-1 min-w-0">
                 <label className="text-[10px] sm:text-xs font-bold text-slate-600 flex items-center gap-1">

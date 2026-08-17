@@ -1,4 +1,14 @@
-export type UserRole = 'TENANT' | 'OWNER' | 'MODERATOR' | 'ADMIN';
+export type UserRole = 'TENANT' | 'STUDENT' | 'OWNER' | 'MODERATOR' | 'ADMIN';
+
+export type SignupRole = 'STUDENT' | 'OWNER';
+
+export interface CurrentUser {
+  id: string;
+  name: string;
+  phone: string;
+  role: SignupRole;
+  avatar?: string;
+}
 
 export type TrustLevel = 'RED' | 'YELLOW' | 'GREEN' | 'PREMIUM_GREEN';
 

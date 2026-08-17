@@ -101,11 +101,16 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
         </div>
 
         <div className="pt-1.5 sm:pt-3 border-t border-slate-100 flex items-end justify-between gap-1 min-w-0">
-          <div className="min-w-0">
-            <div className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider">Oylik</div>
+          <div className="min-w-0 flex items-center gap-1.5">
+            {listing.owner.avatar && (
+              <img src={listing.owner.avatar} alt={listing.owner.name} className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover border border-slate-200 shrink-0" />
+            )}
+            <div className="min-w-0">
+            <div className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate">{listing.owner.name.split(' ')[0]}</div>
             <div className="text-[13px] sm:text-lg font-black text-emerald-800 tracking-tight leading-tight">
               {(listing.price / 1000000).toFixed(1)}
               <span className="text-[10px] sm:text-xs font-bold text-slate-600"> mln</span>
+            </div>
             </div>
           </div>
           <span className="hidden sm:inline-flex bg-slate-900 group-hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl transition-colors items-center gap-1 shadow-sm shrink-0">

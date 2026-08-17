@@ -1,66 +1,97 @@
 import React, { useState } from 'react';
-import { Shield, Sparkles, X, MessageSquare, ChevronRight } from 'lucide-react';
+import { Shield, Sparkles, X, MessageSquare, Send } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
+import { replyAsAssistant } from '../../services/aiEngine';
 
 export const ShieldMascot: React.FC = () => {
-  const { aiMascotMessage, setAiMascotMessage, setCurrentView } = useAppStore();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const { listings, setCurrentView, setFilters, setSearchQuery, setShowAuth, aiMascotMessage } = useAppStore();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const [log, setLog] = useState<{ from: 'ai' | 'me'; text: string }[]>([
+    { from: 'ai', text: "Salom. Yunusobodda 2 xonali, 5 milliongacha deb yozing. Yoki Kirish." },
+  ]);
 
-  if (!aiMascotMessage) return null;
+  const send = () => {
+    const msg = text.trim();
+    if (!msg) return;
+    const reply = replyAsAssistant(msg, listings);
+    setLog((prev) => [...prev, { from: 'me', text: msg }, { from: 'ai', text: reply.text }]);
+    setText('');
+    if (reply.need) {
+      setFilters({
+        selectedRegion: reply.need.region || undefined,
+        selectedDistrict: reply.need.district || undefined,
+        roomsCount: reply.need.rooms ?? undefined,
+        maxPrice: reply.need.maxPrice || undefined,
+        audience: reply.need.audience || undefined,
+        selectedMetro: reply.need.nearMetro ? undefined : undefined,
+        sortBy: 'AI',
+      } as any);
+      if (reply.need.query) setSearchQuery(reply.need.query);
+    }
+    if (reply.go === 'AUTH') setShowAuth(true);
+    if (reply.go === 'SEARCH') setCurrentView('SEARCH');
+    if (reply.go === 'CREATE_LISTING') setCurrentView('CREATE_LISTING');
+    if (reply.go === 'HOME') setCurrentView('HOME');
+  };
 
   return (
-    <div className="fixed bottom-[5.75rem] right-3 left-3 z-40 md:left-auto md:bottom-6 md:right-6 max-w-sm md:w-auto ml-auto transition-all duration-300 pb-safe">
-      {isExpanded ? (
-        <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-2xl border border-emerald-500/40 backdrop-blur-lg animate-in slide-in-from-bottom-5">
+    <div className="fixed bottom-[5.75rem] right-3 left-3 z-40 md:left-auto md:bottom-6 md:right-6 max-w-sm md:w-auto ml-auto pb-safe">
+      {open ? (
+        <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-2xl border border-emerald-500/40">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white shadow-emerald-500/50 shadow-md">
+              <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center">
                 <Shield className="w-5 h-5" />
               </div>
               <div>
                 <h4 className="font-semibold text-sm flex items-center gap-1">
                   Shield AI <Sparkles className="w-3 h-3 text-amber-400 fill-amber-400" />
                 </h4>
-                <p className="text-[10px] text-emerald-400">Xavfsizlik & Trust Yordamchisi</p>
+                <p className="text-[10px] text-emerald-400">Uy qidirish yordamchisi</p>
               </div>
             </div>
-            <button
-              onClick={() => setIsExpanded(false)}
-              className="text-slate-400 hover:text-white p-1"
-            >
+            <button onClick={() => setOpen(false)} className="text-slate-400 p-1">
               <X className="w-4 h-4" />
             </button>
           </div>
-          <p className="text-xs leading-relaxed text-slate-200 mb-3">{aiMascotMessage}</p>
-          <div className="flex items-center justify-between pt-1">
-            <button
-              onClick={() => setCurrentView('VERIFICATION')}
-              className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium"
-            >
-              Trust Score oshirish <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setAiMascotMessage(null)}
-              className="text-[11px] text-slate-400 hover:underline"
-            >
-              Yopish
-            </button>
+          <div className="max-h-56 overflow-y-auto space-y-2 mb-3 pr-1">
+            {aiMascotMessage && (
+              <p className="text-xs text-emerald-200 bg-emerald-950/50 rounded-xl p-2">{aiMascotMessage}</p>
+            )}
+            {log.map((m, i) => (
+              <p key={i} className={`text-xs leading-relaxed whitespace-pre-line rounded-xl p-2 ${m.from === 'me' ? 'bg-emerald-700/40 text-white ml-6' : 'bg-slate-800 text-slate-200 mr-4'}`}>
+                {m.text}
+              </p>
+            ))}
           </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              send();
+            }}
+            className="flex gap-2"
+          >
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="2 xonali Yunusobod..."
+              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm"
+            />
+            <button type="submit" className="bg-emerald-600 rounded-xl px-3">
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
         </div>
       ) : (
         <button
-          onClick={() => setIsExpanded(true)}
-          className="group flex items-center gap-2 bg-slate-900 text-white px-3.5 py-2.5 rounded-full shadow-xl border border-emerald-500/50 hover:bg-slate-800 transition-all hover:scale-105"
+          onClick={() => setOpen(true)}
+          className="group flex items-center gap-2 bg-slate-900 text-white px-3.5 py-2.5 rounded-full shadow-xl border border-emerald-500/50"
         >
-          <div className="relative">
-            <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-white">
-              <Shield className="w-4 h-4" />
-            </div>
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
+          <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center">
+            <Shield className="w-4 h-4" />
           </div>
-          <span className="text-xs font-semibold max-w-[180px] truncate hidden sm:inline">
-            Shield AI Yordamchi
-          </span>
+          <span className="text-xs font-semibold hidden sm:inline">Shield AI Yordamchi</span>
           <MessageSquare className="w-4 h-4 text-emerald-400" />
         </button>
       )}

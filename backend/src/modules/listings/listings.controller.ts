@@ -59,7 +59,15 @@ export const ListingsController = {
   createListing: async (req: Request, res: Response) => {
     const { title, description, price, region, district, rooms, area, images } = req.body;
 
-    const aiResult = await aiService.scanListing(title || '', description || '', images || []);
+    const aiResult = await aiService.scanListing(title || '', description || '', price, rooms);
+
+    if (!aiResult.allowed) {
+      return res.status(403).json({
+        status: 'rejected',
+        error: aiResult.message,
+        aiAnalysis: aiResult,
+      });
+    }
 
     const newListing = {
       id: `listing-${Date.now()}`,

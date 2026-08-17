@@ -7,12 +7,13 @@ import { useAppStore } from '../../stores/useAppStore';
 import { ListingCard } from '../common/ListingCard';
 import { MOCK_UNIVERSITIES } from '../../data/mockUniversities';
 import { UZBEKISTAN_REGIONS } from '../../data/mockLocations';
+import { rankListings } from '../../services/aiEngine';
 
 export const SearchPage: React.FC = () => {
   const { 
     listings, searchQuery, setSearchQuery,
     selectedRegion, selectedDistrict, selectedUniversity, selectedMetro,
-    maxPrice, roomsCount, onlyVerified, minTrustScore, sortBy,
+    maxPrice, roomsCount, onlyVerified, minTrustScore, sortBy, audience,
     setFilters, resetFilters, setCurrentView
   } = useAppStore();
 
@@ -24,7 +25,7 @@ export const SearchPage: React.FC = () => {
 
   // Filter listings
   const filteredListings = useMemo(() => {
-    return listings.filter((listing) => {
+    const base = listings.filter((listing) => {
       // Keyword search
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -80,14 +81,28 @@ export const SearchPage: React.FC = () => {
       }
 
       return true;
-    }).sort((a, b) => {
+    });
+    if (sortBy === 'AI') {
+      const ranked = rankListings(base, {
+        region: selectedRegion,
+        district: selectedDistrict,
+        maxPrice,
+        rooms: roomsCount,
+        audience,
+        metro: selectedMetro,
+        nearMetro: selectedMetro !== 'Barchasi',
+        query: searchQuery,
+      });
+      return ranked.map((r) => r.listing);
+    }
+    return base.sort((a, b) => {
       if (sortBy === 'TRUST') return b.trustScore - a.trustScore;
       if (sortBy === 'PRICE_LOW') return a.price - b.price;
       if (sortBy === 'PRICE_HIGH') return b.price - a.price;
       if (sortBy === 'NEWEST') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       return 0;
     });
-  }, [listings, searchQuery, selectedRegion, selectedDistrict, selectedMetro, selectedUniversity, maxPrice, roomsCount, onlyVerified, minTrustScore, sortBy]);
+  }, [listings, searchQuery, selectedRegion, selectedDistrict, selectedMetro, selectedUniversity, maxPrice, roomsCount, onlyVerified, minTrustScore, sortBy, audience]);
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 py-5 sm:py-8 min-h-[80vh] w-full overflow-x-hidden">

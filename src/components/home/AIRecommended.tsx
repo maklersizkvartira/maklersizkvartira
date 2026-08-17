@@ -2,15 +2,19 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { ListingCard } from '../common/ListingCard';
+import { rankListings } from '../../services/aiEngine';
 
 const PAGE_SIZE = 4;
 
 export const AIRecommended: React.FC = () => {
-  const { listings, setCurrentView } = useAppStore();
+  const { listings, setCurrentView, audience, currentUser } = useAppStore();
   const [start, setStart] = useState(0);
   const [paused, setPaused] = useState(false);
 
-  const pool = useMemo(() => listings, [listings]);
+  const pool = useMemo(() => {
+    const who = currentUser?.role === 'STUDENT' ? 'STUDENT' : audience;
+    return rankListings(listings, { audience: who, nearMetro: true }).map((r) => r.listing);
+  }, [listings, audience, currentUser]);
 
   useEffect(() => {
     if (pool.length <= 1 || paused) return;

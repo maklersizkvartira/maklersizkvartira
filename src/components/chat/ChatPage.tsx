@@ -1,183 +1,157 @@
 import React, { useState } from 'react';
-import { 
-  MessageSquare, Send, ShieldAlert, Image, MapPin, Phone, 
-  CheckCheck, AlertTriangle, ShieldCheck, ExternalLink 
-} from 'lucide-react';
+import { MessageSquare, Send, ArrowLeft, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 
 export const ChatPage: React.FC = () => {
-  const { 
-    activeConversationId, conversations, messages, 
-    sendMessage, setCurrentView 
+  const {
+    activeConversationId, conversations, messages,
+    sendMessage, setCurrentView, currentUser, setActiveConversation,
   } = useAppStore();
 
   const [inputMsg, setInputMsg] = useState('');
+  const [mobileThread, setMobileThread] = useState(false);
 
-  const currentConv = conversations.find((c) => c.id === activeConversationId) || conversations[0];
-  const currentMsgs = messages[currentConv?.id] || [];
+  const isOwner = currentUser?.role === 'OWNER';
+  const currentConv = conversations.find((c) => c.id === activeConversationId) || null;
+  const currentMsgs = currentConv ? (messages[currentConv.id] || []) : [];
+
+  const peerName = (conv: typeof conversations[0]) => (isOwner ? conv.tenantName : conv.ownerName);
+  const peerAvatar = (conv: typeof conversations[0]) => (isOwner ? conv.tenantAvatar : conv.ownerAvatar);
+
+  const openConv = (id: string) => {
+    setActiveConversation(id);
+    setMobileThread(true);
+  };
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMsg.trim()) return;
+    if (!inputMsg.trim() || !currentConv) return;
     sendMessage(currentConv.id, inputMsg);
     setInputMsg('');
   };
 
-  const handleQuickChip = (text: string) => {
-    sendMessage(currentConv.id, text);
+  const isMe = (senderId: string, senderRole: string) => {
+    if (currentUser?.id && senderId === currentUser.id) return true;
+    if (isOwner) return senderRole === 'OWNER';
+    return senderRole !== 'OWNER';
   };
 
-  return (
-    <div className="max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6 min-h-[70vh] flex flex-col md:flex-row gap-4 sm:gap-6 w-full overflow-x-hidden">
-      {/* Left Column: Conversations List */}
-      <div className="w-full md:w-80 bg-white rounded-2xl border border-slate-200 shadow-card flex flex-col overflow-hidden shrink-0">
-        <div className="p-4 border-b border-slate-100 bg-slate-50">
-          <h2 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-            <MessageSquare className="w-4 h-4 text-emerald-600" /> Xabarlar va Chat
-          </h2>
-        </div>
-
-        <div className="divide-y divide-slate-100 overflow-y-auto max-h-[600px]">
-          {conversations.map((conv) => (
-            <button
-              key={conv.id}
-              onClick={() => useAppStore.setState({ activeConversationId: conv.id })}
-              className={`w-full text-left p-3.5 flex items-start gap-3 transition-colors ${
-                conv.id === currentConv?.id ? 'bg-emerald-50/70 border-l-4 border-emerald-600' : 'hover:bg-slate-50'
-              }`}
-            >
-              <img
-                src={conv.ownerAvatar}
-                alt={conv.ownerName}
-                className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between text-xs mb-0.5">
-                  <span className="font-bold text-slate-900 truncate">{conv.ownerName}</span>
-                  <span className="text-[10px] text-slate-400">{conv.lastMessageTime}</span>
-                </div>
-                <p className="text-xs text-slate-600 truncate">{conv.listingTitle}</p>
-                <p className="text-[11px] text-slate-400 truncate mt-1 italic">{conv.lastMessage}</p>
+  const List = (
+    <div className="bg-white md:rounded-2xl md:border md:border-slate-200 flex flex-col h-full min-h-0">
+      <div className="px-4 py-3 border-b border-slate-100 shrink-0">
+        <h2 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
+          <MessageSquare className="w-5 h-5 text-emerald-600" /> Xabarlar
+        </h2>
+        <p className="text-xs text-slate-500 mt-0.5">{conversations.length} ta suhbat</p>
+      </div>
+      <div className="overflow-y-auto flex-1 min-h-0">
+        {conversations.map((conv) => (
+          <button
+            key={conv.id}
+            onClick={() => openConv(conv.id)}
+            className={`w-full text-left px-4 py-3 flex items-center gap-3 border-b border-slate-50 ${
+              conv.id === currentConv?.id ? 'bg-emerald-50' : 'bg-white'
+            }`}
+          >
+            <div className="relative shrink-0">
+              <img src={peerAvatar(conv)} alt="" className="w-12 h-12 rounded-full object-cover bg-slate-200" />
+              {conv.unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-emerald-600 text-white text-[10px] font-black flex items-center justify-center">
+                  {conv.unreadCount}
+                </span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-bold text-slate-900 truncate">{peerName(conv)}</span>
+                <span className="text-[11px] text-slate-400 shrink-0">{conv.lastMessageTime}</span>
               </div>
-            </button>
-          ))}
+              <p className="text-xs text-slate-500 truncate">{conv.listingTitle}</p>
+              <p className="text-xs text-slate-600 truncate mt-0.5">{conv.lastMessage}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const Thread = currentConv ? (
+    <div className="bg-white md:rounded-2xl md:border md:border-slate-200 flex flex-col h-full min-h-0">
+      <div className="px-3 py-2.5 border-b border-slate-100 flex items-center gap-2 shrink-0">
+        <button
+          type="button"
+          onClick={() => setMobileThread(false)}
+          className="md:hidden p-2 rounded-full bg-slate-100"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <img src={peerAvatar(currentConv)} alt="" className="w-10 h-10 rounded-full object-cover" />
+        <div className="min-w-0 flex-1">
+          <div className="font-black text-slate-900 truncate">{peerName(currentConv)}</div>
+          <button
+            type="button"
+            onClick={() => setCurrentView('LISTING_DETAIL', currentConv.listingId)}
+            className="text-[11px] text-emerald-700 font-bold truncate block w-full text-left"
+          >
+            {currentConv.listingTitle}
+          </button>
         </div>
       </div>
 
-      {/* Right Column: Chat Window & Input */}
-      {currentConv ? (
-        <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-card flex flex-col overflow-hidden h-[650px]">
-          {/* Top Chat Header with Listing Preview */}
-          <div className="p-4 border-b border-slate-100 bg-slate-900 text-white flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img
-                src={currentConv.listingImage}
-                alt={currentConv.listingTitle}
-                className="w-12 h-10 rounded-lg object-cover border border-slate-700"
-              />
-              <div>
-                <h3 
-                  onClick={() => setCurrentView('LISTING_DETAIL', currentConv.listingId)}
-                  className="font-bold text-sm text-white hover:text-emerald-400 cursor-pointer flex items-center gap-1 line-clamp-1"
-                >
-                  {currentConv.listingTitle} <ExternalLink className="w-3 h-3 text-slate-400" />
-                </h3>
-                <p className="text-xs text-emerald-400 font-mono font-semibold">
-                  {new Intl.NumberFormat('uz-UZ').format(currentConv.listingPrice)} so'm/oy
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="bg-emerald-800 text-emerald-200 text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-emerald-400" /> Safety Active
-              </span>
-            </div>
-          </div>
-
-          {/* Chat Messages Body */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50">
-            {/* Safety Banner */}
-            <div className="bg-emerald-900/10 border border-emerald-500/30 p-3 rounded-xl text-xs text-emerald-900 flex items-start gap-2 max-w-lg mx-auto">
-              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold">Shield AI Chat Xavfsizligi Faol</span>
-                <p className="text-[11px] text-emerald-800 mt-0.5">
-                  Platforma ichidagi muloqot xavfsiz shifrlangan. Shubhali oldindan pul talablari avtomatik aniqlanadi.
-                </p>
-              </div>
-            </div>
-
-            {/* Messages List */}
-            {currentMsgs.map((msg) => {
-              const isMe = msg.senderId === 'tenant_current';
-
-              return (
-                <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                  <div
-                    className={`max-w-md p-3.5 rounded-2xl text-xs space-y-1 shadow-sm ${
-                      isMe
-                        ? 'bg-slate-900 text-white rounded-br-none'
-                        : 'bg-white text-slate-900 border border-slate-200 rounded-bl-none'
-                    }`}
-                  >
-                    <div className="font-semibold text-[10px] text-slate-400 flex items-center justify-between gap-4">
-                      <span>{msg.senderName}</span>
-                      <span>{msg.timestamp}</span>
-                    </div>
-                    <p className="leading-relaxed text-sm">{msg.text}</p>
-
-                    {/* Safety Warning Card inside chat message */}
-                    {msg.isSafetyWarning && (
-                      <div className="mt-2 p-2 bg-amber-500/20 border border-amber-400/50 rounded-lg text-amber-200 text-[11px] flex items-start gap-1.5">
-                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                        <span>{msg.warningText}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Quick Action Chips */}
-          <div className="px-4 py-2 bg-white border-t border-slate-100 flex items-center gap-2 overflow-x-auto text-xs">
-            <span className="text-[10px] font-bold text-slate-400 uppercase">Tezkor Javoblar:</span>
-            {[
-              "Qachon ko'rsam bo'ladi?",
-              "Narxida tushib berolasizmi?",
-              "Kommunal kiritilganmi?",
-              "Talabalarga beriladimi?"
-            ].map((chip, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleQuickChip(chip)}
-                className="bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-700 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors border border-slate-200"
-              >
-                {chip}
-              </button>
-            ))}
-          </div>
-
-          {/* Message Input Bar */}
-          <form onSubmit={handleSend} className="p-3 bg-white border-t border-slate-200 flex items-center gap-2">
-            <input
-              type="text"
-              value={inputMsg}
-              onChange={(e) => setInputMsg(e.target.value)}
-              placeholder="Xabaringizni yozing..."
-              className="flex-1 bg-slate-100 border border-slate-200 rounded-full px-4 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
-            />
-
-            <button
-              type="submit"
-              className="w-10 h-10 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white flex items-center justify-center shadow-md transition-all active:scale-95 shrink-0"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </form>
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 bg-slate-50 min-h-0">
+        <div className="bg-emerald-50 border border-emerald-100 p-2.5 rounded-xl text-[11px] text-emerald-900 flex gap-2">
+          <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+          <span>Ko'rmasdan kartaga pul o'tkazmang.</span>
         </div>
-      ) : null}
+        {currentMsgs.map((msg) => {
+          const mine = isMe(msg.senderId, msg.senderRole);
+          return (
+            <div key={msg.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[82%] p-3 rounded-2xl text-sm shadow-sm ${
+                mine ? 'bg-emerald-700 text-white rounded-br-md' : 'bg-white text-slate-900 border border-slate-200 rounded-bl-md'
+              }`}>
+                {!mine && <div className="text-[10px] font-bold text-emerald-700 mb-0.5">{msg.senderName}</div>}
+                <p className="leading-relaxed">{msg.text}</p>
+                <div className={`text-[10px] mt-1 ${mine ? 'text-emerald-100' : 'text-slate-400'}`}>{msg.timestamp}</div>
+                {msg.isSafetyWarning && (
+                  <div className="mt-2 p-2 bg-amber-50 text-amber-800 rounded-lg text-[11px] flex gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    {msg.warningText}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <form onSubmit={handleSend} className="p-2.5 bg-white border-t border-slate-200 flex items-center gap-2 shrink-0 pb-[max(0.6rem,env(safe-area-inset-bottom))] md:pb-2.5">
+        <input
+          type="text"
+          value={inputMsg}
+          onChange={(e) => setInputMsg(e.target.value)}
+          placeholder="Xabar yozing..."
+          className="flex-1 bg-slate-100 rounded-full px-4 py-3 text-sm font-medium"
+        />
+        <button type="submit" className="w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+          <Send className="w-5 h-5" />
+        </button>
+      </form>
+    </div>
+  ) : (
+    <div className="hidden md:flex flex-1 items-center justify-center text-slate-400 text-sm">Suhbatni tanlang</div>
+  );
+
+  return (
+    <div className="md:max-w-6xl md:mx-auto md:px-6 md:py-6">
+      <div className="h-[calc(100dvh-3.5rem-4.25rem)] md:h-[calc(100dvh-6rem)] md:min-h-[540px] flex md:gap-4">
+        <div className={`${mobileThread ? 'hidden' : 'flex'} md:flex w-full md:w-80 flex-col min-h-0`}>
+          {List}
+        </div>
+        <div className={`${mobileThread ? 'flex' : 'hidden'} md:flex flex-1 flex-col min-h-0`}>
+          {Thread}
+        </div>
+      </div>
     </div>
   );
 };
