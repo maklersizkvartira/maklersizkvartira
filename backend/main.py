@@ -297,22 +297,38 @@ LISTINGS_DB: List[Dict[str, Any]] = [
 
 # --- API Endpoints ---
 
+def clean_phone(p: str) -> str:
+    import re
+    return re.sub(r"\D", "", p or "")
+
 USERS_DB: List[Dict[str, Any]] = [
     {
         "id": "user-zayniddin",
         "name": "Zayniddin",
+        "full_name": "Zayniddin",
         "phone": "+998 93 718 88 85",
         "role": "STUDENT",
         "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300",
-        "createdAt": "2026-08-18T03:00:00Z"
+        "trust_score": 94,
+        "trustScore": 94,
+        "status": "ACTIVE",
+        "listings_count": 0,
+        "createdAt": "2026-08-18T03:00:00Z",
+        "created_at": "2026-08-18T03:00:00Z"
     },
     {
         "id": "owner_jasur",
         "name": "Jasur Karimov",
+        "full_name": "Jasur Karimov",
         "phone": "+998 90 123 45 67",
         "role": "OWNER",
         "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300",
-        "createdAt": "2023-04-12T00:00:00Z"
+        "trust_score": 96,
+        "trustScore": 96,
+        "status": "ACTIVE",
+        "listings_count": 2,
+        "createdAt": "2023-04-12T00:00:00Z",
+        "created_at": "2023-04-12T00:00:00Z"
     }
 ]
 
@@ -328,27 +344,46 @@ def health_check():
 
 @app.post("/api/v1/auth/register")
 def register_user(req: RegisterRequest):
+    req_clean = clean_phone(req.phone)
+
+    # 1. Match existing user by phone number for returning users
+    existing = next((u for u in USERS_DB if clean_phone(u.get("phone")) == req_clean), None)
+    if existing:
+        if req.name and req.name.strip():
+            existing["name"] = req.name.strip()
+            existing["full_name"] = req.name.strip()
+        if req.role:
+            existing["role"] = req.role
+        return {
+            "status": "success",
+            "user": existing
+        }
+
+    # 2. Register new user
     default_avatar = (
         "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300"
         if req.role == "OWNER"
         else "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300"
     )
     user_id = f"user-{int(time.time() * 1000)}"
+    cnt = len([l for l in LISTINGS_DB if clean_phone(l.get("owner", {}).get("phone")) == req_clean])
+
     new_user = {
         "id": user_id,
-        "name": req.name,
-        "phone": req.phone,
+        "name": req.name.strip(),
+        "full_name": req.name.strip(),
+        "phone": req.phone.strip(),
         "role": req.role,
         "avatar": req.avatar or default_avatar,
-        "createdAt": time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        "trust_score": 90,
+        "trustScore": 90,
+        "status": "ACTIVE",
+        "listings_count": cnt,
+        "createdAt": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ")
     }
 
-    # Upsert by phone number if already exists
-    existing = next((u for u in USERS_DB if u.get("phone") == req.phone), None)
-    if existing:
-        existing.update(new_user)
-    else:
-        USERS_DB.insert(0, new_user)
+    USERS_DB.insert(0, new_user)
 
     return {
         "status": "success",
@@ -356,11 +391,33 @@ def register_user(req: RegisterRequest):
     }
 
 @app.get("/api/v1/users")
-def get_all_users():
+def get_all_users(raw: Optional[bool] = Query(False)):
+    formatted = []
+    for u in USERS_DB:
+        p_clean = clean_phone(u.get("phone"))
+        cnt = len([l for l in LISTINGS_DB if clean_phone(l.get("owner", {}).get("phone")) == p_clean])
+        formatted.append({
+            "id": u.get("id"),
+            "name": u.get("name"),
+            "full_name": u.get("full_name") or u.get("name"),
+            "phone": u.get("phone"),
+            "role": u.get("role"),
+            "avatar": u.get("avatar"),
+            "trust_score": u.get("trust_score", 90),
+            "trustScore": u.get("trustScore", 90),
+            "status": u.get("status", "ACTIVE"),
+            "listings_count": cnt,
+            "createdAt": u.get("createdAt", time.strftime("%Y-%m-%dT%H:%M:%SZ")),
+            "created_at": u.get("created_at", time.strftime("%Y-%m-%dT%H:%M:%SZ"))
+        })
+
+    if raw:
+        return formatted
+
     return {
         "status": "success",
-        "totalCount": len(USERS_DB),
-        "data": USERS_DB
+        "totalCount": len(formatted),
+        "data": formatted
     }
 
 @app.get("/api/v1/listings")
