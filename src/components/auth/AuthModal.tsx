@@ -37,7 +37,7 @@ export const AuthModal: React.FC = () => {
       const gResult = await signInWithGooglePopup();
       const res = await ApiService.loginGoogle({
         email: gResult.user.email || 'user@google.com',
-        name: gResult.user.displayName || 'Google User',
+        name: gResult.user.displayName || 'Google Foydalanuvchisi',
         avatar: gResult.user.photoURL,
         uid: gResult.user.uid,
         idToken: gResult.idToken
@@ -45,34 +45,25 @@ export const AuthModal: React.FC = () => {
       if (res) {
         login({
           id: gResult.user.uid,
-          name: gResult.user.displayName || 'Google User',
-          phone: gResult.user.phoneNumber || phone || '+998900000000',
+          name: gResult.user.displayName || 'Google Foydalanuvchisi',
+          phone: gResult.user.phoneNumber || (phone.trim() || '+998901234567'),
           role: (res.role as SignupRole) || role || 'STUDENT',
-          avatar: gResult.user.photoURL || undefined
+          avatar: gResult.user.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300'
         });
         if (addXp) addXp(30, 'Google orqali avtorizatsiya va profil tasdiqlash');
         close();
       }
     } catch (err: any) {
-      console.warn("Firebase Google login popup fallback:", err);
-      const userRealName = name.trim() || prompt("Google Akkauntingizdagi Ismingizni kiriting:", "Google User");
-      if (!userRealName) {
-        setBusy(false);
-        return;
-      }
-      const userRealPhone = phone.trim() || prompt("Bog'lanish uchun Telefon Raqamingizni kiriting:", "+998 90 123 45 67");
-      if (!userRealPhone) {
-        setBusy(false);
-        return;
-      }
-      try {
-        const user = await ApiService.register(userRealName.trim(), userRealPhone.trim(), role || 'STUDENT', password.trim());
-        login(user);
-        close();
-      } catch {
-        login({ id: `user-${Date.now()}`, name: userRealName.trim(), phone: userRealPhone.trim(), role: role || 'STUDENT' });
-        close();
-      }
+      console.warn("Google auth fallback:", err);
+      login({
+        id: `google-user-${Date.now()}`,
+        name: name.trim() || "Google Foydalanuvchisi",
+        phone: phone.trim() || "+998 90 123 45 67",
+        role: role || 'STUDENT',
+        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300'
+      });
+      if (addXp) addXp(30, 'Google orqali avtorizatsiya');
+      close();
     } finally {
       setBusy(false);
     }
@@ -278,25 +269,7 @@ export const AuthModal: React.FC = () => {
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={async () => {
-                    const userRealName = name.trim() || prompt("Google Akkauntingizdagi Ismingizni kiriting:", "");
-                    if (!userRealName || !userRealName.trim()) return;
-                    const userRealPhone = phone.trim() || prompt("Bog'lanish uchun Telefon Raqamingizni kiriting:", "+998 90 123 45 67");
-                    if (!userRealPhone || !userRealPhone.trim()) return;
-
-                    setBusy(true);
-                    setError('');
-                    try {
-                      const user = await ApiService.register(userRealName.trim(), userRealPhone.trim(), role, password.trim());
-                      login(user);
-                      close();
-                    } catch {
-                      login({ id: `user-${Date.now()}`, name: userRealName.trim(), phone: userRealPhone.trim(), role });
-                      close();
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
+                  onClick={handleGoogleAuth}
                   className="w-full bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-bold text-sm py-3.5 px-4 rounded-xl flex items-center justify-center gap-2.5 shadow-sm transition-all active:scale-[0.98]"
                 >
                   <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
@@ -305,7 +278,7 @@ export const AuthModal: React.FC = () => {
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
                   </svg>
-                  Google bilan 1-soniyada ro'yxatdan o'tish
+                  Google orqali kirish
                 </button>
 
                 <div className="relative text-center my-1">
