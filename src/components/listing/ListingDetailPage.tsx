@@ -190,30 +190,12 @@ export const ListingDetailPage: React.FC = () => {
 
           {activeMedia === 'VIDEO' && (
             <div className="w-full h-full bg-slate-950 flex items-center justify-center">
-              {listing.videoUrl?.startsWith('data:video') || listing.videoUrl?.startsWith('blob:') || listing.videoUrl?.includes('mp4') || listing.videoUrl?.includes('mov') ? (
-                <video
-                  controls
-                  autoPlay
-                  src={listing.videoUrl}
-                  className="w-full h-full object-contain bg-black"
-                />
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center text-white p-6 text-center space-y-3">
-                  <Video className="w-14 h-14 text-rose-500 animate-bounce" />
-                  <h3 className="font-extrabold text-xl text-white">Kvartiraning Video Sharhi</h3>
-                  <p className="text-xs text-slate-300 max-w-sm">
-                    Uy egasi tomonidan biriktirilgan video sharh mavjud. Videoni tomosha qilish uchun pastdagi tugmani bosing:
-                  </p>
-                  <a
-                    href={listing.videoUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs px-6 py-3 rounded-2xl shadow-lg transition-all active:scale-95 flex items-center gap-2"
-                  >
-                    <span>🎥 Videoni Tomosha Qilish</span>
-                  </a>
-                </div>
-              )}
+              <video
+                controls
+                autoPlay
+                src={listing.videoUrl}
+                className="w-full h-full object-contain bg-black"
+              />
             </div>
           )}
         </div>

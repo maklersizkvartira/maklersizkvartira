@@ -35,7 +35,7 @@ export const MOCK_LISTINGS: Listing[] = [
       'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=70&w=600',
       'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=70&w=600',
     ],
-    videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-interior-of-a-modern-apartment-43093-large.mp4',
     hasVirtualTour: true,
     owner: MOCK_OWNERS.owner_jasur,
     trustScore: 96,
