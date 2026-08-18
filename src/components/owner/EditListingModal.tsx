@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Save, Edit3, CheckCircle2, Video, Trash2 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
-import { UZBEKISTAN_REGIONS } from '../../data/mockLocations';
+import { UZBEKISTAN_REGIONS, TASHKENT_METRO_LINES } from '../../data/mockLocations';
 
 export const EditListingModal: React.FC = () => {
   const { editingListing, setEditingListing, updateListing } = useAppStore();
@@ -203,6 +203,36 @@ export const EditListingModal: React.FC = () => {
               placeholder="Mustaqillik ko'chasi, 15-uy"
               className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium mt-1 focus:outline-none focus:border-emerald-500"
             />
+          </div>
+
+          {/* Metro Selection */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Yaqin Metro Bekati</label>
+              <select
+                value={metro}
+                onChange={(e) => setMetro(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-900 mt-1 focus:outline-none focus:border-emerald-500"
+              >
+                <option value="Yo'q">Yo'q (Metro yaqin emas)</option>
+                {TASHKENT_METRO_LINES.map((line) => (
+                  <optgroup key={line.id} label={line.name}>
+                    {line.stations.map((st) => (
+                      <option key={st} value={st}>{st} bekati</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Metroga piyoda (daqiqa)</label>
+              <input
+                type="number"
+                value={metroDist}
+                onChange={(e) => setMetroDist(Number(e.target.value))}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold mt-1 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
           </div>
 
           {/* Description */}

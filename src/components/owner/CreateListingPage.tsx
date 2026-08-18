@@ -3,7 +3,7 @@ import { PlusCircle, Upload, CheckCircle2, ShieldCheck, AlertTriangle, ArrowRigh
 import { useAppStore } from '../../stores/useAppStore';
 import { Listing } from '../../types';
 import { MOCK_OWNERS } from '../../data/mockUsers';
-import { UZBEKISTAN_REGIONS } from '../../data/mockLocations';
+import { UZBEKISTAN_REGIONS, TASHKENT_METRO_LINES } from '../../data/mockLocations';
 import { ApiService } from '../../services/apiService';
 import { ListingScanResult } from '../../services/aiGuard';
 import { writeListingCopy, estimatePrice, analyzePhotos, scanListingDeep, formatSom } from '../../services/aiEngine';
@@ -560,13 +560,15 @@ export const CreateListingPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="font-bold text-slate-700 text-sm">Metro</label>
-                <select value={metro} onChange={(e) => setMetro(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium mt-1">
-                  <option value="Yo'q">Yo'q</option>
-                  <option value="Oybek">Oybek</option>
-                  <option value="Yunusobod">Yunusobod</option>
-                  <option value="Beruniy">Beruniy</option>
-                  <option value="Mirzo Ulug'bek">Mirzo Ulug'bek</option>
-                  <option value="Buyuk Ipak Yo'li">Buyuk Ipak Yo'li</option>
+                <select value={metro} onChange={(e) => setMetro(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-bold text-slate-900 mt-1 focus:outline-none focus:border-emerald-500">
+                  <option value="Yo'q">Yo'q (Metro yaqin emas)</option>
+                  {TASHKENT_METRO_LINES.map((line) => (
+                    <optgroup key={line.id} label={line.name}>
+                      {line.stations.map((st) => (
+                        <option key={st} value={st}>{st} bekati</option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
               </div>
               <div>
