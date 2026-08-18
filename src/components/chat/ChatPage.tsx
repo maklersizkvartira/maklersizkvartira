@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, Send, ArrowLeft, ShieldCheck, AlertTriangle, 
   Search, ExternalLink, CheckCheck, Sparkles, Building2, Phone, Home 
@@ -12,8 +12,9 @@ export const ChatPage: React.FC = () => {
   } = useAppStore();
 
   const [inputMsg, setInputMsg] = useState('');
-  const [mobileThread, setMobileThread] = useState(false);
+  const [mobileThread, setMobileThread] = useState(Boolean(activeConversationId));
   const [filterQuery, setFilterQuery] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const isOwner = currentUser?.role === 'OWNER';
   const currentConv = conversations.find((c) => c.id === activeConversationId) || conversations[0] || null;
@@ -21,6 +22,16 @@ export const ChatPage: React.FC = () => {
 
   const peerName = (conv: typeof conversations[0]) => (isOwner ? conv.tenantName : conv.ownerName);
   const peerAvatar = (conv: typeof conversations[0]) => (isOwner ? conv.tenantAvatar : conv.ownerAvatar);
+
+  useEffect(() => {
+    if (activeConversationId) {
+      setMobileThread(true);
+    }
+  }, [activeConversationId]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [currentMsgs.length, mobileThread]);
 
   const openConv = (id: string) => {
     setActiveConversation(id);
@@ -55,13 +66,13 @@ export const ChatPage: React.FC = () => {
   const QuickChips = [
     "📅 Bugun uyni ko'rsam bo'ladimi?",
     "📍 Aniq manzil va mo'ljalni yuboring",
-    "📜 Ijaraga olish shartnomasi rasmiylashtiriladimi?",
+    "📜 Shartnoma rasmiylashtiriladimi?",
   ];
 
   const List = (
     <div className="bg-white md:rounded-3xl md:border md:border-slate-200/80 shadow-card flex flex-col h-full min-h-0 overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-slate-100 bg-slate-50/50 shrink-0 space-y-3">
+      <div className="p-3.5 sm:p-4 border-b border-slate-100 bg-slate-50/50 shrink-0 space-y-2.5">
         <div className="flex items-center justify-between">
           <h2 className="font-black text-slate-900 text-base flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-emerald-600/10 text-emerald-600 flex items-center justify-center">
@@ -81,9 +92,9 @@ export const ChatPage: React.FC = () => {
             value={filterQuery}
             onChange={(e) => setFilterQuery(e.target.value)}
             placeholder="Ism yoki e'lon bo'yicha izlash..."
-            className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+            className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
           />
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-3" />
         </div>
       </div>
 
@@ -131,52 +142,53 @@ export const ChatPage: React.FC = () => {
   );
 
   const Thread = currentConv ? (
-    <div className="bg-white md:rounded-3xl md:border md:border-slate-200/80 shadow-card flex flex-col h-full min-h-0 overflow-hidden">
+    <div className="bg-white md:rounded-3xl md:border md:border-slate-200/80 shadow-card flex flex-col h-full min-h-0 overflow-hidden relative">
       {/* Top Peer Info Header */}
-      <div className="px-4 py-3 border-b border-slate-200/80 bg-white flex items-center justify-between gap-3 shrink-0 shadow-sm">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="px-3 sm:px-4 py-2.5 border-b border-slate-200/80 bg-white flex items-center justify-between gap-2.5 shrink-0 shadow-xs z-10">
+        <div className="flex items-center gap-2 min-w-0">
           <button
             type="button"
             onClick={() => setMobileThread(false)}
-            className="md:hidden p-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
+            className="md:hidden p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition active:scale-95 shrink-0"
+            aria-label="Orqaga"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-5 h-5" />
           </button>
 
           <div className="relative shrink-0">
-            <img src={peerAvatar(currentConv)} alt="" className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-sm" />
+            <img src={peerAvatar(currentConv)} alt="" className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border border-slate-200 shadow-sm" />
             <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white" />
           </div>
 
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <span className="font-black text-slate-900 text-sm truncate">{peerName(currentConv)}</span>
-              <span className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-2 py-0.5 rounded-md flex items-center gap-0.5">
+              <span className="font-black text-slate-900 text-xs sm:text-sm truncate">{peerName(currentConv)}</span>
+              <span className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shrink-0">
                 <ShieldCheck className="w-3 h-3 text-emerald-600" />
                 <span>{isOwner ? 'Ijarachi' : 'Uy Egasi'}</span>
               </span>
             </div>
-            <div className="text-[11px] text-slate-400 font-medium truncate">Onlayn • Maklersiz to'g'ridan-to'g'ri aloqa</div>
+            <div className="text-[10px] sm:text-[11px] text-slate-400 font-medium truncate">Onlayn • Maklersiz aloqa</div>
           </div>
         </div>
 
         <button
           type="button"
           onClick={() => setCurrentView('LISTING_DETAIL', currentConv.listingId)}
-          className="bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 transition shrink-0 active:scale-95 shadow-sm"
+          className="bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-[11px] sm:text-xs px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl flex items-center gap-1 transition shrink-0 active:scale-95 shadow-sm"
         >
           <Home className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">E'lonni ko'rish</span>
+          <span>E'lon</span>
         </button>
       </div>
 
-      {/* Embedded Active Listing Card Banner */}
-      <div className="bg-emerald-950 text-white px-4 py-2.5 flex items-center justify-between gap-3 shrink-0 border-b border-emerald-900">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <img src={currentConv.listingImage} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0 border border-emerald-700" />
+      {/* Compact Active Listing Banner */}
+      <div className="bg-slate-950 text-white px-3.5 py-2 flex items-center justify-between gap-2.5 shrink-0 border-b border-slate-800 text-xs">
+        <div className="flex items-center gap-2 min-w-0">
+          <img src={currentConv.listingImage} alt="" className="w-7 h-7 rounded-md object-cover shrink-0 border border-slate-700" />
           <div className="min-w-0">
-            <div className="text-xs font-bold text-emerald-100 truncate">{currentConv.listingTitle}</div>
-            <div className="text-[11px] font-black text-emerald-400">
+            <div className="text-[11px] font-bold text-slate-100 truncate">{currentConv.listingTitle}</div>
+            <div className="text-[10px] font-extrabold text-emerald-400">
               {(currentConv.listingPrice / 1000000).toFixed(1)} mln so'm / oy
             </div>
           </div>
@@ -184,39 +196,39 @@ export const ChatPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setCurrentView('LISTING_DETAIL', currentConv.listingId)}
-          className="text-emerald-300 hover:text-white text-xs font-bold flex items-center gap-1 shrink-0 hover:underline"
+          className="text-emerald-400 hover:text-emerald-300 text-[10px] font-bold flex items-center gap-0.5 shrink-0 hover:underline"
         >
-          <span>Batafsil</span>
-          <ExternalLink className="w-3.5 h-3.5" />
+          <span>Ko'rish</span>
+          <ExternalLink className="w-3 h-3" />
         </button>
       </div>
 
-      {/* Safety Warning Banner */}
-      <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-[11px] font-medium text-amber-900 flex items-center gap-2 shrink-0">
-        <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
-        <span><strong>Xavfsizlik eslatmasi:</strong> Uyni ko'rmasdan va shartnoma tuzmasdan oldindan Plastik kartaga pul o'tkazmang!</span>
+      {/* Compact Safety Warning */}
+      <div className="bg-amber-50/90 border-b border-amber-200 px-3 py-1.5 text-[10px] font-medium text-amber-900 flex items-center gap-1.5 shrink-0">
+        <ShieldCheck className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+        <span className="truncate">Uyni ko'rmasdan oldindan plastik kartaga pul o'tkazmang!</span>
       </div>
 
       {/* Message Feed Area */}
-      <div className="flex-1 overflow-y-auto px-3.5 py-4 sm:p-5 space-y-3.5 bg-slate-100/70 min-h-0">
+      <div className="flex-1 overflow-y-auto px-3 py-3 sm:p-4 space-y-3 bg-slate-100/70 min-h-0">
         {currentMsgs.map((msg) => {
           const mine = isMe(msg.senderId, msg.senderRole);
           return (
-            <div key={msg.id} className={`flex w-full ${mine ? 'justify-end pr-1 sm:pr-2' : 'justify-start pl-1 sm:pl-2'}`}>
+            <div key={msg.id} className={`flex w-full ${mine ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
               <div
-                className={`max-w-[82%] sm:max-w-[72%] px-4 py-3 rounded-2xl text-[13px] sm:text-sm shadow-sm leading-relaxed break-words [word-break:break-word] ${
+                className={`max-w-[82%] sm:max-w-[72%] px-3.5 py-2.5 rounded-2xl text-[13px] sm:text-sm shadow-sm leading-relaxed break-words [word-break:break-word] ${
                   mine
                     ? 'bg-gradient-to-br from-emerald-600 to-emerald-700 text-white rounded-tr-xs shadow-emerald-600/10'
                     : 'bg-white text-slate-900 border border-slate-200/90 rounded-tl-xs'
                 }`}
               >
                 {!mine && (
-                  <div className="text-[10.5px] font-extrabold text-emerald-700 mb-1 flex items-center gap-1">
+                  <div className="text-[10px] font-extrabold text-emerald-700 mb-0.5 flex items-center gap-1">
                     <span>{msg.senderName}</span>
                   </div>
                 )}
                 <p className="whitespace-pre-wrap break-words leading-relaxed">{msg.text}</p>
-                <div className={`text-[9.5px] sm:text-[10px] mt-1.5 flex items-center justify-end gap-1 font-medium ${mine ? 'text-emerald-100' : 'text-slate-400'}`}>
+                <div className={`text-[9.5px] sm:text-[10px] mt-1 flex items-center justify-end gap-1 font-medium ${mine ? 'text-emerald-100' : 'text-slate-400'}`}>
                   <span>{msg.timestamp}</span>
                   {mine && <CheckCheck className="w-3.5 h-3.5 text-emerald-200" />}
                 </div>
@@ -224,16 +236,17 @@ export const ChatPage: React.FC = () => {
             </div>
           );
         })}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Quick Action Suggestion Chips */}
-      <div className="px-3 py-2 bg-white border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto hide-scrollbar shrink-0">
+      <div className="px-2.5 py-1.5 bg-white border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto hide-scrollbar shrink-0">
         {QuickChips.map((chip, idx) => (
           <button
             key={idx}
             type="button"
             onClick={() => handleSend(chip)}
-            className="bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-700 text-[11px] font-bold px-3 py-1.5 rounded-full shrink-0 border border-slate-200/80 transition-all active:scale-95 whitespace-nowrap"
+            className="bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-700 text-[10.5px] font-bold px-2.5 py-1 rounded-full shrink-0 border border-slate-200/80 transition-all active:scale-95 whitespace-nowrap"
           >
             {chip}
           </button>
@@ -246,19 +259,19 @@ export const ChatPage: React.FC = () => {
           e.preventDefault();
           handleSend();
         }}
-        className="p-2.5 sm:p-3 bg-white border-t border-slate-200 flex items-center gap-2 shrink-0 pb-16 sm:pb-3"
+        className="p-2 sm:p-3 bg-white border-t border-slate-200 flex items-center gap-2 shrink-0 pb-16 sm:pb-3"
       >
         <input
           type="text"
           value={inputMsg}
           onChange={(e) => setInputMsg(e.target.value)}
           placeholder="Xabaringizni yozing..."
-          className="flex-1 bg-slate-100 border border-slate-200 rounded-2xl px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+          className="flex-1 bg-slate-100 border border-slate-200 rounded-full px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
         />
         <button
           type="submit"
           disabled={!inputMsg.trim()}
-          className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/30 transition-all active:scale-95"
+          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/30 transition-all active:scale-95"
         >
           <Send className="w-4 h-4" />
         </button>
