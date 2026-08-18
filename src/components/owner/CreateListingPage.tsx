@@ -256,7 +256,7 @@ export const CreateListingPage: React.FC = () => {
       riskScore: scan.riskScore,
       aiCheckStatus: 'APPROVED',
       aiRiskReasons: scan.reasons,
-      safetyBadges: ['VERIFIED_OWNER', 'AI_CHECKED', 'NO_COMMISSION'],
+      safetyBadges: ['VERIFIED_OWNER', 'AI_CHECKED', 'NO_COMMISSION', 'STUDENT_FRIENDLY'],
       createdAt: new Date().toISOString(),
       viewsCount: 1,
       favoritesCount: 0,

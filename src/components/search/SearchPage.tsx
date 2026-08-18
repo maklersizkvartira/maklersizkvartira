@@ -85,7 +85,7 @@ export const SearchPage: React.FC = () => {
       }
 
       // Audience filter
-      if (audience === 'STUDENT' && !listing.safetyBadges.includes('STUDENT_FRIENDLY')) {
+      if (audience === 'STUDENT' && !listing.safetyBadges.includes('STUDENT_FRIENDLY') && !listing.isRoommate && listing.rooms > 2) {
         return false;
       }
 

@@ -11,7 +11,7 @@ export const HeroSection: React.FC = () => {
     setFilters, setCurrentView 
   } = useAppStore();
 
-  const [localRegion, setLocalRegion] = useState(selectedRegion !== 'Barchasi' ? selectedRegion : 'Toshkent shahri');
+  const [localRegion, setLocalRegion] = useState(selectedRegion);
   const [localDistrict, setLocalDistrict] = useState(selectedDistrict);
   const [localRooms, setLocalRooms] = useState<number | null>(roomsCount);
   const [localMaxPrice, setLocalMaxPrice] = useState(maxPrice);

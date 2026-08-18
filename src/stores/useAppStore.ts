@@ -190,7 +190,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
     return {
       listings,
       currentView: 'MY_LISTINGS',
-      aiMascotMessage: "E'lon joylandi. Odamlar endi ko'ra oladi.",
+      selectedRegion: 'Barchasi',
+      selectedDistrict: 'Barchasi',
+      selectedMetro: 'Barchasi',
+      selectedUniversity: 'Barchasi',
+      roomsCount: null,
+      audience: 'ALL',
+      rentalType: 'ALL',
+      searchQuery: '',
+      aiMascotMessage: "E'lon muvaffaqiyatli joylandi! Bosh sahifa va qidiruvda ham ko'rinarli bo'ldi.",
     };
   }),
   updateListing: (updatedListing) => set((state) => {
