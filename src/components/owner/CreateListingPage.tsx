@@ -258,7 +258,7 @@ export const CreateListingPage: React.FC = () => {
       airConditioning: true,
       washingMachine: true,
       images: finalImages,
-      videoUrl: videoUrl.trim() || 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+      videoUrl: videoUrl.trim() || undefined,
       hasVirtualTour: false,
       isRoommate,
       roommateGender: isRoommate ? roommateGender : undefined,

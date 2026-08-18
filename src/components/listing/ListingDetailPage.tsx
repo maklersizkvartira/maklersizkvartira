@@ -250,17 +250,19 @@ export const ListingDetailPage: React.FC = () => {
             Rasmlar ({displayImages.length})
           </button>
           
-          <button
-            onClick={() => setActiveMedia('VIDEO')}
-            className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all font-black text-xs shadow-xs shrink-0 ${
-              activeMedia === 'VIDEO'
-                ? 'bg-rose-600 text-white ring-2 ring-rose-500 shadow-md'
-                : 'bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100'
-            }`}
-          >
-            <Video className="w-4 h-4 fill-current shrink-0" />
-            <span>Video Sharh 🎥</span>
-          </button>
+          {listing.videoUrl && (
+            <button
+              onClick={() => setActiveMedia('VIDEO')}
+              className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all font-black text-xs shadow-xs shrink-0 ${
+                activeMedia === 'VIDEO'
+                  ? 'bg-rose-600 text-white ring-2 ring-rose-500 shadow-md'
+                  : 'bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100'
+              }`}
+            >
+              <Video className="w-4 h-4 fill-current shrink-0" />
+              <span>Video Sharh 🎥</span>
+            </button>
+          )}
         </div>
 
         {/* Media Display Viewer */}
@@ -273,14 +275,14 @@ export const ListingDetailPage: React.FC = () => {
             />
           )}
 
-          {activeMedia === 'VIDEO' && (
+          {activeMedia === 'VIDEO' && listing.videoUrl && (
             <div className="w-full h-full bg-slate-950 flex items-center justify-center relative">
-              {((listing.videoUrl || 'https://www.youtube.com/embed/dQw4w9WgXcQ').includes('youtube.com') || (listing.videoUrl || '').includes('youtu.be')) ? (
+              {listing.videoUrl.includes('youtube.com') || listing.videoUrl.includes('youtu.be') ? (
                 <iframe
                   src={
-                    (listing.videoUrl || 'https://www.youtube.com/embed/dQw4w9WgXcQ').includes('embed')
-                      ? (listing.videoUrl || 'https://www.youtube.com/embed/dQw4w9WgXcQ')
-                      : (listing.videoUrl || '').replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')
+                    listing.videoUrl.includes('embed')
+                      ? listing.videoUrl
+                      : listing.videoUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')
                   }
                   title="Video sharh"
                   className="w-full h-full border-0"
