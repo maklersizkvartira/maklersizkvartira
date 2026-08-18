@@ -6,13 +6,19 @@ import { SignupRole } from '../../types';
 import { ApiService } from '../../services/apiService';
 
 export const AuthModal: React.FC = () => {
-  const { showAuth, setShowAuth, login } = useAppStore();
-  const [activeTab, setActiveTab] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
+  const { showAuth, setShowAuth, login, authModalTab } = useAppStore();
+  const [activeTab, setActiveTab] = useState<'LOGIN' | 'REGISTER'>(authModalTab || 'LOGIN');
   const [role, setRole] = useState<SignupRole | null>(null);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
+  React.useEffect(() => {
+    if (showAuth && authModalTab) {
+      setActiveTab(authModalTab);
+    }
+  }, [showAuth, authModalTab]);
 
   if (!showAuth) return null;
 
