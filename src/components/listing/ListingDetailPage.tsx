@@ -71,6 +71,26 @@ export const ListingDetailPage: React.FC = () => {
     }
   };
 
+  const getDisplayAddress = (l: typeof listing) => {
+    if (!l) return '';
+    const parts: string[] = [];
+    const addr = (l.address || '').trim();
+    const dist = (l.district || '').trim();
+    const reg = (l.region || '').trim();
+
+    if (addr) parts.push(addr);
+
+    if (dist && !addr.toLowerCase().includes(dist.toLowerCase())) {
+      parts.push(`${dist} tumani`);
+    }
+
+    if (reg && !addr.toLowerCase().includes(reg.toLowerCase()) && !dist.toLowerCase().includes(reg.toLowerCase())) {
+      parts.push(reg);
+    }
+
+    return parts.join(', ');
+  };
+
   const handleReportSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setReportSubmitted(true);
@@ -182,7 +202,7 @@ export const ListingDetailPage: React.FC = () => {
         <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
           <div className="flex items-center gap-1">
             <MapPin className="w-4 h-4 text-emerald-600" />
-            <span className="font-semibold text-slate-800">{listing.address}, {listing.district}, {listing.region}</span>
+            <span className="font-semibold text-slate-800">{getDisplayAddress(listing)}</span>
           </div>
 
           {listing.metroStation && (
