@@ -12,13 +12,17 @@ interface ListingCardProps {
 }
 
 export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
-  const { setCurrentView, toggleFavorite, favorites } = useAppStore();
+  const { setCurrentView, toggleFavorite, favorites, currency } = useAppStore();
   const favorite = favorites.includes(listing.id);
   const cover = listing.images?.[0];
 
   const handleCardClick = () => {
     setCurrentView('LISTING_DETAIL', listing.id);
   };
+
+  const USD_RATE = 12800;
+  const priceInUsd = listing.price > 10000 ? Math.round(listing.price / USD_RATE) : listing.price;
+  const priceInUzs = listing.price > 10000 ? listing.price : listing.price * USD_RATE;
 
   return (
     <div
@@ -109,9 +113,12 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
             />
             <div className="min-w-0">
             <div className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate">{(listing.owner?.name || 'Uy Egasi').split(' ')[0]}</div>
-            <div className="text-[13px] sm:text-lg font-black text-emerald-800 tracking-tight leading-tight">
-              {(listing.price / 1000000).toFixed(1)}
-              <span className="text-[10px] sm:text-xs font-bold text-slate-600"> mln</span>
+            <div className="text-[13px] sm:text-lg font-black text-emerald-700 tracking-tight leading-tight">
+              {currency === 'USD' ? (
+                <span>${priceInUsd}<span className="text-[10px] sm:text-xs font-bold text-slate-500"> / oy</span></span>
+              ) : (
+                <span>{(priceInUzs / 1000000).toFixed(1)}<span className="text-[10px] sm:text-xs font-bold text-slate-500"> mln</span></span>
+              )}
             </div>
             </div>
           </div>

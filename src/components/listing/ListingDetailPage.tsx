@@ -14,7 +14,8 @@ export const ListingDetailPage: React.FC = () => {
   const { 
     selectedListingId, listings, favorites, toggleFavorite, 
     openChatWithListing, setCurrentView, resolveReport,
-    currentUser, setShowAuth, setEditingListing, removeListing
+    currentUser, setShowAuth, setEditingListing, removeListing,
+    currency
   } = useAppStore();
 
   const [activeMedia, setActiveMedia] = useState<'IMAGE' | 'VIDEO' | 'TOUR360'>('IMAGE');
@@ -27,6 +28,10 @@ export const ListingDetailPage: React.FC = () => {
 
   const listing = listings.find((l) => l.id === selectedListingId) || listings[0];
   const isFav = favorites.includes(listing.id);
+
+  const USD_RATE = 12800;
+  const priceInUsd = listing ? (listing.price > 10000 ? Math.round(listing.price / USD_RATE) : listing.price) : 0;
+  const priceInUzs = listing ? (listing.price > 10000 ? listing.price : listing.price * USD_RATE) : 0;
 
 
   const formatPrice = (amount: number) => new Intl.NumberFormat('uz-UZ').format(amount);
@@ -354,8 +359,11 @@ export const ListingDetailPage: React.FC = () => {
             <div className="space-y-1">
               <span className="text-xs text-slate-500 font-semibold">Oylik Ijara Narxi</span>
               <div className="text-3xl font-black text-slate-900">
-                {formatPrice(listing.price)}{' '}
-                <span className="text-sm font-normal text-slate-500">so'm/oy</span>
+                {currency === 'USD' ? (
+                  <span>${priceInUsd} <span className="text-sm font-normal text-slate-500">/ oy</span></span>
+                ) : (
+                  <span>{new Intl.NumberFormat('uz-UZ').format(priceInUzs)} <span className="text-sm font-normal text-slate-500">so'm/oy</span></span>
+                )}
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-600 pt-1">
                 <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
