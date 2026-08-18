@@ -26,8 +26,15 @@ export const ListingDetailPage: React.FC = () => {
   const [reportText, setReportText] = useState('');
   const [reportSubmitted, setReportSubmitted] = useState(false);
 
-  const listing = listings.find((l) => l.id === selectedListingId) || listings[0];
-  const isFav = favorites.includes(listing.id);
+  const listing = listings.find((l) =>
+    selectedListingId && (
+      l.id === selectedListingId ||
+      l.id === `listing-${selectedListingId}` ||
+      selectedListingId.endsWith(l.id) ||
+      l.id.endsWith(selectedListingId)
+    )
+  ) || listings[0];
+  const isFav = listing ? favorites.includes(listing.id) : false;
 
   const USD_RATE = 12800;
   const priceInUsd = listing ? (listing.price > 10000 ? Math.round(listing.price / USD_RATE) : listing.price) : 0;

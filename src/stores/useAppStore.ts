@@ -113,11 +113,24 @@ interface AppStore {
 const savedUser = typeof window !== 'undefined' ? loadUser() : null;
 const extraListings = typeof window !== 'undefined' ? loadExtraListings() : [];
 
+const getInitialUrlListingId = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const param = urlParams.get('listing') || urlParams.get('id') || window.location.hash.replace('#', '');
+    return param ? param.trim() : null;
+  } catch {
+    return null;
+  }
+};
+
+const initialListingId = getInitialUrlListingId();
+
 export const useAppStore = create<AppStore>((set, get) => ({
   currency: 'USD',
   setCurrency: (c) => set({ currency: c }),
-  currentView: savedUser?.role === 'OWNER' ? 'HOME' : 'HOME',
-  selectedListingId: null,
+  currentView: initialListingId ? 'LISTING_DETAIL' : (savedUser?.role === 'OWNER' ? 'HOME' : 'HOME'),
+  selectedListingId: initialListingId,
   setCurrentView: (view, listingId = null) => {
     const targetListingId = listingId ?? get().selectedListingId;
     set({ currentView: view, selectedListingId: targetListingId });
