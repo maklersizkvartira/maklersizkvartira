@@ -3,7 +3,7 @@ import { Shield, Sparkles, X, MessageSquare, Send } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { replyAsAssistant } from '../../services/aiEngine';
 
-const DAILY_LIMIT = 3;
+const DAILY_LIMIT = 10;
 
 function getDailyUsage(): number {
   try {
@@ -27,6 +27,14 @@ function incrementDailyUsage(): number {
   } catch {
     return 1;
   }
+}
+
+function resetDailyUsage(): void {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const key = `shield-ai-usage-${today}`;
+    localStorage.removeItem(key);
+  } catch {}
 }
 
 export const ShieldMascot: React.FC = () => {
@@ -106,9 +114,22 @@ export const ShieldMascot: React.FC = () => {
                 <p className="text-[10px] text-emerald-400">Kuniga 3 ta bepul AI so'rov</p>
               </div>
             </div>
-            <button onClick={() => setOpen(false)} className="text-slate-400 p-1">
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  resetDailyUsage();
+                  setUsageCount(0);
+                  setLog((prev) => [...prev, { from: 'ai', text: "🔄 AI so'rovlar limitingiz muvaffaqiyatli nollashtirildi! Cheksiz sinab ko'rishingiz mumkin." }]);
+                }}
+                className="text-[10px] bg-emerald-950 hover:bg-emerald-900 text-emerald-300 px-2 py-1 rounded-lg border border-emerald-500/40 font-bold transition-colors flex items-center gap-1"
+              >
+                🔄 Reset
+              </button>
+              <button onClick={() => setOpen(false)} className="text-slate-400 p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           <div className="max-h-56 overflow-y-auto space-y-2 mb-3 pr-1">
             {aiMascotMessage && (
