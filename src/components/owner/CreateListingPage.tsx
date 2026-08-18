@@ -920,7 +920,7 @@ export const CreateListingPage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="space-y-4 max-w-md mx-auto">
+              <div className="space-y-4 max-w-md mx-auto pb-20 sm:pb-0">
                 <div className="bg-emerald-50 border border-emerald-200 p-5 rounded-3xl text-left space-y-2 shadow-xs">
                   <div className="font-extrabold text-emerald-950 flex items-center gap-2 text-base">
                     <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" /> AI Tekshiruvidan muvaffaqiyatli o'tdi!
@@ -929,14 +929,22 @@ export const CreateListingPage: React.FC = () => {
                     {scan?.message || "E'loningiz va suratlaringiz qoidalarga mos keladi. E'loningizni darhol nashr qilishingiz mumkin."}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleSubmitListing}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 px-6 rounded-2xl text-base shadow-lg shadow-emerald-600/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span>E'lonni chiqarish</span>
-                </button>
+
+                {/* Mobile Sticky & Desktop Static Publish Button */}
+                <div className="fixed bottom-20 left-4 right-4 sm:relative sm:bottom-0 sm:left-0 sm:right-0 z-50 sm:z-0">
+                  <button
+                    type="button"
+                    onClick={handleSubmitListing}
+                    onTouchEnd={(e) => {
+                      e.preventDefault();
+                      handleSubmitListing(e);
+                    }}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black py-4 px-6 rounded-2xl text-base shadow-2xl shadow-emerald-600/40 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer border-2 border-emerald-400/40"
+                  >
+                    <CheckCircle2 className="w-6 h-6" />
+                    <span>E'lonni chiqarish</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
