@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { 
   Filter, SlidersHorizontal, RefreshCw, Search, ShieldCheck, MapPin, 
-  Train, GraduationCap, DollarSign, Home, CheckCircle2, ChevronDown, ChevronUp 
+  Train, GraduationCap, DollarSign, Home, CheckCircle2, ChevronDown, ChevronUp, X 
 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { ListingCard } from '../common/ListingCard';
@@ -84,6 +84,11 @@ export const SearchPage: React.FC = () => {
         return false;
       }
 
+      // Audience filter
+      if (audience === 'STUDENT' && !listing.safetyBadges.includes('STUDENT_FRIENDLY')) {
+        return false;
+      }
+
       return true;
     });
     if (sortBy === 'AI') {
@@ -106,10 +111,45 @@ export const SearchPage: React.FC = () => {
       if (sortBy === 'NEWEST') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       return 0;
     });
-  }, [listings, searchQuery, selectedRegion, selectedDistrict, selectedMetro, selectedUniversity, maxPrice, roomsCount, onlyVerified, minTrustScore, sortBy, audience]);
+  }, [listings, searchQuery, selectedRegion, selectedDistrict, selectedMetro, selectedUniversity, maxPrice, roomsCount, onlyVerified, minTrustScore, sortBy, audience, rentalType]);
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-5 sm:py-8 min-h-[80vh] w-full overflow-x-hidden">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 min-h-[80vh] w-full overflow-x-hidden">
+      {/* Top Prominent Search Input & Button Bar */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+        }}
+        className="mb-4 bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200 shadow-md flex items-center gap-2 w-full"
+      >
+        <div className="relative flex-1 min-w-0">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Tuman, metro, universitet yoki 2 xona..."
+            className="w-full bg-slate-100/90 border border-slate-200 rounded-xl pl-9 pr-8 py-2.5 text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+          />
+          <Search className="w-4 h-4 text-emerald-600 absolute left-3 top-3 shrink-0" />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 p-0.5 rounded-full"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        <button
+          type="submit"
+          className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm px-4 sm:px-6 py-2.5 rounded-xl shadow-md flex items-center justify-center gap-1.5 shrink-0 transition-transform active:scale-95"
+        >
+          <Search className="w-4 h-4" />
+          <span>Qidirish</span>
+        </button>
+      </form>
+
       {/* Search Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
