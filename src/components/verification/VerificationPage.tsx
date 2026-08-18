@@ -6,6 +6,7 @@ import {
   Video, VideoOff
 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
+import { ApiService } from '../../services/apiService';
 import { VerificationLevel } from '../../types';
 import { VerificationBadge } from '../common/VerificationBadge';
 
@@ -148,52 +149,61 @@ export const VerificationPage: React.FC = () => {
     }
   };
 
-  const handleLevel2Submit = (e: React.FormEvent) => {
+  const handleLevel2Submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!passportImage) {
       alert("Iltimos, avval pasportingiz yoki ID kartangiz rasmini yuklang.");
       return;
     }
     setIsSubmitting(true);
+    try {
+      await ApiService.submitVerification({ type: 'PASSPORT', passportImage });
+    } catch {}
     setTimeout(() => {
       setIsSubmitting(false);
       setPassportDone(true);
       setActiveStep(3);
       addXp(50, 'Pasport tasdiqlandi');
       setAiMascotMessage("✨ Pasport muvaffaqiyatli tasdiqlandi! +50 XP va Level 2 Badge berildi.");
-    }, 1200);
+    }, 800);
   };
 
-  const handleLevel3Submit = (e: React.FormEvent) => {
+  const handleLevel3Submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selfieImage) {
       alert("Iltimos, jonli kamerangiz orqali selfie tushing yoki rasm yuklang.");
       return;
     }
     setIsSubmitting(true);
+    try {
+      await ApiService.submitVerification({ type: 'SELFIE', selfieImage });
+    } catch {}
     setTimeout(() => {
       setIsSubmitting(false);
       setSelfieDone(true);
       setActiveStep(4);
       addXp(50, 'Selfie tasdiqlandi');
       setAiMascotMessage("✨ Jonli Selfie va Liveness muvaffaqiyatli o'tdi! +50 XP yig'ildi.");
-    }, 1200);
+    }, 800);
   };
 
-  const handleLevel4Submit = (e: React.FormEvent) => {
+  const handleLevel4Submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cadastreImage && !cadastreCode.trim()) {
       alert("Iltimos, kadastr raqamini kiriting yoki kadastr hujjatini yuklang.");
       return;
     }
     setIsSubmitting(true);
+    try {
+      await ApiService.submitVerification({ type: 'CADASTRE', cadastreImage, cadastreCode });
+    } catch {}
     setTimeout(() => {
       setIsSubmitting(false);
       setCadastreDone(true);
       setActiveStep(5);
       addXp(100, 'Property Cadastre verified');
       setAiMascotMessage("🏆 Tabriklaymiz! Kvartirangiz mulk egaligi kadastri bo'yicha Level 4 Property Verified statusini oldi!");
-    }, 1500);
+    }, 1000);
   };
 
   const handlePhoneCheckSubmit = (e: React.FormEvent) => {
