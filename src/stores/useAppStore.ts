@@ -65,6 +65,7 @@ interface AppStore {
   addListing: (newListing: Listing) => void;
   updateListing: (updatedListing: Listing) => void;
   removeListing: (listingId: string) => void;
+  clearAllExtraListings: () => void;
   editingListing: Listing | null;
   setEditingListing: (listing: Listing | null) => void;
 
@@ -112,14 +113,38 @@ interface AppStore {
 const savedUser = typeof window !== 'undefined' ? loadUser() : null;
 const extraListings = typeof window !== 'undefined' ? loadExtraListings() : [];
 
+const getInitialUrlListingId = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const param = urlParams.get('listing') || urlParams.get('id') || window.location.hash.replace('#', '');
+    return param ? param.trim() : null;
+  } catch {
+    return null;
+  }
+};
+
+const initialListingId = getInitialUrlListingId();
+
 export const useAppStore = create<AppStore>((set, get) => ({
   currency: 'USD',
   setCurrency: (c) => set({ currency: c }),
-  currentView: savedUser?.role === 'OWNER' ? 'HOME' : 'HOME',
-  selectedListingId: null,
+  currentView: initialListingId ? 'LISTING_DETAIL' : (savedUser?.role === 'OWNER' ? 'HOME' : 'HOME'),
+  selectedListingId: initialListingId,
   setCurrentView: (view, listingId = null) => {
-    set({ currentView: view, selectedListingId: listingId ?? get().selectedListingId });
+    const targetListingId = listingId ?? get().selectedListingId;
+    set({ currentView: view, selectedListingId: targetListingId });
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    if (typeof window !== 'undefined') {
+      try {
+        if (view === 'LISTING_DETAIL' && targetListingId) {
+          window.history.pushState({}, '', `/?listing=${targetListingId}`);
+        } else if (view === 'HOME') {
+          window.history.pushState({}, '', '/');
+        }
+      } catch (e) {}
+    }
   },
 
   currentUser: savedUser,
@@ -216,6 +241,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const extras = listings.filter((l) => l.id.startsWith('listing-') && !MOCK_LISTINGS.some((m) => m.id === l.id));
     localStorage.setItem(EXTRA_KEY, JSON.stringify(extras));
     return { listings, aiMascotMessage: "E'lon o'chirildi." };
+  }),
+  clearAllExtraListings: () => set((state) => {
+    localStorage.removeItem(EXTRA_KEY);
+    const cleanListings = state.listings.filter((l) => MOCK_LISTINGS.some((m) => m.id === l.id));
+    return {
+      listings: cleanListings.length ? cleanListings : MOCK_LISTINGS,
+      aiMascotMessage: "Barcha kiritilgan e'lonlar va kesh ma'lumotlari bazadan tozalab yuborildi!",
+    };
   }),
 
   favorites: ['listing-1'],

@@ -26,8 +26,15 @@ export const ListingDetailPage: React.FC = () => {
   const [reportText, setReportText] = useState('');
   const [reportSubmitted, setReportSubmitted] = useState(false);
 
-  const listing = listings.find((l) => l.id === selectedListingId) || listings[0];
-  const isFav = favorites.includes(listing.id);
+  const listing = listings.find((l) =>
+    selectedListingId && (
+      l.id === selectedListingId ||
+      l.id === `listing-${selectedListingId}` ||
+      selectedListingId.endsWith(l.id) ||
+      l.id.endsWith(selectedListingId)
+    )
+  ) || listings[0];
+  const isFav = listing ? favorites.includes(listing.id) : false;
 
   const USD_RATE = 12800;
   const priceInUsd = listing ? (listing.price > 10000 ? Math.round(listing.price / USD_RATE) : listing.price) : 0;
@@ -35,6 +42,34 @@ export const ListingDetailPage: React.FC = () => {
 
 
   const formatPrice = (amount: number) => new Intl.NumberFormat('uz-UZ').format(amount);
+
+  const [shareSuccessMsg, setShareSuccessMsg] = useState('');
+
+  const handleShare = async () => {
+    if (!listing) return;
+    const shareUrl = `${window.location.origin}/?listing=${listing.id}`;
+    const shareTitle = `${listing.title} — Maklersiz.uz`;
+    const shareText = `🏠 ${listing.title} — ${formatPrice(listing.price)} so'm (${listing.district} tumani). Maklersiz, 0% komissiya!`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
+        });
+        return;
+      } catch (e) {}
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareSuccessMsg("🔗 E'lon havolasi nusxalandi! Endi Telegram yoki istalgan tarmoqqa yuborishingiz mumkin.");
+      setTimeout(() => setShareSuccessMsg(''), 4000);
+    } catch {
+      alert(`E'lon havolasi: ${shareUrl}`);
+    }
+  };
 
   const handleReportSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +82,17 @@ export const ListingDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 py-5 sm:py-6 space-y-6 sm:space-y-8 min-h-[85vh] w-full overflow-x-hidden">
+      {/* Toast Share Alert */}
+      {shareSuccessMsg && (
+        <div className="bg-emerald-600 text-white px-4 py-3 rounded-2xl shadow-xl font-bold text-xs flex items-center justify-between gap-2 animate-in fade-in-50">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-200 shrink-0" />
+            <span>{shareSuccessMsg}</span>
+          </div>
+          <button onClick={() => setShareSuccessMsg('')} className="text-white hover:text-emerald-200 text-xs font-black">✕</button>
+        </div>
+      )}
+
       {/* Back Button & Top Actions */}
       <div className="flex items-center justify-between gap-2 min-w-0">
         <button
@@ -68,13 +114,10 @@ export const ListingDetailPage: React.FC = () => {
           </button>
 
           <button
-            onClick={() => {
-              navigator.clipboard.writeText(window.location.href);
-              alert("E'lon havolasi ko'chirildi!");
-            }}
-            className="flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 px-2.5 sm:px-3 py-1.5 rounded-xl hover:bg-slate-50 transition-colors"
+            onClick={handleShare}
+            className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 sm:px-3.5 py-1.5 rounded-xl hover:bg-emerald-100 transition-all shadow-xs active:scale-95"
           >
-            <Share2 className="w-4 h-4" /> <span className="hidden sm:inline">Ulashish</span>
+            <Share2 className="w-4 h-4 text-emerald-600" /> <span className="inline">Ulashish</span>
           </button>
 
           <button

@@ -7,7 +7,7 @@ import { useAppStore } from '../../stores/useAppStore';
 import { EditListingModal } from './EditListingModal';
 
 export const MyListingsPage: React.FC = () => {
-  const { currentUser, listings, conversations, setCurrentView, removeListing, setEditingListing, setShowAuth } = useAppStore();
+  const { currentUser, listings, conversations, setCurrentView, removeListing, setEditingListing, setShowAuth, clearAllExtraListings } = useAppStore();
 
   if (!currentUser || currentUser.role !== 'OWNER') {
     return (
@@ -42,13 +42,27 @@ export const MyListingsPage: React.FC = () => {
             E'lonlaringizni necha kishi ko'rgani, saqlagani, qo'ng'iroq qilgani va yozganini kuzatib boring
           </p>
         </div>
-        <button
-          onClick={() => setCurrentView('CREATE_LISTING')}
-          className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm px-5 py-3 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all shrink-0 active:scale-95"
-        >
-          <PlusCircle className="w-5 h-5" />
-          <span>Yangi E'lon Joylash</span>
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => {
+              if (window.confirm("Barcha siz va sinov tariqasida yaratilgan e'lonlar bazadan o'chirilsinmi?")) {
+                clearAllExtraListings();
+              }
+            }}
+            className="bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 font-extrabold text-xs px-3.5 py-3 rounded-2xl flex items-center justify-center gap-1.5 transition-all active:scale-95"
+            title="Sinov e'lonlarini tozalash"
+          >
+            <Trash2 className="w-4 h-4 text-rose-600" />
+            <span className="hidden sm:inline">Tozalash</span>
+          </button>
+          <button
+            onClick={() => setCurrentView('CREATE_LISTING')}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm px-5 py-3 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all shrink-0 active:scale-95"
+          >
+            <PlusCircle className="w-5 h-5" />
+            <span>Yangi E'lon Joylash</span>
+          </button>
+        </div>
       </div>
 
       {/* Top 4 Overall Statistics Cards */}
