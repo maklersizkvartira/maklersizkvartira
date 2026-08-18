@@ -73,7 +73,7 @@ export const TrustStats: React.FC = () => {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 w-full">
               {stats.map((stat, idx) => {
-                const Icon = stat.icon;
+                const Icon = stat?.icon || ShieldCheck;
                 return (
                   <div
                     key={idx}

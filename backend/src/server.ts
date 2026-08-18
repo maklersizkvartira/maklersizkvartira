@@ -50,61 +50,12 @@ function loadListings(): any[] {
     try {
       const raw = fs.readFileSync(DB_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     } catch (e) {
       console.error('Error reading listings_db.json:', e);
     }
   }
-
-  // Default active verified listing if database file is empty
-  const defaultInitial = [
-    {
-      id: 'listing-1787073264553',
-      title: "Chilonzor 7-tumanida shinam 2 xonali kvartira (Egasidan)",
-      description: "To'g'ridan-to'g'ri egasidan! Chilonzor 7-tumanida joylashgan. Barcha mebel va maishiy texnika bor: konditsioner, muzlatgich, kir yuvish mashinasi, tezkor internet.",
-      price: 3500000,
-      currency: "UZS",
-      depositPrice: 1000000,
-      utilitiesIncluded: true,
-      rooms: 2,
-      area: 58,
-      floor: 3,
-      totalFloors: 9,
-      propertyType: "APARTMENT",
-      region: "Toshkent shahri",
-      district: "Chilonzor",
-      address: "Chilonzor 7-tumani, 14-uy",
-      images: [
-        "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1200",
-        "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=1200",
-        "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=1200"
-      ],
-      videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-      hasVirtualTour: false,
-      owner: {
-        id: "user-zayniddin",
-        name: "Zayniddin",
-        phone: "+998 93 718 88 85",
-        avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300",
-        role: "OWNER",
-        trustScore: 94,
-        trustLevel: "GREEN",
-        isVerified: true,
-      },
-      trustScore: 95,
-      riskScore: 5,
-      aiCheckStatus: "APPROVED",
-      aiRiskReasons: ["Maklerlik belgisi topilmadi", "To'g'ridan-to'g'ri egasidan e'lon"],
-      safetyBadges: ["VERIFIED_OWNER", "AI_CHECKED", "NO_COMMISSION"],
-      createdAt: new Date().toISOString(),
-      viewsCount: 12,
-      favoritesCount: 3,
-      contactCount: 2
-    }
-  ];
-
-  saveListings(defaultInitial);
-  return defaultInitial;
+  return [];
 }
 
 function saveListings(listings: any[]): void {

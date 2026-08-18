@@ -311,42 +311,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
     return { userXp: state.userXp + amount };
   }),
 
-  listings: [...extraListings, ...MOCK_LISTINGS],
+  listings: dedupeListings(extraListings),
   fetchListings: async () => {
     try {
       const publicListings = await ApiService.getListings();
-      if (!Array.isArray(publicListings) || publicListings.length === 0) {
-        // Do not clear state if network flickers or returns empty
-        return;
-      }
-      set((state) => {
-        const cleanPublic = publicListings.filter(
-          (l) =>
-            l.owner?.name !== 'Jasur Karimov' &&
-            l.owner?.name !== 'Nodira Alimova' &&
-            l.owner?.name !== 'Bekzod Rahimov'
-        );
-
-        const existingLocal = state.listings.filter(
-          (l) =>
-            !cleanPublic.some((r) => r.id === l.id) &&
-            l.owner?.name !== 'Jasur Karimov' &&
-            l.owner?.name !== 'Nodira Alimova' &&
-            l.owner?.name !== 'Bekzod Rahimov'
-        );
-
-        // Auto-upload any local listings to Railway server asynchronously
-        existingLocal.forEach((listing) => {
-          if (listing.id.startsWith('listing-')) {
-            ApiService.createListing(listing).catch(() => {});
-          }
+      if (Array.isArray(publicListings)) {
+        set((state) => {
+          const merged = dedupeListings([...publicListings, ...state.listings]);
+          return { listings: merged };
         });
-
-        const merged = dedupeListings([...cleanPublic, ...existingLocal]);
-        return { listings: merged };
-      });
-    } catch {
-      /* Keep existing listings untouched during network glitch */
+      }
+    } catch (e) {
+      console.warn('Network error fetching listings:', e);
     }
   },
   editingListing: null,

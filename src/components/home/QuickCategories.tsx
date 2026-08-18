@@ -1,5 +1,5 @@
 import React from 'react';
-import { Handshake, GraduationCap, Users, TrainFront, TrendingDown, Sparkles, ArrowRight } from 'lucide-react';
+import { Handshake, GraduationCap, Users, TrainFront, TrendingDown, Sparkles, ArrowRight, Home } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 
 export const QuickCategories: React.FC = () => {
@@ -92,7 +92,7 @@ export const QuickCategories: React.FC = () => {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
         {categories.map((cat) => {
-          const Icon = cat.icon;
+          const Icon = cat?.icon || Home;
           return (
             <div
               key={cat.id}
