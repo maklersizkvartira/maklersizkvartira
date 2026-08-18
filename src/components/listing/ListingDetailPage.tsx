@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ShieldCheck, MapPin, Train, GraduationCap, Phone, MessageSquare, 
   Heart, Share2, Flag, ArrowLeft, CheckCircle2, AlertTriangle, Eye, Sparkles, 
   Video, Compass, Info, Check, ShieldAlert, Edit, Trash2
 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
+import { ApiService } from '../../services/apiService';
+import { Listing } from '../../types';
 import { TrustScoreBadge } from '../common/TrustScoreBadge';
 import { VerificationBadge } from '../common/VerificationBadge';
 import { ListingCard } from '../common/ListingCard';
@@ -27,6 +29,41 @@ export const ListingDetailPage: React.FC = () => {
   const [reportSubmitted, setReportSubmitted] = useState(false);
   const [shareSuccessMsg, setShareSuccessMsg] = useState('');
 
+  const [directListing, setDirectListing] = useState<Listing | null>(null);
+  const [isLoadingDirect, setIsLoadingDirect] = useState(false);
+
+  useEffect(() => {
+    if (!selectedListingId) return;
+    const foundInStore = listings.find(
+      (l) =>
+        l.id === selectedListingId ||
+        l.id === `listing-${selectedListingId}` ||
+        selectedListingId.endsWith(l.id) ||
+        l.id.endsWith(selectedListingId)
+    );
+    if (foundInStore) {
+      setDirectListing(foundInStore);
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingDirect(true);
+    ApiService.getListingById(selectedListingId)
+      .then((item) => {
+        if (isMounted && item) {
+          setDirectListing(item);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (isMounted) setIsLoadingDirect(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedListingId, listings]);
+
   const listing = listings.find((l) =>
     selectedListingId && (
       l.id === selectedListingId ||
@@ -34,12 +71,21 @@ export const ListingDetailPage: React.FC = () => {
       selectedListingId.endsWith(l.id) ||
       l.id.endsWith(selectedListingId)
     )
-  ) || (selectedListingId ? undefined : listings[0]);
+  ) || directListing || (selectedListingId ? undefined : listings[0]);
 
   if (!listing) {
+    if (isLoadingDirect || (selectedListingId && listings.length === 0)) {
+      return (
+        <div className="max-w-md mx-auto px-4 py-24 text-center space-y-4">
+          <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <h2 className="text-base font-extrabold text-slate-800">E'lon yuklanmoqda...</h2>
+          <p className="text-xs text-slate-500 font-medium">Biroz kuting, e'lon ma'lumotlari yuklanmoqda.</p>
+        </div>
+      );
+    }
     return (
       <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
-        <h2 className="text-xl font-black text-slate-900">E'lon topilmadi yoki yuklanmoqda...</h2>
+        <h2 className="text-xl font-black text-slate-900">E'lon topilmadi</h2>
         <p className="text-xs text-slate-500 font-medium">Ushbu e'lon mavjud emas yoki o'chirilgan bo'lishi mumkin.</p>
         <button
           onClick={() => setCurrentView('HOME')}

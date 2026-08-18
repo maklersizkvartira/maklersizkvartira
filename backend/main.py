@@ -364,7 +364,17 @@ def get_listings(
 
 @app.get("/api/v1/listings/{id}")
 def get_listing_by_id(id: str):
-    found = next((l for l in LISTINGS_DB if l["id"] == id), None)
+    clean_id = str(id).strip()
+    found = next(
+        (l for l in LISTINGS_DB if (
+            str(l["id"]) == clean_id or
+            str(l["id"]) == f"listing-{clean_id}" or
+            clean_id == f"listing-{l['id']}" or
+            str(l["id"]).endswith(clean_id) or
+            clean_id.endswith(str(l["id"]))
+        )),
+        None
+    )
     if not found:
         raise HTTPException(status_code=404, detail="E'lon topilmadi")
     return {
