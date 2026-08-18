@@ -4,6 +4,7 @@ import { MOCK_LISTINGS } from '../data/mockListings';
 import { MOCK_OWNERS } from '../data/mockUsers';
 import { MOCK_REPORTS, MOCK_VERIFICATIONS, MOCK_FRAUD_SIGNALS } from '../data/mockAdminData';
 import { ApiService } from '../services/apiService';
+import { clearTokens, getAccessToken, initAuthFromStorage } from '../services/authService';
 
 export type ViewState =
   | 'HOME'
@@ -85,6 +86,8 @@ interface AppStore {
 
   currentUser: CurrentUser | null;
   currentRole: UserRole;
+  /** Called on app mount: restores session from token via /auth/me */
+  initAuth: () => Promise<void>;
   login: (user: CurrentUser) => void;
   logout: () => void;
   updateAvatar: (avatar: string) => void;
@@ -185,6 +188,48 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   currentUser: savedUser,
   currentRole: savedUser?.role === 'OWNER' ? 'OWNER' : savedUser?.role === 'STUDENT' ? 'STUDENT' : 'TENANT',
+
+  initAuth: async () => {
+    // If no token exists, nothing to restore
+    if (!getAccessToken()) return;
+    try {
+      const meData = await initAuthFromStorage();
+      if (!meData) return; // Token invalid or expired
+
+      // Normalise backend response to CurrentUser shape
+      const restoredUser: CurrentUser = {
+        id: meData.id,
+        name: meData.name ||
+          `${meData.first_name ?? ''} ${meData.last_name ?? ''}`.trim() ||
+          (meData.email ?? 'Foydalanuvchi'),
+        phone: meData.phone ?? meData.email ?? '',
+        role: (meData.role as CurrentUser['role']) ?? 'STUDENT',
+        avatar: meData.avatar ?? meData.avatar_url,
+      };
+      localStorage.setItem(USER_KEY, JSON.stringify(restoredUser));
+      set({
+        currentUser: restoredUser,
+        currentRole: restoredUser.role,
+      });
+
+      // Also refresh the user's own listings if they're an owner
+      if (restoredUser.role === 'OWNER') {
+        try {
+          const myListings = await ApiService.getMyListings();
+          if (myListings.length > 0) {
+            set((state) => {
+              const base = state.listings.filter((l) => !myListings.some((m) => m.id === l.id));
+              return { listings: [...myListings, ...base] };
+            });
+          }
+        } catch { /* ignore */ }
+      }
+    } catch {
+      // Session expired — clean up
+      clearTokens();
+    }
+  },
+
   login: (user) => {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
     set((state) => {
@@ -216,8 +261,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
       };
     });
   },
+
   logout: () => {
     localStorage.removeItem(USER_KEY);
+    clearTokens();
+    ApiService.logout().catch(() => {});
     set({
       currentUser: null,
       currentRole: 'TENANT',
@@ -252,12 +300,30 @@ export const useAppStore = create<AppStore>((set, get) => ({
   listings: [...extraListings, ...MOCK_LISTINGS],
   fetchListings: async () => {
     try {
-      const remote = await ApiService.getListings();
-      if (remote && remote.length > 0) {
+      const [publicListings, myListings] = await Promise.all([
+        ApiService.getListings(),
+        // Only fetch owner's own listings if logged in
+        (() => {
+          const u = localStorage.getItem('maklersiz-user');
+          const user = u ? JSON.parse(u) : null;
+          return user?.role === 'OWNER' ? ApiService.getMyListings() : Promise.resolve([]);
+        })(),
+      ]);
+
+      // Merge: own listings take priority
+      const allRemote = [
+        ...myListings,
+        ...publicListings.filter((l) => !myListings.some((m) => m.id === l.id)),
+      ];
+
+      if (allRemote.length > 0) {
         set((state) => {
-          const extras = state.listings.filter((l) => l.id.startsWith('listing-') && !remote.some((r) => r.id === l.id));
-          return { listings: [...extras, ...remote] };
+          const localOnly = state.listings.filter(
+            (l) => l.id.startsWith('listing-') && !allRemote.some((r) => r.id === l.id)
+          );
+          return { listings: [...localOnly, ...allRemote] };
         });
+        return;
       }
     } catch { /* mock fallback */ }
   },
@@ -265,6 +331,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setEditingListing: (listing) => set({ editingListing: listing }),
   addListing: (newListing) => set((state) => {
     const listings = [newListing, ...state.listings];
+    // Also persist locally in case of offline use
     const extras = listings.filter((l) => l.id.startsWith('listing-') && !MOCK_LISTINGS.some((m) => m.id === l.id));
     localStorage.setItem(EXTRA_KEY, JSON.stringify(extras));
     return {

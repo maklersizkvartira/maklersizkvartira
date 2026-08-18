@@ -25,11 +25,15 @@ import { FavoritesPage } from './components/favorites/FavoritesPage';
 import { AdminPage } from './components/admin/AdminPage';
 
 export const App: React.FC = () => {
-  const { currentView, currentUser, fetchListings, setCurrentView } = useAppStore();
+  const { currentView, currentUser, fetchListings, setCurrentView, initAuth } = useAppStore();
   const isOwner = currentUser?.role === 'OWNER';
   const isStudent = currentUser?.role === 'STUDENT';
 
   useEffect(() => {
+    // 1. Restore session from token — must run before fetchListings
+    initAuth();
+
+    // 2. Load listings (also fetches owner's own listings if logged in)
     fetchListings();
 
     // Check for Deep Link URL parameters (e.g. ?listing=listing-1 or ?id=listing-1 or #listing-1)
@@ -54,7 +58,7 @@ export const App: React.FC = () => {
         body: JSON.stringify({ session_id: guestId, page_path: window.location.pathname || '/' }),
       }).catch(() => {});
     } catch (e) {}
-  }, [fetchListings, setCurrentView]);
+  }, [fetchListings, setCurrentView, initAuth]);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-white">

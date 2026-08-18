@@ -52,31 +52,35 @@ export const AuthModal: React.FC = () => {
         name: gResult.user.displayName || 'Google Foydalanuvchisi',
         avatar: gResult.user.photoURL,
         uid: gResult.user.uid,
-        idToken: gResult.idToken
+        idToken: gResult.idToken,
       });
-      if (res) {
-        const u = {
-          id: gResult.user.uid,
-          name: gResult.user.displayName || 'Google Foydalanuvchisi',
-          phone: gResult.user.phoneNumber || (phone.trim() || '+998901234567'),
-          role: (res.role as SignupRole) || role || 'STUDENT',
-          avatar: gResult.user.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300'
-        };
-        triggerSuccessLogin(u, 'Google orqali avtorizatsiya va profil tasdiqlash');
-      }
+
+      // Build CurrentUser — prefer backend data, fall back to Firebase data
+      const backendUser = res?.user;
+      const u: any = {
+        id: backendUser?.id ?? res?.user_id ?? gResult.user.uid,
+        name:
+          backendUser?.name ??
+          (res?.first_name ? `${res.first_name} ${res.last_name ?? ''}`.trim() : null) ??
+          gResult.user.displayName ??
+          'Google Foydalanuvchisi',
+        phone:
+          backendUser?.phone ??
+          gResult.user.phoneNumber ??
+          (phone.trim() || '+998901234567'),
+        role: (backendUser?.role ?? (res as any)?.role ?? role ?? 'STUDENT') as any,
+        avatar:
+          backendUser?.avatar ??
+          gResult.user.photoURL ??
+          'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300',
+      };
+      triggerSuccessLogin(u, 'Google orqali avtorizatsiya va profil tasdiqlash');
     } catch (err: any) {
       if (err?.code === 'auth/popup-closed-by-user' || err?.message?.includes('closed-by-user')) {
-        setError("Google orqali kirish oynasi yopildi.");
+        setError('Google orqali kirish oynasi yopildi.');
       } else {
-        // Smooth sign in fallback
-        const u = {
-          id: `google-user-${Date.now()}`,
-          name: "Google Foydalanuvchisi",
-          phone: phone.trim() || "+998 90 123 45 67",
-          role: role || 'STUDENT',
-          avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300'
-        };
-        triggerSuccessLogin(u, 'Google orqali kirish');
+        // Offline / Firebase error fallback — don't fake-login, show error
+        setError('Google bilan kirishda xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.');
       }
     } finally {
       setBusy(false);
