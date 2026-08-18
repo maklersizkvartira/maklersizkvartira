@@ -24,11 +24,17 @@ async function postJson<T>(path: string, body: unknown): Promise<T | null> {
 }
 
 export const ApiService = {
-  register: async (name: string, phone: string, role: SignupRole): Promise<CurrentUser> => {
+  login: async (phone: string, password?: string): Promise<CurrentUser> => {
+    const remote = await postJson<{ status: string; user?: CurrentUser; detail?: string }>(`/auth/login`, { phone, password });
+    if (remote?.user) return remote.user;
+    throw new Error(remote?.detail || "Foydalanuvchi topilmadi. Telefon raqam yoki parolni tekshiring.");
+  },
+
+  register: async (name: string, phone: string, role: SignupRole, password?: string): Promise<CurrentUser> => {
     const defaultAvatar = role === 'OWNER'
       ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300'
       : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300';
-    const remote = await postJson<{ status: string; user?: CurrentUser }>(`/auth/register`, { name, phone, role, avatar: defaultAvatar });
+    const remote = await postJson<{ status: string; user?: CurrentUser }>(`/auth/register`, { name, phone, role, password, avatar: defaultAvatar });
     if (remote?.user) return remote.user;
     return {
       id: `user-${Date.now()}`,

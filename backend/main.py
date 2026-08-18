@@ -48,7 +48,12 @@ class RegisterRequest(BaseModel):
     name: str = Field(..., min_length=2, description="Foydalanuvchi ismi")
     phone: str = Field(..., min_length=7, description="Telefon raqami")
     role: str = Field(..., description="STUDENT yoki OWNER")
+    password: Optional[str] = Field("123456", description="Parol")
     avatar: Optional[str] = None
+
+class LoginRequest(BaseModel):
+    phone: str = Field(..., min_length=7, description="Telefon raqami")
+    password: Optional[str] = Field(None, description="Parol")
 
 class CreateReportRequest(BaseModel):
     listingId: str
@@ -370,6 +375,27 @@ def health_check():
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ")
     }
 
+@app.post("/api/v1/auth/login")
+def login_user(req: LoginRequest):
+    req_clean = clean_phone(req.phone)
+    user = next((u for u in USERS_DB if clean_phone(u.get("phone")) == req_clean), None)
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="Ushbu telefon raqami bilan foydalanuvchi topilmadi. Avval ro'yxatdan o'ting."
+        )
+    
+    if req.password and user.get("password") and user.get("password") != req.password:
+        raise HTTPException(
+            status_code=400,
+            detail="Parol noto'g'ri kiritildi. Qayta urinib ko'ring."
+        )
+
+    return {
+        "status": "success",
+        "user": user
+    }
+
 @app.post("/api/v1/auth/register")
 def register_user(req: RegisterRequest):
     req_clean = clean_phone(req.phone)
@@ -402,6 +428,7 @@ def register_user(req: RegisterRequest):
         "full_name": req.name.strip(),
         "phone": req.phone.strip(),
         "role": req.role,
+        "password": req.password or "123456",
         "avatar": req.avatar or default_avatar,
         "trust_score": 90,
         "trustScore": 90,

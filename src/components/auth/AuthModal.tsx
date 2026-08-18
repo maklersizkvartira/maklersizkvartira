@@ -11,6 +11,7 @@ export const AuthModal: React.FC = () => {
   const [role, setRole] = useState<SignupRole | null>(null);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -37,17 +38,17 @@ export const AuthModal: React.FC = () => {
     setBusy(true);
     setError('');
     try {
-      const user = await ApiService.register("Foydalanuvchi", phone.trim(), 'STUDENT');
+      const user = await ApiService.login(phone.trim(), password.trim());
       login(user);
       close();
-    } catch {
-      login({
-        id: `user-${Date.now()}`,
-        name: "Foydalanuvchi",
-        phone: phone.trim(),
-        role: 'STUDENT',
-      });
-      close();
+    } catch (err: any) {
+      try {
+        const user = await ApiService.register(name.trim() || "Foydalanuvchi", phone.trim(), 'STUDENT', password.trim());
+        login(user);
+        close();
+      } catch {
+        setError(err?.message || "Telefon raqami yoki parol noto'g'ri.");
+      }
     } finally {
       setBusy(false);
     }
@@ -66,7 +67,7 @@ export const AuthModal: React.FC = () => {
     setBusy(true);
     setError('');
     try {
-      const user = await ApiService.register(name.trim(), phone.trim(), role);
+      const user = await ApiService.register(name.trim(), phone.trim(), role, password.trim());
       login(user);
       close();
     } catch {
@@ -171,7 +172,18 @@ export const AuthModal: React.FC = () => {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+998 90 123 45 67"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-base font-semibold text-slate-900 focus:bg-white focus:border-emerald-600 outline-none transition-colors"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-base font-semibold text-slate-900 focus:bg-white focus:border-emerald-600 outline-none transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Parolingiz</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Parolingizni kiriting"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-base font-semibold text-slate-900 focus:bg-white focus:border-emerald-600 outline-none transition-colors"
               />
             </div>
 
@@ -245,7 +257,7 @@ export const AuthModal: React.FC = () => {
                     setBusy(true);
                     setError('');
                     try {
-                      const user = await ApiService.register(userRealName.trim(), userRealPhone.trim(), role);
+                      const user = await ApiService.register(userRealName.trim(), userRealPhone.trim(), role, password.trim());
                       login(user);
                       close();
                     } catch {
@@ -289,6 +301,17 @@ export const AuthModal: React.FC = () => {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+998 90 123 45 67"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-base font-semibold text-slate-900 focus:bg-white focus:border-emerald-600 outline-none transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Maxfiy Parol yarating</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Parol o'ylab toping"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-base font-semibold text-slate-900 focus:bg-white focus:border-emerald-600 outline-none transition-colors"
                   />
                 </div>
