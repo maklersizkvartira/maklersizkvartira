@@ -40,6 +40,42 @@ export const CreateListingPage: React.FC = () => {
   const [isScanningAI, setIsScanningAI] = useState(false);
   const [scan, setScan] = useState<ListingScanResult | null>(null);
 
+  const fetchAddressFromCoords = async (detectedLat: number, detectedLng: number) => {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${detectedLat}&lon=${detectedLng}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      const addr = data.address || {};
+
+      const stateOrCity = addr.state || addr.city || addr.region || 'Toshkent shahri';
+      let matchedRegion = 'Toshkent shahri';
+      for (const reg of UZBEKISTAN_REGIONS) {
+        if (stateOrCity.toLowerCase().includes(reg.name.toLowerCase()) || reg.name.toLowerCase().includes(stateOrCity.toLowerCase())) {
+          matchedRegion = reg.name;
+          break;
+        }
+      }
+
+      const rawDistrict = addr.suburb || addr.city_district || addr.district || addr.county || addr.town || addr.village || '';
+      const activeRegObj = UZBEKISTAN_REGIONS.find((r) => r.name === matchedRegion) || UZBEKISTAN_REGIONS[0];
+      let matchedDistrict = activeRegObj.districts[0];
+      for (const d of activeRegObj.districts) {
+        if (rawDistrict.toLowerCase().includes(d.toLowerCase()) || d.toLowerCase().includes(rawDistrict.toLowerCase())) {
+          matchedDistrict = d;
+          break;
+        }
+      }
+
+      const road = addr.road || addr.street || addr.neighbourhood || addr.suburb || `${matchedDistrict} ko'chasi`;
+      const houseNumber = addr.house_number ? `, ${addr.house_number}-uy` : '';
+      const fullStreet = `${road}${houseNumber}`;
+
+      return { region: matchedRegion, district: matchedDistrict, address: fullStreet };
+    } catch {
+      return null;
+    }
+  };
+
   if (!currentUser) {
     return (
       <div className="max-w-md mx-auto px-4 py-16 text-center space-y-4">
@@ -350,16 +386,22 @@ export const CreateListingPage: React.FC = () => {
                     setGpsSuccessMsg('');
                     if ('geolocation' in navigator) {
                       navigator.geolocation.getCurrentPosition(
-                        (pos) => {
+                        async (pos) => {
                           const detectedLat = pos.coords.latitude;
                           const detectedLng = pos.coords.longitude;
                           setLat(detectedLat);
                           setLng(detectedLng);
-                          setIsDetectingGps(false);
-                          setGpsSuccessMsg(`📍 GPS Joylashuv aniqlandi! (${detectedLat.toFixed(4)}, ${detectedLng.toFixed(4)})`);
-                          if (!address) {
-                            setAddress(`${district} ko'chasi, kvartira`);
+                          
+                          const geo = await fetchAddressFromCoords(detectedLat, detectedLng);
+                          if (geo) {
+                            setRegion(geo.region);
+                            setDistrict(geo.district);
+                            setAddress(geo.address);
+                            setGpsSuccessMsg(`📍 GPS Manzil topildi: ${geo.region}, ${geo.district}, ${geo.address}`);
+                          } else {
+                            setGpsSuccessMsg(`📍 GPS koordinatalar aniqlandi! (${detectedLat.toFixed(4)}, ${detectedLng.toFixed(4)})`);
                           }
+                          setIsDetectingGps(false);
                         },
                         (err) => {
                           setIsDetectingGps(false);
