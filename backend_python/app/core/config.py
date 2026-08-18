@@ -30,6 +30,11 @@ class Settings(BaseModel):
     # Database Settings
     DATABASE_URL: str = get_database_url()
     
+    # SMS Service Settings
+    SMS_PROVIDER: str = os.getenv("SMS_PROVIDER", "mock")
+    ESKIZ_EMAIL: str = os.getenv("ESKIZ_EMAIL", "")
+    ESKIZ_SECRET: str = os.getenv("ESKIZ_SECRET", "")
+
     # CORS
     BACKEND_CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
@@ -40,3 +45,4 @@ class Settings(BaseModel):
     ]
 
 settings = Settings()
+

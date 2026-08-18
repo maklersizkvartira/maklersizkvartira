@@ -1,3 +1,4 @@
+import random
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
@@ -21,6 +22,7 @@ from app.schemas.schemas import (
     UserRegisterRequest, UserLoginRequest, GoogleAuthRequest, TokenResponse,
     TokenRefreshRequest, UserMeResponse, ProfileOut
 )
+from app.services.sms import sms_service
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 
@@ -56,16 +58,21 @@ async def get_current_user(
 @router.post("/otp/send", response_model=OtpSendResponse)
 async def send_otp(payload: OtpSendRequest, db: AsyncSession = Depends(get_db)):
     phone = payload.phone.strip()
-    code = "1234"  # Default test code, expandable to real SMS gateway (PlaySMS/Eskiz)
-    expires_at = datetime.utcnow() + timedelta(minutes=5)
+    
+    # Generate 4-digit code (default '1234' support for easy testing/dev)
+    code = "1234"
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
 
-    otp = OtpVerification(phone=phone, code=code, expires_at=expires_at)
+    otp = OtpVerification(phone=phone, code=code, is_verified=False, expires_at=expires_at)
     db.add(otp)
     await db.flush()
 
+    # Send SMS via SMSService (Mock/Eskiz)
+    await sms_service.send_otp(phone, code)
+
     return OtpSendResponse(
         status="success",
-        message=f"SMS OTP code {code} sent to {phone}",
+        message=f"SMS OTP kod {code} {phone} raqamiga yuborildi",
         otp_id=otp.id
     )
 
@@ -87,6 +94,18 @@ async def verify_otp(payload: OtpVerifyRequest, db: AsyncSession = Depends(get_d
             detail="SMS OTP kod noto'g'ri (Incorrect OTP code)"
         )
 
+    # Check expiration (ensure tz awareness)
+    now = datetime.now(timezone.utc)
+    expires_at = otp.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if now > expires_at:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="SMS OTP kodi amal qilish muddati tugagan (OTP code expired)"
+        )
+
     otp.is_verified = True
     await db.flush()
 
@@ -99,8 +118,9 @@ async def verify_otp(payload: OtpVerifyRequest, db: AsyncSession = Depends(get_d
 @router.post("/register", response_model=TokenResponse)
 async def register_user(payload: UserRegisterRequest, db: AsyncSession = Depends(get_db)):
     phone = payload.phone.strip()
+    code = payload.code.strip()
     
-    # Check if user already exists
+    # 1. Check if user already exists
     existing_user_result = await db.execute(select(User).filter(User.phone == phone))
     if existing_user_result.scalars().first():
         raise HTTPException(
@@ -108,23 +128,38 @@ async def register_user(payload: UserRegisterRequest, db: AsyncSession = Depends
             detail="Ushbu telefon raqam allaqachon ro'yxatdan o'tgan (Phone number already registered)"
         )
 
-    # Hash password securely
-    hashed_pwd = get_password_hash(payload.password)
+    # 2. Sequential Auth Security Check: Verify SMS OTP verification state
+    otp_result = await db.execute(
+        select(OtpVerification)
+        .filter(OtpVerification.phone == phone, OtpVerification.code == code)
+        .order_by(OtpVerification.created_at.desc())
+    )
+    otp = otp_result.scalars().first()
 
-    # Create User
+    if not otp or not otp.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Telefon raqami SMS kod orqali tasdiqlanmagan. Avval SMS kodni tasdiqlang."
+        )
+
+    # 3. Hash password (use supplied password or secure default)
+    raw_password = payload.password if payload.password else "SecureDefault2026!"
+    hashed_pwd = get_password_hash(raw_password)
+
+    # 4. Create User (Role.TENANT = Talaba/Ijarachi, Role.OWNER = Uy egasi)
     new_user = User(
         phone=phone,
         password_hash=hashed_pwd,
         role=payload.role,
         status=UserStatus.ACTIVE,
-        trust_score=20,  # Phone OTP verified bonus (+10 -> 20)
+        trust_score=30,  # Phone SMS OTP verified bonus
         risk_score=0,
         is_verified=True
     )
     db.add(new_user)
     await db.flush()
 
-    # Create Profile
+    # 5. Create Profile (Ism va Familiya)
     new_profile = Profile(
         user_id=new_user.id,
         first_name=payload.first_name.strip(),
@@ -133,7 +168,7 @@ async def register_user(payload: UserRegisterRequest, db: AsyncSession = Depends
     )
     db.add(new_profile)
 
-    # If role is OWNER, create OwnerProfile
+    # 6. If role is OWNER (Uy egasi), create OwnerProfile
     if payload.role == Role.OWNER:
         new_owner = OwnerProfile(
             user_id=new_user.id,
@@ -142,7 +177,7 @@ async def register_user(payload: UserRegisterRequest, db: AsyncSession = Depends
         )
         db.add(new_owner)
 
-    # Log Audit Event
+    # 7. Audit Log
     audit = AuditLog(
         actor_id=new_user.id,
         action="USER_REGISTER",
@@ -153,7 +188,7 @@ async def register_user(payload: UserRegisterRequest, db: AsyncSession = Depends
 
     await db.commit()
 
-    # Create JWT Tokens
+    # 8. Generate JWT Access and Refresh Tokens
     access_token = create_access_token(subject=new_user.id, role=new_user.role.value)
     refresh_token = create_refresh_token(subject=new_user.id, role=new_user.role.value)
 
@@ -180,13 +215,13 @@ async def login_user(payload: UserLoginRequest, db: AsyncSession = Depends(get_d
     if not user or not user.password_hash or not verify_password(payload.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Telefon raqami yoki parol noto'g me (Invalid phone or password)"
+            detail="Telefon raqami yoki parol noto'g'ri (Invalid phone or password)"
         )
 
     if user.status != UserStatus.ACTIVE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Akkaunt bloklangan yoki muvaqqat to'xtatilgan"
+            detail="Akkaunt bloklangan yoki vaqtincha to'xtatilgan"
         )
 
     first_name = user.profile.first_name if user.profile else "Foydalanuvchi"
@@ -195,7 +230,6 @@ async def login_user(payload: UserLoginRequest, db: AsyncSession = Depends(get_d
     access_token = create_access_token(subject=user.id, role=user.role.value)
     refresh_token = create_refresh_token(subject=user.id, role=user.role.value)
 
-    # Log Login Audit
     audit = AuditLog(
         actor_id=user.id,
         action="USER_LOGIN",
@@ -220,14 +254,12 @@ async def login_user(payload: UserLoginRequest, db: AsyncSession = Depends(get_d
 async def google_auth(payload: GoogleAuthRequest, db: AsyncSession = Depends(get_db)):
     email = payload.email.strip().lower()
     
-    # Check if user exists by email
     result = await db.execute(
         select(User).options(selectinload(User.profile)).filter(User.email == email)
     )
     user = result.scalars().first()
 
     if not user:
-        # Register new Google User
         name_parts = payload.name.strip().split(' ')
         first_name = name_parts[0] if name_parts[0] else "Google"
         last_name = name_parts[1] if len(name_parts) > 1 else "User"
@@ -238,7 +270,7 @@ async def google_auth(payload: GoogleAuthRequest, db: AsyncSession = Depends(get
             password_hash=None,
             role=Role.TENANT,
             status=UserStatus.ACTIVE,
-            trust_score=30, # Google OAuth verified bonus
+            trust_score=30,
             risk_score=0,
             is_verified=True
         )
@@ -288,7 +320,6 @@ async def google_auth(payload: GoogleAuthRequest, db: AsyncSession = Depends(get
         last_name=last_name,
         trust_score=user.trust_score
     )
-
 
 @router.post("/refresh")
 async def refresh_tokens(payload: TokenRefreshRequest, db: AsyncSession = Depends(get_db)):

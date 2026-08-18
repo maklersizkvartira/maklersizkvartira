@@ -27,8 +27,8 @@ class UserRegisterRequest(BaseModel):
     code: str = Field(..., example="1234")
     first_name: str = Field(..., example="Alisher")
     last_name: str = Field(..., example="Valiyev")
-    password: str = Field(..., min_length=6, example="SecurePass123!")
-    role: Role = Role.TENANT
+    password: Optional[str] = Field(None, example="SecurePass123!")
+    role: Role = Role.TENANT  # Role.TENANT = Talaba/Ijarachi, Role.OWNER = Uy egasi
 
 class UserLoginRequest(BaseModel):
     phone: str = Field(..., example="+998901234567")
@@ -40,7 +40,6 @@ class GoogleAuthRequest(BaseModel):
     avatar: Optional[str] = None
     uid: str = Field(..., example="google-uid-12345")
     id_token: Optional[str] = None
-
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -74,6 +73,31 @@ class UserMeResponse(BaseModel):
     risk_score: int
     is_verified: bool
     profile: Optional[ProfileOut] = None
+
+class UserOut(BaseModel):
+    id: str
+    phone: str
+    email: Optional[str] = None
+    role: Role
+    status: UserStatus
+    trust_score: int
+    risk_score: int
+    is_verified: bool
+    created_at: datetime
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+# Admin Action Schemas
+class UserStatusUpdateRequest(BaseModel):
+    status: UserStatus
+
+class VerificationReviewRequest(BaseModel):
+    action: str = Field(..., example="APPROVED")  # APPROVED or REJECTED
+    note: Optional[str] = None
+
+class ListingModerateRequest(BaseModel):
+    action: str = Field(..., example="APPROVED")  # APPROVED or REJECTED
+    note: Optional[str] = None
 
 # Listing Schemas
 class ListingCreateRequest(BaseModel):

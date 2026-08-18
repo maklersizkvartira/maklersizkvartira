@@ -1,9 +1,13 @@
 import uuid
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, Enum, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.core.database import Base
+
+def utc_now():
+    return datetime.now(timezone.utc)
+
 
 class Role(str, enum.Enum):
     TENANT = "TENANT"
@@ -45,8 +49,8 @@ class User(Base):
     trust_score = Column(Integer, default=10)
     risk_score = Column(Integer, default=0)
     is_verified = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     profile = relationship("Profile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     owner_profile = relationship("OwnerProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
@@ -64,8 +68,8 @@ class Profile(Base):
     avatar = Column(String, nullable=True)
     city = Column(String, nullable=True)
     district = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     user = relationship("User", back_populates="profile")
 
@@ -79,7 +83,7 @@ class OwnerProfile(Base):
     successful_rentals = Column(Integer, default=0)
     broker_risk_score = Column(Integer, default=0) # 0-100% broker probability
     trust_level = Column(String, default="GREEN")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     user = relationship("User", back_populates="owner_profile")
 
@@ -102,8 +106,8 @@ class Property(Base):
     address = Column(String, nullable=False)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     listings = relationship("Listing", back_populates="property")
 
@@ -126,9 +130,9 @@ class Listing(Base):
     region = Column(String, default="Toshkent shahri")
     district = Column(String, default="Mirobod")
     currency = Column(String, default="UZS")
-    published_at = Column(DateTime, default=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    published_at = Column(DateTime, default=utc_now)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     owner = relationship("User", back_populates="listings")
     property = relationship("Property", back_populates="listings")
@@ -143,7 +147,7 @@ class ListingImage(Base):
     hash = Column(String, nullable=True)
     sort_order = Column(Integer, default=0)
     ai_risk_score = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     listing = relationship("Listing", back_populates="images")
 
@@ -156,7 +160,7 @@ class Verification(Base):
     status = Column(String, default="PENDING")
     document_url = Column(String, nullable=True)
     verified_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     user = relationship("User", back_populates="verifications")
 
@@ -172,7 +176,7 @@ class Report(Base):
     status = Column(String, default="OPEN")
     priority = Column(String, default="MEDIUM")
     ai_risk_score = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 class AIAnalysis(Base):
     __tablename__ = "ai_analyses"
@@ -184,7 +188,7 @@ class AIAnalysis(Base):
     risk_score = Column(Integer, nullable=False)
     confidence = Column(Float, default=0.95)
     reasons_json = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
@@ -195,7 +199,7 @@ class AuditLog(Base):
     target_type = Column(String, nullable=False)
     target_id = Column(String, nullable=False)
     ip_address = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     actor = relationship("User", back_populates="audit_logs")
 
@@ -207,4 +211,4 @@ class OtpVerification(Base):
     code = Column(String, nullable=False)
     is_verified = Column(Boolean, default=False)
     expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
