@@ -34,11 +34,27 @@ export const ListingDetailPage: React.FC = () => {
       l.id.endsWith(selectedListingId)
     )
   ) || listings[0];
-  const isFav = listing ? favorites.includes(listing.id) : false;
+
+  if (!listing) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
+        <h2 className="text-xl font-black text-slate-900">E'lon topilmadi</h2>
+        <p className="text-xs text-slate-500 font-medium">Ushbu e'lon mavjud emas yoki o'chirilgan bo'lishi mumkin.</p>
+        <button
+          onClick={() => setCurrentView('HOME')}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition shadow-md"
+        >
+          Bosh sahifaga qaytish
+        </button>
+      </div>
+    );
+  }
+
+  const isFav = favorites.includes(listing.id);
 
   const USD_RATE = 12800;
-  const priceInUsd = listing ? (listing.price > 10000 ? Math.round(listing.price / USD_RATE) : listing.price) : 0;
-  const priceInUzs = listing ? (listing.price > 10000 ? listing.price : listing.price * USD_RATE) : 0;
+  const priceInUsd = listing.price > 10000 ? Math.round(listing.price / USD_RATE) : listing.price;
+  const priceInUzs = listing.price > 10000 ? listing.price : listing.price * USD_RATE;
 
 
   const formatPrice = (amount: number) => new Intl.NumberFormat('uz-UZ').format(amount);

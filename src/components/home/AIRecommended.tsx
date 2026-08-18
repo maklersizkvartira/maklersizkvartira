@@ -53,18 +53,30 @@ export const AIRecommended: React.FC = () => {
         </button>
       </div>
 
-      <div
-        className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-6 w-full"
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
-        onTouchStart={() => setPaused(true)}
-      >
-        {visible.map((listing) => (
-          <div key={`${start}-${listing.id}`} className="listing-swap min-w-0">
-            <ListingCard listing={listing} />
-          </div>
-        ))}
-      </div>
+      {visible.length === 0 ? (
+        <div className="bg-white p-8 rounded-3xl border border-slate-200/80 text-center space-y-3">
+          <p className="text-xs sm:text-sm text-slate-500 font-bold">Hozircha e'lonlar mavjud emas.</p>
+          <button
+            onClick={() => setCurrentView('CREATE_LISTING')}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl transition shadow-md"
+          >
+            + Birinchi bo'lib e'lon joylash
+          </button>
+        </div>
+      ) : (
+        <div
+          className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-6 w-full"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          onTouchStart={() => setPaused(true)}
+        >
+          {visible.map((listing) => (
+            <div key={`${start}-${listing.id}`} className="listing-swap min-w-0">
+              <ListingCard listing={listing} />
+            </div>
+          ))}
+        </div>
+      )}
 
       {pageCount > 1 && (
         <div className="flex items-center justify-center gap-1.5 mt-4">
