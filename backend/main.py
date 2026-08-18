@@ -17,29 +17,48 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS Configuration for Frontend & Production Custom Domains
+# CORS Configuration for Frontend & Production Custom Domains (https://www.maklersizuy.uz)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Global OPTIONS / Preflight middleware to guarantee preflights always pass with 200 OK
+# Global OPTIONS / Preflight middleware to guarantee preflights always pass with 200 OK and exact Origin match
 @app.middleware("http")
 async def add_cors_headers(request: Request, call_next):
+    origin = request.headers.get("origin")
+    
     if request.method == "OPTIONS":
-        response = JSONResponse(content={"status": "ok"})
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "*"
-        response.headers["Access-Control-Allow-Headers"] = "*"
+        response = JSONResponse(content={"status": "ok"}, status_code=200)
+        if origin:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Vary"] = "Origin"
+        else:
+            response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
+        response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, Accept, Origin, X-Requested-With, *"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
         return response
     
-    response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        response = JSONResponse(
+            status_code=500,
+            content={"status": "error", "detail": str(exc)}
+        )
+
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Vary"] = "Origin"
+    else:
+        response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
+    response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, Accept, Origin, X-Requested-With, *"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
     return response
 
 # --- Pydantic Data Models (Strict Input Validation) ---
