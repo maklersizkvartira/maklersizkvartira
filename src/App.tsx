@@ -31,6 +31,20 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     fetchListings();
+
+    try {
+      let guestId = sessionStorage.getItem('maklersiz_guest_id');
+      if (!guestId) {
+        guestId = `guest_${Math.floor(100000 + Math.random() * 900000)}`;
+        sessionStorage.setItem('maklersiz_guest_id', guestId);
+      }
+
+      fetch('https://maklersizkvartira-production.up.railway.app/api/v1/traffic/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: guestId, page_path: window.location.pathname || '/' }),
+      }).catch(() => {});
+    } catch (e) {}
   }, [fetchListings]);
 
   return (
