@@ -267,14 +267,30 @@ export const ListingDetailPage: React.FC = () => {
             />
           )}
 
-          {activeMedia === 'VIDEO' && (
-            <div className="w-full h-full bg-slate-950 flex items-center justify-center">
-              <video
-                controls
-                autoPlay
-                src={listing.videoUrl}
-                className="w-full h-full object-contain bg-black"
-              />
+          {activeMedia === 'VIDEO' && listing.videoUrl && (
+            <div className="w-full h-full bg-slate-950 flex items-center justify-center relative">
+              {listing.videoUrl.includes('youtube.com') || listing.videoUrl.includes('youtu.be') ? (
+                <iframe
+                  src={
+                    listing.videoUrl.includes('embed')
+                      ? listing.videoUrl
+                      : listing.videoUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')
+                  }
+                  title="Video sharh"
+                  className="w-full h-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <video
+                  controls
+                  autoPlay
+                  src={listing.videoUrl}
+                  className="w-full h-full object-contain bg-black"
+                >
+                  Sizning brauzeringiz videoni qo'llab-quvvatlamaydi.
+                </video>
+              )}
             </div>
           )}
         </div>

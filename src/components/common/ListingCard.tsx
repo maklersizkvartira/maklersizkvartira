@@ -102,6 +102,11 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
         <div className="absolute top-1.5 left-1.5 right-1.5 sm:top-3 sm:left-3 sm:right-3 flex items-start justify-between gap-1 z-10">
           <TrustScoreBadge score={listing.trustScore} showText={false} size="sm" />
           <div className="flex items-center gap-1.5">
+            {listing.videoUrl && (
+              <span className="text-[10px] font-black text-white bg-rose-600/90 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/20 shadow-xs flex items-center gap-1">
+                🎥 Video
+              </span>
+            )}
             {images.length > 1 && (
               <span className="text-[10px] font-black text-white bg-slate-900/70 backdrop-blur-md px-2 py-1 rounded-full border border-white/10 shadow-xs">
                 {currentImgIndex + 1}/{images.length}
