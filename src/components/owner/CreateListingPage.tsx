@@ -177,6 +177,29 @@ export const CreateListingPage: React.FC = () => {
         </button>
       </div>
 
+      {/* Auto Verification Banner */}
+      <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-950 text-white rounded-2xl p-4 sm:p-5 border border-emerald-500/40 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-5 h-5 animate-pulse" />
+          </div>
+          <div>
+            <h4 className="font-black text-sm sm:text-base text-white">E'loningiz ko'rinish darajasini va ishonchini oshiring! 🚀</h4>
+            <p className="text-xs text-slate-300 mt-0.5 leading-relaxed">
+              Tasdiqlangan Uy Egasi (Verified Owner 🏠) nishonini oling hamda talabalar va ijarachilarning sizga bo'lgan ishonchini 3 baravarga oshiring.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setCurrentView('VERIFICATION')}
+          className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-md shadow-emerald-600/30 flex items-center justify-center gap-1.5 transition-all shrink-0 active:scale-[0.98]"
+        >
+          <span>Ishonchli Tekshiruvdan O'tish</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+
       <div className="grid grid-cols-4 gap-2 text-center text-xs font-bold">
         {[
           { num: 1, label: 'Asosiy' },
