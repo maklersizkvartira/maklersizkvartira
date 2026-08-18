@@ -50,6 +50,15 @@ class RegisterRequest(BaseModel):
     role: str = Field(..., description="STUDENT yoki OWNER")
     avatar: Optional[str] = None
 
+class CreateReportRequest(BaseModel):
+    listingId: str
+    listingTitle: Optional[str] = ""
+    reporterName: Optional[str] = "Anonim"
+    reporterPhone: Optional[str] = ""
+    reason: str = "BROKER_COMMISSION"
+    reasonLabel: Optional[str] = "Shubhali e'lon"
+    details: Optional[str] = ""
+
 class ScanListingRequest(BaseModel):
     title: Optional[str] = ""
     description: Optional[str] = ""
@@ -617,6 +626,120 @@ def admin_reject_listing(id: str):
         "status": "success",
         "message": f"E'lon {id} rad etildi.",
         "data": found
+    }
+
+REPORTS_DB: List[Dict[str, Any]] = [
+    {
+        "id": "rep-101",
+        "listingId": "listing-1",
+        "listingTitle": "Chilonzor 7-havze 2 xonali kvartira (Talabalar uchun)",
+        "reporterName": "Rustam Shokirov",
+        "reporterPhone": "+998 90 999 88 77",
+        "reason": "BROKER_COMMISSION",
+        "reasonLabel": "Maklerlik xizmati talab qilindi (15%)",
+        "details": "Telefon qilsam maklerman, 15% komissiya berasiz dedi.",
+        "status": "PENDING",
+        "createdAt": "2026-08-17T18:30:00Z"
+    },
+    {
+        "id": "rep-102",
+        "listingId": "listing-2",
+        "listingTitle": "Yakkasaroy tumani orientir Bobur parki 1 xonali",
+        "reporterName": "Kamola Xasanova",
+        "reporterPhone": "+998 91 555 44 33",
+        "reason": "FAKE_PRICE",
+        "reasonLabel": "Yolg'on narx ko'rsatilgan",
+        "details": "Saytda 300$ yozilgan, lekin telefonda 450$ deydi.",
+        "status": "RESOLVED",
+        "createdAt": "2026-08-16T14:15:00Z"
+    }
+]
+
+@app.get("/api/v1/admin/reports")
+def get_reports(status_filter: Optional[str] = Query(None)):
+    res = list(REPORTS_DB)
+    if status_filter:
+        res = [r for r in res if r.get("status") == status_filter]
+    return {
+        "status": "success",
+        "totalCount": len(res),
+        "data": res
+    }
+
+@app.post("/api/v1/admin/reports")
+def create_report(req: CreateReportRequest):
+    rep_id = f"rep-{int(time.time()*1000)}"
+    new_rep = {
+        "id": rep_id,
+        "listingId": req.listingId,
+        "listingTitle": req.listingTitle or "E'lon",
+        "reporterName": req.reporterName or "Anonim",
+        "reporterPhone": req.reporterPhone or "",
+        "reason": req.reason,
+        "reasonLabel": req.reasonLabel or req.reason,
+        "details": req.details or "",
+        "status": "PENDING",
+        "createdAt": time.strftime("%Y-%m-%dT%H:%M:%SZ")
+    }
+    REPORTS_DB.insert(0, new_rep)
+    return {"status": "success", "data": new_rep}
+
+@app.post("/api/v1/admin/reports/{id}/resolve")
+def resolve_report(id: str):
+    rep = next((r for r in REPORTS_DB if r.get("id") == id), None)
+    if rep:
+        rep["status"] = "RESOLVED"
+    return {"status": "success", "data": rep}
+
+@app.get("/api/v1/admin/analytics")
+def get_analytics():
+    districts = {}
+    for l in LISTINGS_DB:
+        d = l.get("district", "Boshqa")
+        if d not in districts:
+            districts[d] = {"count": 0, "totalPrice": 0.0}
+        districts[d]["count"] += 1
+        districts[d]["totalPrice"] += float(l.get("price", 0))
+
+    district_analytics = []
+    for d_name, d_data in districts.items():
+        avg = round(d_data["totalPrice"] / d_data["count"], 1) if d_data["count"] > 0 else 0
+        district_analytics.append({
+            "district": d_name,
+            "listings_count": d_data["count"],
+            "average_price": avg,
+            "currency": "USD"
+        })
+
+    room_stats = {1: [], 2: [], 3: [], 4: []}
+    for l in LISTINGS_DB:
+        r = min(int(l.get("rooms", 1)), 4)
+        room_stats[r].append(float(l.get("price", 0)))
+
+    avg_room_prices = {
+        "1_room": round(sum(room_stats[1])/len(room_stats[1]), 1) if room_stats[1] else 280.0,
+        "2_room": round(sum(room_stats[2])/len(room_stats[2]), 1) if room_stats[2] else 380.0,
+        "3_room": round(sum(room_stats[3])/len(room_stats[3]), 1) if room_stats[3] else 520.0,
+        "4_plus_room": round(sum(room_stats[4])/len(room_stats[4]), 1) if room_stats[4] else 700.0,
+    }
+
+    university_demand = [
+        {"university": "TDIU (Iqtisodiyot Univ.)", "search_percentage": "34%", "avg_distance_min": 5},
+        {"university": "TATU (Axborot Texnologiyalari)", "search_percentage": "28%", "avg_distance_min": 7},
+        {"university": "NUUz (O'zbekiston Milliy Univ.)", "search_percentage": "21%", "avg_distance_min": 6},
+        {"university": "TDTU (Texnika Univ.)", "search_percentage": "11%", "avg_distance_min": 8},
+        {"university": "Westminster International", "search_percentage": "6%", "avg_distance_min": 10}
+    ]
+
+    return {
+        "status": "success",
+        "data": {
+            "districts": district_analytics,
+            "average_prices_by_rooms": avg_room_prices,
+            "university_demand": university_demand,
+            "total_searches_today": 3480,
+            "successful_matches_this_month": 142
+        }
     }
 
 @app.post("/api/v1/ai/scan-listing")
