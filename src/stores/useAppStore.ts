@@ -311,29 +311,39 @@ export const useAppStore = create<AppStore>((set, get) => ({
   fetchListings: async () => {
     try {
       const publicListings = await ApiService.getListings();
+      if (!Array.isArray(publicListings) || publicListings.length === 0) {
+        // Do not clear state if network flickers or returns empty
+        return;
+      }
       set((state) => {
-        const localExtras = state.listings.filter(
+        const cleanPublic = publicListings.filter(
           (l) =>
-            l.id.startsWith('listing-') &&
-            !publicListings.some((r) => r.id === l.id) &&
             l.owner?.name !== 'Jasur Karimov' &&
             l.owner?.name !== 'Nodira Alimova' &&
             l.owner?.name !== 'Bekzod Rahimov'
         );
 
-        // Auto-upload local listings created on laptop to Railway server so mobile phones receive them
-        localExtras.forEach((listing) => {
-          ApiService.createListing(listing).catch(() => {});
+        const existingLocal = state.listings.filter(
+          (l) =>
+            !cleanPublic.some((r) => r.id === l.id) &&
+            l.owner?.name !== 'Jasur Karimov' &&
+            l.owner?.name !== 'Nodira Alimova' &&
+            l.owner?.name !== 'Bekzod Rahimov'
+        );
+
+        // Auto-upload any local listings to Railway server asynchronously
+        existingLocal.forEach((listing) => {
+          if (listing.id.startsWith('listing-')) {
+            ApiService.createListing(listing).catch(() => {});
+          }
         });
 
-        const merged = [
-          ...localExtras,
-          ...publicListings.filter((l) => !localExtras.some((m) => m.id === l.id)),
-        ];
-
+        const merged = [...cleanPublic, ...existingLocal];
         return { listings: merged };
       });
-    } catch { /* fallback */ }
+    } catch {
+      /* Keep existing listings untouched during network glitch */
+    }
   },
   editingListing: null,
   setEditingListing: (listing) => set({ editingListing: listing }),
