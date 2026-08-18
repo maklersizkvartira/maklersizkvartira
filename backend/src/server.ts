@@ -70,18 +70,54 @@ let LISTINGS_DB: any[] = loadListings();
 let REPORTS_DB: any[] = [];
 let TRAFFIC_LOGS: any[] = [];
 
-const USERS_DB: any[] = [
-  {
-    id: 'user-zayniddin',
-    name: 'Zayniddin',
-    phone: '+998 93 718 88 85',
-    role: 'STUDENT',
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300',
-    trustScore: 94,
-    status: 'ACTIVE',
-    createdAt: '2026-08-18T03:00:00Z',
-  },
-];
+// Persistent JSON storage for users
+const USERS_FILE = path.join(__dirname, '..', 'users_db.json');
+
+function loadUsers(): any[] {
+  if (fs.existsSync(USERS_FILE)) {
+    try {
+      const raw = fs.readFileSync(USERS_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch (e) {
+      console.error('Error reading users_db.json:', e);
+    }
+  }
+  return [
+    {
+      id: 'user-zayniddin',
+      name: 'Zayniddin',
+      phone: '+998 93 718 88 85',
+      password: 'password123',
+      role: 'STUDENT',
+      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300',
+      trustScore: 94,
+      status: 'ACTIVE',
+      createdAt: '2026-08-18T03:00:00Z',
+    },
+    {
+      id: 'user-jasur-owner',
+      name: 'Jasur (Uy Egasi)',
+      phone: '+998 90 123 45 67',
+      password: 'password123',
+      role: 'OWNER',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
+      trustScore: 98,
+      status: 'ACTIVE',
+      createdAt: '2026-08-18T03:00:00Z',
+    },
+  ];
+}
+
+function saveUsers(users: any[]): void {
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Error writing users_db.json:', e);
+  }
+}
+
+let USERS_DB: any[] = loadUsers();
 
 // Helper AI Skaner algorithm
 function scanListingAI(title: string, description: string, price?: number, rooms?: number) {
@@ -128,33 +164,77 @@ app.get('/api/v1/health', (_req: Request, res: Response) => {
 
 // 2. Auth Login
 app.post('/api/v1/auth/login', (req: Request, res: Response) => {
-  const { phone } = req.body || {};
+  const { phone, password } = req.body || {};
   const cleanPhone = (phone || '').replace(/\D/g, '');
   const user = USERS_DB.find((u) => u.phone.replace(/\D/g, '') === cleanPhone);
 
   if (!user) {
-    res.status(404).json({ status: 'error', detail: "Ushbu telefon raqami bilan foydalanuvchi topilmadi." });
+    res.status(404).json({
+      status: 'error',
+      detail: "Ushbu telefon raqami bilan hisob topilmadi. Avval Ro'yxatdan o'tish bo'limida hisob yarating.",
+    });
     return;
   }
 
-  res.json({ status: 'success', data: { user, token: `token_${Date.now()}` } });
+  // Password verification if user has password set
+  if (user.password && password && user.password !== password) {
+    res.status(400).json({
+      status: 'error',
+      detail: "Parolingiz noto'g'ri. Iltimos, qayta kiriting.",
+    });
+    return;
+  }
+
+  res.json({
+    status: 'success',
+    user: user,
+    data: { user, token: `token_${Date.now()}` },
+  });
 });
 
 // 3. Auth Register
 app.post('/api/v1/auth/register', (req: Request, res: Response) => {
-  const { name, phone, role } = req.body || {};
+  const { name, phone, role, password, avatar } = req.body || {};
+  const cleanPhone = (phone || '').replace(/\D/g, '');
+
+  const existing = USERS_DB.find((u) => u.phone.replace(/\D/g, '') === cleanPhone);
+  if (existing) {
+    if (role) existing.role = role === 'OWNER' ? 'OWNER' : 'STUDENT';
+    if (password) existing.password = password;
+    if (name) existing.name = name;
+    saveUsers(USERS_DB);
+    res.json({
+      status: 'success',
+      user: existing,
+      data: { user: existing, token: `token_${Date.now()}` },
+    });
+    return;
+  }
+
   const newUser = {
     id: `user-${Date.now()}`,
     name: name || 'Foydalanuvchi',
     phone: phone || '+998 90 000 00 00',
+    password: password || 'password123',
     role: role === 'OWNER' ? 'OWNER' : 'STUDENT',
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300',
+    avatar:
+      avatar ||
+      (role === 'OWNER'
+        ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300'
+        : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300'),
     trustScore: 90,
     status: 'ACTIVE',
     createdAt: new Date().toISOString(),
   };
+
   USERS_DB.push(newUser);
-  res.json({ status: 'success', data: { user: newUser, token: `token_${Date.now()}` } });
+  saveUsers(USERS_DB);
+
+  res.json({
+    status: 'success',
+    user: newUser,
+    data: { user: newUser, token: `token_${Date.now()}` },
+  });
 });
 
 // 4. Traffic Track

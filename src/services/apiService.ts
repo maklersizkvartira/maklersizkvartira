@@ -53,20 +53,36 @@ export const ApiService = {
     try {
       const res = await fetchWithAuth(`${API_BASE}/auth/login`, {
         method: 'POST',
-        body: JSON.stringify({ phone, password: password || 'SecureDefault2026!' }),
+        body: JSON.stringify({ phone, password }),
         skipAuth: true,
       });
       if (res?.ok) {
         const data = await res.json();
         if (data.access_token) saveTokens(data.access_token, data.refresh_token);
         if (data.user) return data.user as CurrentUser;
-        // Flat response format
+        if (data.data?.user) return data.data.user as CurrentUser;
         if (data.id) return data as CurrentUser;
+      } else if (res) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.detail || errJson.message || "Telefon raqami yoki parol noto'g'ri.");
       }
-    } catch {
+    } catch (err: any) {
+      if (err?.message) throw err;
       console.warn('login: backend unavailable');
     }
-    return { id: `user-${Date.now()}`, name: phone, phone, role: 'STUDENT' };
+
+    // LocalStorage fallback for offline mode matching
+    const localUsersRaw = localStorage.getItem('maklersiz_registered_users');
+    if (localUsersRaw) {
+      try {
+        const usersArr: CurrentUser[] = JSON.parse(localUsersRaw);
+        const cleanPhone = phone.replace(/\D/g, '');
+        const matched = usersArr.find((u) => u.phone.replace(/\D/g, '') === cleanPhone);
+        if (matched) return matched;
+      } catch {}
+    }
+
+    throw new Error("Ushbu telefon raqami bilan hisob topilmadi. Avval Ro'yxatdan o'tish bo'limiga o'ting.");
   },
 
   register: async (nameOrPayload: any, phone?: string, role?: any, password?: string): Promise<CurrentUser> => {
@@ -86,6 +102,8 @@ export const ApiService = {
         ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300'
         : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300';
 
+    let registeredUser: CurrentUser | null = null;
+
     try {
       const res = await fetchWithAuth(`${API_BASE}/auth/register`, {
         method: 'POST',
@@ -101,20 +119,34 @@ export const ApiService = {
       if (res?.ok) {
         const data = await res.json();
         if (data.access_token) saveTokens(data.access_token, data.refresh_token);
-        if (data.user) return data.user as CurrentUser;
-        if (data.id) return data as CurrentUser;
+        if (data.user) registeredUser = data.user as CurrentUser;
+        else if (data.data?.user) registeredUser = data.data.user as CurrentUser;
+        else if (data.id) registeredUser = data as CurrentUser;
       }
     } catch {
       console.warn('register: backend unavailable');
     }
 
-    return {
-      id: `user-${Date.now()}`,
-      name: payloadName || 'Foydalanuvchi',
-      phone: payloadPhone,
-      role: payloadRole,
-      avatar: defaultAvatar,
-    };
+    if (!registeredUser) {
+      registeredUser = {
+        id: `user-${Date.now()}`,
+        name: payloadName,
+        phone: payloadPhone,
+        role: payloadRole as 'OWNER' | 'STUDENT',
+        avatar: defaultAvatar,
+      };
+    }
+
+    // Save to localStorage for offline matching
+    try {
+      const existingRaw = localStorage.getItem('maklersiz_registered_users');
+      const existingArr: CurrentUser[] = existingRaw ? JSON.parse(existingRaw) : [];
+      const filtered = existingArr.filter((u) => u.phone.replace(/\D/g, '') !== payloadPhone.replace(/\D/g, ''));
+      filtered.push(registeredUser);
+      localStorage.setItem('maklersiz_registered_users', JSON.stringify(filtered));
+    } catch {}
+
+    return registeredUser;
   },
 
   // ── Google Auth ───────────────────────────────────────────────────────────────
