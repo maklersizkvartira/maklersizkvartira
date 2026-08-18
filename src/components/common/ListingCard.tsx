@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Heart, ShieldCheck, MapPin, Train, 
-  Sparkles, CheckCircle2, AlertTriangle, ArrowRight, Share2 
+  Sparkles, CheckCircle2, AlertTriangle, ArrowRight, Share2,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Listing } from '../../types';
 import { useAppStore } from '../../stores/useAppStore';
@@ -14,7 +15,23 @@ interface ListingCardProps {
 export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
   const { setCurrentView, toggleFavorite, favorites, currency } = useAppStore();
   const favorite = favorites.includes(listing.id);
-  const cover = listing.images?.[0];
+
+  const images = listing.images && listing.images.length > 0
+    ? listing.images
+    : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1200'];
+
+  const [currentImgIndex, setCurrentImgIndex] = useState(0);
+  const currentImg = images[currentImgIndex % images.length];
+
+  const handlePrevImg = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImgIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+  };
+
+  const handleNextImg = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImgIndex((prev) => (prev + 1) % images.length);
+  };
 
   const handleCardClick = () => {
     setCurrentView('LISTING_DETAIL', listing.id);
@@ -30,9 +47,10 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
       className="group bg-white rounded-2xl sm:rounded-3xl overflow-hidden border border-slate-200 shadow-card hover:shadow-xl transition-all duration-300 flex flex-col w-full min-w-0 cursor-pointer h-full"
     >
       <div className="relative aspect-[4/3] w-full bg-slate-200 animate-pulse overflow-hidden">
-        {cover && (
+        {currentImg && (
           <img
-            src={cover}
+            key={currentImgIndex}
+            src={currentImg}
             alt={listing.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 opacity-0"
             loading="lazy"
@@ -44,11 +62,51 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
           />
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/75 via-transparent to-black/20 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-black/25 pointer-events-none" />
 
-        <div className="absolute top-1.5 left-1.5 right-1.5 sm:top-3 sm:left-3 sm:right-3 flex items-start justify-between gap-1">
+        {/* Multi-Photo Navigation Controls */}
+        {images.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={handlePrevImg}
+              className="absolute left-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-slate-900/70 hover:bg-slate-900 text-white backdrop-blur-md transition-all active:scale-90 z-20 shadow-md opacity-90 sm:opacity-0 group-hover:opacity-100"
+              title="Oldingi rasm"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={handleNextImg}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-slate-900/70 hover:bg-slate-900 text-white backdrop-blur-md transition-all active:scale-90 z-20 shadow-md opacity-90 sm:opacity-0 group-hover:opacity-100"
+              title="Keyingi rasm"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+
+            {/* Photo Index Indicator Dots */}
+            <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-1 z-20 bg-slate-900/60 px-2 py-0.5 rounded-full backdrop-blur-md border border-white/10">
+              {images.map((_, i) => (
+                <span
+                  key={i}
+                  className={`h-1.5 rounded-full transition-all ${
+                    i === currentImgIndex % images.length ? 'w-3 bg-emerald-400' : 'w-1.5 bg-white/50'
+                  }`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+
+        <div className="absolute top-1.5 left-1.5 right-1.5 sm:top-3 sm:left-3 sm:right-3 flex items-start justify-between gap-1 z-10">
           <TrustScoreBadge score={listing.trustScore} showText={false} size="sm" />
           <div className="flex items-center gap-1.5">
+            {images.length > 1 && (
+              <span className="text-[10px] font-black text-white bg-slate-900/70 backdrop-blur-md px-2 py-1 rounded-full border border-white/10 shadow-xs">
+                {currentImgIndex + 1}/{images.length}
+              </span>
+            )}
             <button
               type="button"
               onClick={(e) => {
@@ -85,7 +143,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
           </div>
         </div>
 
-        <div className="absolute bottom-1.5 left-1.5 right-1.5 sm:bottom-3 sm:left-3 sm:right-3 flex items-center justify-between gap-1 text-white">
+        <div className="absolute bottom-1.5 left-1.5 right-1.5 sm:bottom-3 sm:left-3 sm:right-3 flex items-center justify-between gap-1 text-white z-10">
           <span className="bg-slate-900/80 backdrop-blur-md px-1.5 sm:px-2 py-0.5 rounded-md font-semibold text-[10px] sm:text-xs border border-white/20">
             {listing.rooms} xona • {listing.area} m²
           </span>

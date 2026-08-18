@@ -36,6 +36,11 @@ export const App: React.FC = () => {
     // 2. Load listings (also fetches owner's own listings if logged in)
     fetchListings();
 
+    // 3. Auto-refresh listings every 10 seconds for real-time updates
+    const intervalId = setInterval(() => {
+      fetchListings();
+    }, 10000);
+
     // Check for Deep Link URL parameters (e.g. ?listing=listing-1 or ?id=listing-1 or #listing-1)
     try {
       const urlParams = new URLSearchParams(window.location.search);
@@ -58,6 +63,8 @@ export const App: React.FC = () => {
         body: JSON.stringify({ session_id: guestId, page_path: window.location.pathname || '/' }),
       }).catch(() => {});
     } catch (e) {}
+
+    return () => clearInterval(intervalId);
   }, [fetchListings, setCurrentView, initAuth]);
 
   return (
