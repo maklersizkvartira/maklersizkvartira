@@ -40,40 +40,55 @@ export const CreateListingPage: React.FC = () => {
   const [isScanningAI, setIsScanningAI] = useState(false);
   const [scan, setScan] = useState<ListingScanResult | null>(null);
 
+  const DISTRICT_COORDINATES: Record<string, [number, number]> = {
+    'Chilonzor': [41.2780, 69.2080],
+    'Yunusobod': [41.3650, 69.2920],
+    'Mirobod': [41.3005, 69.2740],
+    'Yakkasaroy': [41.2890, 69.2550],
+    'Sergeli': [41.2250, 69.2200],
+    'Uchtepa': [41.2950, 69.1750],
+    'Olmazor': [41.3490, 69.2080],
+    'Yashnobod': [41.2900, 69.3400],
+    'Shayxontohur': [41.3200, 69.2400],
+    "Mirzo Ulug'bek": [41.3350, 69.3300],
+    'Bektemir': [41.2100, 69.3300],
+    'Yangihoyot': [41.2000, 69.2100],
+  };
+
   const fetchAddressFromCoords = async (detectedLat: number, detectedLng: number) => {
+    let matchedRegion = 'Toshkent shahri';
+    let matchedDistrict = 'Chilonzor';
+    let fullStreet = '';
+
+    // Calculate nearest district by mathematical coordinate distance
+    let closestDist = Infinity;
+    for (const [dName, [dLat, dLng]] of Object.entries(DISTRICT_COORDINATES)) {
+      const dist = Math.hypot(detectedLat - dLat, detectedLng - dLng);
+      if (dist < closestDist) {
+        closestDist = dist;
+        matchedDistrict = dName;
+      }
+    }
+
     try {
       const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${detectedLat}&lon=${detectedLng}`);
-      if (!res.ok) return null;
-      const data = await res.json();
-      const addr = data.address || {};
+      if (res.ok) {
+        const data = await res.json();
+        const addr = data.address || {};
 
-      const stateOrCity = addr.state || addr.city || addr.region || 'Toshkent shahri';
-      let matchedRegion = 'Toshkent shahri';
-      for (const reg of UZBEKISTAN_REGIONS) {
-        if (stateOrCity.toLowerCase().includes(reg.name.toLowerCase()) || reg.name.toLowerCase().includes(stateOrCity.toLowerCase())) {
-          matchedRegion = reg.name;
-          break;
-        }
+        const road = addr.road || addr.street || addr.neighbourhood || addr.suburb || `${matchedDistrict} tumani`;
+        const houseNumber = addr.house_number ? `, ${addr.house_number}-uy` : '';
+        fullStreet = `${road}${houseNumber}`;
       }
-
-      const rawDistrict = addr.suburb || addr.city_district || addr.district || addr.county || addr.town || addr.village || '';
-      const activeRegObj = UZBEKISTAN_REGIONS.find((r) => r.name === matchedRegion) || UZBEKISTAN_REGIONS[0];
-      let matchedDistrict = activeRegObj.districts[0];
-      for (const d of activeRegObj.districts) {
-        if (rawDistrict.toLowerCase().includes(d.toLowerCase()) || d.toLowerCase().includes(rawDistrict.toLowerCase())) {
-          matchedDistrict = d;
-          break;
-        }
-      }
-
-      const road = addr.road || addr.street || addr.neighbourhood || addr.suburb || `${matchedDistrict} ko'chasi`;
-      const houseNumber = addr.house_number ? `, ${addr.house_number}-uy` : '';
-      const fullStreet = `${road}${houseNumber}`;
-
-      return { region: matchedRegion, district: matchedDistrict, address: fullStreet };
     } catch {
-      return null;
+      // Fallback
     }
+
+    if (!fullStreet) {
+      fullStreet = `${matchedDistrict} ko'chasi, kvartira`;
+    }
+
+    return { region: matchedRegion, district: matchedDistrict, address: fullStreet };
   };
 
   if (!currentUser) {
