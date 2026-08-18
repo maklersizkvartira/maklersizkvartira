@@ -29,13 +29,18 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
       onClick={handleCardClick}
       className="group bg-white rounded-2xl sm:rounded-3xl overflow-hidden border border-slate-200 shadow-card hover:shadow-xl transition-all duration-300 flex flex-col w-full min-w-0 cursor-pointer h-full"
     >
-      <div className="relative aspect-[4/3] w-full bg-slate-100 overflow-hidden">
+      <div className="relative aspect-[4/3] w-full bg-slate-200 animate-pulse overflow-hidden">
         {cover && (
           <img
             src={cover}
             alt={listing.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 opacity-0"
             loading="lazy"
+            decoding="async"
+            onLoad={(e) => {
+              e.currentTarget.classList.remove('opacity-0');
+              e.currentTarget.parentElement?.classList.remove('animate-pulse');
+            }}
           />
         )}
 
