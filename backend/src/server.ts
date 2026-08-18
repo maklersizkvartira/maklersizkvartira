@@ -9,6 +9,16 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Firebase Admin Service Account credentials parsing (if configured in Railway Variables)
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    console.log(`🔥 Firebase Service Account loaded for project: ${serviceAccount.project_id || 'maklersiz-uy'}`);
+  } catch (e) {
+    console.warn('⚠️ FIREBASE_SERVICE_ACCOUNT env is set but invalid JSON');
+  }
+}
+
 // Dynamic Bulletproof CORS configuration for production custom domain (https://www.maklersizuy.uz)
 app.use((req: Request, res: Response, next: NextFunction) => {
   const origin = req.headers.origin;
