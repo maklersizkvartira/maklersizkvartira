@@ -366,6 +366,9 @@ let VERIFICATIONS_DB: any[] = [];
 app.get('/api/v1/verifications', (_req: Request, res: Response) => {
   res.json({ status: 'success', totalCount: VERIFICATIONS_DB.length, data: VERIFICATIONS_DB });
 });
+app.get('/api/v1/admin/verifications', (_req: Request, res: Response) => {
+  res.json({ status: 'success', totalCount: VERIFICATIONS_DB.length, data: VERIFICATIONS_DB });
+});
 
 app.post('/api/v1/verifications', (req: Request, res: Response) => {
   const body = req.body || {};
@@ -375,8 +378,8 @@ app.post('/api/v1/verifications', (req: Request, res: Response) => {
     userName: body.userName || 'Foydalanuvchi',
     userPhone: body.userPhone || '+998 90 000 00 00',
     targetLevel: body.targetLevel || 4,
-    documentType: body.documentType || 'PASSPORT',
-    passportImage: body.passportImage || undefined,
+    documentType: body.type || body.documentType || 'PASSPORT',
+    passportImage: body.passportImage || body.document_url || undefined,
     selfieImage: body.selfieImage || undefined,
     cadastreCode: body.cadastreCode || undefined,
     status: 'APPROVED',
@@ -386,10 +389,23 @@ app.post('/api/v1/verifications', (req: Request, res: Response) => {
   res.json({ status: 'success', data: newVerif });
 });
 
-app.post('/api/v1/verifications/:id/approve', (req: Request, res: Response) => {
-  const item = VERIFICATIONS_DB.find((v) => v.id === req.params.id);
-  if (item) item.status = 'APPROVED';
-  res.json({ status: 'success', message: 'Verification approved' });
+app.post('/api/v1/admin/verifications/submit', (req: Request, res: Response) => {
+  const body = req.body || {};
+  const newVerif = {
+    id: body.id || `verif-${Date.now()}`,
+    userId: body.userId || `user-${Date.now()}`,
+    userName: body.userName || 'Foydalanuvchi',
+    userPhone: body.userPhone || '+998 90 000 00 00',
+    targetLevel: body.targetLevel || 4,
+    documentType: body.type || body.documentType || 'PASSPORT',
+    passportImage: body.passportImage || body.document_url || undefined,
+    selfieImage: body.selfieImage || undefined,
+    cadastreCode: body.cadastreCode || undefined,
+    status: 'APPROVED',
+    submittedAt: new Date().toISOString(),
+  };
+  VERIFICATIONS_DB.unshift(newVerif);
+  res.json({ status: 'success', data: newVerif });
 });
 
 // 16. Stats
