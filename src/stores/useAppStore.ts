@@ -1,8 +1,8 @@
 import { create } from 'zustand';
-import { UserRole, Listing, ReportItem, VerificationRequest, ChatMessage, Conversation, CurrentUser, SignupRole } from '../types';
+import { UserRole, Listing, ReportItem, VerificationRequest, ChatMessage, Conversation, CurrentUser, SignupRole, FraudSignal } from '../types';
 import { MOCK_LISTINGS } from '../data/mockListings';
 import { MOCK_OWNERS } from '../data/mockUsers';
-import { MOCK_REPORTS, MOCK_VERIFICATIONS } from '../data/mockAdminData';
+import { MOCK_REPORTS, MOCK_VERIFICATIONS, MOCK_FRAUD_SIGNALS } from '../data/mockAdminData';
 import { ApiService } from '../services/apiService';
 
 export type ViewState =
@@ -88,9 +88,13 @@ interface AppStore {
   resetFilters: () => void;
 
   reports: ReportItem[];
+  fraudSignals: FraudSignal[];
   verifications: VerificationRequest[];
+  addReport: (report: ReportItem) => void;
+  addFraudSignal: (signal: FraudSignal) => void;
   resolveReport: (reportId: string, action: 'RESOLVED' | 'REJECTED') => void;
   updateVerification: (verificationId: string, status: 'APPROVED' | 'REJECTED') => void;
+  refreshAdminData: () => Promise<void>;
 
   activeConversationId: string | null;
   conversations: Conversation[];
@@ -247,13 +251,26 @@ export const useAppStore = create<AppStore>((set, get) => ({
   }),
 
   reports: MOCK_REPORTS,
+  fraudSignals: MOCK_FRAUD_SIGNALS,
   verifications: MOCK_VERIFICATIONS,
+  addReport: (report) => set((state) => ({ reports: [report, ...state.reports] })),
+  addFraudSignal: (signal) => set((state) => ({ fraudSignals: [signal, ...state.fraudSignals] })),
   resolveReport: (reportId, status) => set((state) => ({
     reports: state.reports.map((r) => r.id === reportId ? { ...r, status } : r),
   })),
   updateVerification: (verificationId, status) => set((state) => ({
     verifications: state.verifications.map((v) => v.id === verificationId ? { ...v, status } : v),
   })),
+  refreshAdminData: async () => {
+    try {
+      const apiListings = await ApiService.getListings();
+      if (apiListings && apiListings.length > 0) {
+        set({ listings: apiListings });
+      }
+    } catch {
+      // Fallback ok
+    }
+  },
 
   activeConversationId: 'conv-1',
   conversations: [

@@ -9,7 +9,7 @@ import { ListingScanResult } from '../../services/aiGuard';
 import { writeListingCopy, estimatePrice, analyzePhotos, scanListingDeep, formatSom } from '../../services/aiEngine';
 
 export const CreateListingPage: React.FC = () => {
-  const { addListing, setCurrentView, currentUser, setShowAuth, listings } = useAppStore();
+  const { addListing, setCurrentView, currentUser, setShowAuth, listings, addFraudSignal, addReport } = useAppStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -173,6 +173,32 @@ export const CreateListingPage: React.FC = () => {
     if (!local.allowed) {
       setScan(local);
       setIsScanningAI(false);
+
+      addFraudSignal({
+        id: `fraud-${Date.now()}`,
+        type: 'HIGH_BROKER_PROBABILITY',
+        title: `AI Skaner: Shubhali e'lon rad etildi`,
+        entityId: currentUser.id,
+        entityName: `${currentUser.name} (${currentUser.phone})`,
+        riskScore: local.riskScore,
+        evidenceReasons: local.reasons,
+        detectedAt: 'Hozirgina',
+        status: 'PENDING_MODERATION',
+      });
+
+      addReport({
+        id: `rep-${Date.now()}`,
+        listingId: `suspicious-${Date.now()}`,
+        listingTitle: titleText,
+        ownerName: currentUser.name,
+        reporterName: 'Shield AI Guard (Anti-Broker)',
+        reason: 'BROKER',
+        description: `AI Skaner shubhali e'lonni blokladi: ${local.reasons.join(' | ')}`,
+        status: 'OPEN',
+        priority: 'CRITICAL',
+        aiRiskScore: local.riskScore,
+        createdAt: new Date().toLocaleDateString('uz-UZ'),
+      });
       return;
     }
     const result = await ApiService.scanListing(titleText, descText, price, rooms);
