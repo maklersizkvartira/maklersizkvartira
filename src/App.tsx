@@ -45,8 +45,8 @@ export const App: React.FC = () => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const listingIdParam = urlParams.get('listing') || urlParams.get('id') || window.location.hash.replace('#', '');
-      if (listingIdParam && listingIdParam.startsWith('listing-')) {
-        setCurrentView('LISTING_DETAIL', listingIdParam);
+      if (listingIdParam && listingIdParam.trim().length > 0) {
+        setCurrentView('LISTING_DETAIL', listingIdParam.trim());
       }
     } catch {}
 

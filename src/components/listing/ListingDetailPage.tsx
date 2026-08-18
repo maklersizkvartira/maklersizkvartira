@@ -25,6 +25,7 @@ export const ListingDetailPage: React.FC = () => {
   const [reportReason, setReportReason] = useState<string>('SCAM');
   const [reportText, setReportText] = useState('');
   const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [shareSuccessMsg, setShareSuccessMsg] = useState('');
 
   const listing = listings.find((l) =>
     selectedListingId && (
@@ -33,12 +34,12 @@ export const ListingDetailPage: React.FC = () => {
       selectedListingId.endsWith(l.id) ||
       l.id.endsWith(selectedListingId)
     )
-  ) || listings[0];
+  ) || (selectedListingId ? undefined : listings[0]);
 
   if (!listing) {
     return (
       <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
-        <h2 className="text-xl font-black text-slate-900">E'lon topilmadi</h2>
+        <h2 className="text-xl font-black text-slate-900">E'lon topilmadi yoki yuklanmoqda...</h2>
         <p className="text-xs text-slate-500 font-medium">Ushbu e'lon mavjud emas yoki o'chirilgan bo'lishi mumkin.</p>
         <button
           onClick={() => setCurrentView('HOME')}
@@ -58,10 +59,7 @@ export const ListingDetailPage: React.FC = () => {
   const priceInUsd = listing.price > 10000 ? Math.round(listing.price / USD_RATE) : listing.price;
   const priceInUzs = listing.price > 10000 ? listing.price : listing.price * USD_RATE;
 
-
   const formatPrice = (amount: number) => new Intl.NumberFormat('uz-UZ').format(amount);
-
-  const [shareSuccessMsg, setShareSuccessMsg] = useState('');
 
   const handleShare = async () => {
     if (!listing) return;
