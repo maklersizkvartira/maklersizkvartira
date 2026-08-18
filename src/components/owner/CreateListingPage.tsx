@@ -11,6 +11,7 @@ import { writeListingCopy, estimatePrice, analyzePhotos, scanListingDeep, format
 export const CreateListingPage: React.FC = () => {
   const { addListing, setCurrentView, currentUser, setShowAuth, listings } = useAppStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState(1);
   const [title, setTitle] = useState('');
@@ -138,6 +139,19 @@ export const CreateListingPage: React.FC = () => {
     setImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
+  const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setVideoUrl(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
   const finalImages = images.length > 0 ? images : [
     'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=1200',
     'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=1200'
@@ -227,7 +241,7 @@ export const CreateListingPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 min-h-[85vh] space-y-6">
+    <div className="max-w-4xl mx-auto px-3 sm:px-6 py-4 sm:py-8 pb-24 sm:pb-12 space-y-4 sm:space-y-6 min-h-[85vh] w-full overflow-x-hidden">
       <div className="flex items-center justify-between border-b border-slate-200 pb-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
@@ -627,22 +641,69 @@ export const CreateListingPage: React.FC = () => {
               </div>
             )}
 
-            {/* Video URL Input Field */}
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2 mt-4">
-              <label className="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
-                <Video className="w-4 h-4 text-rose-500" />
-                <span>Kvartira Video Sharhi (YouTube / Video URL - Ixtiyoriy)</span>
-              </label>
+            {/* Direct Device Video Upload */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 mt-4">
+              <div className="flex items-center justify-between">
+                <label className="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
+                  <Video className="w-4 h-4 text-rose-500" />
+                  <span>Kvartira Video Sharhi (Qurilmangizdan Yuklash)</span>
+                </label>
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-200 px-2 py-0.5 rounded-full">
+                  Ixtiyoriy
+                </span>
+              </div>
+
               <input
-                type="url"
-                value={videoUrl}
-                onChange={(e) => setVideoUrl(e.target.value)}
-                placeholder="https://www.youtube.com/watch?v=..."
-                className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs font-medium text-slate-900 focus:outline-none focus:border-emerald-500"
+                ref={videoInputRef}
+                type="file"
+                accept="video/*"
+                className="hidden"
+                onChange={handleVideoUpload}
               />
-              <p className="text-[11px] text-slate-500">
-                Agarda kvartirangizning video sharhi (YouTube havolasi) bo'lsa kiriting (Majburiy emas).
-              </p>
+
+              {videoUrl ? (
+                <div className="space-y-2">
+                  <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-700 shadow-md">
+                    <video
+                      controls
+                      src={videoUrl}
+                      className="w-full max-h-56 object-contain"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setVideoUrl('')}
+                      className="absolute top-2 right-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-1 transition-all active:scale-95"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Videoni O'chirish</span>
+                    </button>
+                  </div>
+                  <div className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Video muvaffaqiyatli yuklandi!
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onClick={() => videoInputRef.current?.click()}
+                  className="border-2 border-dashed border-rose-300 hover:border-rose-500 bg-rose-50/40 hover:bg-rose-50/80 rounded-xl p-4 text-center space-y-2 cursor-pointer transition-all"
+                >
+                  <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+                    <Video className="w-5 h-5" />
+                  </div>
+                  <div className="font-bold text-slate-800 text-xs">
+                    📱 Telefoningiz yoki galereyangizdan video tanlang
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    MP4, MOV, WEBM formatdagi kvartira video sharhini yuklashingiz mumkin.
+                  </p>
+                  <button
+                    type="button"
+                    className="bg-white border border-rose-200 text-rose-700 font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-sm hover:bg-rose-100 transition-colors"
+                  >
+                    🎥 Videoni yuklash
+                  </button>
+                </div>
+              )}
             </div>
 
             {(() => {
