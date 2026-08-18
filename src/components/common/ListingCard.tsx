@@ -16,9 +16,11 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
   const { setCurrentView, toggleFavorite, favorites, currency } = useAppStore();
   const favorite = favorites.includes(listing.id);
 
-  const images = listing.images && listing.images.length > 0
+  const rawImages = listing.images && listing.images.length > 0
     ? listing.images
     : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1200'];
+
+  const images = Array.from(new Set(rawImages));
 
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
   const currentImg = images[currentImgIndex % images.length];

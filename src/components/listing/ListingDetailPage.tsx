@@ -51,6 +51,8 @@ export const ListingDetailPage: React.FC = () => {
   }
 
   const isFav = favorites.includes(listing.id);
+  const displayImages = listing ? Array.from(new Set(listing.images || [])) : [];
+  const activeImg = displayImages[activeImageIndex] || displayImages[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1200';
 
   const USD_RATE = 12800;
   const priceInUsd = listing.price > 10000 ? Math.round(listing.price / USD_RATE) : listing.price;
@@ -245,7 +247,7 @@ export const ListingDetailPage: React.FC = () => {
             onClick={() => setActiveMedia('IMAGE')}
             className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all font-extrabold ${activeMedia === 'IMAGE' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
           >
-            Rasmlar ({listing.images.length})
+            Rasmlar ({displayImages.length})
           </button>
           
           <button
@@ -265,7 +267,7 @@ export const ListingDetailPage: React.FC = () => {
         <div className="aspect-[4/3] sm:aspect-[16/9] md:aspect-[21/9] w-full bg-slate-900 rounded-2xl sm:rounded-3xl overflow-hidden relative shadow-lg">
           {activeMedia === 'IMAGE' && (
             <img
-              src={listing.images[activeImageIndex]}
+              src={activeImg}
               alt={listing.title}
               className="w-full h-full object-cover"
             />
@@ -300,9 +302,9 @@ export const ListingDetailPage: React.FC = () => {
         </div>
 
         {/* Thumbnail Selector */}
-        {activeMedia === 'IMAGE' && listing.images.length > 1 && (
+        {activeMedia === 'IMAGE' && displayImages.length > 1 && (
           <div className="flex gap-2 overflow-x-auto pb-2">
-            {listing.images.map((img, idx) => (
+            {displayImages.map((img, idx) => (
               <button
                 key={idx}
                 onClick={() => setActiveImageIndex(idx)}
