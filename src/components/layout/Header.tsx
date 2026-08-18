@@ -7,12 +7,13 @@ export const Header: React.FC = () => {
   const { setCurrentView, currentView, currentUser, setShowAuth } = useAppStore();
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+    <header className="fixed top-0 inset-x-0 z-50 bg-white/90 backdrop-blur-xl border-b border-slate-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
       <AuthModal />
 
-      <div className="hidden sm:block bg-slate-900 text-white text-xs py-1.5 px-4">
-        <div className="max-w-7xl mx-auto font-medium">
-          Makler yo'q. Komissiya yo'q. Kvartirani egasidan o'zingiz toping.
+      <div className="hidden sm:block bg-gradient-to-r from-slate-950 via-emerald-950 to-slate-950 text-white text-[11px] py-1.5 px-4 font-bold border-b border-white/10">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <span>🏠 MaklersizUy.uz — 0% Komissiya! Uy egasi va ijarachini to'g'ridan-to'g'ri bog'laydi.</span>
+          <span className="text-emerald-400 font-mono">24/7 Qo'llab-quvvatlash: @MaklersizUy_Support</span>
         </div>
       </div>
 
