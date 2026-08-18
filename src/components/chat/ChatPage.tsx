@@ -244,19 +244,19 @@ export const ChatPage: React.FC = () => {
           e.preventDefault();
           handleSend();
         }}
-        className="p-3 bg-white border-t border-slate-200 flex items-center gap-2 shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        className="p-2.5 sm:p-3 bg-white border-t border-slate-200 flex items-center gap-2 shrink-0 pb-16 sm:pb-3"
       >
         <input
           type="text"
           value={inputMsg}
           onChange={(e) => setInputMsg(e.target.value)}
           placeholder="Xabaringizni yozing..."
-          className="flex-1 bg-slate-100 border border-slate-200 rounded-2xl px-4 py-3 text-xs sm:text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+          className="flex-1 bg-slate-100 border border-slate-200 rounded-2xl px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
         />
         <button
           type="submit"
           disabled={!inputMsg.trim()}
-          className="w-11 h-11 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/30 transition-all active:scale-95"
+          className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/30 transition-all active:scale-95"
         >
           <Send className="w-4 h-4" />
         </button>
@@ -273,7 +273,7 @@ export const ChatPage: React.FC = () => {
 
   return (
     <div className="md:max-w-6xl md:mx-auto md:px-6 md:py-6 w-full">
-      <div className="h-[calc(100dvh-3.5rem-4.25rem)] md:h-[calc(100dvh-7rem)] md:min-h-[580px] flex md:gap-4">
+      <div className="h-[calc(100dvh-3.5rem)] md:h-[calc(100dvh-7rem)] md:min-h-[580px] flex md:gap-4">
         <div className={`${mobileThread ? 'hidden' : 'flex'} md:flex w-full md:w-80 flex-col min-h-0`}>
           {List}
         </div>
