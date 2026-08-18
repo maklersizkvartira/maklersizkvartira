@@ -310,32 +310,30 @@ export const useAppStore = create<AppStore>((set, get) => ({
   listings: [...extraListings, ...MOCK_LISTINGS],
   fetchListings: async () => {
     try {
-      const [publicListings, myListings] = await Promise.all([
-        ApiService.getListings(),
-        // Only fetch owner's own listings if logged in
-        (() => {
-          const u = localStorage.getItem('maklersiz-user');
-          const user = u ? JSON.parse(u) : null;
-          return user?.role === 'OWNER' ? ApiService.getMyListings() : Promise.resolve([]);
-        })(),
-      ]);
+      const publicListings = await ApiService.getListings();
+      set((state) => {
+        const localExtras = state.listings.filter(
+          (l) =>
+            l.id.startsWith('listing-') &&
+            !publicListings.some((r) => r.id === l.id) &&
+            l.owner?.name !== 'Jasur Karimov' &&
+            l.owner?.name !== 'Nodira Alimova' &&
+            l.owner?.name !== 'Bekzod Rahimov'
+        );
 
-      // Merge: own listings take priority
-      const allRemote = [
-        ...myListings,
-        ...publicListings.filter((l) => !myListings.some((m) => m.id === l.id)),
-      ];
-
-      if (allRemote.length > 0) {
-        set((state) => {
-          const localOnly = state.listings.filter(
-            (l) => l.id.startsWith('listing-') && !allRemote.some((r) => r.id === l.id)
-          );
-          return { listings: [...localOnly, ...allRemote] };
+        // Auto-upload local listings created on laptop to Railway server so mobile phones receive them
+        localExtras.forEach((listing) => {
+          ApiService.createListing(listing).catch(() => {});
         });
-        return;
-      }
-    } catch { /* mock fallback */ }
+
+        const merged = [
+          ...localExtras,
+          ...publicListings.filter((l) => !localExtras.some((m) => m.id === l.id)),
+        ];
+
+        return { listings: merged };
+      });
+    } catch { /* fallback */ }
   },
   editingListing: null,
   setEditingListing: (listing) => set({ editingListing: listing }),
