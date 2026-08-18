@@ -63,7 +63,10 @@ interface AppStore {
   listings: Listing[];
   fetchListings: () => Promise<void>;
   addListing: (newListing: Listing) => void;
+  updateListing: (updatedListing: Listing) => void;
   removeListing: (listingId: string) => void;
+  editingListing: Listing | null;
+  setEditingListing: (listing: Listing | null) => void;
 
   favorites: string[];
   toggleFavorite: (listingId: string) => void;
@@ -173,6 +176,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       }
     } catch { /* mock fallback */ }
   },
+  editingListing: null,
+  setEditingListing: (listing) => set({ editingListing: listing }),
   addListing: (newListing) => set((state) => {
     const listings = [newListing, ...state.listings];
     const extras = listings.filter((l) => l.id.startsWith('listing-') && !MOCK_LISTINGS.some((m) => m.id === l.id));
@@ -181,6 +186,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
       listings,
       currentView: 'MY_LISTINGS',
       aiMascotMessage: "E'lon joylandi. Odamlar endi ko'ra oladi.",
+    };
+  }),
+  updateListing: (updatedListing) => set((state) => {
+    const listings = state.listings.map((l) => (l.id === updatedListing.id ? updatedListing : l));
+    const extras = listings.filter((l) => l.id.startsWith('listing-') && !MOCK_LISTINGS.some((m) => m.id === l.id));
+    localStorage.setItem(EXTRA_KEY, JSON.stringify(extras));
+    return {
+      listings,
+      editingListing: null,
+      aiMascotMessage: "E'lon muvaffaqiyatli tahrirlandi!",
     };
   }),
   removeListing: (listingId) => set((state) => {

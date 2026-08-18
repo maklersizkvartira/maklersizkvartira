@@ -2,18 +2,19 @@ import React, { useState } from 'react';
 import { 
   ShieldCheck, MapPin, Train, GraduationCap, Phone, MessageSquare, 
   Heart, Share2, Flag, ArrowLeft, CheckCircle2, AlertTriangle, Eye, Sparkles, 
-  Video, Compass, Info, Check, ShieldAlert
+  Video, Compass, Info, Check, ShieldAlert, Edit, Trash2
 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { TrustScoreBadge } from '../common/TrustScoreBadge';
 import { VerificationBadge } from '../common/VerificationBadge';
 import { ListingCard } from '../common/ListingCard';
+import { EditListingModal } from '../owner/EditListingModal';
 
 export const ListingDetailPage: React.FC = () => {
   const { 
     selectedListingId, listings, favorites, toggleFavorite, 
     openChatWithListing, setCurrentView, resolveReport,
-    currentUser, setShowAuth
+    currentUser, setShowAuth, setEditingListing, removeListing
   } = useAppStore();
 
   const [activeMedia, setActiveMedia] = useState<'IMAGE' | 'VIDEO' | 'TOUR360'>('IMAGE');
@@ -93,6 +94,37 @@ export const ListingDetailPage: React.FC = () => {
         <h1 className="text-2xl sm:text-3xl font-black text-slate-900 leading-tight">
           {listing.title}
         </h1>
+
+        {currentUser?.id === listing.owner.id && (
+          <div className="bg-slate-900 border border-slate-800 p-3 rounded-2xl flex items-center justify-between gap-3 shadow-lg my-2">
+            <div className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+              <span>🏠 Siz ushbu e'lon egasisiz</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingListing(listing)}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1 shadow-md active:scale-95"
+              >
+                <Edit className="w-3.5 h-3.5" />
+                <span>Tahrirlash</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm("Haqiqatan ham ushbu e'lonni o'chirasizmi?")) {
+                    removeListing(listing.id);
+                    setCurrentView('MY_LISTINGS');
+                  }
+                }}
+                className="bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30 font-extrabold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1 active:scale-95"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>O'chirish</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
           <div className="flex items-center gap-1">
@@ -463,6 +495,8 @@ export const ListingDetailPage: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Global Edit Listing Modal */}
+      <EditListingModal />
     </div>
   );
 };
