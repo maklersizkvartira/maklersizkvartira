@@ -329,7 +329,7 @@ export const SearchPage: React.FC = () => {
         {/* Right Listings Grid */}
         <div className="lg:col-span-3 w-full">
           {filteredListings.length > 0 ? (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-6 w-full">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-5 w-full">
               {filteredListings.map((listing) => (
                 <ListingCard key={listing.id} listing={listing} />
               ))}

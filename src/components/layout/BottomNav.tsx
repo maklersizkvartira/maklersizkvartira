@@ -45,19 +45,19 @@ export const BottomNav: React.FC = () => {
                 if (isAuthShortcut) setShowAuth(true);
                 else setCurrentView(item.id);
               }}
-              className={`flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1 px-1 rounded-xl ${
-                isActive ? 'text-emerald-700' : 'text-slate-500'
+              className={`flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1 px-0.5 rounded-xl transition-all ${
+                isActive ? 'text-emerald-700 font-extrabold' : 'text-slate-500 font-medium'
               }`}
             >
-              <div className={`relative flex items-center justify-center w-8 h-8 rounded-xl ${isActive ? 'bg-emerald-50' : ''}`}>
-                <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}`} />
+              <div className={`relative flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-xl ${isActive ? 'bg-emerald-100/70 text-emerald-700' : ''}`}>
+                <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}`} />
                 {item.badge && item.badge > 0 ? (
-                  <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-extrabold min-w-4 h-4 px-0.5 rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black min-w-3.5 h-3.5 px-0.5 rounded-full flex items-center justify-center">
                     {item.badge}
                   </span>
                 ) : null}
               </div>
-              <span className={`text-[10px] leading-none truncate w-full text-center ${isActive ? 'font-bold' : 'font-medium'}`}>
+              <span className={`text-[9px] sm:text-[10px] leading-none truncate w-full text-center tracking-tight ${isActive ? 'font-black text-emerald-800' : 'font-semibold'}`}>
                 {item.label}
               </span>
             </button>
