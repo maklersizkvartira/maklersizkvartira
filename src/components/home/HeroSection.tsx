@@ -34,7 +34,7 @@ export const HeroSection: React.FC = () => {
 
   return (
     <section className="relative bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white pt-6 sm:pt-12 pb-10 sm:pb-16 px-3 sm:px-6 overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full overflow-hidden pointer-events-none opacity-25">
+      <div className="hidden sm:block absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full overflow-hidden pointer-events-none opacity-25">
         <div className="absolute -top-24 left-1/4 w-72 h-72 sm:w-96 sm:h-96 bg-emerald-500 rounded-full blur-3xl" />
         <div className="absolute top-10 right-1/4 w-72 h-72 sm:w-96 sm:h-96 bg-teal-600 rounded-full blur-3xl" />
       </div>
