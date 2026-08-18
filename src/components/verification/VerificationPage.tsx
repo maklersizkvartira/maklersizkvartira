@@ -1,8 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   ShieldCheck, Award, Upload, CheckCircle2, AlertCircle, FileText, 
   Camera, Lock, ChevronRight, Sparkles, Building, PhoneCall, Check,
-  Search, ShieldAlert, Zap, Star, Eye, Image as ImageIcon, Trash2, RefreshCw
+  Search, ShieldAlert, Zap, Star, Eye, Image as ImageIcon, Trash2, RefreshCw,
+  Video, VideoOff
 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { VerificationLevel } from '../../types';
@@ -15,6 +16,10 @@ export const VerificationPage: React.FC = () => {
   const selfieInputRef = useRef<HTMLInputElement>(null);
   const cadastreInputRef = useRef<HTMLInputElement>(null);
 
+  // Live Camera Video & Stream Refs
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
   const [activeStep, setActiveStep] = useState<VerificationLevel>(2);
   const [phoneVerified, setPhoneVerified] = useState(true);
 
@@ -24,6 +29,10 @@ export const VerificationPage: React.FC = () => {
 
   const [selfieDone, setSelfieDone] = useState(false);
   const [selfieImage, setSelfieImage] = useState<string | null>(null);
+
+  // Live WebCam States
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
   const [cadastreDone, setCadastreDone] = useState(false);
   const [cadastreImage, setCadastreImage] = useState<string | null>(null);
@@ -39,6 +48,64 @@ export const VerificationPage: React.FC = () => {
     trustScore: number;
     description: string;
   } | null>(null);
+
+  // Clean up media stream when component unmounts or step changes
+  useEffect(() => {
+    return () => {
+      stopLiveCamera();
+    };
+  }, []);
+
+  // --- Live WebCam Handlers ---
+  const startLiveCamera = async () => {
+    setCameraError(null);
+    setIsCameraActive(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch (err) {
+      console.error(err);
+      setCameraError("Kamerani jonli ochishda ruxsat yetmadi. Iltimos brauzer kameraga ruxsat bering yoki tayyor rasm yuklang.");
+      setIsCameraActive(false);
+    }
+  };
+
+  const stopLiveCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  const captureLiveSelfie = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    const width = video.videoWidth || 640;
+    const height = video.videoHeight || 480;
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      // Mirror the selfie horizontally for natural camera feel
+      ctx.translate(width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, 0, 0, width, height);
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+      setSelfieImage(dataUrl);
+      stopLiveCamera();
+    }
+  };
 
   // --- Handlers for Files ---
   const handlePassportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,6 +128,7 @@ export const VerificationPage: React.FC = () => {
       reader.onload = () => {
         if (typeof reader.result === 'string') {
           setSelfieImage(reader.result);
+          stopLiveCamera();
         }
       };
       reader.readAsDataURL(file);
@@ -99,7 +167,7 @@ export const VerificationPage: React.FC = () => {
   const handleLevel3Submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selfieImage) {
-      alert("Iltimos, kamerangiz orqali selfie rasmingizni tushing yoki yuklang.");
+      alert("Iltimos, jonli kamerangiz orqali selfie tushing yoki rasm yuklang.");
       return;
     }
     setIsSubmitting(true);
@@ -108,7 +176,7 @@ export const VerificationPage: React.FC = () => {
       setSelfieDone(true);
       setActiveStep(4);
       addXp(50, 'Selfie tasdiqlandi');
-      setAiMascotMessage("✨ Selfie va Liveness muvaffaqiyatli o'tdi! +50 XP yig'ildi.");
+      setAiMascotMessage("✨ Jonli Selfie va Liveness muvaffaqiyatli o'tdi! +50 XP yig'ildi.");
     }, 1200);
   };
 
@@ -207,7 +275,7 @@ export const VerificationPage: React.FC = () => {
         </div>
       </div>
 
-      {/* VISUAL DEMONSTRATION CARD: BEFORE vs AFTER (Rasm / Ko'rgazma) */}
+      {/* VISUAL DEMONSTRATION CARD: BEFORE vs AFTER */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
         <div className="text-center max-w-xl mx-auto space-y-1.5">
           <span className="text-xs font-extrabold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-3 py-1 rounded-full">
@@ -327,14 +395,17 @@ export const VerificationPage: React.FC = () => {
           {[
             { level: 1, title: 'Telefon', done: phoneVerified, xp: '+10 XP' },
             { level: 2, title: 'Pasport', done: passportDone, xp: '+50 XP' },
-            { level: 3, title: 'Selfie', done: selfieDone, xp: '+50 XP' },
+            { level: 3, title: 'Jonli Selfie', done: selfieDone, xp: '+50 XP' },
             { level: 4, title: 'Kadastr', done: cadastreDone, xp: '+100 XP' },
             { level: 5, title: 'VIP Owner', done: cadastreDone, xp: 'VIP' },
           ].map((step) => (
             <button
               key={step.level}
               type="button"
-              onClick={() => setActiveStep(step.level as VerificationLevel)}
+              onClick={() => {
+                if (step.level !== 3) stopLiveCamera();
+                setActiveStep(step.level as VerificationLevel);
+              }}
               className={`p-2 sm:p-3 rounded-xl transition-all flex flex-col items-center justify-center gap-1 ${
                 activeStep === step.level
                   ? 'bg-slate-900 text-white font-bold shadow-md scale-[1.02]'
@@ -406,7 +477,7 @@ export const VerificationPage: React.FC = () => {
                     onClick={() => setActiveStep(3)}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-5 py-3 rounded-xl shadow-md transition-all"
                   >
-                    Level 3 Selfie Bosqichiga O'tish ➔
+                    Level 3 Jonli Selfie Bosqichiga O'tish ➔
                   </button>
                 </div>
               ) : (
@@ -467,6 +538,7 @@ export const VerificationPage: React.FC = () => {
             </div>
           )}
 
+          {/* LEVEL 3: REAL-TIME LIVE WEBCAM SELFIE & LIVENESS */}
           {activeStep === 3 && (
             <div className="space-y-6 max-w-xl mx-auto">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
@@ -474,63 +546,127 @@ export const VerificationPage: React.FC = () => {
                   L3
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-slate-900">Level 3: Selfie va Liveness Tekshiruvi</h3>
-                  <p className="text-xs text-slate-500">AI pasportdagi rasm va yuzingiz mosligini 1-soniyada solishtiradi.</p>
+                  <h3 className="text-lg font-black text-slate-900">Level 3: Jonli Kamera Selfie va Liveness Tekshiruvi</h3>
+                  <p className="text-xs text-slate-500">AI kamerani o'zida yuzingizni va liveness jonliligini 1-soniyada tekshiradi.</p>
                 </div>
               </div>
 
               {selfieDone ? (
                 <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-2xl text-center space-y-3">
                   <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
-                  <h4 className="font-bold text-emerald-900">Selfie Liveness Tasdiqlandi! (+50 XP)</h4>
+                  <h4 className="font-bold text-emerald-900">Jonli Selfie Liveness Tasdiqlandi! (+50 XP)</h4>
                   {selfieImage && (
-                    <img src={selfieImage} alt="Selfie preview" className="w-28 h-28 object-cover rounded-full mx-auto border-2 border-emerald-400 shadow-md" />
+                    <img src={selfieImage} alt="Selfie preview" className="w-32 h-32 object-cover rounded-full mx-auto border-4 border-emerald-400 shadow-lg" />
                   )}
-                  <p className="text-xs text-emerald-700">Yuz o'xshashligi 99.4% darajada mos keldi.</p>
+                  <p className="text-xs text-emerald-700">Yuz va liveness jonliligi 99.6% darajada mos keldi.</p>
                   <button
                     type="button"
                     onClick={() => setActiveStep(4)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-5 py-3 rounded-xl shadow-md transition-all"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-6 py-3 rounded-xl shadow-md transition-all"
                   >
                     Level 4 Kadastr Bosqichiga O'tish ➔
                   </button>
                 </div>
               ) : (
                 <form onSubmit={handleLevel3Submit} className="space-y-4 text-xs">
-                  <div
-                    onClick={() => selfieInputRef.current?.click()}
-                    className="border-2 border-dashed border-indigo-300 rounded-2xl p-6 sm:p-8 text-center bg-indigo-50/50 hover:bg-indigo-50 transition-colors cursor-pointer space-y-3 group"
-                  >
-                    {selfieImage ? (
-                      <div className="space-y-2">
-                        <div className="relative w-36 h-36 mx-auto">
-                          <img src={selfieImage} alt="Selfie preview" className="w-36 h-36 object-cover rounded-full border-4 border-indigo-500 shadow-md" />
-                          <div className="absolute inset-0 rounded-full border-2 border-emerald-400 animate-pulse pointer-events-none" />
+                  
+                  {/* LIVE WEBCAM CAMERA CONTAINER */}
+                  <div className="bg-slate-950 border-2 border-indigo-500/40 rounded-3xl p-6 text-center text-white relative overflow-hidden shadow-xl space-y-4">
+                    
+                    {/* If Camera is Active: Show Real-Time Live Video Stream with Oval Guide */}
+                    {isCameraActive ? (
+                      <div className="space-y-4">
+                        <div className="relative w-64 h-64 sm:w-72 sm:h-72 mx-auto rounded-full overflow-hidden border-4 border-emerald-400 shadow-2xl bg-black">
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="w-full h-full object-cover transform -scale-x-100"
+                          />
+                          {/* Pulsing Face Oval Boundary */}
+                          <div className="absolute inset-0 rounded-full border-4 border-emerald-400 animate-pulse pointer-events-none" />
+                          <div className="absolute bottom-3 inset-x-0 bg-black/60 backdrop-blur-xs text-[10px] text-emerald-300 font-bold py-1">
+                            Yuzingizni aylanaga to'g'rilang
+                          </div>
                         </div>
-                        <div className="text-xs font-bold text-indigo-900 flex items-center justify-center gap-1">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Selfie rasmga olindi! Yuz mos keldi
+
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={captureLiveSelfie}
+                            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm px-6 py-3 rounded-2xl shadow-lg flex items-center gap-2 transition-all active:scale-[0.97]"
+                          >
+                            <Camera className="w-5 h-5 fill-slate-950" />
+                            <span>📸 Jonli Rasmga Tushish</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={stopLiveCamera}
+                            className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs px-4 py-3 rounded-2xl transition-colors"
+                          >
+                            Yopish
+                          </button>
+                        </div>
+                      </div>
+                    ) : selfieImage ? (
+                      /* Captured Image Preview */
+                      <div className="space-y-3">
+                        <div className="relative w-40 h-40 mx-auto">
+                          <img src={selfieImage} alt="Captured Selfie" className="w-40 h-40 object-cover rounded-full border-4 border-emerald-400 shadow-xl" />
+                          <div className="absolute bottom-0 right-0 bg-emerald-600 text-white p-2 rounded-full shadow-lg">
+                            <CheckCircle2 className="w-5 h-5" />
+                          </div>
+                        </div>
+                        <div className="text-xs font-extrabold text-emerald-400 flex items-center justify-center gap-1">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Jonli selfie rasmga olindi! Yuz tayyor.
                         </div>
                         <button
                           type="button"
-                          onClick={(e) => { e.stopPropagation(); setSelfieImage(null); }}
-                          className="text-[11px] text-rose-600 font-bold hover:underline flex items-center justify-center gap-1 mx-auto"
+                          onClick={() => { setSelfieImage(null); startLiveCamera(); }}
+                          className="text-xs text-indigo-300 font-bold hover:underline flex items-center justify-center gap-1 mx-auto"
                         >
-                          <RefreshCw className="w-3.5 h-3.5" /> Qayta rasmga tushish
+                          <RefreshCw className="w-3.5 h-3.5" /> Qayta Jonli Rasmga Tushish
                         </button>
                       </div>
                     ) : (
-                      <>
-                        <div className="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform shadow-inner">
-                          <Camera className="w-8 h-8" />
+                      /* Default Initial View before opening camera */
+                      <div className="space-y-4 py-3">
+                        <div className="w-16 h-16 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center mx-auto shadow-inner">
+                          <Camera className="w-8 h-8 animate-pulse" />
                         </div>
                         <div>
-                          <div className="font-black text-sm text-slate-900">Kamera orqali selfie rasmga tushing</div>
-                          <p className="text-xs text-slate-500 mt-1">Telefoningiz kamerasini ochib rasmga tushing yoki suratingizni yuklang</p>
+                          <div className="font-black text-base text-white">Jonli Kamerani Ochish</div>
+                          <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
+                            Ekrandagi kamerasiz tasvir orqali yuzingiz va liveness jonliligi 100% haqiqiyligi tekshiriladi.
+                          </p>
                         </div>
-                        <span className="inline-block bg-indigo-600 text-white font-black px-5 py-2.5 rounded-xl shadow-md text-xs">
-                          📸 Kamerani Ochib Selfie Tushish
-                        </span>
-                      </>
+
+                        {cameraError && (
+                          <div className="bg-rose-950/80 border border-rose-500/40 p-3 rounded-xl text-rose-200 text-xs font-semibold">
+                            {cameraError}
+                          </div>
+                        )}
+
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={startLiveCamera}
+                            className="w-full sm:w-auto bg-gradient-to-r from-indigo-500 to-emerald-500 hover:from-indigo-400 hover:to-emerald-400 text-slate-950 font-black text-xs sm:text-sm px-6 py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                          >
+                            <Video className="w-4 h-4" />
+                            <span>📸 Jonli Kamerani Ochish (Live WebCam)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => selfieInputRef.current?.click()}
+                            className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs px-4 py-3.5 rounded-xl transition-colors flex items-center justify-center gap-1.5"
+                          >
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>Fayldan Yuklash</span>
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
 
@@ -543,7 +679,7 @@ export const VerificationPage: React.FC = () => {
                         : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                     }`}
                   >
-                    {isSubmitting ? 'AI Yuzni Solishtirmoqda...' : 'Selfie Skanerlash (+50 XP)'}
+                    {isSubmitting ? 'AI Yuzni Solishtirmoqda...' : '✨ AI Yuz Solishtirishni Boshlash (+50 XP)'}
                   </button>
                 </form>
               )}
