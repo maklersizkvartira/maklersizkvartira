@@ -82,6 +82,7 @@ interface AppStore {
   minTrustScore: number;
   sortBy: 'AI' | 'TRUST' | 'PRICE_LOW' | 'PRICE_HIGH' | 'NEWEST';
   audience: 'ALL' | 'STUDENT' | 'FAMILY';
+  rentalType: 'ALL' | 'FULL' | 'ROOMMATE';
   setSearchQuery: (query: string) => void;
   setFilters: (filters: Partial<AppStore>) => void;
   resetFilters: () => void;
@@ -226,6 +227,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   minTrustScore: 0,
   sortBy: 'AI',
   audience: 'ALL',
+  rentalType: 'ALL',
 
   setSearchQuery: (query) => set({ searchQuery: query, currentView: 'SEARCH' }),
   setFilters: (newFilters) => set(newFilters),
@@ -240,7 +242,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
     onlyVerified: false,
     minTrustScore: 0,
     sortBy: 'AI',
-  audience: 'ALL',
+    audience: 'ALL',
+    rentalType: 'ALL',
   }),
 
   reports: MOCK_REPORTS,

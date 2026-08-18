@@ -7,6 +7,19 @@ export const QuickCategories: React.FC = () => {
 
   const categories = [
     {
+      id: 'sherikchilik',
+      name: '🤝 Sherikchilikka',
+      desc: 'Kvartiraga sherik topish',
+      icon: Users,
+      color: 'bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-amber-500/20',
+      badge: 'TOP',
+      badgeColor: 'bg-emerald-600 text-white',
+      action: () => {
+        setFilters({ rentalType: 'ROOMMATE' });
+        setCurrentView('SEARCH');
+      }
+    },
+    {
       id: 'students',
       name: 'Talabalar uchun',
       desc: 'TATU, INHA, WIUT',

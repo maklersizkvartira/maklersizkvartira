@@ -87,6 +87,11 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
           </h3>
 
           <div className="hidden sm:flex items-center gap-2 pt-1 flex-wrap">
+            {listing.isRoommate && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
+                🤝 Sherikchilikka
+              </span>
+            )}
             {listing.aiCheckStatus === 'APPROVED' ? (
               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                 <CheckCircle2 className="w-3 h-3 text-emerald-600" /> 0% makler
@@ -115,9 +120,9 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
             <div className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate">{(listing.owner?.name || 'Uy Egasi').split(' ')[0]}</div>
             <div className="text-[13px] sm:text-lg font-black text-emerald-700 tracking-tight leading-tight">
               {currency === 'USD' ? (
-                <span>${priceInUsd}<span className="text-[10px] sm:text-xs font-bold text-slate-500"> / oy</span></span>
+                <span>${priceInUsd}<span className="text-[10px] sm:text-xs font-bold text-slate-500">{listing.isRoommate ? ' / kishi' : ' / oy'}</span></span>
               ) : (
-                <span>{(priceInUzs / 1000000).toFixed(1)}<span className="text-[10px] sm:text-xs font-bold text-slate-500"> mln</span></span>
+                <span>{(priceInUzs / 1000000).toFixed(1)}<span className="text-[10px] sm:text-xs font-bold text-slate-500">{listing.isRoommate ? ' mln/kishi' : ' mln'}</span></span>
               )}
             </div>
             </div>

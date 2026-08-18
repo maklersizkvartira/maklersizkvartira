@@ -13,7 +13,7 @@ export const SearchPage: React.FC = () => {
   const { 
     listings, searchQuery, setSearchQuery,
     selectedRegion, selectedDistrict, selectedUniversity, selectedMetro,
-    maxPrice, roomsCount, onlyVerified, minTrustScore, sortBy, audience,
+    maxPrice, roomsCount, onlyVerified, minTrustScore, sortBy, audience, rentalType,
     setFilters, resetFilters, setCurrentView
   } = useAppStore();
 
@@ -64,6 +64,10 @@ export const SearchPage: React.FC = () => {
       if (listing.price > maxPrice) {
         return false;
       }
+
+      // Rental Type filter (Full vs Roommate)
+      if (rentalType === 'FULL' && listing.isRoommate) return false;
+      if (rentalType === 'ROOMMATE' && !listing.isRoommate) return false;
 
       // Rooms filter
       if (roomsCount !== null && listing.rooms !== roomsCount) {
@@ -148,7 +152,7 @@ export const SearchPage: React.FC = () => {
         <div className={`lg:block ${showMobileFilters ? 'block' : 'hidden'} lg:col-span-1 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-card h-fit space-y-5 w-full`}>
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-              <SlidersHorizontal className="w-4 h-4 text-emerald-600" /> Viloyat va Tuman Filtrlar
+              <SlidersHorizontal className="w-4 h-4 text-emerald-600" /> Filtrlar
             </h3>
             <button
               onClick={resetFilters}
@@ -156,6 +160,34 @@ export const SearchPage: React.FC = () => {
             >
               <RefreshCw className="w-3 h-3" /> Tozalash
             </button>
+          </div>
+
+          {/* Rental Category Selector */}
+          <div className="space-y-1.5 pb-2 border-b border-slate-100">
+            <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block">Ijara Turi</label>
+            <div className="flex flex-col gap-1.5 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setFilters({ rentalType: 'ALL' })}
+                className={`w-full py-2 px-3 rounded-xl border text-left flex items-center justify-between transition-all ${rentalType === 'ALL' ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
+              >
+                <span>Barchasi (Hammasi)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilters({ rentalType: 'FULL' })}
+                className={`w-full py-2 px-3 rounded-xl border text-left flex items-center justify-between transition-all ${rentalType === 'FULL' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
+              >
+                <span>🏠 Butun Kvartira</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilters({ rentalType: 'ROOMMATE' })}
+                className={`w-full py-2 px-3 rounded-xl border text-left flex items-center justify-between transition-all ${rentalType === 'ROOMMATE' ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
+              >
+                <span>🤝 Sherikchilikka (Kvartira Sherik)</span>
+              </button>
+            </div>
           </div>
 
           {/* Region Filter */}

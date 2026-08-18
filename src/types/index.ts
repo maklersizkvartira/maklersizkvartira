@@ -90,6 +90,9 @@ export interface Listing {
   viewsCount: number;
   favoritesCount: number;
   contactCount: number;
+  isRoommate?: boolean; // True if listing is for Sherikchilikka (Roommate sharing)
+  roommateGender?: 'BOYS' | 'GIRLS' | 'ANY'; // Sherik jinsi: Yigitlar / Qizlar / Farqi yo'q
+  roommateSpotsAvailable?: number; // Qancha sherik kerak
   isFeatured?: boolean;
 }
 

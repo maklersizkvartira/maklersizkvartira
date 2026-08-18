@@ -31,6 +31,9 @@ export const CreateListingPage: React.FC = () => {
   const [utilities, setUtilities] = useState(true);
   const [pets, setPets] = useState(false);
   const [parking, setParking] = useState(true);
+  const [isRoommate, setIsRoommate] = useState(false);
+  const [roommateGender, setRoommateGender] = useState<'BOYS' | 'GIRLS' | 'ANY'>('ANY');
+  const [roommateSpots, setRoommateSpots] = useState(1);
   const [images, setImages] = useState<string[]>([]);
   const [videoUrl, setVideoUrl] = useState('');
   const [lat, setLat] = useState<number | null>(null);
@@ -205,6 +208,9 @@ export const CreateListingPage: React.FC = () => {
       images: finalImages,
       videoUrl: videoUrl.trim() || undefined,
       hasVirtualTour: false,
+      isRoommate,
+      roommateGender: isRoommate ? roommateGender : undefined,
+      roommateSpotsAvailable: isRoommate ? roommateSpots : undefined,
       owner,
       trustScore: scan.trustScore,
       riskScore: scan.riskScore,
@@ -283,6 +289,66 @@ export const CreateListingPage: React.FC = () => {
         {step === 1 && (
           <div className="space-y-4">
             <h3 className="font-bold text-base text-slate-900 border-b pb-2">Kvartira haqida</h3>
+
+            {/* Rental Category Choice */}
+            <div className="space-y-1">
+              <label className="font-bold text-slate-700 text-sm">Ijara Turi (Kategoriya)</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsRoommate(false)}
+                  className={`p-3 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                    !isRoommate ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  <span>🏠 Butun Kvartira</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsRoommate(true)}
+                  className={`p-3 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                    isRoommate ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  <span>🤝 Sherikchilikka (Kvartira Sherik)</span>
+                </button>
+              </div>
+            </div>
+
+            {isRoommate && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-3">
+                <div className="font-extrabold text-xs text-amber-900 flex items-center gap-1.5">
+                  <span>🤝 Sherikchilikka Sharoitlari</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <label className="font-bold text-slate-700">Kimlar uchun sheriklik?</label>
+                    <select
+                      value={roommateGender}
+                      onChange={(e) => setRoommateGender(e.target.value as any)}
+                      className="w-full bg-white border border-amber-300 rounded-xl p-2.5 font-bold mt-1"
+                    >
+                      <option value="ANY">Farqi yo'q (O'g'il / Qiz)</option>
+                      <option value="BOYS">Faqat Yigitlar uchun</option>
+                      <option value="GIRLS">Faqat Qizlar uchun</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700">Qancha sherik kerak?</label>
+                    <select
+                      value={roommateSpots}
+                      onChange={(e) => setRoommateSpots(Number(e.target.value))}
+                      className="w-full bg-white border border-amber-300 rounded-xl p-2.5 font-bold mt-1"
+                    >
+                      <option value={1}>1 ta sherik kerak</option>
+                      <option value={2}>2 ta sherik kerak</option>
+                      <option value={3}>3 ta sherik kerak</option>
+                      <option value={4}>4+ ta sherik kerak</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
             <div>
               <label className="font-bold text-slate-700 text-sm">Sarlavha</label>
               <input

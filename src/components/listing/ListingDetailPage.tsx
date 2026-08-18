@@ -91,6 +91,11 @@ export const ListingDetailPage: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2">
           <TrustScoreBadge score={listing.trustScore} size="md" />
           <VerificationBadge level={listing.owner.verificationLevel} size="md" />
+          {listing.isRoommate && (
+            <span className="bg-amber-500 text-slate-900 text-xs font-black px-3 py-1 rounded-md flex items-center gap-1 shadow-sm">
+              🤝 Sherikchilikka ({listing.roommateSpotsAvailable || 1} ta sherik o'rni bor)
+            </span>
+          )}
           <span className="bg-slate-100 text-slate-700 text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1">
             <Eye className="w-3.5 h-3.5" /> {listing.viewsCount} ko'rishlar
           </span>
@@ -341,9 +346,9 @@ export const ListingDetailPage: React.FC = () => {
               <span className="text-xs text-slate-500 font-semibold">Oylik Ijara Narxi</span>
               <div className="text-3xl font-black text-slate-900">
                 {currency === 'USD' ? (
-                  <span>${priceInUsd} <span className="text-sm font-normal text-slate-500">/ oy</span></span>
+                  <span>${priceInUsd} <span className="text-sm font-normal text-slate-500">{listing.isRoommate ? '/ kishi boshiga' : '/ oy'}</span></span>
                 ) : (
-                  <span>{new Intl.NumberFormat('uz-UZ').format(priceInUzs)} <span className="text-sm font-normal text-slate-500">so'm/oy</span></span>
+                  <span>{new Intl.NumberFormat('uz-UZ').format(priceInUzs)} <span className="text-sm font-normal text-slate-500">{listing.isRoommate ? 'so\'m / kishi boshiga' : 'so\'m/oy'}</span></span>
                 )}
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-600 pt-1">
