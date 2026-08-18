@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { PlusCircle, Upload, CheckCircle2, ShieldCheck, AlertTriangle, ArrowRight, Trash2, Send } from 'lucide-react';
+import { PlusCircle, Upload, CheckCircle2, ShieldCheck, AlertTriangle, ArrowRight, Trash2, Send, Video, Compass, MapPin } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { Listing } from '../../types';
 import { MOCK_OWNERS } from '../../data/mockUsers';
@@ -32,6 +32,7 @@ export const CreateListingPage: React.FC = () => {
   const [pets, setPets] = useState(false);
   const [parking, setParking] = useState(true);
   const [images, setImages] = useState<string[]>([]);
+  const [videoUrl, setVideoUrl] = useState('');
   const [isScanningAI, setIsScanningAI] = useState(false);
   const [scan, setScan] = useState<ListingScanResult | null>(null);
 
@@ -147,7 +148,8 @@ export const CreateListingPage: React.FC = () => {
       airConditioning: true,
       washingMachine: true,
       images: finalImages,
-      hasVirtualTour: true,
+      videoUrl: videoUrl.trim() || undefined,
+      hasVirtualTour: false,
       owner,
       trustScore: scan.trustScore,
       riskScore: scan.riskScore,
@@ -446,6 +448,24 @@ export const CreateListingPage: React.FC = () => {
                 Siz hali shaxsiy rasm yuklamadingiz. Yuqoridagi yashil joyni bosib telefoningizdan kvartira rasmlarini tanlang.
               </div>
             )}
+
+            {/* Video URL Input Field */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2 mt-4">
+              <label className="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
+                <Video className="w-4 h-4 text-rose-500" />
+                <span>Kvartira Video Sharhi (YouTube / Video URL - Ixtiyoriy)</span>
+              </label>
+              <input
+                type="url"
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs font-medium text-slate-900 focus:outline-none focus:border-emerald-500"
+              />
+              <p className="text-[11px] text-slate-500">
+                Agarda kvartirangizning video sharhi (YouTube havolasi) bo'lsa kiriting (Majburiy emas).
+              </p>
+            </div>
 
             {(() => {
               const photo = analyzePhotos({ rooms, furnished, images: finalImages, washingMachine: true, airConditioning: true });

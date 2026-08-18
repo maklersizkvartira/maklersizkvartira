@@ -52,6 +52,20 @@ export const MapView: React.FC = () => {
     return true;
   });
 
+  const DISTRICT_COORDS: Record<string, [number, number]> = {
+    'chilonzor': [41.2780, 69.2080],
+    'yunusobod': [41.3650, 69.2920],
+    'mirobod': [41.3005, 69.2740],
+    'yakkasaroy': [41.2890, 69.2550],
+    'sergeli': [41.2250, 69.2200],
+    'uchtepa': [41.2950, 69.1750],
+    'olmazor': [41.3490, 69.2080],
+    'yashnobod': [41.2900, 69.3400],
+    'shayxontohur': [41.3200, 69.2400],
+    'mirzo': [41.3350, 69.3300],
+    'bektemir': [41.2100, 69.3300],
+  };
+
   useEffect(() => {
     let isMounted = true;
 
@@ -123,6 +137,36 @@ export const MapView: React.FC = () => {
 
         markersRef.current.push(marker);
       });
+
+      // Fly map to search query or filtered district location if matched
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        let targetCoords: [number, number] | null = null;
+
+        for (const [key, coords] of Object.entries(DISTRICT_COORDS)) {
+          if (q.includes(key)) {
+            targetCoords = coords;
+            break;
+          }
+        }
+
+        if (!targetCoords && filteredListings.length > 0) {
+          const first = filteredListings[0];
+          targetCoords = [first.latitude || 41.311, first.longitude || 69.279];
+        }
+
+        if (targetCoords) {
+          map.flyTo(targetCoords, 13, { animate: true, duration: 1.2 });
+        }
+      } else if (filterRegion !== 'ALL') {
+        const key = filterRegion.toLowerCase();
+        for (const [k, coords] of Object.entries(DISTRICT_COORDS)) {
+          if (key.includes(k)) {
+            map.flyTo(coords, 13, { animate: true, duration: 1.2 });
+            break;
+          }
+        }
+      }
     };
 
     loadLeaflet();
@@ -130,7 +174,7 @@ export const MapView: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [filteredListings, currency]);
+  }, [filteredListings, currency, searchQuery, filterRegion]);
 
   return (
     <div className="relative w-full h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-5.5rem)] flex flex-col overflow-hidden bg-slate-950">

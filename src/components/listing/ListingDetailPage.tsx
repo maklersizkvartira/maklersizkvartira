@@ -168,15 +168,7 @@ export const ListingDetailPage: React.FC = () => {
               onClick={() => setActiveMedia('VIDEO')}
               className={`px-3 py-1.5 rounded-lg flex items-center gap-1 ${activeMedia === 'VIDEO' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
             >
-              <Video className="w-3.5 h-3.5 text-rose-400" /> Video Ko'rinish
-            </button>
-          )}
-          {listing.hasVirtualTour && (
-            <button
-              onClick={() => setActiveMedia('TOUR360')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1 ${activeMedia === 'TOUR360' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
-            >
-              <Compass className="w-3.5 h-3.5 text-emerald-400" /> 360° Sayohat (Virtual Tour)
+              <Video className="w-3.5 h-3.5 text-rose-500" /> Video Sharh 🎥
             </button>
           )}
         </div>
@@ -193,30 +185,19 @@ export const ListingDetailPage: React.FC = () => {
 
           {activeMedia === 'VIDEO' && (
             <div className="w-full h-full flex flex-col items-center justify-center text-white bg-slate-950 p-6 text-center space-y-3">
-              <Video className="w-12 h-12 text-rose-500 animate-pulse" />
-              <h3 className="font-bold text-lg">Kvartiraning HD Video Sharhi</h3>
-              <p className="text-xs text-slate-400">Owner tomonidan yuklangan video lavha tasdiqlangan.</p>
+              <Video className="w-14 h-14 text-rose-500 animate-bounce" />
+              <h3 className="font-extrabold text-xl text-white">Kvartiraning Video Sharhi</h3>
+              <p className="text-xs text-slate-300 max-w-sm">
+                Uy egasi tomonidan biriktirilgan video sharh mavjud. Videoni tomosha qilish uchun pastdagi tugmani bosing:
+              </p>
               <a
                 href={listing.videoUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="bg-rose-600 text-white font-bold text-xs px-5 py-2 rounded-xl hover:bg-rose-700 transition-colors"
+                className="bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs px-6 py-3 rounded-2xl shadow-lg transition-all active:scale-95 flex items-center gap-2"
               >
-                Videoni Ijro Etish
+                <span>🎥 Videoni Tomosha Qilish (YouTube)</span>
               </a>
-            </div>
-          )}
-
-          {activeMedia === 'TOUR360' && (
-            <div className="w-full h-full flex flex-col items-center justify-center text-white bg-gradient-to-br from-slate-900 to-emerald-950 p-6 text-center space-y-3 relative">
-              <Compass className="w-16 h-16 text-emerald-400 animate-spin" style={{ animationDuration: '10s' }} />
-              <h3 className="font-bold text-xl text-emerald-300">Interaktiv 360° Virtual Sayohat</h3>
-              <p className="text-xs text-slate-300 max-w-md">
-                Sichqoncha yoki barmoq yordamida kvartiraning barcha xonalarini va oshxonasini 360 darajada ko'rib chiqing.
-              </p>
-              <div className="bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 text-xs px-4 py-1.5 rounded-full font-mono">
-                [360° Interaktiv Mode Faol]
-              </div>
             </div>
           )}
         </div>

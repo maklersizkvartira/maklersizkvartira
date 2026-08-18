@@ -96,9 +96,9 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
                 <AlertTriangle className="w-3 h-3 text-amber-600" /> AI tekshiruvi
               </span>
             )}
-            {listing.hasVirtualTour && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                <Sparkles className="w-3 h-3 text-amber-400" /> 360°
+            {listing.videoUrl && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                🎥 Video Sharh
               </span>
             )}
           </div>

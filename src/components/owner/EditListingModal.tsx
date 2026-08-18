@@ -21,6 +21,7 @@ export const EditListingModal: React.FC = () => {
   const [address, setAddress] = useState(editingListing.address || '');
   const [metro, setMetro] = useState(editingListing.metroStation || "Yo'q");
   const [metroDist, setMetroDist] = useState(editingListing.metroDistanceMinutes || 5);
+  const [videoUrl, setVideoUrl] = useState(editingListing.videoUrl || '');
   const [furnished, setFurnished] = useState(editingListing.furnished);
   const [utilities, setUtilities] = useState(editingListing.utilitiesIncluded);
   const [pets, setPets] = useState(editingListing.petsAllowed);
@@ -45,6 +46,8 @@ export const EditListingModal: React.FC = () => {
       address,
       metroStation: metro !== "Yo'q" ? metro : undefined,
       metroDistanceMinutes: metroDist,
+      videoUrl: videoUrl.trim() || undefined,
+      hasVirtualTour: false,
       furnished,
       utilitiesIncluded: utilities,
       petsAllowed: pets,
@@ -210,6 +213,18 @@ export const EditListingModal: React.FC = () => {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium mt-1 focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+
+          {/* Video URL */}
+          <div>
+            <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Video Sharh Havolasi (YouTube URL - Ixtiyoriy)</label>
+            <input
+              type="url"
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium mt-1 focus:outline-none focus:border-emerald-500 text-slate-900"
             />
           </div>
 
