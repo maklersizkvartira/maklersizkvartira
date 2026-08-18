@@ -156,6 +156,15 @@ export interface ChatMessage {
   senderRole: UserRole;
   text: string;
   imageUrl?: string;
+  listingId?: string;
+  listingData?: {
+    id: string;
+    title: string;
+    price: number;
+    image: string;
+    district?: string;
+    rooms?: number;
+  };
   isSafetyWarning?: boolean;
   warningText?: string;
   timestamp: string;

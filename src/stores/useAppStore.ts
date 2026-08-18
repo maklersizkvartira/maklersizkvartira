@@ -96,7 +96,7 @@ interface AppStore {
   conversations: Conversation[];
   messages: Record<string, ChatMessage[]>;
   openChatWithListing: (listing: Listing) => void;
-  sendMessage: (conversationId: string, text: string) => void;
+  sendMessage: (conversationId: string, text: string, extra?: { listingData?: any; imageUrl?: string }) => void;
 
   aiMascotMessage: string | null;
   setAiMascotMessage: (msg: string | null) => void;
@@ -435,7 +435,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     };
   }),
 
-  sendMessage: (convId, text) => set((state) => {
+  sendMessage: (convId, text, extra) => set((state) => {
     const isScamWord = /plastik|karta|oldindan|zaklad|kod|telegram|pul/i.test(text);
     const me = state.currentUser;
     const newMsg: ChatMessage = {
@@ -445,6 +445,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
       senderName: me?.name || 'Siz',
       senderRole: me?.role === 'OWNER' ? 'OWNER' : 'STUDENT',
       text,
+      imageUrl: extra?.imageUrl,
+      listingData: extra?.listingData,
+      listingId: extra?.listingData?.id,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isSafetyWarning: isScamWord,
       warningText: isScamWord ? "Ogohlantirish: Ko'rmasdan kartaga pul o'tkazmang." : undefined,
@@ -452,7 +455,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const updatedMsgs = [...(state.messages[convId] || []), newMsg];
     const updatedConvs = state.conversations.map((c) => c.id === convId ? {
       ...c,
-      lastMessage: text,
+      lastMessage: extra?.listingData ? `🏠 E'lon: ${extra.listingData.title}` : text,
       lastMessageTime: newMsg.timestamp,
     } : c);
     return {
