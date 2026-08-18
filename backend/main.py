@@ -797,3 +797,53 @@ def api_write_copy(req: WriteCopyRequest):
 @app.post("/api/v1/ai/price")
 def api_estimate_price(req: PriceRequest):
     return estimate_listing_price(rooms=req.rooms, district=req.district)
+
+# --- Admin Verification Endpoints ---
+VERIFICATIONS_DB = [
+    {
+        "id": "ver-1",
+        "userId": "owner_jasur",
+        "userName": "Jasur Karimov",
+        "userPhone": "+998 90 123 45 67",
+        "level": 4,
+        "trustScore": 98,
+        "passportImage": "https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=300",
+        "selfieImage": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300",
+        "cadastreCode": "10:01:04:02:01:0045",
+        "status": "APPROVED",
+        "submittedAt": "2026-08-18T08:30:00Z"
+    },
+    {
+        "id": "ver-2",
+        "userId": "owner_dilshod",
+        "userName": "Dilshod Karimov",
+        "userPhone": "+998 90 999 88 77",
+        "level": 3,
+        "trustScore": 92,
+        "passportImage": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300",
+        "selfieImage": "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&q=80&w=300",
+        "cadastreCode": "10:02:08:01:03:0012",
+        "status": "PENDING",
+        "submittedAt": "2026-08-18T09:45:00Z"
+    }
+]
+
+@app.get("/api/v1/admin/verifications")
+def get_admin_verifications():
+    return {"status": "success", "totalCount": len(VERIFICATIONS_DB), "data": VERIFICATIONS_DB}
+
+@app.post("/api/v1/admin/verifications/{id}/approve")
+def approve_verification(id: str):
+    ver = next((v for v in VERIFICATIONS_DB if v.get("id") == id), None)
+    if ver:
+        ver["status"] = "APPROVED"
+        ver["level"] = 5
+        ver["trustScore"] = 99
+    return {"status": "success", "data": ver}
+
+@app.post("/api/v1/admin/verifications/{id}/reject")
+def reject_verification(id: str):
+    ver = next((v for v in VERIFICATIONS_DB if v.get("id") == id), None)
+    if ver:
+        ver["status"] = "REJECTED"
+    return {"status": "success", "data": ver}
