@@ -189,20 +189,13 @@ export const ListingDetailPage: React.FC = () => {
           )}
 
           {activeMedia === 'VIDEO' && (
-            <div className="w-full h-full flex flex-col items-center justify-center text-white bg-slate-950 p-6 text-center space-y-3">
-              <Video className="w-14 h-14 text-rose-500 animate-bounce" />
-              <h3 className="font-extrabold text-xl text-white">Kvartiraning Video Sharhi</h3>
-              <p className="text-xs text-slate-300 max-w-sm">
-                Uy egasi tomonidan biriktirilgan video sharh mavjud. Videoni tomosha qilish uchun pastdagi tugmani bosing:
-              </p>
-              <a
-                href={listing.videoUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs px-6 py-3 rounded-2xl shadow-lg transition-all active:scale-95 flex items-center gap-2"
-              >
-                <span>🎥 Videoni Tomosha Qilish (YouTube)</span>
-              </a>
+            <div className="w-full h-full bg-slate-950 flex items-center justify-center">
+              <video
+                controls
+                autoPlay
+                src={listing.videoUrl}
+                className="w-full h-full object-contain bg-black"
+              />
             </div>
           )}
         </div>
@@ -408,9 +401,10 @@ export const ListingDetailPage: React.FC = () => {
                       setShowAuth(true);
                     } else {
                       setShowPhone(true);
+                      listing.contactCount = (listing.contactCount || 0) + 1;
                     }
                   }}
-                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold py-3 px-4 rounded-xl border border-slate-300 flex items-center justify-center gap-2 text-sm transition-colors"
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-4 rounded-xl shadow-md flex items-center justify-center gap-2 text-sm transition-all hover:scale-[1.02]"
                 >
                   <Phone className="w-4 h-4 text-emerald-600" />
                   <span>Telefon Raqamni Ko'rish</span>

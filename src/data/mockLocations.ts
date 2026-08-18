@@ -71,3 +71,90 @@ export const UZBEKISTAN_REGIONS: RegionData[] = [
     districts: ['Nukus sh.', 'Qo\'ng\'irot', 'To\'rtko\'l', 'Beruniy', 'Amudaryo', 'Chimboy', 'Xo\'jayli', 'Mo\'ynoq', 'Taxtako\'pir', 'Ellikqal\'a']
   }
 ];
+
+export interface MetroLineData {
+  id: string;
+  name: string;
+  color: string;
+  stations: string[];
+}
+
+export const TASHKENT_METRO_LINES: MetroLineData[] = [
+  {
+    id: 'chilonzor',
+    name: "🔴 Chilonzor yo'li",
+    color: '#ef4444',
+    stations: [
+      'Buyuk Ipak Yo\'li',
+      'Pushkin',
+      'Hamid Olimjon',
+      'Amir Temur Xiyoboni',
+      'Mustaqillik Maydoni',
+      'Paxtakor',
+      'Xalqlar Do\'stligi',
+      'Milliy Bog\'',
+      'Novza',
+      'Mirzo Ulug\'bek',
+      'Chilonzor',
+      'Olmazor',
+      'Choshtepa',
+      'O\'tkir',
+      'Sergeli',
+      'Qipchoq'
+    ]
+  },
+  {
+    id: 'uzbekistan',
+    name: "🔵 O'zbekiston yo'li",
+    color: '#3b82f6',
+    stations: [
+      'Beruniy',
+      'Tinchlik',
+      'Chorsu',
+      'G\'afur G\'ulom',
+      'Alisher Navoiy',
+      'O\'zbekiston',
+      'Kosmonavtlar',
+      'Oybek',
+      'Toshkent (Vokzal)',
+      'Mashinasozlar',
+      'Do\'stlik (Chkalov)'
+    ]
+  },
+  {
+    id: 'yunusobod',
+    name: "🟢 Yunusobod yo'li",
+    color: '#10b981',
+    stations: [
+      'Turkiston',
+      'Yunusobod',
+      'Shahriston',
+      'Bodomzor',
+      'Minor',
+      'Abdulla Qodiriy',
+      'Yunus Rajabiy',
+      'Ming O\'rik'
+    ]
+  },
+  {
+    id: 'halqa',
+    name: "🟡 Yerusti Halqa yo'li (30-yillik)",
+    color: '#eab308',
+    stations: [
+      'Texnopark (Do\'stlik-2)',
+      'Yashnobod (2-bekat)',
+      'Tuzel (3-bekat)',
+      'Olmos (4-bekat)',
+      'Rohat (5-bekat)',
+      'Yangiobod (6-bekat)',
+      'Qo\'yliq (7-bekat)',
+      'Matonat (8-bekat)',
+      'Qiyot (9-bekat)',
+      'Qipchoq (10-bekat)'
+    ]
+  }
+];
+
+export const ALL_TASHKENT_METROS = Array.from(
+  new Set(TASHKENT_METRO_LINES.flatMap((l) => l.stations))
+).sort();

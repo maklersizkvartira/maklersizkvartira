@@ -1,23 +1,35 @@
 import React, { useState } from 'react';
 import { 
   ShieldAlert, ShieldCheck, Users, FileText, AlertTriangle, CheckCircle2, 
-  XCircle, Eye, Activity, Database, Lock, Settings, BarChart3, Search, Image
+  XCircle, Eye, Activity, Database, Lock, Settings, BarChart3, Search, Image, RefreshCw 
 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
-import { MOCK_FRAUD_SIGNALS, MOCK_AUDIT_LOGS } from '../../data/mockAdminData';
+import { MOCK_AUDIT_LOGS } from '../../data/mockAdminData';
 import { TrustScoreBadge } from '../common/TrustScoreBadge';
 
 export const AdminPage: React.FC = () => {
   const { 
-    reports, verifications, resolveReport, 
-    updateVerification, setCurrentView 
+    reports, verifications, fraudSignals, resolveReport, 
+    updateVerification, setCurrentView, refreshAdminData 
   } = useAppStore();
 
   const [adminTab, setAdminTab] = useState<'DASHBOARD' | 'FRAUD' | 'VERIFICATION' | 'REPORTS' | 'AUDIT'>('DASHBOARD');
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshSuccessMsg, setRefreshSuccessMsg] = useState('');
 
   const pendingVerifications = verifications.filter((v) => v.status === 'PENDING');
   const openReports = reports.filter((r) => r.status === 'OPEN' || r.status === 'UNDER_REVIEW');
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setRefreshSuccessMsg('');
+    await refreshAdminData();
+    setTimeout(() => {
+      setIsRefreshing(false);
+      setRefreshSuccessMsg("✅ Ma'lumotlar va e'lonlar muvaffaqiyatli yangilandi!");
+      setTimeout(() => setRefreshSuccessMsg(''), 4000);
+    }, 600);
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 min-h-[85vh] space-y-6">
@@ -40,13 +52,32 @@ export const AdminPage: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={() => setCurrentView('HOME')}
-          className="text-xs bg-slate-850 hover:bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2 rounded-xl transition-colors"
-        >
-          Exit Admin View
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Refresh Button */}
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="text-xs bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold px-4 py-2.5 rounded-xl transition-all shadow-md flex items-center gap-1.5 active:scale-95"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{isRefreshing ? 'Yangilanmoqda...' : '🔄 Yangilash'}</span>
+          </button>
+
+          <button
+            onClick={() => setCurrentView('HOME')}
+            className="text-xs bg-slate-850 hover:bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2.5 rounded-xl transition-colors"
+          >
+            Exit Admin View
+          </button>
+        </div>
       </div>
+
+      {refreshSuccessMsg && (
+        <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 rounded-2xl text-xs font-bold flex items-center gap-2 animate-in fade-in-50">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          <span>{refreshSuccessMsg}</span>
+        </div>
+      )}
 
       {/* Navigation Sub-Tabs */}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3 text-xs font-bold">
@@ -65,7 +96,7 @@ export const AdminPage: React.FC = () => {
             adminTab === 'FRAUD' ? 'bg-rose-900 text-white shadow-md' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
           }`}
         >
-          <ShieldAlert className="w-4 h-4 text-rose-500" /> Fraud & Broker Center ({MOCK_FRAUD_SIGNALS.length})
+          <ShieldAlert className="w-4 h-4 text-rose-500" /> Fraud & Broker Center ({fraudSignals.length})
         </button>
 
         <button
@@ -176,7 +207,7 @@ export const AdminPage: React.FC = () => {
             </div>
 
             <div className="space-y-4">
-              {MOCK_FRAUD_SIGNALS.map((signal) => (
+              {fraudSignals.map((signal) => (
                 <div key={signal.id} className="p-4 rounded-2xl border border-rose-200 bg-rose-50/40 space-y-3">
                   <div className="flex items-start justify-between">
                     <div>

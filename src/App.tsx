@@ -51,7 +51,7 @@ export const App: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-white">
       <Header />
 
-      <main className={`flex-1 min-w-0 w-full pt-14 sm:pt-[5.5rem] ${currentView === 'CHAT' ? 'pb-16 md:pb-0' : 'pb-0'}`}>
+      <main className="flex-1 min-w-0 w-full pt-14 sm:pt-[5.5rem] pb-0">
         {currentView === 'HOME' && (
           <>
             {isOwner && (

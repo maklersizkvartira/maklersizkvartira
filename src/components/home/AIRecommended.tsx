@@ -13,7 +13,7 @@ export const AIRecommended: React.FC = () => {
 
   const pool = useMemo(() => {
     const who = currentUser?.role === 'STUDENT' ? 'STUDENT' : audience;
-    return rankListings(listings, { audience: who, nearMetro: true }).map((r) => r.listing);
+    return rankListings(listings, { audience: who }).map((r) => r.listing);
   }, [listings, audience, currentUser]);
 
   useEffect(() => {

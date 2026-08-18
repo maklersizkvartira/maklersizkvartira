@@ -6,7 +6,7 @@ import {
 import { useAppStore } from '../../stores/useAppStore';
 import { ListingCard } from '../common/ListingCard';
 import { MOCK_UNIVERSITIES } from '../../data/mockUniversities';
-import { UZBEKISTAN_REGIONS } from '../../data/mockLocations';
+import { UZBEKISTAN_REGIONS, ALL_TASHKENT_METROS, TASHKENT_METRO_LINES } from '../../data/mockLocations';
 import { rankListings } from '../../services/aiEngine';
 
 export const SearchPage: React.FC = () => {
@@ -21,7 +21,7 @@ export const SearchPage: React.FC = () => {
 
   const activeRegionObj = UZBEKISTAN_REGIONS.find((r) => r.name === selectedRegion) || UZBEKISTAN_REGIONS[0];
   const districts = ['Barchasi', ...activeRegionObj.districts];
-  const metros = ['Barchasi', 'Oybek', 'Yunusobod', 'Beruniy', 'Mirzo Ulug\'bek', 'Buyuk Ipak Yo\'li'];
+  const metros = ['Barchasi', ...ALL_TASHKENT_METROS];
 
   // Filter listings
   const filteredListings = useMemo(() => {
@@ -85,7 +85,7 @@ export const SearchPage: React.FC = () => {
       }
 
       // Audience filter
-      if (audience === 'STUDENT' && !listing.safetyBadges.includes('STUDENT_FRIENDLY')) {
+      if (audience === 'STUDENT' && !listing.safetyBadges.includes('STUDENT_FRIENDLY') && !listing.isRoommate && listing.rooms > 2) {
         return false;
       }
 
@@ -271,10 +271,15 @@ export const SearchPage: React.FC = () => {
             <select
               value={selectedMetro}
               onChange={(e) => setFilters({ selectedMetro: e.target.value })}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              {metros.map((m) => (
-                <option key={m} value={m}>{m}</option>
+              <option value="Barchasi">Barchasi (Hamma Metro Bekatlari)</option>
+              {TASHKENT_METRO_LINES.map((line) => (
+                <optgroup key={line.id} label={line.name}>
+                  {line.stations.map((st) => (
+                    <option key={st} value={st}>{st} bekati</option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </div>

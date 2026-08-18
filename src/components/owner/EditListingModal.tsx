@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, Save, Edit3, CheckCircle2 } from 'lucide-react';
+import { X, Save, Edit3, CheckCircle2, Video, Trash2 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
-import { UZBEKISTAN_REGIONS } from '../../data/mockLocations';
+import { UZBEKISTAN_REGIONS, TASHKENT_METRO_LINES } from '../../data/mockLocations';
 
 export const EditListingModal: React.FC = () => {
   const { editingListing, setEditingListing, updateListing } = useAppStore();
@@ -205,6 +205,36 @@ export const EditListingModal: React.FC = () => {
             />
           </div>
 
+          {/* Metro Selection */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Yaqin Metro Bekati</label>
+              <select
+                value={metro}
+                onChange={(e) => setMetro(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-900 mt-1 focus:outline-none focus:border-emerald-500"
+              >
+                <option value="Yo'q">Yo'q (Metro yaqin emas)</option>
+                {TASHKENT_METRO_LINES.map((line) => (
+                  <optgroup key={line.id} label={line.name}>
+                    {line.stations.map((st) => (
+                      <option key={st} value={st}>{st} bekati</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Metroga piyoda (daqiqa)</label>
+              <input
+                type="number"
+                value={metroDist}
+                onChange={(e) => setMetroDist(Number(e.target.value))}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold mt-1 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+          </div>
+
           {/* Description */}
           <div>
             <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Tavsif</label>
@@ -216,16 +246,80 @@ export const EditListingModal: React.FC = () => {
             />
           </div>
 
-          {/* Video URL */}
-          <div>
-            <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Video Sharh Havolasi (YouTube URL - Ixtiyoriy)</label>
+          {/* Direct Device Video Upload */}
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="font-extrabold text-xs text-slate-800 flex items-center gap-1.5 uppercase tracking-wider">
+                <Video className="w-4 h-4 text-rose-500" />
+                <span>Kvartira Video Sharhi (Qurilmangizdan Yuklash)</span>
+              </label>
+              <span className="text-[10px] font-bold text-slate-400 bg-slate-200 px-2 py-0.5 rounded-full">
+                Ixtiyoriy
+              </span>
+            </div>
+
             <input
-              type="url"
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              placeholder="https://www.youtube.com/watch?v=..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium mt-1 focus:outline-none focus:border-emerald-500 text-slate-900"
+              type="file"
+              accept="video/*"
+              className="hidden"
+              id="edit-video-upload-input"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                  if (typeof reader.result === 'string') {
+                    setVideoUrl(reader.result);
+                  }
+                };
+                reader.readAsDataURL(file);
+                e.target.value = '';
+              }}
             />
+
+            {videoUrl ? (
+              <div className="space-y-2">
+                <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-700 shadow-md">
+                  <video
+                    controls
+                    src={videoUrl}
+                    className="w-full max-h-56 object-contain"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setVideoUrl('')}
+                    className="absolute top-2 right-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-1 transition-all active:scale-95"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Videoni O'chirish</span>
+                  </button>
+                </div>
+                <div className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Video muvaffaqiyatli yuklandi!
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => document.getElementById('edit-video-upload-input')?.click()}
+                className="border-2 border-dashed border-rose-300 hover:border-rose-500 bg-rose-50/40 hover:bg-rose-50/80 rounded-xl p-4 text-center space-y-2 cursor-pointer transition-all"
+              >
+                <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+                  <Video className="w-5 h-5" />
+                </div>
+                <div className="font-bold text-slate-800 text-xs">
+                  📱 Telefoningiz yoki galereyangizdan video tanlang
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  MP4, MOV, WEBM formatdagi video sharhni qurilmangizdan yuklang.
+                </p>
+                <button
+                  type="button"
+                  className="bg-white border border-rose-200 text-rose-700 font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-sm hover:bg-rose-100 transition-colors"
+                >
+                  🎥 Videoni yuklash
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Amenities checkboxes */}
