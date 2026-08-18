@@ -33,6 +33,10 @@ export const CreateListingPage: React.FC = () => {
   const [parking, setParking] = useState(true);
   const [images, setImages] = useState<string[]>([]);
   const [videoUrl, setVideoUrl] = useState('');
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
+  const [isDetectingGps, setIsDetectingGps] = useState(false);
+  const [gpsSuccessMsg, setGpsSuccessMsg] = useState('');
   const [isScanningAI, setIsScanningAI] = useState(false);
   const [scan, setScan] = useState<ListingScanResult | null>(null);
 
@@ -137,8 +141,8 @@ export const CreateListingPage: React.FC = () => {
       region,
       district,
       address: address || `${district} ko'chasi, 12-uy`,
-      latitude: 41.3110,
-      longitude: 69.2790,
+      latitude: lat || 41.3110,
+      longitude: lng || 69.2790,
       metroStation: metro !== "Yo'q" ? metro : undefined,
       metroDistanceMinutes: metroDist,
       furnished,
@@ -336,8 +340,59 @@ export const CreateListingPage: React.FC = () => {
               </div>
             </div>
             <div>
-              <label className="font-bold text-slate-700 text-sm">Ko'cha va uy</label>
-              <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Masalan: Mustaqillik ko'chasi, 15-uy" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium mt-1" />
+              <div className="flex items-center justify-between">
+                <label className="font-bold text-slate-700 text-sm">Ko'cha va uy (Aniq Manzil)</label>
+                <button
+                  type="button"
+                  disabled={isDetectingGps}
+                  onClick={() => {
+                    setIsDetectingGps(true);
+                    setGpsSuccessMsg('');
+                    if ('geolocation' in navigator) {
+                      navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                          const detectedLat = pos.coords.latitude;
+                          const detectedLng = pos.coords.longitude;
+                          setLat(detectedLat);
+                          setLng(detectedLng);
+                          setIsDetectingGps(false);
+                          setGpsSuccessMsg(`📍 GPS Joylashuv aniqlandi! (${detectedLat.toFixed(4)}, ${detectedLng.toFixed(4)})`);
+                          if (!address) {
+                            setAddress(`${district} ko'chasi, kvartira`);
+                          }
+                        },
+                        (err) => {
+                          setIsDetectingGps(false);
+                          alert("GPS ruxsati berilmadi yoki aniqlab bo'lmadi. Manzilni matn ko'rinishida kiriting.");
+                        },
+                        { timeout: 8000 }
+                      );
+                    } else {
+                      setIsDetectingGps(false);
+                      alert("Qurilmangizda GPS qo'llab-quvvatlanmaydi.");
+                    }
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-3 py-1.5 rounded-xl transition-all shadow-sm flex items-center gap-1 active:scale-95"
+                >
+                  <MapPin className="w-3.5 h-3.5 text-white" />
+                  <span>{isDetectingGps ? "Aniqlanmoqda..." : "📍 GPS Lokatsiyani Aniqlash"}</span>
+                </button>
+              </div>
+
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Masalan: Mustaqillik ko'chasi, 15-uy"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium mt-1 focus:outline-none focus:border-emerald-500"
+              />
+
+              {gpsSuccessMsg && (
+                <div className="mt-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-bold flex items-center gap-1.5 animate-in fade-in-50">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{gpsSuccessMsg}</span>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
