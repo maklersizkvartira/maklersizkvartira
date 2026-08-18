@@ -1,5 +1,5 @@
 import React from 'react';
-import { GraduationCap, Users, Train, Banknote, Sparkles } from 'lucide-react';
+import { Handshake, GraduationCap, Users, TrainFront, TrendingDown, Sparkles, ArrowRight } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 
 export const QuickCategories: React.FC = () => {
@@ -8,12 +8,10 @@ export const QuickCategories: React.FC = () => {
   const categories = [
     {
       id: 'sherikchilik',
-      name: '🤝 Sherikchilikka',
-      desc: 'Kvartiraga sherik topish',
-      icon: Users,
-      color: 'bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-amber-500/20',
-      badge: 'TOP',
-      badgeColor: 'bg-emerald-600 text-white',
+      name: 'Sheriklikka',
+      desc: 'Talaba va ijarachiga sherik',
+      icon: Handshake,
+      iconBg: 'bg-amber-500/10 text-amber-600 border-amber-200',
       action: () => {
         setFilters({ rentalType: 'ROOMMATE' });
         setCurrentView('SEARCH');
@@ -22,98 +20,97 @@ export const QuickCategories: React.FC = () => {
     {
       id: 'students',
       name: 'Talabalar uchun',
-      desc: 'TATU, INHA, WIUT',
+      desc: 'OOTV va OTMlar yaqinida',
       icon: GraduationCap,
-      color: 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-blue-500/20',
-      badge: 'Ommabop',
-      badgeColor: 'bg-amber-400 text-slate-900',
+      iconBg: 'bg-blue-500/10 text-blue-600 border-blue-200',
       action: () => {
-        setCurrentView('STUDENT_PROGRAM');
+        setFilters({ audience: 'STUDENT' });
+        setCurrentView('SEARCH');
       }
     },
     {
       id: 'families',
       name: 'Oilalar uchun',
-      desc: '2-3 xonali tinch uylar',
+      desc: '2-3 xonali shinam uylar',
       icon: Users,
-      color: 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-emerald-500/20',
+      iconBg: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
       action: () => {
-        setFilters({ roomsCount: 2, maxPrice: 8000000 });
+        setFilters({ roomsCount: 2 });
         setCurrentView('SEARCH');
       }
     },
     {
       id: 'metro',
       name: 'Metro yaqinida',
-      desc: '1-5 daqiqa masofa',
-      icon: Train,
-      color: 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-indigo-500/20',
+      desc: '1-5 daqiqa piyoda yo\'l',
+      icon: TrainFront,
+      iconBg: 'bg-indigo-500/10 text-indigo-600 border-indigo-200',
       action: () => {
-        setFilters({ selectedMetro: 'Oybek' });
+        setFilters({ selectedMetro: 'Yunusobod' });
         setCurrentView('SEARCH');
       }
     },
     {
-      id: 'affordable',
+      id: 'budget',
       name: 'Arzon uylar',
-      desc: '4.5 mln so\'mgacha',
-      icon: Banknote,
-      color: 'bg-gradient-to-br from-teal-500 to-emerald-700 text-white shadow-teal-500/20',
+      desc: '3.5 mln so\'mgacha uylar',
+      icon: TrendingDown,
+      iconBg: 'bg-rose-500/10 text-rose-600 border-rose-200',
       action: () => {
-        setFilters({ maxPrice: 4500000 });
+        setFilters({ maxPrice: 4000000 });
         setCurrentView('SEARCH');
       }
     },
     {
       id: 'premium',
-      name: 'Premium uylar',
-      desc: 'Top 90+ Trust Score',
+      name: 'Premium Uylar',
+      desc: 'Evroremont, 100% jihozlangan',
       icon: Sparkles,
-      color: 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-amber-500/20',
-      badge: 'VIP',
-      badgeColor: 'bg-slate-900 text-amber-300 border border-amber-400/30',
+      iconBg: 'bg-purple-500/10 text-purple-600 border-purple-200',
       action: () => {
-        setFilters({ minTrustScore: 85, onlyVerified: true });
+        setFilters({ minTrustScore: 90 });
         setCurrentView('SEARCH');
       }
     },
   ];
 
   return (
-    <section className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-8 w-full overflow-x-hidden">
-      <div className="flex items-center justify-between mb-3 sm:mb-4">
+    <section id="kategoriyalar" className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">Tezkor Toifalar</h2>
-          <p className="text-[11px] sm:text-xs text-slate-500">Kerakli turdagi kvartiralarni bir bosing va toping</p>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Kategoriyalar</h2>
+          <p className="text-xs text-slate-500 font-medium hidden sm:block">O'zingizga mos ijara turini tanlang</p>
         </div>
+        <button
+          onClick={() => setCurrentView('SEARCH')}
+          className="text-xs font-extrabold text-emerald-700 hover:text-emerald-600 flex items-center gap-1 transition-colors"
+        >
+          <span>Barchasini ko'rish</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
       </div>
 
-      <div className="flex md:grid md:grid-cols-5 gap-2.5 sm:gap-3 overflow-x-auto hide-scrollbar snap-x snap-mandatory pb-1 -mx-3 px-3 md:mx-0 md:px-0 md:overflow-visible">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
         {categories.map((cat) => {
           const Icon = cat.icon;
           return (
-            <button
+            <div
               key={cat.id}
               onClick={cat.action}
-              className="group p-3 sm:p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all text-left flex flex-col justify-between relative overflow-hidden active:scale-95 min-w-[148px] w-[148px] sm:min-w-[160px] sm:w-[160px] md:w-auto md:min-w-0 snap-start shrink-0"
+              className="group cursor-pointer rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 text-center transition-all hover:border-emerald-500/40 hover:shadow-xl hover:shadow-emerald-500/5 hover:-translate-y-1 active:scale-95 flex flex-col items-center justify-center space-y-2.5 shadow-card"
             >
-              {cat.badge && (
-                <span className={`absolute top-2 right-2 font-extrabold text-[8px] sm:text-[9px] px-1.5 py-0.5 rounded ${cat.badgeColor}`}>
-                  {cat.badge}
-                </span>
-              )}
-
-              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl ${cat.color} flex items-center justify-center mb-2 sm:mb-3 shadow-md group-hover:scale-110 transition-transform`}>
-                <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${cat.iconBg} transition-transform group-hover:scale-110 shadow-xs`}>
+                <Icon className="w-6 h-6" />
               </div>
-
-              <div>
-                <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 group-hover:text-emerald-700 transition-colors leading-tight">
+              <div className="space-y-0.5 min-w-0">
+                <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 group-hover:text-emerald-700 transition-colors truncate">
                   {cat.name}
                 </h3>
-                <p className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 font-medium truncate">{cat.desc}</p>
+                <p className="text-[10px] text-slate-400 font-medium line-clamp-1">
+                  {cat.desc}
+                </p>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, ShieldCheck, Sparkles, MapPin, Home, CheckCircle2, SlidersHorizontal, ChevronDown, Users, GraduationCap } from 'lucide-react';
+import { Search, MapPin, Home, Users, GraduationCap, ChevronDown } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { UZBEKISTAN_REGIONS } from '../../data/mockLocations';
 
@@ -7,15 +7,13 @@ export const HeroSection: React.FC = () => {
   const { 
     searchQuery, setSearchQuery, 
     selectedRegion, selectedDistrict,
-    roomsCount, maxPrice, audience, rentalType,
+    roomsCount, audience, rentalType,
     setFilters, setCurrentView 
   } = useAppStore();
 
   const [localRegion, setLocalRegion] = useState(selectedRegion);
   const [localDistrict, setLocalDistrict] = useState(selectedDistrict);
   const [localRooms, setLocalRooms] = useState<number | null>(roomsCount);
-  const [localMaxPrice, setLocalMaxPrice] = useState(maxPrice);
-  const [showAdvancedMobile, setShowAdvancedMobile] = useState(false);
 
   const activeRegionObj = UZBEKISTAN_REGIONS.find((r) => r.name === localRegion) || UZBEKISTAN_REGIONS[0];
   const availableDistricts = ['Barchasi', ...activeRegionObj.districts];
@@ -26,71 +24,113 @@ export const HeroSection: React.FC = () => {
       selectedRegion: localRegion,
       selectedDistrict: localDistrict,
       roomsCount: localRooms,
-      maxPrice: localMaxPrice,
       sortBy: 'AI',
     });
     setCurrentView('SEARCH');
   };
 
   return (
-    <section className="relative bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white pt-6 sm:pt-12 pb-10 sm:pb-16 px-3 sm:px-6 overflow-hidden">
-      <div className="hidden sm:block absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full overflow-hidden pointer-events-none opacity-25">
-        <div className="absolute -top-24 left-1/4 w-72 h-72 sm:w-96 sm:h-96 bg-emerald-500 rounded-full blur-3xl" />
-        <div className="absolute top-10 right-1/4 w-72 h-72 sm:w-96 sm:h-96 bg-teal-600 rounded-full blur-3xl" />
-      </div>
+    <div className="w-full">
+      {/* Dark Luxury Hero Background */}
+      <section className="relative overflow-hidden bg-slate-950 px-4 sm:px-6 pt-12 sm:pt-20 pb-28 sm:pb-36 text-white text-center">
+        <div className="relative z-10 max-w-5xl mx-auto space-y-4 sm:space-y-6">
+          {/* Animated 0% Commission Badge */}
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-black tracking-wider text-emerald-400 uppercase backdrop-blur-md">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+            </span>
+            <span>0% Komissiya • To'g'ridan-to'g'ri ijara</span>
+          </div>
 
-      <div className="max-w-4xl mx-auto text-center relative z-10 space-y-3 sm:space-y-5">
-        <div className="inline-flex max-w-full items-center justify-center gap-1.5 bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-[10px] sm:text-xs px-3 sm:px-4 py-1 rounded-full shadow-emerald backdrop-blur-md">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-          <span className="font-semibold truncate">
-            <span className="sm:hidden">AI Trust Score bilan himoyalangan</span>
-            <span className="hidden sm:inline">AI Anti-Scam & Trust Score Bilan Himoyalangan</span>
-          </span>
-          <Sparkles className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />
+          {/* Main Hero Headline */}
+          <h1 className="text-3xl xs:text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[1.1] text-white">
+            Maklersiz Kvartira Toping
+          </h1>
+
+          {/* Hero Subtitle */}
+          <p className="max-w-2xl mx-auto text-slate-300 text-xs sm:text-lg md:text-xl font-medium leading-relaxed">
+            O'zbekiston bo'ylab 12 viloyat va 120+ tumanlarda ishonchli va tekshirilgan uylar.
+          </p>
         </div>
 
-        <h1 className="hero-title text-[1.7rem] xs:text-3xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.15] text-white px-1">
-          Maklersiz <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-200">Kvartira Toping</span>
-        </h1>
+        {/* Ambient Emerald Glow Effect */}
+        <div className="absolute top-0 right-0 h-[450px] w-[450px] translate-x-1/3 -translate-y-1/3 rounded-full bg-emerald-500/15 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-0 left-0 h-[450px] w-[450px] -translate-x-1/3 translate-y-1/3 rounded-full bg-teal-500/10 blur-[120px] pointer-events-none" />
+      </section>
 
-        <p className="text-slate-300 text-xs sm:text-base max-w-xl mx-auto leading-relaxed px-1">
-          O'zbekistonning 12 viloyati va Toshkent bo'yicha to'g'ridan-to'g'ri egasidan ijaraga oling. 0% komissiya, 100% AI tekshiruvi.
-        </p>
-
-        <div className="bg-white/95 backdrop-blur-xl text-slate-900 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-2xl border border-white/20 max-w-4xl mx-auto text-left mt-4 sm:mt-6 w-full">
-          <form onSubmit={handleHeroSearch} className="space-y-3 sm:space-y-4">
+      {/* Overlapping Floating Search Container */}
+      <div className="relative z-20 max-w-6xl mx-auto px-4 sm:px-6 -mt-16 sm:-mt-24">
+        <div className="rounded-3xl border border-slate-200/80 bg-white p-4 sm:p-7 shadow-2xl space-y-4 text-slate-900">
+          <form onSubmit={handleHeroSearch} className="space-y-4">
+            {/* Main Search Input */}
             <div className="relative">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tuman, kvartira yoki metro..."
-                className="w-full bg-slate-100/90 border border-slate-200 rounded-xl pl-9 pr-3 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all shadow-inner"
+                placeholder="Tuman, kvartira mo'ljali yoki metro bekatini yozing..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-3.5 text-xs sm:text-sm font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all shadow-inner"
               />
-              <Search className="w-4 h-4 text-emerald-600 absolute left-3 top-3.5" />
+              <Search className="w-4 h-4 text-emerald-600 absolute left-3.5 top-4" />
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => setFilters({ audience: 'ALL', rentalType: 'ALL' })} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black border flex items-center justify-center gap-1.5 transition-all ${audience === 'ALL' && rentalType === 'ALL' ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>Barchasi</button>
-              <button type="button" onClick={() => setFilters({ rentalType: 'FULL' })} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black border flex items-center justify-center gap-1.5 transition-all ${rentalType === 'FULL' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                <Home className="w-3.5 h-3.5 shrink-0" />
+            {/* Quick Audience Pills */}
+            <div className="flex flex-wrap gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setFilters({ audience: 'ALL', rentalType: 'ALL' })}
+                className={`py-2 px-3.5 rounded-xl font-bold border transition-all ${
+                  audience === 'ALL' && rentalType === 'ALL'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                Barchasi
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilters({ rentalType: 'FULL' })}
+                className={`py-2 px-3.5 rounded-xl font-bold border flex items-center gap-1.5 transition-all ${
+                  rentalType === 'FULL'
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <Home className="w-3.5 h-3.5" />
                 <span>Butun Kvartira</span>
               </button>
-              <button type="button" onClick={() => setFilters({ rentalType: 'ROOMMATE' })} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black border flex items-center justify-center gap-1.5 transition-all ${rentalType === 'ROOMMATE' ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                <Users className="w-3.5 h-3.5 shrink-0" />
+              <button
+                type="button"
+                onClick={() => setFilters({ rentalType: 'ROOMMATE' })}
+                className={`py-2 px-3.5 rounded-xl font-bold border flex items-center gap-1.5 transition-all ${
+                  rentalType === 'ROOMMATE'
+                    ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
                 <span>Sherikchilikka</span>
               </button>
-              <button type="button" onClick={() => setFilters({ audience: 'STUDENT' })} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black border flex items-center justify-center gap-1.5 transition-all ${audience === 'STUDENT' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                <GraduationCap className="w-3.5 h-3.5 shrink-0" />
-                <span>Talabaga</span>
+              <button
+                type="button"
+                onClick={() => setFilters({ audience: 'STUDENT' })}
+                className={`py-2 px-3.5 rounded-xl font-bold border flex items-center gap-1.5 transition-all ${
+                  audience === 'STUDENT'
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <GraduationCap className="w-3.5 h-3.5" />
+                <span>Talabalarga</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-xs">
-              <div className="space-y-1 min-w-0">
-                <label className="text-[10px] sm:text-xs font-bold text-slate-600 flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-emerald-600 shrink-0" /> Viloyat
-                </label>
+            {/* Grid Filters */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              {/* Region Selector */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 ml-1">Hudud</label>
                 <div className="relative">
                   <select
                     value={localRegion}
@@ -98,98 +138,81 @@ export const HeroSection: React.FC = () => {
                       setLocalRegion(e.target.value);
                       setLocalDistrict('Barchasi');
                     }}
-                    className="w-full min-w-0 appearance-none bg-slate-100/90 border border-slate-200 rounded-xl pl-2.5 pr-7 py-2.5 font-bold text-[11px] sm:text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-xs"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none cursor-pointer"
                   >
-                    <option value="Barchasi">Barchasi</option>
                     {UZBEKISTAN_REGIONS.map((r) => (
                       <option key={r.id} value={r.name}>{r.name}</option>
                     ))}
                   </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
 
-              <div className="space-y-1 min-w-0">
-                <label className="text-[10px] sm:text-xs font-bold text-slate-600 flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-emerald-600 shrink-0" /> Tuman
-                </label>
+              {/* District Selector */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 ml-1">Tuman</label>
                 <div className="relative">
                   <select
                     value={localDistrict}
                     onChange={(e) => setLocalDistrict(e.target.value)}
-                    className="w-full min-w-0 appearance-none bg-slate-100/90 border border-slate-200 rounded-xl pl-2.5 pr-7 py-2.5 font-bold text-[11px] sm:text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-xs"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none cursor-pointer"
                   >
                     {availableDistricts.map((d) => (
                       <option key={d} value={d}>{d}</option>
                     ))}
                   </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
 
-              <div className={`space-y-1 min-w-0 ${showAdvancedMobile ? 'block' : 'hidden'} sm:block`}>
-                <label className="text-[10px] sm:text-xs font-bold text-slate-600 flex items-center gap-1">
-                  <Home className="w-3 h-3 text-emerald-600 shrink-0" /> Xonalar
-                </label>
-                <div className="relative">
-                  <select
-                    value={localRooms ?? ''}
-                    onChange={(e) => setLocalRooms(e.target.value ? Number(e.target.value) : null)}
-                    className="w-full min-w-0 appearance-none bg-slate-100/90 border border-slate-200 rounded-xl pl-2.5 pr-7 py-2.5 font-bold text-[11px] sm:text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-xs"
+              {/* Room Pill Buttons */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 ml-1">Xonalar</label>
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setLocalRooms(localRooms === 1 ? null : 1)}
+                    className={`flex-1 rounded-xl py-3 text-xs font-extrabold transition-all ${
+                      localRooms === 1 ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
                   >
-                    <option value="">Barchasi</option>
-                    <option value="1">1 xona</option>
-                    <option value="2">2 xona</option>
-                    <option value="3">3 xona</option>
-                    <option value="4">4+ xona</option>
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    1
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLocalRooms(localRooms === 2 ? null : 2)}
+                    className={`flex-1 rounded-xl py-3 text-xs font-extrabold transition-all ${
+                      localRooms === 2 ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    2
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLocalRooms(localRooms === 3 ? null : 3)}
+                    className={`flex-1 rounded-xl py-3 text-xs font-extrabold transition-all ${
+                      localRooms === 3 ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    3+
+                  </button>
                 </div>
               </div>
 
-              <div className={`space-y-1 min-w-0 ${showAdvancedMobile ? 'block' : 'hidden'} sm:block`}>
-                <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold text-slate-600">
-                  <span>Maks Narx</span>
-                  <span className="text-emerald-700 font-extrabold">{(localMaxPrice / 1000000).toFixed(1)}m</span>
-                </div>
-                <input
-                  type="range"
-                  min={2000000}
-                  max={15000000}
-                  step={500000}
-                  value={localMaxPrice}
-                  onChange={(e) => setLocalMaxPrice(Number(e.target.value))}
-                  className="w-full accent-emerald-600 cursor-pointer h-2 bg-slate-200 rounded-lg"
-                />
+              {/* Submit CTA Button */}
+              <div className="flex items-end">
+                <button
+                  type="submit"
+                  className="w-full h-11 sm:h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 font-black text-xs sm:text-sm text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
+                >
+                  <Search className="w-4 h-4 text-slate-950" />
+                  <span>Qidirish</span>
+                </button>
               </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowAdvancedMobile((v) => !v)}
-              className="sm:hidden w-full flex items-center justify-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl py-2"
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              {showAdvancedMobile ? 'Filtrlarni yopish' : 'Xona va narx filtrlari'}
-            </button>
-
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-100">
-              <div className="hidden sm:flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-500 font-medium">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span>12 viloyat va 120+ tumanida halol e'lonlar!</span>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold px-6 py-3 rounded-xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 text-sm transition-all active:scale-95"
-              >
-                <Search className="w-4 h-4" />
-                <span>Kvartira Izlash</span>
-              </button>
             </div>
           </form>
         </div>
       </div>
-    </section>
+    </div>
   );
 };
