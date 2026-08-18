@@ -260,8 +260,23 @@ export function scanListingDeep(
 export interface ChatReply {
   text: string;
   need?: SearchNeed;
+  matchedListings?: Listing[];
   go?: 'SEARCH' | 'AUTH' | 'CREATE_LISTING' | 'HOME';
 }
+
+const DISTRICT_MAP: Record<string, string> = {
+  'chilonzor': 'Chilonzor',
+  'yunusobod': 'Yunusobod',
+  'mirobod': 'Mirobod',
+  'yakkasaroy': 'Yakkasaroy',
+  'sergeli': 'Sergeli',
+  'uchtepa': 'Uchtepa',
+  'olmazor': 'Olmazor',
+  'yashnobod': 'Yashnobod',
+  'shayxontohur': 'Shayxontohur',
+  'bektemir': 'Bektemir',
+  'mirzo': "Mirzo Ulug'bek",
+};
 
 export function replyAsAssistant(message: string, listings: Listing[]): ChatReply {
   const t = message.toLowerCase();
@@ -285,7 +300,7 @@ export function replyAsAssistant(message: string, listings: Listing[]): ChatRepl
   if (dollarM) {
     const usdVal = parseFloat(dollarM[1] || dollarM[2] || dollarM[3]);
     if (usdVal > 0) {
-      need.maxPrice = Math.round(usdVal * 12800 * 1.15); // +15% buffer
+      need.maxPrice = Math.round(usdVal * 12800 * 1.25); // +25% buffer
     }
   }
 
@@ -293,41 +308,54 @@ export function replyAsAssistant(message: string, listings: Listing[]): ChatRepl
   if (!need.maxPrice) {
     const priceM = t.match(/(\d+(?:[.,]\d+)?)\s*(mln|million|m|ml|milyon)/);
     if (priceM) {
-      need.maxPrice = Math.round(parseFloat(priceM[1].replace(',', '.')) * 1000000 * 1.15);
+      need.maxPrice = Math.round(parseFloat(priceM[1].replace(',', '.')) * 1000000 * 1.25);
     } else {
       const rawPriceM = t.match(/(\d{6,8})/);
       if (rawPriceM) {
-        need.maxPrice = Math.round(parseFloat(rawPriceM[1]) * 1.15);
+        need.maxPrice = Math.round(parseFloat(rawPriceM[1]) * 1.25);
       }
     }
   }
 
-  const districts = ['yunusobod', 'mirobod', 'chilonzor', 'yakkasaroy', 'sergeli', 'uchtepa', 'olmazor', 'yashnobod', 'shayxontohur', 'bektemir', 'mirzo ulug'];
-  const hit = districts.find((d) => t.includes(d));
-  if (hit) {
-    if (hit.includes('mirzo')) need.district = "Mirzo Ulug'bek";
-    else need.district = hit[0].toUpperCase() + hit.slice(1);
-    need.region = 'Toshkent shahri';
+  // 3. District matching
+  for (const [key, name] of Object.entries(DISTRICT_MAP)) {
+    if (t.includes(key)) {
+      need.district = name;
+      need.region = 'Toshkent shahri';
+      break;
+    }
   }
+
   if (/toshkent/.test(t)) need.region = 'Toshkent shahri';
   if (/metro/.test(t)) need.nearMetro = true;
 
-  const hasSearch = Boolean(need.rooms || need.maxPrice || need.district || need.region || need.audience !== 'ALL' || /kvartira|uy|ijara|qidir/.test(t));
+  const hasSearch = Boolean(need.rooms || need.maxPrice || need.district || need.region || need.audience !== 'ALL' || /kvartira|uy|ijara|qidir|chilonzor|yunusobod|mirobod|olmazor|sergeli/.test(t));
   if (hasSearch) {
-    const top = rankListings(listings, need).slice(0, 3);
+    const topRanked = rankListings(listings, need);
+    const top = topRanked.slice(0, 3).map((r) => r.listing);
+
     if (!top.length) {
-      return { text: "Hozircha mos e'lon topilmadi. Filtrlarni kengaytirib qidirib ko'ring.", go: 'SEARCH', need };
+      return {
+        text: "Hozircha siz so'ragan krriteriyalar bo'yicha mos e'lon topilmadi. Qidiruv sahifasiga o'tib boshqa variantlarni ko'rishingiz mumkin.",
+        go: 'SEARCH',
+        need,
+      };
     }
-    const lines = top.map((r, i) => `${i + 1}) ${r.listing.district}, ${r.listing.rooms} xona, ${formatSom(r.listing.price)}`).join('\n');
+
+    const districtText = need.district ? `${need.district} tumanida` : "Toshkentda";
+    const priceText = need.maxPrice ? ` ${formatSom(need.maxPrice)}gacha` : "";
+    const lines = top.map((l, i) => `${i + 1}) ${l.title} — ${formatSom(l.price)} (${l.district})`).join('\n');
+
     return {
-      text: `Sizga mos 3 ta uy:\n${lines}\n\nQidiruv sahifasida hammasi ochiladi.`,
+      text: `🤖 Shield AI: ${districtText}${priceText} sizga mos ${top.length} ta eng yaxshi kvartirani topdim:\n\n${lines}\n\nQuyida har bir kvartirani ko'rishingiz mumkin:`,
       go: 'SEARCH',
       need,
+      matchedListings: top,
     };
   }
 
   return {
-    text: "Men Maklersiz yordamchisiman. Masalan yozing: «Yunusobodda 2 xonali, 5 milliongacha» yoki «kirish».",
+    text: "Men Shield AI yordamchisiman. Masalan yozing: «Chilonzordan 3ml ga kvartira kerak» yoki «Yunusobod 2 xona» deb yozing.",
   };
 }
 

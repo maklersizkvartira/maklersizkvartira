@@ -77,15 +77,17 @@ export const ShieldMascot: React.FC = () => {
 
     if (reply.need) {
       setFilters({
-        selectedRegion: reply.need.region || undefined,
-        selectedDistrict: reply.need.district || undefined,
-        roomsCount: reply.need.rooms ?? undefined,
-        maxPrice: reply.need.maxPrice || undefined,
-        audience: reply.need.audience || undefined,
-        selectedMetro: reply.need.nearMetro ? undefined : undefined,
+        selectedRegion: reply.need.region || 'Barchasi',
+        selectedDistrict: reply.need.district || 'Barchasi',
+        roomsCount: reply.need.rooms ?? null,
+        maxPrice: reply.need.maxPrice || 100000000,
+        audience: reply.need.audience || 'ALL',
+        selectedMetro: 'Barchasi',
         sortBy: 'AI',
       } as any);
-      if (reply.need.query) setSearchQuery(reply.need.query);
+      if (reply.need.district) {
+        setSearchQuery(reply.need.district);
+      }
     }
     if (reply.go === 'AUTH') setShowAuth(true);
     if (reply.go === 'SEARCH') setCurrentView('SEARCH');

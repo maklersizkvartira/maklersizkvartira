@@ -43,7 +43,7 @@ export const SearchPage: React.FC = () => {
       }
 
       // District filter
-      if (selectedDistrict !== 'Barchasi' && listing.district !== selectedDistrict) {
+      if (selectedDistrict !== 'Barchasi' && listing.district.toLowerCase() !== selectedDistrict.toLowerCase()) {
         return false;
       }
 
