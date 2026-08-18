@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, ArrowRight, CheckCircle2, Heart, Ban } from 'lucide-react';
+import { ShieldCheck, ArrowRight, CheckCircle2, Heart, Ban, Send, ExternalLink } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 
 export const Footer: React.FC = () => {
@@ -25,7 +25,7 @@ export const Footer: React.FC = () => {
           </div>
           <button
             onClick={() => setCurrentView('VERIFICATION')}
-            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-1.5"
+            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-1.5 transition-all"
           >
             Ishonchni tekshirish
             <ArrowRight className="w-3.5 h-3.5" />
@@ -70,6 +70,28 @@ export const Footer: React.FC = () => {
               <li>0% vositachilik</li>
             </ul>
           </div>
+        </div>
+
+        {/* Telegram Support Section */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0">
+              <Send className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="font-bold text-sm text-white">Qo'llab-quvvatlash Xizmati (Support 24/7)</div>
+              <div className="text-xs text-slate-400 mt-0.5">Savollar, takliflar yoki e'loningiz AI tomonidan to'silsa murojaat qiling</div>
+            </div>
+          </div>
+          <a
+            href="https://t.me/MaklersizUy_Support"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 transition-all shrink-0 active:scale-[0.98]"
+          >
+            <span>@MaklersizUy_Support</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
         </div>
 
         <div className="pt-4 border-t border-slate-800 flex flex-col items-center gap-2 text-[11px] text-slate-500 text-center">
