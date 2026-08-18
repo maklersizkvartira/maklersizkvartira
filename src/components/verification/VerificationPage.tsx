@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   ShieldCheck, Award, Upload, CheckCircle2, AlertCircle, FileText, 
   Camera, Lock, ChevronRight, Sparkles, Building, PhoneCall, Check,
-  Search, ShieldAlert, Zap, Star, Eye, ArrowUpRight
+  Search, ShieldAlert, Zap, Star, Eye, Image as ImageIcon, Trash2, RefreshCw
 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { VerificationLevel } from '../../types';
@@ -11,11 +11,24 @@ import { VerificationBadge } from '../common/VerificationBadge';
 export const VerificationPage: React.FC = () => {
   const { userXp, addXp, setAiMascotMessage, setCurrentView } = useAppStore();
 
+  const passportInputRef = useRef<HTMLInputElement>(null);
+  const selfieInputRef = useRef<HTMLInputElement>(null);
+  const cadastreInputRef = useRef<HTMLInputElement>(null);
+
   const [activeStep, setActiveStep] = useState<VerificationLevel>(2);
   const [phoneVerified, setPhoneVerified] = useState(true);
+
+  // File Upload States
   const [passportDone, setPassportDone] = useState(false);
+  const [passportImage, setPassportImage] = useState<string | null>(null);
+
   const [selfieDone, setSelfieDone] = useState(false);
+  const [selfieImage, setSelfieImage] = useState<string | null>(null);
+
   const [cadastreDone, setCadastreDone] = useState(false);
+  const [cadastreImage, setCadastreImage] = useState<string | null>(null);
+  const [cadastreCode, setCadastreCode] = useState('');
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Phone / Listing verification checker tool state
@@ -27,8 +40,52 @@ export const VerificationPage: React.FC = () => {
     description: string;
   } | null>(null);
 
+  // --- Handlers for Files ---
+  const handlePassportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setPassportImage(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSelfieFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setSelfieImage(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCadastreFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setCadastreImage(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleLevel2Submit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!passportImage) {
+      alert("Iltimos, avval pasportingiz yoki ID kartangiz rasmini yuklang.");
+      return;
+    }
     setIsSubmitting(true);
     setTimeout(() => {
       setIsSubmitting(false);
@@ -41,6 +98,10 @@ export const VerificationPage: React.FC = () => {
 
   const handleLevel3Submit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selfieImage) {
+      alert("Iltimos, kamerangiz orqali selfie rasmingizni tushing yoki yuklang.");
+      return;
+    }
     setIsSubmitting(true);
     setTimeout(() => {
       setIsSubmitting(false);
@@ -53,6 +114,10 @@ export const VerificationPage: React.FC = () => {
 
   const handleLevel4Submit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!cadastreImage && !cadastreCode.trim()) {
+      alert("Iltimos, kadastr raqamini kiriting yoki kadastr hujjatini yuklang.");
+      return;
+    }
     setIsSubmitting(true);
     setTimeout(() => {
       setIsSubmitting(false);
@@ -93,6 +158,30 @@ export const VerificationPage: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-10 min-h-[85vh] space-y-8">
+
+      {/* Hidden File Inputs */}
+      <input
+        type="file"
+        ref={passportInputRef}
+        accept="image/*,.pdf"
+        onChange={handlePassportFileChange}
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={selfieInputRef}
+        accept="image/*"
+        capture="user"
+        onChange={handleSelfieFileChange}
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={cadastreInputRef}
+        accept="image/*,.pdf"
+        onChange={handleCadastreFileChange}
+        className="hidden"
+      />
 
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white p-6 sm:p-8 rounded-3xl shadow-xl border border-emerald-500/30 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
@@ -308,32 +397,68 @@ export const VerificationPage: React.FC = () => {
                 <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-2xl text-center space-y-3">
                   <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
                   <h4 className="font-bold text-emerald-900">Pasport Hujjatlari Tasdiqlandi! (+50 XP)</h4>
+                  {passportImage && (
+                    <img src={passportImage} alt="Pasport preview" className="w-32 h-20 object-cover rounded-lg mx-auto border border-emerald-300 shadow-xs" />
+                  )}
                   <p className="text-xs text-emerald-700">Shaxsingiz tasdiqlandi va maxfiylik standartlari bo'yicha shifrlab saqlandi.</p>
                   <button
                     type="button"
                     onClick={() => setActiveStep(3)}
-                    className="bg-emerald-600 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-5 py-3 rounded-xl shadow-md transition-all"
                   >
                     Level 3 Selfie Bosqichiga O'tish ➔
                   </button>
                 </div>
               ) : (
                 <form onSubmit={handleLevel2Submit} className="space-y-4 text-xs">
-                  <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer space-y-2">
-                    <Upload className="w-8 h-8 text-slate-400 mx-auto" />
-                    <div className="font-bold text-slate-700">Pasport yoki ID kartani rasmini yuklang</div>
-                    <p className="text-[11px] text-slate-400">PNG, JPG, PDF (Maks 10MB)</p>
+                  {/* File Upload Box */}
+                  <div
+                    onClick={() => passportInputRef.current?.click()}
+                    className="border-2 border-dashed border-blue-300 rounded-2xl p-6 sm:p-8 text-center bg-blue-50/50 hover:bg-blue-50 transition-colors cursor-pointer space-y-3 group"
+                  >
+                    {passportImage ? (
+                      <div className="space-y-2">
+                        <img src={passportImage} alt="Passport preview" className="w-48 h-32 object-cover rounded-xl mx-auto border-2 border-blue-400 shadow-md" />
+                        <div className="text-xs font-bold text-emerald-700 flex items-center justify-center gap-1">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Pasport rasmi tanlandi
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setPassportImage(null); }}
+                          className="text-[11px] text-rose-600 font-bold hover:underline flex items-center justify-center gap-1 mx-auto"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Boshqa rasm tanlash
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-14 h-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
+                          <Upload className="w-7 h-7" />
+                        </div>
+                        <div>
+                          <div className="font-black text-sm text-slate-900">Pasport yoki ID kartaning rasmini yuklang</div>
+                          <p className="text-xs text-slate-500 mt-1">Bosib fayl tanlang yoki suratingizni shu yerga tashlang</p>
+                        </div>
+                        <span className="inline-block bg-white text-blue-700 font-bold px-4 py-2 rounded-xl border border-blue-200 text-xs shadow-xs">
+                          📁 Pasport Faylini Tanlash
+                        </span>
+                      </>
+                    )}
                   </div>
 
-                  <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl text-[11px] text-amber-800 flex items-start gap-2">
+                  <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl text-[11px] text-amber-900 flex items-start gap-2">
                     <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                     <span>Maxfiylik Kafolati: Shaxsiy hujjatlar e'londa KO'RSATILMAYDI, faqat verification tekshiruvi uchun shifrlangan holda saqlanadi.</span>
                   </div>
 
                   <button
                     type="submit"
-                    disabled={isSubmitting}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-xl shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 text-sm"
+                    disabled={isSubmitting || !passportImage}
+                    className={`w-full font-black py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm ${
+                      passportImage
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25 cursor-pointer'
+                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    }`}
                   >
                     {isSubmitting ? 'AI Skanerlamoqda...' : 'Pasportni Tasdiqlashga Yuborish (+50 XP)'}
                   </button>
@@ -358,27 +483,65 @@ export const VerificationPage: React.FC = () => {
                 <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-2xl text-center space-y-3">
                   <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
                   <h4 className="font-bold text-emerald-900">Selfie Liveness Tasdiqlandi! (+50 XP)</h4>
+                  {selfieImage && (
+                    <img src={selfieImage} alt="Selfie preview" className="w-28 h-28 object-cover rounded-full mx-auto border-2 border-emerald-400 shadow-md" />
+                  )}
                   <p className="text-xs text-emerald-700">Yuz o'xshashligi 99.4% darajada mos keldi.</p>
                   <button
                     type="button"
                     onClick={() => setActiveStep(4)}
-                    className="bg-emerald-600 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-5 py-3 rounded-xl shadow-md transition-all"
                   >
                     Level 4 Kadastr Bosqichiga O'tish ➔
                   </button>
                 </div>
               ) : (
                 <form onSubmit={handleLevel3Submit} className="space-y-4 text-xs">
-                  <div className="border-2 border-dashed border-indigo-200 bg-indigo-50/50 rounded-2xl p-8 text-center space-y-3">
-                    <Camera className="w-10 h-10 text-indigo-500 mx-auto" />
-                    <div className="font-bold text-slate-800">Kameraga qarab selfie tushing</div>
-                    <p className="text-[11px] text-slate-500">Yorug' joyda ko'zoynaksiz rasmga tushing.</p>
+                  <div
+                    onClick={() => selfieInputRef.current?.click()}
+                    className="border-2 border-dashed border-indigo-300 rounded-2xl p-6 sm:p-8 text-center bg-indigo-50/50 hover:bg-indigo-50 transition-colors cursor-pointer space-y-3 group"
+                  >
+                    {selfieImage ? (
+                      <div className="space-y-2">
+                        <div className="relative w-36 h-36 mx-auto">
+                          <img src={selfieImage} alt="Selfie preview" className="w-36 h-36 object-cover rounded-full border-4 border-indigo-500 shadow-md" />
+                          <div className="absolute inset-0 rounded-full border-2 border-emerald-400 animate-pulse pointer-events-none" />
+                        </div>
+                        <div className="text-xs font-bold text-indigo-900 flex items-center justify-center gap-1">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Selfie rasmga olindi! Yuz mos keldi
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setSelfieImage(null); }}
+                          className="text-[11px] text-rose-600 font-bold hover:underline flex items-center justify-center gap-1 mx-auto"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" /> Qayta rasmga tushish
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform shadow-inner">
+                          <Camera className="w-8 h-8" />
+                        </div>
+                        <div>
+                          <div className="font-black text-sm text-slate-900">Kamera orqali selfie rasmga tushing</div>
+                          <p className="text-xs text-slate-500 mt-1">Telefoningiz kamerasini ochib rasmga tushing yoki suratingizni yuklang</p>
+                        </div>
+                        <span className="inline-block bg-indigo-600 text-white font-black px-5 py-2.5 rounded-xl shadow-md text-xs">
+                          📸 Kamerani Ochib Selfie Tushish
+                        </span>
+                      </>
+                    )}
                   </div>
 
                   <button
                     type="submit"
-                    disabled={isSubmitting}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all text-sm"
+                    disabled={isSubmitting || !selfieImage}
+                    className={`w-full font-black py-4 rounded-xl shadow-lg transition-all text-sm ${
+                      selfieImage
+                        ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/25 cursor-pointer'
+                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    }`}
                   >
                     {isSubmitting ? 'AI Yuzni Solishtirmoqda...' : 'Selfie Skanerlash (+50 XP)'}
                   </button>
@@ -407,7 +570,7 @@ export const VerificationPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setActiveStep(5)}
-                    className="bg-emerald-600 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-5 py-3 rounded-xl shadow-md transition-all"
                   >
                     Level 5 VIP Statustini Ko'rish ➔
                   </button>
@@ -415,24 +578,42 @@ export const VerificationPage: React.FC = () => {
               ) : (
                 <form onSubmit={handleLevel4Submit} className="space-y-4 text-xs">
                   <div className="space-y-1">
-                    <label className="font-bold text-slate-700">Kadastr Raqami (Majburiy emas, tezlashtiradi)</label>
+                    <label className="font-bold text-slate-700">Kadastr Raqami (Masalan: 10:01:04:02...)</label>
                     <input
                       type="text"
+                      value={cadastreCode}
+                      onChange={(e) => setCadastreCode(e.target.value)}
                       placeholder="10:01:04:02:01:0045..."
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-mono font-semibold text-slate-900 outline-none focus:border-emerald-600"
                     />
                   </div>
 
-                  <div className="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center bg-slate-50 space-y-1">
-                    <FileText className="w-6 h-6 text-slate-400 mx-auto" />
-                    <div className="font-bold text-slate-700">Kadastr Hujjatining Nusxasi</div>
-                    <p className="text-[11px] text-slate-400">Mulkiy huquq tasdiqnomasi</p>
+                  <div
+                    onClick={() => cadastreInputRef.current?.click()}
+                    className="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer space-y-2"
+                  >
+                    {cadastreImage ? (
+                      <div className="space-y-1">
+                        <FileText className="w-8 h-8 text-emerald-600 mx-auto" />
+                        <div className="font-bold text-emerald-900 text-xs">Kadastr Hujjati Yuklandi</div>
+                      </div>
+                    ) : (
+                      <>
+                        <FileText className="w-7 h-7 text-slate-400 mx-auto" />
+                        <div className="font-bold text-slate-700">Kadastr Hujjatining Nusxasi (Rasm/PDF)</div>
+                        <p className="text-[11px] text-slate-400">Bosib kadastr faylini tanlang</p>
+                      </>
+                    )}
                   </div>
 
                   <button
                     type="submit"
-                    disabled={isSubmitting}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-xl shadow-lg shadow-emerald-600/20 transition-all text-sm"
+                    disabled={isSubmitting || (!cadastreImage && !cadastreCode.trim())}
+                    className={`w-full font-black py-4 rounded-xl shadow-lg transition-all text-sm ${
+                      cadastreImage || cadastreCode.trim()
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 cursor-pointer'
+                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    }`}
                   >
                     {isSubmitting ? 'Kadastr AI Tahlil Qilinmoqda...' : 'Property Verification Yuborish (+100 XP)'}
                   </button>
