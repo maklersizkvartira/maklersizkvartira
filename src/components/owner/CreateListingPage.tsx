@@ -796,9 +796,27 @@ export const CreateListingPage: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <button onClick={() => setStep(1)} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-4 rounded-xl text-xs transition-colors">
-                    Matnni o'zgartirish
+                  <button
+                    onClick={() => {
+                      // AI Auto-fix text
+                      let cleanedTitle = title.replace(/\b(makler|zaklad|vositachi|agentlik)\b/gi, '').trim();
+                      let cleanedDesc = description.replace(/\b(makler|zaklad|vositachi|agentlik|kartaga|oldindan pul)\b/gi, '').trim();
+                      if (!cleanedDesc.includes("Maklersiz")) {
+                        cleanedDesc += " Egasidan to'g'ridan-to'g'ri, 0% komissiya.";
+                      }
+                      setTitle(cleanedTitle || `${region}, ${district} tumanida 2 xonali kvartira`);
+                      setDescription(cleanedDesc);
+                      setStep(1);
+                    }}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-4 rounded-xl text-xs transition-colors shadow-md flex items-center justify-center gap-1.5 active:scale-95"
+                  >
+                    <span>✨ AI Matnni Tuzatish</span>
                   </button>
+
+                  <button onClick={() => setStep(1)} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-4 rounded-xl text-xs transition-colors">
+                    O'zim tahrirlash
+                  </button>
+
                   <a
                     href="https://t.me/MaklersizUy_Support"
                     target="_blank"
@@ -806,7 +824,7 @@ export const CreateListingPage: React.FC = () => {
                     className="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-bold py-3.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm text-center"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    Admin bilan bog'lanish
+                    Admin
                   </a>
                 </div>
               </div>
