@@ -8,6 +8,7 @@ import { ApiService } from '../services/apiService';
 export type ViewState =
   | 'HOME'
   | 'SEARCH'
+  | 'MAP'
   | 'LISTING_DETAIL'
   | 'VERIFICATION'
   | 'CREATE_LISTING'
@@ -57,6 +58,8 @@ interface AppStore {
   userBadges: string[];
   addXp: (amount: number, reason: string) => void;
 
+  currency: 'USD' | 'UZS';
+  setCurrency: (c: 'USD' | 'UZS') => void;
   listings: Listing[];
   fetchListings: () => Promise<void>;
   addListing: (newListing: Listing) => void;
@@ -102,6 +105,8 @@ const savedUser = typeof window !== 'undefined' ? loadUser() : null;
 const extraListings = typeof window !== 'undefined' ? loadExtraListings() : [];
 
 export const useAppStore = create<AppStore>((set, get) => ({
+  currency: 'USD',
+  setCurrency: (c) => set({ currency: c }),
   currentView: savedUser?.role === 'OWNER' ? 'HOME' : 'HOME',
   selectedListingId: null,
   setCurrentView: (view, listingId = null) => {

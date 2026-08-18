@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Search, Heart, MessageSquare, PlusCircle, User, List } from 'lucide-react';
+import { Home, Search, Heart, MessageSquare, PlusCircle, User, List, MapPin } from 'lucide-react';
 import { useAppStore, ViewState } from '../../stores/useAppStore';
 
 interface NavItem {
@@ -16,6 +16,7 @@ export const BottomNav: React.FC = () => {
   const navItems: NavItem[] = isOwner
     ? [
         { id: 'HOME', label: 'Bosh', icon: Home },
+        { id: 'MAP', label: 'Xarita', icon: MapPin },
         { id: 'CREATE_LISTING', label: "E'lon", icon: PlusCircle },
         { id: 'MY_LISTINGS', label: "E'lonlarim", icon: List },
         { id: 'CHAT', label: 'Chat', icon: MessageSquare },
@@ -24,6 +25,7 @@ export const BottomNav: React.FC = () => {
     : [
         { id: 'HOME', label: 'Bosh', icon: Home },
         { id: 'SEARCH', label: 'Qidiruv', icon: Search },
+        { id: 'MAP', label: 'Xarita', icon: MapPin },
         { id: 'FAVORITES', label: 'Sevimli', icon: Heart, badge: favorites.length },
         { id: 'CHAT', label: 'Chat', icon: MessageSquare },
         { id: currentUser ? 'PROFILE' : 'HOME', label: currentUser ? 'Profil' : 'Kirish', icon: User },

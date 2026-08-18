@@ -10,6 +10,7 @@ import { QuickCategories } from './components/home/QuickCategories';
 import { TrustStats } from './components/home/TrustStats';
 import { AIRecommended } from './components/home/AIRecommended';
 import { SearchPage } from './components/search/SearchPage';
+import { MapView } from './components/map/MapView';
 import { ListingDetailPage } from './components/listing/ListingDetailPage';
 import { VerificationPage } from './components/verification/VerificationPage';
 import { CreateListingPage } from './components/owner/CreateListingPage';
@@ -80,6 +81,7 @@ export const App: React.FC = () => {
         )}
 
         {currentView === 'SEARCH' && <SearchPage />}
+        {currentView === 'MAP' && <MapView />}
         {currentView === 'LISTING_DETAIL' && <ListingDetailPage />}
         {currentView === 'VERIFICATION' && <VerificationPage />}
         {currentView === 'CREATE_LISTING' && <CreateListingPage />}

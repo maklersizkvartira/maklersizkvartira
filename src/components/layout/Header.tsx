@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, LogIn, User } from 'lucide-react';
+import { ShieldCheck, LogIn, User, MapPin } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { AuthModal } from '../auth/AuthModal';
 
@@ -34,6 +34,13 @@ export const Header: React.FC = () => {
             className={`hover:text-emerald-600 transition-colors ${currentView === 'SEARCH' ? 'text-emerald-600' : ''}`}
           >
             Kvartiralar
+          </button>
+          <button
+            onClick={() => setCurrentView('MAP')}
+            className={`hover:text-emerald-600 transition-colors flex items-center gap-1.5 ${currentView === 'MAP' ? 'text-emerald-600 font-black' : ''}`}
+          >
+            <MapPin className="w-4 h-4 text-emerald-600" />
+            <span>Xarita</span>
           </button>
 
           {currentUser?.role === 'OWNER' ? (
