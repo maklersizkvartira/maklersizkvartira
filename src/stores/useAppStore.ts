@@ -65,6 +65,7 @@ interface AppStore {
   addListing: (newListing: Listing) => void;
   updateListing: (updatedListing: Listing) => void;
   removeListing: (listingId: string) => void;
+  clearAllExtraListings: () => void;
   editingListing: Listing | null;
   setEditingListing: (listing: Listing | null) => void;
 
@@ -216,6 +217,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const extras = listings.filter((l) => l.id.startsWith('listing-') && !MOCK_LISTINGS.some((m) => m.id === l.id));
     localStorage.setItem(EXTRA_KEY, JSON.stringify(extras));
     return { listings, aiMascotMessage: "E'lon o'chirildi." };
+  }),
+  clearAllExtraListings: () => set((state) => {
+    localStorage.removeItem(EXTRA_KEY);
+    const cleanListings = state.listings.filter((l) => MOCK_LISTINGS.some((m) => m.id === l.id));
+    return {
+      listings: cleanListings.length ? cleanListings : MOCK_LISTINGS,
+      aiMascotMessage: "Barcha kiritilgan e'lonlar va kesh ma'lumotlari bazadan tozalab yuborildi!",
+    };
   }),
 
   favorites: ['listing-1'],
