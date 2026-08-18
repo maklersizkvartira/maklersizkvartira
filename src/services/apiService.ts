@@ -1,12 +1,10 @@
-/**
- * API Service Abstraction Layer connected to Python FastAPI Backend (Readme-5 & Readme-6 Architecture)
- * Supports JWT Tokens, Phone OTP, Shield AI Risk Scans, and Admin Fraud Moderation
- */
-import { Listing, VerificationRequest, ReportItem, ChatMessage, UserRole } from '../types';
+import { Listing, VerificationRequest, ReportItem, ChatMessage, CurrentUser, SignupRole, UserRole } from '../types';
 import { MOCK_LISTINGS } from '../data/mockListings';
 import { MOCK_REPORTS, MOCK_VERIFICATIONS, MOCK_FRAUD_SIGNALS } from '../data/mockAdminData';
+import { ListingScanResult, scanListingLocal } from './aiGuard';
+import { scanListingDeep } from './aiEngine';
 
-export const API_BASE_URL = 'http://localhost:8000/api/v1';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'https://maklersizkvartira-production.up.railway.app/api/v1';
 
 const getHeaders = (token?: string) => {
   const authToken = token || localStorage.getItem('access_token');
@@ -18,6 +16,23 @@ const getHeaders = (token?: string) => {
   }
   return headers;
 };
+
+async function postJson<T>(path: string, body: unknown): Promise<T | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => null);
+      return err ?? null;
+    }
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
 
 export const ApiService = {
   // Auth API
@@ -57,70 +72,50 @@ export const ApiService = {
     return { status: 'success', verified: true };
   },
 
-  register: async (payload: {
-    phone: string;
-    code: string;
-    first_name: string;
-    last_name: string;
-    password?: string;
-    role: UserRole;
-  }) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/auth/register`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({
-          phone: payload.phone,
-          code: payload.code,
-          first_name: payload.first_name,
-          last_name: payload.last_name,
-          password: payload.password || 'SecureDefault2026!',
-          role: payload.role
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.access_token) {
-          localStorage.setItem('access_token', data.access_token);
-          localStorage.setItem('refresh_token', data.refresh_token);
-        }
-        return data;
-      }
-    } catch (e) {
-      console.warn('Backend API connection fallback for register');
+  login: async (phone: string, password?: string): Promise<CurrentUser> => {
+    const remote = await postJson<{ status: string; user?: CurrentUser; access_token?: string; detail?: string }>(`/auth/login`, { phone, password: password || 'SecureDefault2026!' });
+    if (remote?.access_token) {
+      localStorage.setItem('access_token', remote.access_token);
     }
+    if (remote?.user) return remote.user;
     return {
-      access_token: `mock-jwt-token-${Date.now()}`,
-      user_id: `user-${Date.now()}`,
-      first_name: payload.first_name,
-      last_name: payload.last_name,
-      role: payload.role,
-      trust_score: 30
+      id: `user-${Date.now()}`,
+      name: phone,
+      phone,
+      role: 'STUDENT'
     };
   },
 
-  login: async (phone: string, password?: string) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({
-          phone,
-          password: password || 'SecureDefault2026!'
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.access_token) {
-          localStorage.setItem('access_token', data.access_token);
-          localStorage.setItem('refresh_token', data.refresh_token);
-        }
-        return data;
-      }
-    } catch (e) {
-      console.warn('Backend API connection fallback for login');
+  register: async (nameOrPayload: any, phone?: string, role?: any, password?: string): Promise<CurrentUser> => {
+    let payloadName = typeof nameOrPayload === 'string' ? nameOrPayload : `${nameOrPayload.first_name || ''} ${nameOrPayload.last_name || ''}`.trim();
+    let payloadPhone = typeof nameOrPayload === 'string' ? (phone || '') : nameOrPayload.phone;
+    let payloadRole = typeof nameOrPayload === 'string' ? (role || 'STUDENT') : nameOrPayload.role;
+    let payloadPassword = typeof nameOrPayload === 'string' ? (password || 'SecureDefault2026!') : (nameOrPayload.password || 'SecureDefault2026!');
+
+    const defaultAvatar = payloadRole === 'OWNER'
+      ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300'
+      : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300';
+
+    const remote = await postJson<{ status: string; user?: CurrentUser; access_token?: string }>(`/auth/register`, {
+      name: payloadName,
+      phone: payloadPhone,
+      role: payloadRole,
+      password: payloadPassword,
+      avatar: defaultAvatar
+    });
+
+    if (remote?.access_token) {
+      localStorage.setItem('access_token', remote.access_token);
     }
-    return null;
+    if (remote?.user) return remote.user;
+
+    return {
+      id: `user-${Date.now()}`,
+      name: payloadName || 'Foydalanuvchi',
+      phone: payloadPhone,
+      role: payloadRole,
+      avatar: defaultAvatar,
+    };
   },
 
   loginGoogle: async (googleData: {
@@ -140,7 +135,6 @@ export const ApiService = {
         const data = await res.json();
         if (data.access_token) {
           localStorage.setItem('access_token', data.access_token);
-          localStorage.setItem('refresh_token', data.refresh_token);
         }
         return data;
       }
@@ -152,11 +146,10 @@ export const ApiService = {
       user_id: googleData.uid,
       first_name: googleData.name.split(' ')[0] || 'Google',
       last_name: googleData.name.split(' ')[1] || 'Foydalanuvchisi',
-      role: 'TENANT',
+      role: 'STUDENT',
       trust_score: 30
     };
   },
-
 
   getMe: async () => {
     try {
@@ -173,121 +166,73 @@ export const ApiService = {
     return null;
   },
 
-  // Public Listings API
+  scanListing: async (titleOrDesc: string, descriptionOrImages?: any, price?: number, rooms?: number): Promise<ListingScanResult> => {
+    const title = typeof descriptionOrImages === 'string' ? titleOrDesc : 'E\'lon';
+    const description = typeof descriptionOrImages === 'string' ? descriptionOrImages : titleOrDesc;
+
+    const remote = await postJson<{ status: string; aiAnalysis?: ListingScanResult & { aiCheckStatus?: string; allowed?: boolean } }>(
+      `/ai/scan-listing`,
+      { title, description, price, rooms }
+    );
+    if (remote?.aiAnalysis) {
+      const a = remote.aiAnalysis;
+      const allowed = a.allowed ?? (a.status === 'APPROVED' || a.aiCheckStatus === 'APPROVED');
+      return {
+        allowed,
+        status: (a.status as ListingScanResult['status']) || (allowed ? 'APPROVED' : 'REJECTED'),
+        trustScore: a.trustScore,
+        riskScore: a.riskScore,
+        brokerProbability: a.brokerProbability,
+        reasons: a.reasons || [],
+        message: a.message || (allowed
+          ? "E'lon tekshiruvdan o'tdi."
+          : "Bu e'lon makler yoki firibgar e'loniga o'xshaydi. Joylashtirilmadi."),
+      };
+    }
+    return scanListingDeep(title, description, price, rooms);
+  },
+
   getListings: async (params?: Record<string, any>): Promise<Listing[]> => {
     try {
-      const query = new URLSearchParams(params || {}).toString();
-      const res = await fetch(`${API_BASE_URL}/listings?${query}`, {
-        method: 'GET',
+      const query = params ? `?${new URLSearchParams(params).toString()}` : '';
+      const res = await fetch(`${API_BASE_URL}/listings${query}`, {
         headers: getHeaders(),
       });
       if (res.ok) {
         const json = await res.json();
-        if (json.data && json.data.length > 0) {
-          return json.data.map((l: any, idx: number) => ({
-            ...MOCK_LISTINGS[idx % MOCK_LISTINGS.length],
-            id: l.id,
-            title: l.title,
-            description: l.description,
-            price: l.price,
-            trustScore: l.trustScore ?? 95,
-            riskScore: l.riskScore ?? 5,
-            aiCheckStatus: l.aiCheckStatus ?? 'APPROVED'
-          }));
-        }
+        if (Array.isArray(json.data) && json.data.length > 0) return json.data as Listing[];
       }
-    } catch (e) {
-      console.warn('Backend API connection fallback for getListings');
-    }
+    } catch { /* mock fallback */ }
     return MOCK_LISTINGS;
   },
 
   getListingById: async (id: string): Promise<Listing | undefined> => {
     try {
       const res = await fetch(`${API_BASE_URL}/listings/${id}`, {
-        method: 'GET',
         headers: getHeaders(),
       });
       if (res.ok) {
         const json = await res.json();
-        if (json.data) {
-          const l = json.data;
-          return {
-            ...MOCK_LISTINGS[0],
-            id: l.id,
-            title: l.title,
-            description: l.description,
-            price: l.price,
-            trustScore: l.trustScore ?? 95,
-            riskScore: l.riskScore ?? 5,
-            aiCheckStatus: l.aiCheckStatus ?? 'APPROVED'
-          };
-        }
+        if (json.data) return json.data as Listing;
       }
-    } catch (e) {
-      console.warn('Backend API connection fallback for getListingById');
-    }
+    } catch { /* mock fallback */ }
     return MOCK_LISTINGS.find((l) => l.id === id);
   },
 
   createListing: async (listingData: Partial<Listing>): Promise<Listing> => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/listings`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({
-          title: listingData.title,
-          description: listingData.description,
-          price: listingData.price,
-          region: (listingData as any).location?.city || 'Toshkent shahri',
-          district: (listingData as any).location?.district || 'Mirobod',
-          currency: 'UZS',
-          images: listingData.images || []
-        }),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        return {
-          ...MOCK_LISTINGS[0],
-          ...listingData,
-          id: json.data?.id || `listing-${Date.now()}`,
-          trustScore: json.data?.trustScore || 95,
-          riskScore: json.data?.riskScore || 5,
-          aiCheckStatus: json.data?.aiCheckStatus || 'APPROVED'
-        } as Listing;
-      }
-    } catch (e) {
-      console.warn('Backend API connection fallback for createListing');
-    }
+    const remote = await postJson<{ status: string; data?: Listing; error?: string }>(`/listings`, listingData);
+    if (remote?.data) return remote.data;
     return { ...MOCK_LISTINGS[0], ...listingData, id: `listing-${Date.now()}` } as Listing;
   },
 
-  // Shield AI Scan API
-  scanListing: async (description: string, images: string[] = []) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/ai/scan-listing`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ description, images }),
-      });
-      if (res.ok) {
-        return await res.json();
-      }
-    } catch (e) {
-      console.warn('Backend API connection fallback for scanListing');
-    }
-    return null;
-  },
-
-  // Verification API
-  submitVerification: async (data: any): Promise<{ success: boolean; xpEarned: number }> => {
+  submitVerification: async (data?: any): Promise<{ success: boolean; xpEarned: number }> => {
     try {
       const res = await fetch(`${API_BASE_URL}/admin/verifications/submit`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
-          type: data.type || 'PASSPORT',
-          document_url: data.documentUrl || null
+          type: data?.type || 'PASSPORT',
+          document_url: data?.documentUrl || null
         }),
       });
       if (res.ok) {
@@ -299,11 +244,8 @@ export const ApiService = {
     return { success: true, xpEarned: 50 };
   },
 
-  getVerificationQueue: async (): Promise<VerificationRequest[]> => {
-    return Promise.resolve(MOCK_VERIFICATIONS);
-  },
+  getVerificationQueue: async (): Promise<VerificationRequest[]> => MOCK_VERIFICATIONS,
 
-  // Fraud & Moderation Admin API
   getFraudSignals: async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/admin/fraud`, {
@@ -336,16 +278,14 @@ export const ApiService = {
     return MOCK_REPORTS;
   },
 
-  // Chat API
-  sendMessage: async (conversationId: string, text: string): Promise<ChatMessage> => {
-    return Promise.resolve({
-      id: `msg-${Date.now()}`,
-      conversationId,
-      senderId: 'tenant_current',
-      senderName: 'Siz',
-      senderRole: 'TENANT',
-      text,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    });
-  }
+  sendMessage: async (conversationId: string, text: string): Promise<ChatMessage> => ({
+    id: `msg-${Date.now()}`,
+    conversationId,
+    senderId: 'tenant_current',
+    senderName: 'Siz',
+    senderRole: 'STUDENT',
+    text,
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  }),
 };
+

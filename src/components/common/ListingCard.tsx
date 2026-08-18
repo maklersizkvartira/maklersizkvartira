@@ -12,7 +12,7 @@ interface ListingCardProps {
 }
 
 export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
-  const { setCurrentView, toggleFavorite, favorites } = useAppStore();
+  const { setCurrentView, toggleFavorite, favorites, currency } = useAppStore();
   const favorite = favorites.includes(listing.id);
   const cover = listing.images?.[0];
 
@@ -20,18 +20,27 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
     setCurrentView('LISTING_DETAIL', listing.id);
   };
 
+  const USD_RATE = 12800;
+  const priceInUsd = listing.price > 10000 ? Math.round(listing.price / USD_RATE) : listing.price;
+  const priceInUzs = listing.price > 10000 ? listing.price : listing.price * USD_RATE;
+
   return (
     <div
       onClick={handleCardClick}
       className="group bg-white rounded-2xl sm:rounded-3xl overflow-hidden border border-slate-200 shadow-card hover:shadow-xl transition-all duration-300 flex flex-col w-full min-w-0 cursor-pointer h-full"
     >
-      <div className="relative aspect-[4/3] w-full bg-slate-100 overflow-hidden">
+      <div className="relative aspect-[4/3] w-full bg-slate-200 animate-pulse overflow-hidden">
         {cover && (
           <img
             src={cover}
             alt={listing.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 opacity-0"
             loading="lazy"
+            decoding="async"
+            onLoad={(e) => {
+              e.currentTarget.classList.remove('opacity-0');
+              e.currentTarget.parentElement?.classList.remove('animate-pulse');
+            }}
           />
         )}
 
@@ -83,6 +92,11 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
           </h3>
 
           <div className="hidden sm:flex items-center gap-2 pt-1 flex-wrap">
+            {listing.isRoommate && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
+                🤝 Sherikchilikka
+              </span>
+            )}
             {listing.aiCheckStatus === 'APPROVED' ? (
               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                 <CheckCircle2 className="w-3 h-3 text-emerald-600" /> 0% makler
@@ -92,20 +106,30 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
                 <AlertTriangle className="w-3 h-3 text-amber-600" /> AI tekshiruvi
               </span>
             )}
-            {listing.hasVirtualTour && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                <Sparkles className="w-3 h-3 text-amber-400" /> 360°
+            {listing.videoUrl && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                🎥 Video Sharh
               </span>
             )}
           </div>
         </div>
 
         <div className="pt-1.5 sm:pt-3 border-t border-slate-100 flex items-end justify-between gap-1 min-w-0">
-          <div className="min-w-0">
-            <div className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider">Oylik</div>
-            <div className="text-[13px] sm:text-lg font-black text-emerald-800 tracking-tight leading-tight">
-              {(listing.price / 1000000).toFixed(1)}
-              <span className="text-[10px] sm:text-xs font-bold text-slate-600"> mln</span>
+          <div className="min-w-0 flex items-center gap-1.5">
+            <img
+              src={listing.owner?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300'}
+              alt={listing.owner?.name || 'Uy Egasi'}
+              className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover border border-slate-200 shrink-0"
+            />
+            <div className="min-w-0">
+            <div className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate">{(listing.owner?.name || 'Uy Egasi').split(' ')[0]}</div>
+            <div className="text-[13px] sm:text-lg font-black text-emerald-700 tracking-tight leading-tight">
+              {currency === 'USD' ? (
+                <span>${priceInUsd}<span className="text-[10px] sm:text-xs font-bold text-slate-500">{listing.isRoommate ? ' / kishi' : ' / oy'}</span></span>
+              ) : (
+                <span>{(priceInUzs / 1000000).toFixed(1)}<span className="text-[10px] sm:text-xs font-bold text-slate-500">{listing.isRoommate ? ' mln/kishi' : ' mln'}</span></span>
+              )}
+            </div>
             </div>
           </div>
           <span className="hidden sm:inline-flex bg-slate-900 group-hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl transition-colors items-center gap-1 shadow-sm shrink-0">

@@ -10,7 +10,7 @@ export const ReferralPage: React.FC = () => {
   const [copied, setCopied] = useState(false);
 
   const referralCode = 'ZAYN123';
-  const referralLink = `https://maklersiz.uz/r/${referralCode}`;
+  const referralLink = `https://maklersizuy.uz/r/${referralCode}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(referralLink);

@@ -7,7 +7,7 @@ export const HeroSection: React.FC = () => {
   const { 
     searchQuery, setSearchQuery, 
     selectedRegion, selectedDistrict,
-    roomsCount, maxPrice,
+    roomsCount, maxPrice, audience, rentalType,
     setFilters, setCurrentView 
   } = useAppStore();
 
@@ -27,13 +27,14 @@ export const HeroSection: React.FC = () => {
       selectedDistrict: localDistrict,
       roomsCount: localRooms,
       maxPrice: localMaxPrice,
+      sortBy: 'AI',
     });
     setCurrentView('SEARCH');
   };
 
   return (
     <section className="relative bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white pt-6 sm:pt-12 pb-10 sm:pb-16 px-3 sm:px-6 overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full overflow-hidden pointer-events-none opacity-25">
+      <div className="hidden sm:block absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full overflow-hidden pointer-events-none opacity-25">
         <div className="absolute -top-24 left-1/4 w-72 h-72 sm:w-96 sm:h-96 bg-emerald-500 rounded-full blur-3xl" />
         <div className="absolute top-10 right-1/4 w-72 h-72 sm:w-96 sm:h-96 bg-teal-600 rounded-full blur-3xl" />
       </div>
@@ -69,6 +70,13 @@ export const HeroSection: React.FC = () => {
               <Search className="w-4 h-4 text-emerald-600 absolute left-3 top-3.5" />
             </div>
 
+
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => setFilters({ audience: 'ALL', rentalType: 'ALL' })} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black border transition-all ${audience === 'ALL' && rentalType === 'ALL' ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>Barchasi</button>
+              <button type="button" onClick={() => setFilters({ rentalType: 'FULL' })} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black border transition-all ${rentalType === 'FULL' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>🏠 Butun Kvartira</button>
+              <button type="button" onClick={() => setFilters({ rentalType: 'ROOMMATE' })} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black border transition-all ${rentalType === 'ROOMMATE' ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>🤝 Sherikchilikka</button>
+              <button type="button" onClick={() => setFilters({ audience: 'STUDENT' })} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black border transition-all ${audience === 'STUDENT' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>🎓 Talabaga</button>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-xs">
               <div className="space-y-1 min-w-0">
                 <label className="text-[10px] sm:text-xs font-bold text-slate-600 flex items-center gap-1">

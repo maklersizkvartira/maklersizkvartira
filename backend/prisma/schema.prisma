@@ -9,6 +9,7 @@ generator client {
 
 enum Role {
   TENANT
+  STUDENT
   OWNER
   MODERATOR
   ADMIN
@@ -199,4 +200,71 @@ model AuditLog {
   targetId   String
   ipAddress  String?
   createdAt  DateTime @default(now())
+}
+
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  listingId String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, listingId])
+  @@index([userId])
+  @@index([listingId])
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String
+  senderId       String
+  text           String
+  createdAt      DateTime @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
+
+model Payment {
+  id        String   @id @default(uuid())
+  userId    String
+  listingId String?
+  amount    Float
+  currency  String   @default("UZS")
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([status])
+}
+
+model PropertyView {
+  id        String   @id @default(uuid())
+  listingId String
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@index([listingId, createdAt])
+}
+
+model Location {
+  id        String  @id @default(uuid())
+  region    String
+  district  String
+  latitude  Float?
+  longitude Float?
+
+  @@unique([region, district])
+  @@index([region])
 }

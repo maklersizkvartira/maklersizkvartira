@@ -1,18 +1,19 @@
 import React, { useMemo, useState } from 'react';
 import { 
   Filter, SlidersHorizontal, RefreshCw, Search, ShieldCheck, MapPin, 
-  Train, GraduationCap, DollarSign, Home, CheckCircle2, ChevronDown, ChevronUp 
+  Train, GraduationCap, DollarSign, Home, CheckCircle2, ChevronDown, ChevronUp, X 
 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { ListingCard } from '../common/ListingCard';
 import { MOCK_UNIVERSITIES } from '../../data/mockUniversities';
 import { UZBEKISTAN_REGIONS } from '../../data/mockLocations';
+import { rankListings } from '../../services/aiEngine';
 
 export const SearchPage: React.FC = () => {
   const { 
     listings, searchQuery, setSearchQuery,
     selectedRegion, selectedDistrict, selectedUniversity, selectedMetro,
-    maxPrice, roomsCount, onlyVerified, minTrustScore, sortBy,
+    maxPrice, roomsCount, onlyVerified, minTrustScore, sortBy, audience, rentalType,
     setFilters, resetFilters, setCurrentView
   } = useAppStore();
 
@@ -24,7 +25,7 @@ export const SearchPage: React.FC = () => {
 
   // Filter listings
   const filteredListings = useMemo(() => {
-    return listings.filter((listing) => {
+    const base = listings.filter((listing) => {
       // Keyword search
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -42,7 +43,7 @@ export const SearchPage: React.FC = () => {
       }
 
       // District filter
-      if (selectedDistrict !== 'Barchasi' && listing.district !== selectedDistrict) {
+      if (selectedDistrict !== 'Barchasi' && listing.district.toLowerCase() !== selectedDistrict.toLowerCase()) {
         return false;
       }
 
@@ -64,6 +65,10 @@ export const SearchPage: React.FC = () => {
         return false;
       }
 
+      // Rental Type filter (Full vs Roommate)
+      if (rentalType === 'FULL' && listing.isRoommate) return false;
+      if (rentalType === 'ROOMMATE' && !listing.isRoommate) return false;
+
       // Rooms filter
       if (roomsCount !== null && listing.rooms !== roomsCount) {
         return false;
@@ -79,18 +84,72 @@ export const SearchPage: React.FC = () => {
         return false;
       }
 
+      // Audience filter
+      if (audience === 'STUDENT' && !listing.safetyBadges.includes('STUDENT_FRIENDLY')) {
+        return false;
+      }
+
       return true;
-    }).sort((a, b) => {
+    });
+    if (sortBy === 'AI') {
+      const ranked = rankListings(base, {
+        region: selectedRegion,
+        district: selectedDistrict,
+        maxPrice,
+        rooms: roomsCount,
+        audience,
+        metro: selectedMetro,
+        nearMetro: selectedMetro !== 'Barchasi',
+        query: searchQuery,
+      });
+      return ranked.map((r) => r.listing);
+    }
+    return base.sort((a, b) => {
       if (sortBy === 'TRUST') return b.trustScore - a.trustScore;
       if (sortBy === 'PRICE_LOW') return a.price - b.price;
       if (sortBy === 'PRICE_HIGH') return b.price - a.price;
       if (sortBy === 'NEWEST') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       return 0;
     });
-  }, [listings, searchQuery, selectedRegion, selectedDistrict, selectedMetro, selectedUniversity, maxPrice, roomsCount, onlyVerified, minTrustScore, sortBy]);
+  }, [listings, searchQuery, selectedRegion, selectedDistrict, selectedMetro, selectedUniversity, maxPrice, roomsCount, onlyVerified, minTrustScore, sortBy, audience, rentalType]);
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-5 sm:py-8 min-h-[80vh] w-full overflow-x-hidden">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 min-h-[80vh] w-full overflow-x-hidden">
+      {/* Top Prominent Search Input & Button Bar */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+        }}
+        className="mb-4 bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200 shadow-md flex items-center gap-2 w-full"
+      >
+        <div className="relative flex-1 min-w-0">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Tuman, metro, universitet yoki 2 xona..."
+            className="w-full bg-slate-100/90 border border-slate-200 rounded-xl pl-9 pr-8 py-2.5 text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+          />
+          <Search className="w-4 h-4 text-emerald-600 absolute left-3 top-3 shrink-0" />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 p-0.5 rounded-full"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        <button
+          type="submit"
+          className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm px-4 sm:px-6 py-2.5 rounded-xl shadow-md flex items-center justify-center gap-1.5 shrink-0 transition-transform active:scale-95"
+        >
+          <Search className="w-4 h-4" />
+          <span>Qidirish</span>
+        </button>
+      </form>
+
       {/* Search Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
@@ -133,7 +192,7 @@ export const SearchPage: React.FC = () => {
         <div className={`lg:block ${showMobileFilters ? 'block' : 'hidden'} lg:col-span-1 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-card h-fit space-y-5 w-full`}>
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-              <SlidersHorizontal className="w-4 h-4 text-emerald-600" /> Viloyat va Tuman Filtrlar
+              <SlidersHorizontal className="w-4 h-4 text-emerald-600" /> Filtrlar
             </h3>
             <button
               onClick={resetFilters}
@@ -141,6 +200,34 @@ export const SearchPage: React.FC = () => {
             >
               <RefreshCw className="w-3 h-3" /> Tozalash
             </button>
+          </div>
+
+          {/* Rental Category Selector */}
+          <div className="space-y-1.5 pb-2 border-b border-slate-100">
+            <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block">Ijara Turi</label>
+            <div className="flex flex-col gap-1.5 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setFilters({ rentalType: 'ALL' })}
+                className={`w-full py-2 px-3 rounded-xl border text-left flex items-center justify-between transition-all ${rentalType === 'ALL' ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
+              >
+                <span>Barchasi (Hammasi)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilters({ rentalType: 'FULL' })}
+                className={`w-full py-2 px-3 rounded-xl border text-left flex items-center justify-between transition-all ${rentalType === 'FULL' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
+              >
+                <span>🏠 Butun Kvartira</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilters({ rentalType: 'ROOMMATE' })}
+                className={`w-full py-2 px-3 rounded-xl border text-left flex items-center justify-between transition-all ${rentalType === 'ROOMMATE' ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
+              >
+                <span>🤝 Sherikchilikka (Kvartira Sherik)</span>
+              </button>
+            </div>
           </div>
 
           {/* Region Filter */}
@@ -282,7 +369,7 @@ export const SearchPage: React.FC = () => {
         {/* Right Listings Grid */}
         <div className="lg:col-span-3 w-full">
           {filteredListings.length > 0 ? (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-6 w-full">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-5 w-full">
               {filteredListings.map((listing) => (
                 <ListingCard key={listing.id} listing={listing} />
               ))}

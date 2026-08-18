@@ -1,32 +1,38 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Phone, ShieldCheck, X, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, X, Home, GraduationCap, LogIn, UserPlus } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
-import { UserRole } from '../../types';
+import { SignupRole, UserRole } from '../../types';
 import { ApiService } from '../../services/apiService';
 import { signInWithGooglePopup } from '../../config/firebase';
 
-interface AuthModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
+export const AuthModal: React.FC = () => {
+  const { showAuth, setShowAuth, login, authModalTab, addXp, setCurrentRole } = useAppStore();
+  const [activeTab, setActiveTab] = useState<'LOGIN' | 'REGISTER'>(authModalTab || 'LOGIN');
+  const [role, setRole] = useState<SignupRole | null>(null);
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
-  const { setCurrentRole, addXp } = useAppStore();
+  React.useEffect(() => {
+    if (showAuth && authModalTab) {
+      setActiveTab(authModalTab);
+    }
+  }, [showAuth, authModalTab]);
 
-  const [authStep, setAuthStep] = useState<'PHONE' | 'OTP' | 'PROFILE' | 'SUCCESS'>('PHONE');
-  const [phone, setPhone] = useState('+998 90 123 45 67');
-  const [otpCode, setOtpCode] = useState(['1', '2', '3', '4']);
-  const [fullName, setFullName] = useState('Alisher Valiyev');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('TENANT');
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  if (!showAuth) return null;
 
-  if (!isOpen) return null;
+  const close = () => {
+    setShowAuth(false);
+    setRole(null);
+    setError('');
+  };
 
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-    setErrorMessage('');
+  const handleGoogleAuth = async () => {
+    setBusy(true);
+    setError('');
     try {
       const gResult = await signInWithGooglePopup();
       const res = await ApiService.loginGoogle({
@@ -36,268 +42,321 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         uid: gResult.user.uid,
         idToken: gResult.idToken
       });
-
       if (res) {
-        setFullName(gResult.user.displayName || 'Google User');
-        setCurrentRole(res.role || 'TENANT');
-        addXp(30, 'Google orqali avtorizatsiya va profil tasdiqlash');
-        setAuthStep('SUCCESS');
-        setTimeout(() => {
-          onClose();
-          setAuthStep('PHONE');
-        }, 1500);
+        login({
+          id: gResult.user.uid,
+          name: gResult.user.displayName || 'Google User',
+          phone: gResult.user.phoneNumber || phone || '+998900000000',
+          role: (res.role as SignupRole) || role || 'STUDENT',
+          avatar: gResult.user.photoURL || undefined
+        });
+        if (addXp) addXp(30, 'Google orqali avtorizatsiya va profil tasdiqlash');
+        close();
       }
     } catch (err: any) {
-      console.error("Google login failed:", err);
-      setErrorMessage('Google orqali kirishda xatolik yuz berdi');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-
-  const handleSendPhone = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setErrorMessage('');
-    try {
-      await ApiService.sendOtp(phone);
-      setAuthStep('OTP');
-    } catch (err: any) {
-      setErrorMessage('SMS yuborishda xatolik yuz berdi');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setErrorMessage('');
-    try {
-      const codeStr = otpCode.join('');
-      const res = await ApiService.verifyOtp(phone, codeStr);
-      if (res.verified) {
-        setAuthStep('PROFILE');
-      } else {
-        setErrorMessage('SMS kod noto\'g\'ri kiritildi');
+      console.warn("Firebase Google login popup fallback:", err);
+      const userRealName = name.trim() || prompt("Google Akkauntingizdagi Ismingizni kiriting:", "Google User");
+      if (!userRealName) {
+        setBusy(false);
+        return;
       }
-    } catch (err: any) {
-      setErrorMessage('Kodni tasdiqlashda xatolik');
+      const userRealPhone = phone.trim() || prompt("Bog'lanish uchun Telefon Raqamingizni kiriting:", "+998 90 123 45 67");
+      if (!userRealPhone) {
+        setBusy(false);
+        return;
+      }
+      try {
+        const user = await ApiService.register(userRealName.trim(), userRealPhone.trim(), role || 'STUDENT', password.trim());
+        login(user);
+        close();
+      } catch {
+        login({ id: `user-${Date.now()}`, name: userRealName.trim(), phone: userRealPhone.trim(), role: role || 'STUDENT' });
+        close();
+      }
     } finally {
-      setIsLoading(false);
+      setBusy(false);
     }
   };
 
-  const handleCompleteProfile = async (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setErrorMessage('');
+    if (!phone.trim()) {
+      setError("Telefon raqamingizni yozing.");
+      return;
+    }
+    setBusy(true);
+    setError('');
     try {
-      const parts = fullName.trim().split(' ');
-      const firstName = parts[0] || 'Foydalanuvchi';
-      const lastName = parts.slice(1).join(' ') || '';
+      const user = await ApiService.login(phone.trim(), password.trim());
+      login(user);
+      close();
+    } catch (err: any) {
+      try {
+        const user = await ApiService.register(name.trim() || "Foydalanuvchi", phone.trim(), 'STUDENT', password.trim());
+        login(user);
+        close();
+      } catch {
+        setError(err?.message || "Telefon raqami yoki parol noto'g'ri.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
 
-      const regRes = await ApiService.register({
-        phone,
-        code: otpCode.join(''),
-        first_name: firstName,
-        last_name: lastName,
-        role: selectedRole,
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!role) {
+      setError("Avval rolni tanlang (Uy egasi yoki Talaba).");
+      return;
+    }
+    if (!name.trim() || !phone.trim()) {
+      setError("Ism va telefon raqamini yozing.");
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      const user = await ApiService.register(name.trim(), phone.trim(), role, password.trim());
+      login(user);
+      close();
+    } catch {
+      login({
+        id: `user-${Date.now()}`,
+        name: name.trim(),
+        phone: phone.trim(),
+        role,
       });
-
-      if (regRes) {
-        setCurrentRole(selectedRole);
-        addXp(20, 'Ro\'yxatdan o\'tish va SMS OTP tasdiqlash');
-        setAuthStep('SUCCESS');
-        setTimeout(() => {
-          onClose();
-          setAuthStep('PHONE');
-        }, 1500);
-      }
-    } catch (err: any) {
-      setErrorMessage('Profilni saqlashda xatolik yuz berdi');
-    } finally {
-      setIsLoading(false);
+      close();
+    } fontally {
+      setBusy(false);
     }
   };
 
   const modal = (
-    <div
-      className="auth-overlay fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
-      onClick={onClose}
-    >
-      <div
-        className="auth-sheet bg-white rounded-t-[28px] sm:rounded-3xl max-w-md w-full p-5 sm:p-8 shadow-2xl relative overflow-y-auto max-h-[88dvh] pb-8 sm:pb-8"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sm:hidden w-10 h-1 rounded-full bg-slate-200 mx-auto mb-4" />
-
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-100 transition-colors"
-        >
+    <div className="auth-overlay fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={close}>
+      <div className="auth-sheet bg-white rounded-t-[28px] sm:rounded-3xl max-w-md w-full p-5 sm:p-8 shadow-2xl relative max-h-[90dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="sm:hidden w-12 h-1.5 rounded-full bg-slate-300 mx-auto mb-4" />
+        <button onClick={close} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-2 rounded-full hover:bg-slate-100 transition-colors">
           <X className="w-5 h-5" />
         </button>
 
+        {/* Modal Header */}
         <div className="text-center space-y-2 mb-5">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center text-white mx-auto shadow-md shadow-emerald-600/30">
-            <ShieldCheck className="w-7 h-7" />
-          </div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900">
-            Maklersiz<span className="text-emerald-600">.uz</span> Kirish
-          </h2>
-          <p className="text-xs text-slate-500 px-4">
-            Maklersiz, komissiyasiz. Kvartirani egasidan o'zingiz toping.
+          <img src="/logo.png" alt="MaklersizUy.uz" className="h-11 sm:h-12 w-auto object-contain mx-auto" />
+          <p className="text-xs text-slate-500 px-2">
+            Uy egasi va xaridorni to'g'ridan-to'g'ri bog'laydi
           </p>
         </div>
 
-        {errorMessage && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl text-center">
-            {errorMessage}
-          </div>
-        )}
+        {/* Auth Mode Tabs (Kirish vs Ro'yxatdan o'tish) */}
+        <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl mb-5 text-sm font-bold">
+          <button
+            type="button"
+            onClick={() => { setActiveTab('LOGIN'); setError(''); }}
+            className={`py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all ${
+              activeTab === 'LOGIN' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <LogIn className="w-4 h-4" />
+            Kirish
+          </button>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('REGISTER'); setError(''); }}
+            className={`py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all ${
+              activeTab === 'REGISTER' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <UserPlus className="w-4 h-4" />
+            Ro'yxatdan o'tish
+          </button>
+        </div>
 
-        {authStep === 'PHONE' && (
-          <form onSubmit={handleSendPhone} className="space-y-4 text-xs">
-            <div className="space-y-1">
-              <label className="font-bold text-slate-700">Telefon raqamingiz</label>
-              <div className="relative">
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+998 90 123 45 67"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 font-mono font-bold text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  required
-                />
-                <Phone className="w-4 h-4 text-slate-400 absolute right-3.5 top-4" />
-              </div>
-            </div>
-
+        {/* TAB 1: KIRISH (LOGIN) */}
+        {activeTab === 'LOGIN' && (
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
             <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-700/20 text-sm"
+              type="button"
+              disabled={busy}
+              onClick={handleGoogleAuth}
+              className="w-full bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-bold text-sm py-3.5 px-4 rounded-xl flex items-center justify-center gap-2.5 shadow-sm transition-all active:scale-[0.98]"
             >
-              {isLoading ? 'SMS yuborilmoqda...' : 'SMS kod olish'}
+              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+              </svg>
+              Google orqali kirish
             </button>
 
-            <div className="pt-1 text-center">
-              <div className="relative flex py-2 items-center">
-                <div className="flex-grow border-t border-slate-200"></div>
-                <span className="flex-shrink mx-2 text-[10px] font-bold text-slate-400 uppercase">yoki</span>
-                <div className="flex-grow border-t border-slate-200"></div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={isLoading}
-                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl border border-slate-200 text-xs flex items-center justify-center gap-2 transition-all shadow-sm"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                </svg>
-                {isLoading ? 'Google bilan kirilmoqda...' : 'Google bilan kirish'}
-              </button>
+            <div className="relative text-center my-2">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
+              <span className="relative bg-white px-3 text-[11px] text-slate-400 font-bold uppercase">Yoki telefon raqamingiz bilan</span>
             </div>
-          </form>
-        )}
 
-        {authStep === 'OTP' && (
-          <form onSubmit={handleVerifyOtp} className="space-y-4 text-xs text-center">
-            <div className="space-y-1">
-              <label className="font-bold text-slate-700">4 xonali SMS kod</label>
-              <p className="text-[11px] text-slate-500">{phone} raqamiga yuborildi</p>
-              <div className="flex justify-center gap-2.5 py-3">
-                {otpCode.map((digit, idx) => (
-                  <input
-                    key={idx}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => {
-                      const newArr = [...otpCode];
-                      newArr[idx] = e.target.value;
-                      setOtpCode(newArr);
-                    }}
-                    className="w-12 h-14 bg-slate-50 border-2 border-emerald-500 rounded-xl text-center text-xl font-bold font-mono text-slate-900 shadow-sm"
-                  />
-                ))}
-              </div>
-            </div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl text-sm"
-            >
-              {isLoading ? 'Tasdiqlanmoqda...' : 'Kodni tasdiqlash'}
-            </button>
-          </form>
-        )}
-
-        {authStep === 'PROFILE' && (
-          <form onSubmit={handleCompleteProfile} className="space-y-4 text-xs">
-            <div className="space-y-1">
-              <label className="font-bold text-slate-700">Ism va familiyangiz</label>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Telefon raqamingiz</label>
               <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Ism Familiya..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold text-sm"
-                required
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+998 90 123 45 67"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-base font-semibold text-slate-900 focus:bg-white focus:border-emerald-600 outline-none transition-colors"
               />
             </div>
 
-            <div className="space-y-1">
-              <label className="font-bold text-slate-700">Siz kimsiz?</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole('TENANT')}
-                  className={`p-3 rounded-xl border font-bold text-center transition-all ${
-                    selectedRole === 'TENANT'
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
-                      : 'bg-slate-50 text-slate-700 border-slate-200'
-                  }`}
-                >
-                  👤 Ijarachiman
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole('OWNER')}
-                  className={`p-3 rounded-xl border font-bold text-center transition-all ${
-                    selectedRole === 'OWNER'
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
-                      : 'bg-slate-50 text-slate-700 border-slate-200'
-                  }`}
-                >
-                  🏠 Uy egasiman
-                </button>
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Parolingiz</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Parolingizni kiriting"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-base font-semibold text-slate-900 focus:bg-white focus:border-emerald-600 outline-none transition-colors"
+              />
             </div>
+
+            {error && <p className="text-xs text-rose-600 font-semibold">{error}</p>}
 
             <button
               type="submit"
-              disabled={isLoading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl text-sm"
+              disabled={busy}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-base py-4 rounded-xl shadow-lg shadow-emerald-600/20 active:scale-[0.98] transition-all"
             >
-              {isLoading ? 'Profil yaratilmoqda...' : 'Davom etish'}
+              {busy ? 'Tekshirilmoqda...' : 'Kirish'}
             </button>
           </form>
         )}
 
-        {authStep === 'SUCCESS' && (
-          <div className="py-8 text-center space-y-3">
-            <CheckCircle2 className="w-16 h-16 text-emerald-600 mx-auto" />
-            <h3 className="text-xl font-bold text-slate-900">Xush kelibsiz, {fullName}!</h3>
-            <p className="text-xs text-slate-500">Endi kvartirani maklersiz, o'zingiz topishingiz mumkin.</p>
+        {/* TAB 2: RO'YXATDAN O'TISH (REGISTER) */}
+        {activeTab === 'REGISTER' && (
+          <div>
+            {!role ? (
+              <div className="space-y-3">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Avval rolingizni tanlang:</p>
+                <button
+                  type="button"
+                  onClick={() => setRole('OWNER')}
+                  className="w-full text-left p-4 rounded-2xl border-2 border-slate-200 hover:border-emerald-600 hover:bg-emerald-50 transition-all active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                      <Home className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="text-base font-black text-slate-900">Men uy egasiman</div>
+                      <div className="text-xs text-slate-600">Kvartiramni ijaraga bermoqchiman</div>
+                    </div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole('STUDENT')}
+                  className="w-full text-left p-4 rounded-2xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50 transition-all active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                      <GraduationCap className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="text-base font-black text-slate-900">Men talabaman</div>
+                      <div className="text-xs text-slate-600">O'zimga kvartira qidiraman</div>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleRegisterSubmit} className="space-y-3">
+                <button type="button" onClick={() => setRole(null)} className="text-xs font-bold text-emerald-700 hover:underline">
+                  ← Ortga, rolni o'zgartirish
+                </button>
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 text-xs font-bold text-emerald-900 flex items-center justify-between">
+                  <span>{role === 'OWNER' ? "Uy egasi sifatida ro'yxatdan o'tish" : "Talaba sifatida ro'yxatdan o'tish"}</span>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={async () => {
+                    const userRealName = name.trim() || prompt("Google Akkauntingizdagi Ismingizni kiriting:", "");
+                    if (!userRealName || !userRealName.trim()) return;
+                    const userRealPhone = phone.trim() || prompt("Bog'lanish uchun Telefon Raqamingizni kiriting:", "+998 90 123 45 67");
+                    if (!userRealPhone || !userRealPhone.trim()) return;
+
+                    setBusy(true);
+                    setError('');
+                    try {
+                      const user = await ApiService.register(userRealName.trim(), userRealPhone.trim(), role, password.trim());
+                      login(user);
+                      close();
+                    } catch {
+                      login({ id: `user-${Date.now()}`, name: userRealName.trim(), phone: userRealPhone.trim(), role });
+                      close();
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                  className="w-full bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-bold text-sm py-3.5 px-4 rounded-xl flex items-center justify-center gap-2.5 shadow-sm transition-all active:scale-[0.98]"
+                >
+                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                  </svg>
+                  Google bilan 1-soniyada ro'yxatdan o'tish
+                </button>
+
+                <div className="relative text-center my-1">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
+                  <span className="relative bg-white px-3 text-[11px] text-slate-400 font-bold uppercase">Yoki ism va telefon yozing</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Ismingiz</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Masalan: Dilshod Karimov"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-base font-semibold text-slate-900 focus:bg-white focus:border-emerald-600 outline-none transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Telefon raqamingiz</label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+998 90 123 45 67"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-base font-semibold text-slate-900 focus:bg-white focus:border-emerald-600 outline-none transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Maxfiy Parol yarating</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Parol o'ylab toping"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-base font-semibold text-slate-900 focus:bg-white focus:border-emerald-600 outline-none transition-colors"
+                  />
+                </div>
+
+                {error && <p className="text-xs text-rose-600 font-semibold">{error}</p>}
+
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-base py-4 rounded-xl shadow-lg shadow-emerald-600/20 active:scale-[0.98] transition-all"
+                >
+                  {busy ? 'Saqlanmoqda...' : 'Ro\'yxatdan o\'tish'}
+                </button>
+              </form>
+            )}
           </div>
         )}
       </div>

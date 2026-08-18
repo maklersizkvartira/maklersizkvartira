@@ -89,9 +89,11 @@ backend/dist
 .env.test.local
 .env.production.local
 
-# Database & Scratch
+# Database & Scratch & Python cache
 *.db
 scratch/
 __pycache__/
 *.pyc
+backend/__pycache__/
+backend/app/__pycache__/
 

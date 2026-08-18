@@ -15,6 +15,7 @@ html, body {
   margin: 0;
   padding: 0;
   -webkit-text-size-adjust: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 #root {
@@ -31,7 +32,7 @@ html, body {
   body {
     background-color: #f8fafc;
     color: #0f172a;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
   }
   
   img, video, iframe {

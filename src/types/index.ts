@@ -1,4 +1,14 @@
-export type UserRole = 'TENANT' | 'OWNER' | 'MODERATOR' | 'ADMIN';
+export type UserRole = 'TENANT' | 'STUDENT' | 'OWNER' | 'MODERATOR' | 'ADMIN';
+
+export type SignupRole = 'STUDENT' | 'OWNER';
+
+export interface CurrentUser {
+  id: string;
+  name: string;
+  phone: string;
+  role: SignupRole;
+  avatar?: string;
+}
 
 export type TrustLevel = 'RED' | 'YELLOW' | 'GREEN' | 'PREMIUM_GREEN';
 
@@ -80,6 +90,9 @@ export interface Listing {
   viewsCount: number;
   favoritesCount: number;
   contactCount: number;
+  isRoommate?: boolean; // True if listing is for Sherikchilikka (Roommate sharing)
+  roommateGender?: 'BOYS' | 'GIRLS' | 'ANY'; // Sherik jinsi: Yigitlar / Qizlar / Farqi yo'q
+  roommateSpotsAvailable?: number; // Qancha sherik kerak
   isFeatured?: boolean;
 }
 

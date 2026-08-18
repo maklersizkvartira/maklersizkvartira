@@ -2,17 +2,20 @@ import React, { useState } from 'react';
 import { 
   ShieldCheck, MapPin, Train, GraduationCap, Phone, MessageSquare, 
   Heart, Share2, Flag, ArrowLeft, CheckCircle2, AlertTriangle, Eye, Sparkles, 
-  Video, Compass, Info, Check, ShieldAlert
+  Video, Compass, Info, Check, ShieldAlert, Edit, Trash2
 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { TrustScoreBadge } from '../common/TrustScoreBadge';
 import { VerificationBadge } from '../common/VerificationBadge';
 import { ListingCard } from '../common/ListingCard';
+import { EditListingModal } from '../owner/EditListingModal';
 
 export const ListingDetailPage: React.FC = () => {
   const { 
     selectedListingId, listings, favorites, toggleFavorite, 
-    openChatWithListing, setCurrentView, resolveReport 
+    openChatWithListing, setCurrentView, resolveReport,
+    currentUser, setShowAuth, setEditingListing, removeListing,
+    currency
   } = useAppStore();
 
   const [activeMedia, setActiveMedia] = useState<'IMAGE' | 'VIDEO' | 'TOUR360'>('IMAGE');
@@ -25,6 +28,10 @@ export const ListingDetailPage: React.FC = () => {
 
   const listing = listings.find((l) => l.id === selectedListingId) || listings[0];
   const isFav = favorites.includes(listing.id);
+
+  const USD_RATE = 12800;
+  const priceInUsd = listing ? (listing.price > 10000 ? Math.round(listing.price / USD_RATE) : listing.price) : 0;
+  const priceInUzs = listing ? (listing.price > 10000 ? listing.price : listing.price * USD_RATE) : 0;
 
 
   const formatPrice = (amount: number) => new Intl.NumberFormat('uz-UZ').format(amount);
@@ -84,6 +91,11 @@ export const ListingDetailPage: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2">
           <TrustScoreBadge score={listing.trustScore} size="md" />
           <VerificationBadge level={listing.owner.verificationLevel} size="md" />
+          {listing.isRoommate && (
+            <span className="bg-amber-500 text-slate-900 text-xs font-black px-3 py-1 rounded-md flex items-center gap-1 shadow-sm">
+              🤝 Sherikchilikka ({listing.roommateSpotsAvailable || 1} ta sherik o'rni bor)
+            </span>
+          )}
           <span className="bg-slate-100 text-slate-700 text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1">
             <Eye className="w-3.5 h-3.5" /> {listing.viewsCount} ko'rishlar
           </span>
@@ -92,6 +104,37 @@ export const ListingDetailPage: React.FC = () => {
         <h1 className="text-2xl sm:text-3xl font-black text-slate-900 leading-tight">
           {listing.title}
         </h1>
+
+        {currentUser?.id === listing.owner.id && (
+          <div className="bg-slate-900 border border-slate-800 p-3 rounded-2xl flex items-center justify-between gap-3 shadow-lg my-2">
+            <div className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+              <span>🏠 Siz ushbu e'lon egasisiz</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingListing(listing)}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1 shadow-md active:scale-95"
+              >
+                <Edit className="w-3.5 h-3.5" />
+                <span>Tahrirlash</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm("Haqiqatan ham ushbu e'lonni o'chirasizmi?")) {
+                    removeListing(listing.id);
+                    setCurrentView('MY_LISTINGS');
+                  }
+                }}
+                className="bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30 font-extrabold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1 active:scale-95"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>O'chirish</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
           <div className="flex items-center gap-1">
@@ -130,15 +173,7 @@ export const ListingDetailPage: React.FC = () => {
               onClick={() => setActiveMedia('VIDEO')}
               className={`px-3 py-1.5 rounded-lg flex items-center gap-1 ${activeMedia === 'VIDEO' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
             >
-              <Video className="w-3.5 h-3.5 text-rose-400" /> Video Ko'rinish
-            </button>
-          )}
-          {listing.hasVirtualTour && (
-            <button
-              onClick={() => setActiveMedia('TOUR360')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1 ${activeMedia === 'TOUR360' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
-            >
-              <Compass className="w-3.5 h-3.5 text-emerald-400" /> 360° Sayohat (Virtual Tour)
+              <Video className="w-3.5 h-3.5 text-rose-500" /> Video Sharh 🎥
             </button>
           )}
         </div>
@@ -155,30 +190,19 @@ export const ListingDetailPage: React.FC = () => {
 
           {activeMedia === 'VIDEO' && (
             <div className="w-full h-full flex flex-col items-center justify-center text-white bg-slate-950 p-6 text-center space-y-3">
-              <Video className="w-12 h-12 text-rose-500 animate-pulse" />
-              <h3 className="font-bold text-lg">Kvartiraning HD Video Sharhi</h3>
-              <p className="text-xs text-slate-400">Owner tomonidan yuklangan video lavha tasdiqlangan.</p>
+              <Video className="w-14 h-14 text-rose-500 animate-bounce" />
+              <h3 className="font-extrabold text-xl text-white">Kvartiraning Video Sharhi</h3>
+              <p className="text-xs text-slate-300 max-w-sm">
+                Uy egasi tomonidan biriktirilgan video sharh mavjud. Videoni tomosha qilish uchun pastdagi tugmani bosing:
+              </p>
               <a
                 href={listing.videoUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="bg-rose-600 text-white font-bold text-xs px-5 py-2 rounded-xl hover:bg-rose-700 transition-colors"
+                className="bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs px-6 py-3 rounded-2xl shadow-lg transition-all active:scale-95 flex items-center gap-2"
               >
-                Videoni Ijro Etish
+                <span>🎥 Videoni Tomosha Qilish (YouTube)</span>
               </a>
-            </div>
-          )}
-
-          {activeMedia === 'TOUR360' && (
-            <div className="w-full h-full flex flex-col items-center justify-center text-white bg-gradient-to-br from-slate-900 to-emerald-950 p-6 text-center space-y-3 relative">
-              <Compass className="w-16 h-16 text-emerald-400 animate-spin" style={{ animationDuration: '10s' }} />
-              <h3 className="font-bold text-xl text-emerald-300">Interaktiv 360° Virtual Sayohat</h3>
-              <p className="text-xs text-slate-300 max-w-md">
-                Sichqoncha yoki barmoq yordamida kvartiraning barcha xonalarini va oshxonasini 360 darajada ko'rib chiqing.
-              </p>
-              <div className="bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 text-xs px-4 py-1.5 rounded-full font-mono">
-                [360° Interaktiv Mode Faol]
-              </div>
             </div>
           )}
         </div>
@@ -231,6 +255,35 @@ export const ListingDetailPage: React.FC = () => {
             <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-line">
               {listing.description}
             </p>
+          </div>
+
+          {/* Aniq Manzil Card */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-card space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-lg text-slate-900 flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-emerald-600" />
+                <span>Kvartiraning Aniq Manzili</span>
+              </h3>
+              <button
+                onClick={() => setCurrentView('MAP')}
+                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs px-3.5 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1 transition-colors"
+              >
+                <span>Xaritada ko'rish 🗺</span>
+              </button>
+            </div>
+            
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+              <div className="text-sm font-bold text-slate-900">
+                📍 {listing.address || `${listing.district} tumani, ${listing.region}`}
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+                <span>Shahar/Viloyat: <strong>{listing.region}</strong></span>
+                <span>Tuman: <strong>{listing.district}</strong></span>
+                {listing.metroStation && (
+                  <span className="text-emerald-700 font-bold">🚇 Metro: {listing.metroStation} ({listing.metroDistanceMinutes || 5} min)</span>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Amenities & Features */}
@@ -292,8 +345,11 @@ export const ListingDetailPage: React.FC = () => {
             <div className="space-y-1">
               <span className="text-xs text-slate-500 font-semibold">Oylik Ijara Narxi</span>
               <div className="text-3xl font-black text-slate-900">
-                {formatPrice(listing.price)}{' '}
-                <span className="text-sm font-normal text-slate-500">so'm/oy</span>
+                {currency === 'USD' ? (
+                  <span>${priceInUsd} <span className="text-sm font-normal text-slate-500">{listing.isRoommate ? '/ kishi boshiga' : '/ oy'}</span></span>
+                ) : (
+                  <span>{new Intl.NumberFormat('uz-UZ').format(priceInUzs)} <span className="text-sm font-normal text-slate-500">{listing.isRoommate ? 'so\'m / kishi boshiga' : 'so\'m/oy'}</span></span>
+                )}
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-600 pt-1">
                 <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
@@ -311,23 +367,23 @@ export const ListingDetailPage: React.FC = () => {
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
               <div className="flex items-center gap-3">
                 <img
-                  src={listing.owner.avatar}
-                  alt={listing.owner.name}
+                  src={listing.owner?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300'}
+                  alt={listing.owner?.name || 'Uy Egasi'}
                   className="w-12 h-12 rounded-full object-cover border-2 border-emerald-500"
                 />
                 <div>
                   <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1">
-                    {listing.owner.name}
+                    {listing.owner?.name || 'Uy Egasi'}
                   </h4>
                   <p className="text-[11px] text-slate-500">
-                    A'zo bo'lgan: {listing.owner.joinedDate} • {listing.owner.successfulRentals} muvaffaqiyatli ijara
+                    A'zo bo'lgan: {listing.owner?.joinedDate || '2024'} • {listing.owner?.successfulRentals || 0} muvaffaqiyatli ijara
                   </p>
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-1.5 pt-1">
-                <TrustScoreBadge score={listing.owner.trustScore} size="sm" />
-                <VerificationBadge level={listing.owner.verificationLevel} size="sm" />
+                <TrustScoreBadge score={listing.owner?.trustScore || 90} size="sm" />
+                <VerificationBadge level={listing.owner?.verificationLevel || 4} size="sm" />
               </div>
             </div>
 
@@ -347,7 +403,13 @@ export const ListingDetailPage: React.FC = () => {
                 </div>
               ) : (
                 <button
-                  onClick={() => setShowPhone(true)}
+                  onClick={() => {
+                    if (!currentUser) {
+                      setShowAuth(true);
+                    } else {
+                      setShowPhone(true);
+                    }
+                  }}
                   className="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold py-3 px-4 rounded-xl border border-slate-300 flex items-center justify-center gap-2 text-sm transition-colors"
                 >
                   <Phone className="w-4 h-4 text-emerald-600" />
@@ -427,6 +489,8 @@ export const ListingDetailPage: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Global Edit Listing Modal */}
+      <EditListingModal />
     </div>
   );
 };
