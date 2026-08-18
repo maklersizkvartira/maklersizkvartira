@@ -44,6 +44,12 @@ export const CreateListingPage: React.FC = () => {
   const [isScanningAI, setIsScanningAI] = useState(false);
   const [scan, setScan] = useState<ListingScanResult | null>(null);
 
+  React.useEffect(() => {
+    if (step === 4 && !scan && !isScanningAI) {
+      runScan();
+    }
+  }, [step]);
+
   const DISTRICT_COORDINATES: Record<string, [number, number]> = {
     'Chilonzor': [41.2780, 69.2080],
     'Yunusobod': [41.3650, 69.2920],
@@ -229,8 +235,10 @@ export const CreateListingPage: React.FC = () => {
     }
   };
 
-  const handleSubmitListing = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmitListing = (e?: React.FormEvent | React.MouseEvent) => {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+    }
 
     const owner = {
       ...MOCK_OWNERS.owner_jasur,

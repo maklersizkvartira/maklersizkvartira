@@ -96,7 +96,7 @@ export const ShieldMascot: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-20 right-3 left-3 sm:left-auto sm:bottom-6 sm:right-6 z-50 max-w-sm sm:w-96 ml-auto pointer-events-auto">
+    <div className="fixed bottom-20 right-3 left-3 sm:left-auto sm:bottom-6 sm:right-6 z-40 max-w-sm sm:w-96 ml-auto pointer-events-auto">
       {open ? (
         <div className="bg-slate-950/95 backdrop-blur-xl text-white rounded-3xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-emerald-500/40 flex flex-col max-h-[80vh] sm:max-h-[480px] overflow-hidden">
           

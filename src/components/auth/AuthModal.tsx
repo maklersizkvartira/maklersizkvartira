@@ -90,7 +90,11 @@ export const AuthModal: React.FC = () => {
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phone.trim()) {
-      setError("Telefon raqamingizni yozing.");
+      setError("Telefon raqamingizni kiriting.");
+      return;
+    }
+    if (!password.trim()) {
+      setError("Parolingizni kiriting.");
       return;
     }
     setBusy(true);
@@ -99,12 +103,7 @@ export const AuthModal: React.FC = () => {
       const user = await ApiService.login(phone.trim(), password.trim());
       triggerSuccessLogin(user, 'Tizimga muvaffaqiyatli kirdingiz');
     } catch (err: any) {
-      try {
-        const user = await ApiService.register(name.trim() || "Foydalanuvchi", phone.trim(), 'STUDENT', password.trim());
-        triggerSuccessLogin(user, 'Ro\'yxatdan o\'tish muvaffaqiyatli amalga oshdi');
-      } catch {
-        setError(err?.message || "Telefon raqami yoki parol noto'g'ri.");
-      }
+      setError(err?.message || "Telefon raqami yoki parol noto'g'ri. Hali ro'yxatdan o'tmagan bo'lsangiz, Ro'yxatdan o'tish bo'limiga o'ting.");
     } finally {
       setBusy(false);
     }

@@ -91,22 +91,33 @@ export const Header: React.FC = () => {
         </nav>
 
         {/* Right Header User Controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {currentUser ? (
-            <button
-              onClick={() => setShowSidebar(true)}
-              className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white font-bold text-xs sm:text-sm pl-1.5 pr-3 py-1 rounded-full transition-all shadow-xs"
-            >
-              <img
-                src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'}
-                alt=""
-                className="w-8 h-8 rounded-full object-cover border border-emerald-400 shrink-0"
-              />
-              <div className="text-left min-w-0 max-w-[120px] sm:max-w-[160px]">
-                <div className="font-extrabold text-xs text-white truncate leading-tight">{currentUser.name}</div>
-                <div className="text-[10px] text-emerald-400 font-bold uppercase">{currentUser.role}</div>
-              </div>
-            </button>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <button
+                onClick={() => setShowSidebar(true)}
+                className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white font-bold text-xs sm:text-sm pl-1.5 pr-3 py-1 rounded-full transition-all shadow-xs"
+              >
+                <img
+                  src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'}
+                  alt=""
+                  className="w-8 h-8 rounded-full object-cover border border-emerald-400 shrink-0"
+                />
+                <div className="text-left min-w-0 max-w-[100px] sm:max-w-[150px]">
+                  <div className="font-extrabold text-xs text-white truncate leading-tight">{currentUser.name}</div>
+                  <div className="text-[10px] text-emerald-400 font-bold uppercase">{currentUser.role}</div>
+                </div>
+              </button>
+
+              {/* Desktop Direct Logout Button */}
+              <button
+                onClick={handleLogout}
+                title="Tizimdan chiqish"
+                className="hidden sm:flex items-center justify-center p-2.5 rounded-full bg-slate-900 hover:bg-rose-950/80 border border-slate-700 hover:border-rose-500 text-slate-300 hover:text-rose-400 transition-all shadow-xs shrink-0 cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           ) : (
             <button
               onClick={() => setShowAuth(true, 'LOGIN')}
