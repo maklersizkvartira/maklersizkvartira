@@ -61,7 +61,28 @@ async def add_cors_headers(request: Request, call_next):
     response.headers["Access-Control-Allow-Credentials"] = "true"
     return response
 
+@app.exception_handler(HTTPException)
+async def custom_http_exception_handler(request: Request, exc: HTTPException):
+    origin = request.headers.get("origin")
+    response = JSONResponse(
+        status_code=exc.status_code,
+        content={"status": "error", "detail": exc.detail}
+    )
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Vary"] = "Origin"
+    else:
+        response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
+    response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, Accept, Origin, X-Requested-With, *"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
+
 # --- Pydantic Data Models (Strict Input Validation) ---
+
+class TrafficTrackRequest(BaseModel):
+    session_id: Optional[str] = None
+    page_path: Optional[str] = "/"
 
 class RegisterRequest(BaseModel):
     name: str = Field(..., min_length=2, description="Foydalanuvchi ismi")
@@ -229,6 +250,17 @@ def save_listings_to_file(listings: List[Dict[str, Any]]):
 LISTINGS_DB: List[Dict[str, Any]] = load_listings_from_file()
 
 # --- API Endpoints ---
+
+TRAFFIC_LOGS: List[Dict[str, Any]] = []
+
+@app.post("/api/v1/traffic/track")
+def track_traffic(req: TrafficTrackRequest):
+    TRAFFIC_LOGS.append({
+        "session_id": req.session_id,
+        "page_path": req.page_path,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ")
+    })
+    return {"status": "success", "message": "Traffic tracked"}
 
 def clean_phone(p: str) -> str:
     import re
