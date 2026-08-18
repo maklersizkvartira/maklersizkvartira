@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { PlusCircle, Upload, CheckCircle2, ShieldCheck, AlertTriangle, ArrowRight, Trash2, Send, Video, Compass, MapPin } from 'lucide-react';
+import { PlusCircle, Upload, CheckCircle2, ShieldCheck, AlertTriangle, ArrowRight, Trash2, Send, Video, Compass, MapPin, ChevronDown, Home } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { Listing } from '../../types';
 import { MOCK_OWNERS } from '../../data/mockUsers';
@@ -353,236 +353,257 @@ export const CreateListingPage: React.FC = () => {
                     !isRoommate ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                   }`}
                 >
-                  <span>🏠 Butun Kvartira</span>
+                  <Home className="w-4 h-4" />
+                  <span>Butun Kvartira</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setIsRoommate(true)}
-                  className={`p-3 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 transition-all ${
-                    isRoommate ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <span>🤝 Sherikchilikka (Kvartira Sherik)</span>
-                </button>
-              </div>
-            </div>
-
-            {isRoommate && (
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-3">
-                <div className="font-extrabold text-xs text-amber-900 flex items-center gap-1.5">
-                  <span>🤝 Sherikchilikka Sharoitlari</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <label className="font-bold text-slate-700">Kimlar uchun sheriklik?</label>
-                    <select
-                      value={roommateGender}
-                      onChange={(e) => setRoommateGender(e.target.value as any)}
-                      className="w-full bg-white border border-amber-300 rounded-xl p-2.5 font-bold mt-1"
-                    >
-                      <option value="ANY">Farqi yo'q (O'g'il / Qiz)</option>
-                      <option value="BOYS">Faqat Yigitlar uchun</option>
-                      <option value="GIRLS">Faqat Qizlar uchun</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="font-bold text-slate-700">Qancha sherik kerak?</label>
-                    <select
-                      value={roommateSpots}
-                      onChange={(e) => setRoommateSpots(Number(e.target.value))}
-                      className="w-full bg-white border border-amber-300 rounded-xl p-2.5 font-bold mt-1"
-                    >
-                      <option value={1}>1 ta sherik kerak</option>
-                      <option value={2}>2 ta sherik kerak</option>
-                      <option value={3}>3 ta sherik kerak</option>
-                      <option value={4}>4+ ta sherik kerak</option>
-                    </select>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsRoommate(true)}
+                    className={`p-3 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                      isRoommate ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Sherikchilikka (Kvartira Sherik)</span>
+                  </button>
                 </div>
               </div>
-            )}
-            <div>
-              <label className="font-bold text-slate-700 text-sm">Sarlavha</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Masalan: Yunusobodda 2 xonali kvartira"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium text-base mt-1"
-              />
-            </div>
-            <div>
-              <label className="font-bold text-slate-700 text-sm">Tavsif</label>
-              <textarea
-                rows={4}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Kvartirangiz haqida oddiy tilda yozing..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium text-sm mt-1"
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const text = writeListingCopy({
-                    district,
-                    region,
-                    rooms,
-                    area,
-                    price,
-                    furnished,
-                    metro,
-                    metroMinutes: metroDist,
-                  });
-                  setDescription(text);
-                  if (!title.trim()) setTitle(`${district}da ${rooms} xonali kvartira`);
-                }}
-                className="bg-emerald-50 text-emerald-800 border border-emerald-200 font-black text-sm py-3 rounded-xl"
-              >
-                AI matn yozsin
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const est = estimatePrice({ region, district, rooms, area, furnished });
-                  setPrice(est.suggested);
-                }}
-                className="bg-slate-100 text-slate-800 border border-slate-200 font-black text-sm py-3 rounded-xl"
-              >
-                AI narx: {formatSom(estimatePrice({ region, district, rooms, area, furnished }).suggested)}
-              </button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="font-bold text-slate-700 text-sm">Oylik narx (so'm)</label>
-                <input type="number" value={price} onChange={(e) => setPrice(Number(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-bold text-base mt-1" />
-              </div>
-              <div>
-                <label className="font-bold text-slate-700 text-sm">Depozit (so'm)</label>
-                <input type="number" value={deposit} onChange={(e) => setDeposit(Number(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-bold text-base mt-1" />
-              </div>
-              <div>
-                <label className="font-bold text-slate-700 text-sm">Xonalar</label>
-                <select value={rooms} onChange={(e) => setRooms(Number(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-bold text-base mt-1">
-                  <option value={1}>1 xona</option>
-                  <option value={2}>2 xona</option>
-                  <option value={3}>3 xona</option>
-                  <option value={4}>4+ xona</option>
-                </select>
-              </div>
-            </div>
-            <button onClick={() => setStep(2)} className="w-full bg-slate-900 text-white font-black py-4 rounded-xl flex items-center justify-center gap-2">
-              Keyingi (manzil) <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-        )}
 
-        {step === 2 && (
-          <div className="space-y-4">
-            <h3 className="font-bold text-base text-slate-900 border-b pb-2">Manzil</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="font-bold text-slate-700 text-sm">Viloyat</label>
-                <select
-                  value={region}
-                  onChange={(e) => {
-                    const newReg = e.target.value;
-                    setRegion(newReg);
-                    const newRegObj = UZBEKISTAN_REGIONS.find((r) => r.name === newReg);
-                    if (newRegObj) setDistrict(newRegObj.districts[0]);
-                  }}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-bold mt-1"
-                >
-                  {UZBEKISTAN_REGIONS.map((r) => (
-                    <option key={r.id} value={r.name}>{r.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="font-bold text-slate-700 text-sm">Tuman</label>
-                <select value={district} onChange={(e) => setDistrict(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-bold mt-1">
-                  {activeRegionObj.districts.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="font-bold text-slate-700 text-sm">Ko'cha va uy (Aniq Manzil)</label>
-                <button
-                  type="button"
-                  disabled={isDetectingGps}
-                  onClick={() => {
-                    setIsDetectingGps(true);
-                    setGpsSuccessMsg('');
-                    if ('geolocation' in navigator) {
-                      navigator.geolocation.getCurrentPosition(
-                        async (pos) => {
-                          const detectedLat = pos.coords.latitude;
-                          const detectedLng = pos.coords.longitude;
-                          setLat(detectedLat);
-                          setLng(detectedLng);
-                          
-                          const geo = await fetchAddressFromCoords(detectedLat, detectedLng);
-                          if (geo) {
-                            setRegion(geo.region);
-                            setDistrict(geo.district);
-                            setAddress(geo.address);
-                            setGpsSuccessMsg(`📍 GPS Manzil topildi: ${geo.region}, ${geo.district}, ${geo.address}`);
-                          } else {
-                            setGpsSuccessMsg(`📍 GPS koordinatalar aniqlandi! (${detectedLat.toFixed(4)}, ${detectedLng.toFixed(4)})`);
-                          }
-                          setIsDetectingGps(false);
-                        },
-                        (err) => {
-                          setIsDetectingGps(false);
-                          alert("GPS ruxsati berilmadi yoki aniqlab bo'lmadi. Manzilni matn ko'rinishida kiriting.");
-                        },
-                        { timeout: 8000 }
-                      );
-                    } else {
-                      setIsDetectingGps(false);
-                      alert("Qurilmangizda GPS qo'llab-quvvatlanmaydi.");
-                    }
-                  }}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-3 py-1.5 rounded-xl transition-all shadow-sm flex items-center gap-1 active:scale-95"
-                >
-                  <MapPin className="w-3.5 h-3.5 text-white" />
-                  <span>{isDetectingGps ? "Aniqlanmoqda..." : "📍 GPS Lokatsiyani Aniqlash"}</span>
-                </button>
-              </div>
-
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Masalan: Mustaqillik ko'chasi, 15-uy"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium mt-1 focus:outline-none focus:border-emerald-500"
-              />
-
-              {gpsSuccessMsg && (
-                <div className="mt-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-bold flex items-center gap-1.5 animate-in fade-in-50">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>{gpsSuccessMsg}</span>
+              {isRoommate && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-3">
+                  <div className="font-extrabold text-xs text-amber-900 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-amber-700" />
+                    <span>Sherikchilikka Sharoitlari</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <label className="font-bold text-slate-700">Kimlar uchun sheriklik?</label>
+                      <div className="relative mt-1">
+                        <select
+                          value={roommateGender}
+                          onChange={(e) => setRoommateGender(e.target.value as any)}
+                          className="w-full appearance-none bg-white border border-amber-300 rounded-xl p-2.5 pr-8 font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-xs"
+                        >
+                          <option value="ANY">Farqi yo'q (O'g'il / Qiz)</option>
+                          <option value="BOYS">Faqat Yigitlar uchun</option>
+                          <option value="GIRLS">Faqat Qizlar uchun</option>
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-amber-700 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700">Qancha sherik kerak?</label>
+                      <div className="relative mt-1">
+                        <select
+                          value={roommateSpots}
+                          onChange={(e) => setRoommateSpots(Number(e.target.value))}
+                          className="w-full appearance-none bg-white border border-amber-300 rounded-xl p-2.5 pr-8 font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-xs"
+                        >
+                          <option value={1}>1 ta sherik kerak</option>
+                          <option value={2}>2 ta sherik kerak</option>
+                          <option value={3}>3 ta sherik kerak</option>
+                          <option value={4}>4+ ta sherik kerak</option>
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-amber-700 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="font-bold text-slate-700 text-sm">Metro</label>
-                <select value={metro} onChange={(e) => setMetro(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-bold text-slate-900 mt-1 focus:outline-none focus:border-emerald-500">
-                  <option value="Yo'q">Yo'q (Metro yaqin emas)</option>
-                  {TASHKENT_METRO_LINES.map((line) => (
-                    <optgroup key={line.id} label={line.name}>
-                      {line.stations.map((st) => (
-                        <option key={st} value={st}>{st} bekati</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
+                <label className="font-bold text-slate-700 text-sm">Sarlavha</label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Masalan: Yunusobodda 2 xonali kvartira"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium text-base mt-1"
+                />
               </div>
+              <div>
+                <label className="font-bold text-slate-700 text-sm">Tavsif</label>
+                <textarea
+                  rows={4}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Kvartirangiz haqida oddiy tilda yozing..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium text-sm mt-1"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = writeListingCopy({
+                      district,
+                      region,
+                      rooms,
+                      area,
+                      price,
+                      furnished,
+                      metro,
+                      metroMinutes: metroDist,
+                    });
+                    setDescription(text);
+                    if (!title.trim()) setTitle(`${district}da ${rooms} xonali kvartira`);
+                  }}
+                  className="bg-emerald-50 text-emerald-800 border border-emerald-200 font-black text-sm py-3 rounded-xl"
+                >
+                  AI matn yozsin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const est = estimatePrice({ region, district, rooms, area, furnished });
+                    setPrice(est.suggested);
+                  }}
+                  className="bg-slate-100 text-slate-800 border border-slate-200 font-black text-sm py-3 rounded-xl"
+                >
+                  AI narx: {formatSom(estimatePrice({ region, district, rooms, area, furnished }).suggested)}
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 text-sm">Oylik narx (so'm)</label>
+                  <input type="number" value={price} onChange={(e) => setPrice(Number(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-bold text-base mt-1" />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 text-sm">Depozit (so'm)</label>
+                  <input type="number" value={deposit} onChange={(e) => setDeposit(Number(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-bold text-base mt-1" />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 text-sm">Xonalar</label>
+                  <div className="relative mt-1">
+                    <select value={rooms} onChange={(e) => setRooms(Number(e.target.value))} className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl p-3 pr-9 font-bold text-base text-slate-900 cursor-pointer shadow-xs">
+                      <option value={1}>1 xona</option>
+                      <option value={2}>2 xona</option>
+                      <option value={3}>3 xona</option>
+                      <option value={4}>4+ xona</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setStep(2)} className="w-full bg-slate-900 text-white font-black py-4 rounded-xl flex items-center justify-center gap-2">
+                Keyingi (manzil) <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-4">
+              <h3 className="font-bold text-base text-slate-900 border-b pb-2">Manzil</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 text-sm">Viloyat</label>
+                  <div className="relative mt-1">
+                    <select
+                      value={region}
+                      onChange={(e) => {
+                        const newReg = e.target.value;
+                        setRegion(newReg);
+                        const newRegObj = UZBEKISTAN_REGIONS.find((r) => r.name === newReg);
+                        if (newRegObj) setDistrict(newRegObj.districts[0]);
+                      }}
+                      className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl p-3 pr-9 font-bold text-slate-900 cursor-pointer shadow-xs"
+                    >
+                      {UZBEKISTAN_REGIONS.map((r) => (
+                        <option key={r.id} value={r.name}>{r.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 text-sm">Tuman</label>
+                  <div className="relative mt-1">
+                    <select value={district} onChange={(e) => setDistrict(e.target.value)} className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl p-3 pr-9 font-bold text-slate-900 cursor-pointer shadow-xs">
+                      {activeRegionObj.districts.map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-700 text-sm">Ko'cha va uy (Aniq Manzil)</label>
+                  <button
+                    type="button"
+                    disabled={isDetectingGps}
+                    onClick={() => {
+                      setIsDetectingGps(true);
+                      setGpsSuccessMsg('');
+                      if ('geolocation' in navigator) {
+                        navigator.geolocation.getCurrentPosition(
+                          async (pos) => {
+                            const detectedLat = pos.coords.latitude;
+                            const detectedLng = pos.coords.longitude;
+                            setLat(detectedLat);
+                            setLng(detectedLng);
+                            
+                            const geo = await fetchAddressFromCoords(detectedLat, detectedLng);
+                            if (geo) {
+                              setRegion(geo.region);
+                              setDistrict(geo.district);
+                              setAddress(geo.address);
+                              setGpsSuccessMsg(`GPS Manzil topildi: ${geo.region}, ${geo.district}, ${geo.address}`);
+                            } else {
+                              setGpsSuccessMsg(`GPS koordinatalar aniqlandi! (${detectedLat.toFixed(4)}, ${detectedLng.toFixed(4)})`);
+                            }
+                            setIsDetectingGps(false);
+                          },
+                          (err) => {
+                            setIsDetectingGps(false);
+                            alert("GPS ruxsati berilmadi yoki aniqlab bo'lmadi. Manzilni matn ko'rinishida kiriting.");
+                          },
+                          { timeout: 8000 }
+                        );
+                      } else {
+                        setIsDetectingGps(false);
+                        alert("Qurilmangizda GPS qo'llab-quvvatlanmaydi.");
+                      }
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-3 py-1.5 rounded-xl transition-all shadow-sm flex items-center gap-1 active:scale-95"
+                  >
+                    <MapPin className="w-3.5 h-3.5 text-white" />
+                    <span>{isDetectingGps ? "Aniqlanmoqda..." : "GPS Lokatsiyani Aniqlash"}</span>
+                  </button>
+                </div>
+
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Masalan: Mustaqillik ko'chasi, 15-uy"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium mt-1 focus:outline-none focus:border-emerald-500"
+                />
+
+                {gpsSuccessMsg && (
+                  <div className="mt-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-bold flex items-center gap-1.5 animate-in fade-in-50">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{gpsSuccessMsg}</span>
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 text-sm">Metro</label>
+                  <div className="relative mt-1">
+                    <select value={metro} onChange={(e) => setMetro(e.target.value)} className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl p-3 pr-9 font-bold text-slate-900 focus:outline-none focus:border-emerald-500 cursor-pointer shadow-xs">
+                      <option value="Yo'q">Yo'q (Metro yaqin emas)</option>
+                      {TASHKENT_METRO_LINES.map((line) => (
+                        <optgroup key={line.id} label={line.name}>
+                          {line.stations.map((st) => (
+                            <option key={st} value={st}>{st} bekati</option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
               <div>
                 <label className="font-bold text-slate-700 text-sm">Metroga piyoda (daqiqa)</label>
                 <input type="number" value={metroDist} onChange={(e) => setMetroDist(Number(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium mt-1" />

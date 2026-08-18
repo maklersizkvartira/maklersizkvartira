@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, ShieldCheck, Sparkles, MapPin, Home, CheckCircle2, SlidersHorizontal } from 'lucide-react';
+import { Search, ShieldCheck, Sparkles, MapPin, Home, CheckCircle2, SlidersHorizontal, ChevronDown, Users, GraduationCap } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { UZBEKISTAN_REGIONS } from '../../data/mockLocations';
 
@@ -70,63 +70,81 @@ export const HeroSection: React.FC = () => {
               <Search className="w-4 h-4 text-emerald-600 absolute left-3 top-3.5" />
             </div>
 
-
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => setFilters({ audience: 'ALL', rentalType: 'ALL' })} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black border transition-all ${audience === 'ALL' && rentalType === 'ALL' ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>Barchasi</button>
-              <button type="button" onClick={() => setFilters({ rentalType: 'FULL' })} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black border transition-all ${rentalType === 'FULL' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>🏠 Butun Kvartira</button>
-              <button type="button" onClick={() => setFilters({ rentalType: 'ROOMMATE' })} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black border transition-all ${rentalType === 'ROOMMATE' ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>🤝 Sherikchilikka</button>
-              <button type="button" onClick={() => setFilters({ audience: 'STUDENT' })} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black border transition-all ${audience === 'STUDENT' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>🎓 Talabaga</button>
+              <button type="button" onClick={() => setFilters({ audience: 'ALL', rentalType: 'ALL' })} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black border flex items-center justify-center gap-1.5 transition-all ${audience === 'ALL' && rentalType === 'ALL' ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>Barchasi</button>
+              <button type="button" onClick={() => setFilters({ rentalType: 'FULL' })} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black border flex items-center justify-center gap-1.5 transition-all ${rentalType === 'FULL' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                <Home className="w-3.5 h-3.5 shrink-0" />
+                <span>Butun Kvartira</span>
+              </button>
+              <button type="button" onClick={() => setFilters({ rentalType: 'ROOMMATE' })} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black border flex items-center justify-center gap-1.5 transition-all ${rentalType === 'ROOMMATE' ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                <Users className="w-3.5 h-3.5 shrink-0" />
+                <span>Sherikchilikka</span>
+              </button>
+              <button type="button" onClick={() => setFilters({ audience: 'STUDENT' })} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black border flex items-center justify-center gap-1.5 transition-all ${audience === 'STUDENT' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                <GraduationCap className="w-3.5 h-3.5 shrink-0" />
+                <span>Talabaga</span>
+              </button>
             </div>
+
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-xs">
               <div className="space-y-1 min-w-0">
                 <label className="text-[10px] sm:text-xs font-bold text-slate-600 flex items-center gap-1">
                   <MapPin className="w-3 h-3 text-emerald-600 shrink-0" /> Viloyat
                 </label>
-                <select
-                  value={localRegion}
-                  onChange={(e) => {
-                    setLocalRegion(e.target.value);
-                    setLocalDistrict('Barchasi');
-                  }}
-                  className="w-full min-w-0 bg-slate-100 border border-slate-200 rounded-xl px-2 py-2.5 font-semibold text-[11px] sm:text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  <option value="Barchasi">Barchasi</option>
-                  {UZBEKISTAN_REGIONS.map((r) => (
-                    <option key={r.id} value={r.name}>{r.name}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={localRegion}
+                    onChange={(e) => {
+                      setLocalRegion(e.target.value);
+                      setLocalDistrict('Barchasi');
+                    }}
+                    className="w-full min-w-0 appearance-none bg-slate-100/90 border border-slate-200 rounded-xl pl-2.5 pr-7 py-2.5 font-bold text-[11px] sm:text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-xs"
+                  >
+                    <option value="Barchasi">Barchasi</option>
+                    {UZBEKISTAN_REGIONS.map((r) => (
+                      <option key={r.id} value={r.name}>{r.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
 
               <div className="space-y-1 min-w-0">
                 <label className="text-[10px] sm:text-xs font-bold text-slate-600 flex items-center gap-1">
                   <MapPin className="w-3 h-3 text-emerald-600 shrink-0" /> Tuman
                 </label>
-                <select
-                  value={localDistrict}
-                  onChange={(e) => setLocalDistrict(e.target.value)}
-                  className="w-full min-w-0 bg-slate-100 border border-slate-200 rounded-xl px-2 py-2.5 font-semibold text-[11px] sm:text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  {availableDistricts.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={localDistrict}
+                    onChange={(e) => setLocalDistrict(e.target.value)}
+                    className="w-full min-w-0 appearance-none bg-slate-100/90 border border-slate-200 rounded-xl pl-2.5 pr-7 py-2.5 font-bold text-[11px] sm:text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-xs"
+                  >
+                    {availableDistricts.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
 
               <div className={`space-y-1 min-w-0 ${showAdvancedMobile ? 'block' : 'hidden'} sm:block`}>
                 <label className="text-[10px] sm:text-xs font-bold text-slate-600 flex items-center gap-1">
                   <Home className="w-3 h-3 text-emerald-600 shrink-0" /> Xonalar
                 </label>
-                <select
-                  value={localRooms ?? ''}
-                  onChange={(e) => setLocalRooms(e.target.value ? Number(e.target.value) : null)}
-                  className="w-full min-w-0 bg-slate-100 border border-slate-200 rounded-xl px-2 py-2.5 font-semibold text-[11px] sm:text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  <option value="">Barchasi</option>
-                  <option value="1">1 xona</option>
-                  <option value="2">2 xona</option>
-                  <option value="3">3 xona</option>
-                  <option value="4">4+ xona</option>
-                </select>
+                <div className="relative">
+                  <select
+                    value={localRooms ?? ''}
+                    onChange={(e) => setLocalRooms(e.target.value ? Number(e.target.value) : null)}
+                    className="w-full min-w-0 appearance-none bg-slate-100/90 border border-slate-200 rounded-xl pl-2.5 pr-7 py-2.5 font-bold text-[11px] sm:text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-xs"
+                  >
+                    <option value="">Barchasi</option>
+                    <option value="1">1 xona</option>
+                    <option value="2">2 xona</option>
+                    <option value="3">3 xona</option>
+                    <option value="4">4+ xona</option>
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
 
               <div className={`space-y-1 min-w-0 ${showAdvancedMobile ? 'block' : 'hidden'} sm:block`}>
