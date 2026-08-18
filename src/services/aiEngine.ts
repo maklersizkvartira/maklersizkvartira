@@ -203,12 +203,19 @@ export function scanListingDeep(
 ): ListingScanResult {
   const base = scanListingLocal(title, description, price, rooms);
   const reasons: string[] = [];
+  const fieldErrors = [...(base.fieldErrors || [])];
   let riskScore = base.riskScore;
   let brokerProbability = base.brokerProbability;
 
   const phone = (extra?.phone || '').replace(/\D/g, '');
   if (phone && (/(\d)\1{6,}/.test(phone) || phone.endsWith('0000000') || phone.length < 9)) {
-    reasons.push("❌ Telefon raqami shubhali yoki spamga o'xshaydi.");
+    reasons.push("📍 Telefon raqam maydonida xatolik: Shubhali yoki soxta raqam format aniqlandi.");
+    fieldErrors.push({
+      field: 'Telefon',
+      issue: "Telefon raqami noto'g'ri yoki takrorlanuvchi raqamlardan iborat.",
+      matchedWord: phone,
+      fixSuggestion: "O'zingizning haqiqiy va ishchi telefon raqamingizni kiriting.",
+    });
     riskScore = Math.max(riskScore, 78);
   }
 
@@ -220,7 +227,12 @@ export function scanListingDeep(
     const mine = new Set(extra.images);
     imageStolen = others.some((o) => o.images.some((img) => mine.has(img)));
     if (imageStolen) {
-      reasons.push("❌ SHUBHA: Ushbu rasm avval boshqa e'londa ishlatilgan (Dublikat foto / Makler belgisi).");
+      reasons.push("📍 Rasmlar maydonida xatolik: Ushbu rasm avval boshqa e'londa yuklangan (Dublikat foto).");
+      fieldErrors.push({
+        field: 'Rasmlar',
+        issue: "Yuklangan rasm boshqa e'londagi rasm bilan 100% bir xil (dublikat).",
+        fixSuggestion: "Uyingizning shaxsiy va yangi olingan original rasmlarini yuklang.",
+      });
       riskScore = Math.max(riskScore, 85);
       brokerProbability = Math.max(brokerProbability, 80);
     }
@@ -228,7 +240,12 @@ export function scanListingDeep(
 
   // 2. Multi-listing Broker Check
   if (phone && others.filter((o) => o.phone && o.phone.replace(/\D/g, '') === phone).length >= 3) {
-    reasons.push("❌ SHUBHA: Ushbu telefon raqamidan 3 tadan ortiq e'lon berilgan — Maklerlik belgisi.");
+    reasons.push("📍 Telefon raqamida xatolik: Ushbu raqamdan 3 tadan ortiq e'lon berilgan (Maklerlik belgisi).");
+    fieldErrors.push({
+      field: 'Telefon',
+      issue: "Bir xil raqamdan ko'plab e'lonlar joylashtirilgan (vositachi/maklerlik belgisi).",
+      fixSuggestion: "Agarda uy egasi bo'lsangiz, avvalgi e'lonlaringizni o'chiring yoki admin bilan bog'laning.",
+    });
     brokerProbability = Math.max(brokerProbability, 88);
     riskScore = Math.max(riskScore, 82);
   }
@@ -242,10 +259,22 @@ export function scanListingDeep(
       area: extra.area,
     });
     if (price > est.high * 2.2) {
-      reasons.push("❌ SHUBHA: Narx hudud me'yoridan g'ayritabiiy qimmat.");
+      reasons.push(`📍 Narx maydonida xatolik: ${price.toLocaleString('uz-UZ')} so'm (Hudud me'yoridan g'ayritabiiy qimmat)`);
+      fieldErrors.push({
+        field: 'Narx',
+        issue: "Narx tanlangan tuman va xonalar soniga nisbatan juda baland ko'rsatilgan.",
+        matchedWord: `${price} so'm`,
+        fixSuggestion: `Narxni hududiy o'rtacha narxga (${est.suggested.toLocaleString('uz-UZ')} so'm) yaqinlashtiring.`,
+      });
       riskScore = Math.max(riskScore, 72);
     } else if (price < est.low * 0.45 && price > 0) {
-      reasons.push("❌ SHUBHA: Narx juda arzon (Firibgar zaklad tuzog'i bo'lishi mumkin).");
+      reasons.push(`📍 Narx maydonida xatolik: ${price.toLocaleString('uz-UZ')} so'm (Juda arzon - firibgar zaklad tuzog'i)`);
+      fieldErrors.push({
+        field: 'Narx',
+        issue: "Narx bozordagi eng past chegaradan ham ancha arzon ko'rsatilgan.",
+        matchedWord: `${price} so'm`,
+        fixSuggestion: `Narxni adolatli bozor narxiga yaqinlashtiring.`,
+      });
       riskScore = Math.max(riskScore, 78);
     }
   }
@@ -265,7 +294,8 @@ export function scanListingDeep(
       riskScore,
       brokerProbability,
       reasons,
-      message: "⚠️ AI XAVFSIZLIK TIZIMI: Bu e'lon maklerlik yoki foto-dublikat belgilariga ega. Maklersiz.uz faqat uy egasining original e'lonlarini qabul qiladi.",
+      fieldErrors,
+      message: "⚠️ AI XAVFSIZLIK TIZIMI: E'loningizda aniq xatolik va taqiqlangan joylar aniqlandi. Quyida AI ko'rsatgan aniq xatolikni ko'rib tuzatishingiz mumkin:",
     };
   }
 

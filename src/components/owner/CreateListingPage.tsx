@@ -767,14 +767,40 @@ export const CreateListingPage: React.FC = () => {
               <div className="space-y-4 max-w-md mx-auto text-left">
                 <div className="bg-rose-50 border border-rose-200 p-5 rounded-2xl space-y-3 shadow-sm">
                   <div className="font-black text-rose-900 flex items-center gap-2 text-base">
-                    <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" /> E'lon joylanmadi
+                    <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" /> E'lon rad etildi: Aniq xatolik joyi aniqlandi
                   </div>
-                  <p className="text-xs sm:text-sm text-rose-800 leading-relaxed font-medium">{scan.message}</p>
-                  <ul className="text-xs text-rose-700 space-y-1 pl-1">
-                    {scan.reasons.map((r) => (
-                      <li key={r}>• {r}</li>
-                    ))}
-                  </ul>
+                  <p className="text-xs text-rose-800 leading-relaxed font-medium">{scan.message}</p>
+
+                  {/* Detailed Field-Level Errors */}
+                  {scan.fieldErrors && scan.fieldErrors.length > 0 ? (
+                    <div className="space-y-2.5 pt-1">
+                      {scan.fieldErrors.map((err, idx) => (
+                        <div key={idx} className="bg-white border border-rose-200 p-3 rounded-xl space-y-1 shadow-xs">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-black text-rose-700 uppercase tracking-wider bg-rose-100 px-2 py-0.5 rounded">
+                              📍 Xatolik joyi: {err.field}
+                            </span>
+                            {err.matchedWord && (
+                              <span className="text-[10px] font-mono font-bold text-rose-800 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                                Topilgan so'z: "{err.matchedWord}"
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-800 font-bold">{err.issue}</p>
+                          <div className="text-[11px] text-emerald-800 font-medium bg-emerald-50 p-2 rounded-lg border border-emerald-100 flex items-start gap-1">
+                            <span className="font-bold shrink-0">💡 AI Maslahati:</span>
+                            <span>{err.fixSuggestion}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <ul className="text-xs text-rose-700 space-y-1 pl-1">
+                      {scan.reasons.map((r) => (
+                        <li key={r}>• {r}</li>
+                      ))}
+                    </ul>
+                  )}
 
                   {/* Telegram Support Notice Box */}
                   <div className="bg-white/90 border border-rose-200 rounded-xl p-3.5 space-y-2 mt-3 text-slate-800">
