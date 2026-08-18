@@ -37,18 +37,29 @@ function loadUser(): CurrentUser | null {
   }
 }
 
+export function dedupeListings(items: Listing[]): Listing[] {
+  const map = new Map<string, Listing>();
+  for (const item of items) {
+    if (item && item.id) {
+      map.set(item.id, item);
+    }
+  }
+  return Array.from(map.values());
+}
+
 function loadExtraListings(): Listing[] {
   try {
     const raw = localStorage.getItem(EXTRA_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Listing[];
-      return parsed.filter(
+      const valid = parsed.filter(
         (l) =>
           !['listing-1', 'listing-2', 'listing-3', 'listing-sherik-1'].includes(l.id) &&
           l.owner?.name !== 'Jasur Karimov' &&
           l.owner?.name !== 'Nodira Alimova' &&
           l.owner?.name !== 'Bekzod Rahimov'
       );
+      return dedupeListings(valid);
     }
   } catch {
     return [];
@@ -338,7 +349,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
           }
         });
 
-        const merged = [...cleanPublic, ...existingLocal];
+        const merged = dedupeListings([...cleanPublic, ...existingLocal]);
         return { listings: merged };
       });
     } catch {
@@ -348,7 +359,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   editingListing: null,
   setEditingListing: (listing) => set({ editingListing: listing }),
   addListing: (newListing) => set((state) => {
-    const listings = [newListing, ...state.listings];
+    const listings = dedupeListings([newListing, ...state.listings]);
     // Also persist locally in case of offline use
     const extras = listings.filter((l) => l.id.startsWith('listing-') && !MOCK_LISTINGS.some((m) => m.id === l.id));
     localStorage.setItem(EXTRA_KEY, JSON.stringify(extras));
@@ -363,11 +374,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
       audience: 'ALL',
       rentalType: 'ALL',
       searchQuery: '',
-      aiMascotMessage: "E'lon muvaffaqiyatli joylandi! Bosh sahifa va qidiruvda ham ko'rinarli bo'ldi.",
+      aiMascotMessage: "E'lon muvaffaqiyatli joylandi! Barcha qurilmalarda ko'rinarli bo'ldi.",
     };
   }),
   updateListing: (updatedListing) => set((state) => {
-    const listings = state.listings.map((l) => (l.id === updatedListing.id ? updatedListing : l));
+    const listings = dedupeListings(state.listings.map((l) => (l.id === updatedListing.id ? updatedListing : l)));
     const extras = listings.filter((l) => l.id.startsWith('listing-') && !MOCK_LISTINGS.some((m) => m.id === l.id));
     localStorage.setItem(EXTRA_KEY, JSON.stringify(extras));
     return {

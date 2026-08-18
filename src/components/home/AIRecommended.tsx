@@ -13,21 +13,31 @@ export const AIRecommended: React.FC = () => {
 
   const pool = useMemo(() => {
     const who = currentUser?.role === 'STUDENT' ? 'STUDENT' : audience;
-    return rankListings(listings, { audience: who }).map((r) => r.listing);
+    const ranked = rankListings(listings, { audience: who }).map((r) => r.listing);
+    const map = new Map<string, typeof ranked[0]>();
+    ranked.forEach((l) => { if (l && l.id) map.set(l.id, l); });
+    return Array.from(map.values());
   }, [listings, audience, currentUser]);
 
   useEffect(() => {
     if (pool.length <= 1 || paused) return;
     const id = window.setInterval(() => {
       setStart((s) => (s + 1) % pool.length);
-    }, 3000);
+    }, 4000);
     return () => window.clearInterval(id);
   }, [pool.length, paused]);
 
   const visible = useMemo(() => {
     if (pool.length === 0) return [];
-    const size = Math.min(PAGE_SIZE, pool.length);
-    return Array.from({ length: size }, (_, i) => pool[(start + i) % pool.length]);
+    if (pool.length <= PAGE_SIZE) {
+      return pool;
+    }
+    const map = new Map<string, typeof pool[0]>();
+    for (let i = 0; i < pool.length && map.size < PAGE_SIZE; i++) {
+      const item = pool[(start + i) % pool.length];
+      if (item && item.id) map.set(item.id, item);
+    }
+    return Array.from(map.values());
   }, [pool, start]);
 
   const pageCount = Math.max(1, pool.length);
