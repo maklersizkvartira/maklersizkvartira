@@ -1,28 +1,31 @@
 import React, { useState } from 'react';
 import { Search, MapPin, Home, Users, GraduationCap, ChevronDown } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
-import { UZBEKISTAN_REGIONS } from '../../data/mockLocations';
+import { UZBEKISTAN_REGIONS, TASHKENT_METRO_LINES } from '../../data/mockLocations';
 
 export const HeroSection: React.FC = () => {
   const { 
     searchQuery, setSearchQuery, 
-    selectedRegion, selectedDistrict,
+    selectedRegion, selectedDistrict, selectedMetro,
     roomsCount, audience, rentalType,
     setFilters, setCurrentView 
   } = useAppStore();
 
   const [localRegion, setLocalRegion] = useState(selectedRegion);
   const [localDistrict, setLocalDistrict] = useState(selectedDistrict);
+  const [localMetro, setLocalMetro] = useState(selectedMetro);
   const [localRooms, setLocalRooms] = useState<number | null>(roomsCount);
 
   const activeRegionObj = UZBEKISTAN_REGIONS.find((r) => r.name === localRegion) || UZBEKISTAN_REGIONS[0];
   const availableDistricts = ['Barchasi', ...activeRegionObj.districts];
+  const showMetroFilter = localRegion === 'Toshkent shahri' || localRegion === 'Toshkent viloyati' || localRegion === 'Barchasi';
 
   const handleHeroSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setFilters({
       selectedRegion: localRegion,
       selectedDistrict: localDistrict,
+      selectedMetro: localMetro,
       roomsCount: localRooms,
       sortBy: 'AI',
     });
@@ -164,6 +167,32 @@ export const HeroSection: React.FC = () => {
                   <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
+
+              {/* Metro Station Selector for Tashkent */}
+              {showMetroFilter && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-blue-600 ml-1 flex items-center gap-1">
+                    🚇 Metro Bekati
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={localMetro}
+                      onChange={(e) => setLocalMetro(e.target.value)}
+                      className="w-full rounded-xl border border-blue-200 bg-blue-50/50 px-3.5 py-3 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+                    >
+                      <option value="Barchasi">Barcha Metro Bekatlari (~50 bekat)</option>
+                      {TASHKENT_METRO_LINES.map((line) => (
+                        <optgroup key={line.id} label={line.name}>
+                          {line.stations.map((st) => (
+                            <option key={st} value={st}>{st} bekati</option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-blue-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+              )}
 
               {/* Room Pill Buttons */}
               <div className="space-y-1">
