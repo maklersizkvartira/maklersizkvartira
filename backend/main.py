@@ -187,9 +187,27 @@ MOCK_OWNERS = {
         "referralCode": "BEKZOD74",
         "referralsCount": 4
     }
-}
+DB_FILE = os.path.join(os.path.dirname(__file__), "listings_db.json")
 
-LISTINGS_DB: List[Dict[str, Any]] = []
+def load_listings_from_file() -> List[Dict[str, Any]]:
+    if os.path.exists(DB_FILE):
+        try:
+            with open(DB_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return data
+        except Exception as e:
+            print("Error loading listings_db.json:", e)
+    return []
+
+def save_listings_to_file(listings: List[Dict[str, Any]]):
+    try:
+        with open(DB_FILE, "w", encoding="utf-8") as f:
+            json.dump(listings, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print("Error saving listings_db.json:", e)
+
+LISTINGS_DB: List[Dict[str, Any]] = load_listings_from_file()
 
 # --- API Endpoints ---
 
@@ -382,6 +400,25 @@ def get_listing_by_id(id: str):
         "data": found
     }
 
+@app.delete("/api/v1/listings/{id}")
+def delete_listing(id: str):
+    global LISTINGS_DB
+    clean_id = str(id).strip()
+    LISTINGS_DB = [l for l in LISTINGS_DB if str(l.get("id")) != clean_id and str(l.get("id")) != f"listing-{clean_id}"]
+    save_listings_to_file(LISTINGS_DB)
+    return {"status": "success", "message": "E'lon o'chirildi"}
+
+@app.put("/api/v1/listings/{id}")
+def update_listing_endpoint(id: str, updates: Dict[str, Any]):
+    global LISTINGS_DB
+    clean_id = str(id).strip()
+    for l in LISTINGS_DB:
+        if str(l.get("id")) == clean_id or str(l.get("id")) == f"listing-{clean_id}":
+            l.update(updates)
+            break
+    save_listings_to_file(LISTINGS_DB)
+    return {"status": "success", "message": "E'lon yangilandi"}
+
 @app.post("/api/v1/listings", status_code=status.HTTP_201_CREATED)
 def create_listing(req: CreateListingRequest):
     ai_result = scan_listing_ai(req.title, req.description, req.price, req.rooms)
@@ -450,6 +487,7 @@ def create_listing(req: CreateListingRequest):
     }
 
     LISTINGS_DB.insert(0, new_listing)
+    save_listings_to_file(LISTINGS_DB)
     return {
         "status": "success",
         "data": new_listing

@@ -49,8 +49,13 @@ export function dedupeListings(items: Listing[]): Listing[] {
 
 function loadExtraListings(): Listing[] {
   try {
-    // Purge legacy extra listings from localStorage to eliminate flicker and duplicate state
-    localStorage.removeItem(EXTRA_KEY);
+    const raw = localStorage.getItem(EXTRA_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Listing[];
+      if (Array.isArray(parsed)) {
+        return dedupeListings(parsed);
+      }
+    }
   } catch {}
   return [];
 }
@@ -348,6 +353,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setEditingListing: (listing) => set({ editingListing: listing }),
   addListing: (newListing) => set((state) => {
     const listings = dedupeListings([newListing, ...state.listings]);
+    localStorage.setItem(EXTRA_KEY, JSON.stringify(listings));
     return {
       listings,
       currentView: 'MY_LISTINGS',
@@ -364,6 +370,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   }),
   updateListing: (updatedListing) => set((state) => {
     const listings = dedupeListings(state.listings.map((l) => (l.id === updatedListing.id ? updatedListing : l)));
+    localStorage.setItem(EXTRA_KEY, JSON.stringify(listings));
     return {
       listings,
       editingListing: null,
@@ -373,6 +380,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   removeListing: (listingId) => set((state) => {
     ApiService.deleteListing(listingId).catch(() => {});
     const listings = state.listings.filter((l) => l.id !== listingId);
+    localStorage.setItem(EXTRA_KEY, JSON.stringify(listings));
     const extras = listings.filter((l) => l.id.startsWith('listing-') && !MOCK_LISTINGS.some((m) => m.id === l.id));
     localStorage.setItem(EXTRA_KEY, JSON.stringify(extras));
     return { listings, aiMascotMessage: "E'lon o'chirildi." };
