@@ -3,20 +3,70 @@ import { Shield, Sparkles, X, MessageSquare, Send } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { replyAsAssistant } from '../../services/aiEngine';
 
+const DAILY_LIMIT = 3;
+
+function getDailyUsage(): number {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const key = `shield-ai-usage-${today}`;
+    const val = localStorage.getItem(key);
+    return val ? parseInt(val, 10) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function incrementDailyUsage(): number {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const key = `shield-ai-usage-${today}`;
+    const current = getDailyUsage();
+    const next = current + 1;
+    localStorage.setItem(key, next.toString());
+    return next;
+  } catch {
+    return 1;
+  }
+}
+
 export const ShieldMascot: React.FC = () => {
   const { listings, setCurrentView, setFilters, setSearchQuery, setShowAuth, aiMascotMessage } = useAppStore();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
+  const [usageCount, setUsageCount] = useState<number>(getDailyUsage());
   const [log, setLog] = useState<{ from: 'ai' | 'me'; text: string }[]>([
-    { from: 'ai', text: "Salom. Yunusobodda 2 xonali, 5 milliongacha deb yozing. Yoki Kirish." },
+    { from: 'ai', text: "🤖 Salom! Men Shield AI yordamchisiman. Masalan yozing: «Chilonzordan 3ml ga kvartira kerak» yoki «Yunusobod 2 xona»." },
   ]);
 
   const send = () => {
     const msg = text.trim();
     if (!msg) return;
+
+    const current = getDailyUsage();
+    if (current >= DAILY_LIMIT) {
+      setLog((prev) => [
+        ...prev,
+        { from: 'me', text: msg },
+        {
+          from: 'ai',
+          text: "⚠️ Siz bugungi 3 ta bepul Shield AI so'rov limitidan foydalandingiz. Limitingiz ertaga yana to'ldiriladi! Hozircha Kvartiralar qidiruv sahifasidan bepul foydalanishingiz mumkin."
+        }
+      ]);
+      setText('');
+      return;
+    }
+
+    const nextUsage = incrementDailyUsage();
+    setUsageCount(nextUsage);
+
     const reply = replyAsAssistant(msg, listings);
-    setLog((prev) => [...prev, { from: 'me', text: msg }, { from: 'ai', text: reply.text }]);
+    setLog((prev) => [
+      ...prev,
+      { from: 'me', text: msg },
+      { from: 'ai', text: `${reply.text}\n\n(📊 Bugungi AI so'rovlar: ${nextUsage}/${DAILY_LIMIT})` }
+    ]);
     setText('');
+
     if (reply.need) {
       setFilters({
         selectedRegion: reply.need.region || undefined,
@@ -45,10 +95,15 @@ export const ShieldMascot: React.FC = () => {
                 <Shield className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-semibold text-sm flex items-center gap-1">
-                  Shield AI <Sparkles className="w-3 h-3 text-amber-400 fill-amber-400" />
-                </h4>
-                <p className="text-[10px] text-emerald-400">Uy qidirish yordamchisi</p>
+                <div className="flex items-center gap-1.5">
+                  <h4 className="font-semibold text-sm flex items-center gap-1">
+                    Shield AI <Sparkles className="w-3 h-3 text-amber-400 fill-amber-400" />
+                  </h4>
+                  <span className="bg-emerald-950 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded">
+                    Limit: {usageCount}/{DAILY_LIMIT}
+                  </span>
+                </div>
+                <p className="text-[10px] text-emerald-400">Kuniga 3 ta bepul AI so'rov</p>
               </div>
             </div>
             <button onClick={() => setOpen(false)} className="text-slate-400 p-1">

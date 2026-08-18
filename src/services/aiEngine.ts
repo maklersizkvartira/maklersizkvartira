@@ -271,14 +271,34 @@ export function replyAsAssistant(message: string, listings: Listing[]): ChatRepl
   const roomsM = t.match(/(\d)\s*xona/);
   if (roomsM) need.rooms = Number(roomsM[1]);
 
-  const priceM = t.match(/(\d+(?:[.,]\d+)?)\s*(mln|million|m)/);
-  if (priceM) need.maxPrice = Math.round(parseFloat(priceM[1].replace(',', '.')) * 1000000);
+  // 1. Dollar matching ($300 or 300$)
+  const dollarM = t.match(/(\d+)\s*\$|\$\s*(\d+)|(\d+)\s*dollar/);
+  if (dollarM) {
+    const usdVal = parseFloat(dollarM[1] || dollarM[2] || dollarM[3]);
+    if (usdVal > 0) {
+      need.maxPrice = Math.round(usdVal * 12800 * 1.15); // +15% buffer
+    }
+  }
 
-  const districts = ['yunusobod', 'mirobod', 'chilonzor', 'yakkasaroy', 'sergeli', 'uchtepa', 'olmazor', 'yashnobod'];
+  // 2. So'm matching (3ml, 3.5mln, 3m, 3000000)
+  if (!need.maxPrice) {
+    const priceM = t.match(/(\d+(?:[.,]\d+)?)\s*(mln|million|m|ml|milyon)/);
+    if (priceM) {
+      need.maxPrice = Math.round(parseFloat(priceM[1].replace(',', '.')) * 1000000 * 1.15);
+    } else {
+      const rawPriceM = t.match(/(\d{6,8})/);
+      if (rawPriceM) {
+        need.maxPrice = Math.round(parseFloat(rawPriceM[1]) * 1.15);
+      }
+    }
+  }
+
+  const districts = ['yunusobod', 'mirobod', 'chilonzor', 'yakkasaroy', 'sergeli', 'uchtepa', 'olmazor', 'yashnobod', 'shayxontohur', 'bektemir', 'mirzo ulug'];
   const hit = districts.find((d) => t.includes(d));
   if (hit) {
-    need.district = hit[0].toUpperCase() + hit.slice(1);
-    if (need.district === 'Yunusobod') need.region = 'Toshkent shahri';
+    if (hit.includes('mirzo')) need.district = "Mirzo Ulug'bek";
+    else need.district = hit[0].toUpperCase() + hit.slice(1);
+    need.region = 'Toshkent shahri';
   }
   if (/toshkent/.test(t)) need.region = 'Toshkent shahri';
   if (/metro/.test(t)) need.nearMetro = true;
