@@ -127,7 +127,7 @@ export const AuthModal: React.FC = () => {
         role,
       });
       close();
-    } fontally {
+    } finally {
       setBusy(false);
     }
   };
