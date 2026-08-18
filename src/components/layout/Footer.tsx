@@ -10,7 +10,14 @@ export const Footer: React.FC = () => {
       {/* MOBILE COMPACT FOOTER (sm:hidden) */}
       <div className="sm:hidden px-4 py-5 space-y-4 pb-24 text-center">
         <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
-          <img src="/logo.png" alt="MaklersizUy.uz" className="h-8 w-auto object-contain bg-white/95 rounded-lg p-1" />
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 p-0.5 shadow-md flex items-center justify-center shrink-0">
+              <img src="/logo.png" alt="MaklersizUy.uz" className="h-full w-full object-contain bg-white rounded-[10px] p-0.5" />
+            </div>
+            <span className="text-sm font-black tracking-tight text-white">
+              Maklersiz<span className="text-emerald-400">Uy.uz</span>
+            </span>
+          </div>
           <a
             href="https://t.me/MaklersizUy_Support"
             target="_blank"
@@ -60,8 +67,13 @@ export const Footer: React.FC = () => {
         {/* Main Grid */}
         <div className="grid grid-cols-4 gap-6 text-xs pt-2">
           <div className="col-span-2 space-y-3">
-            <div className="flex items-center gap-2">
-              <img src="/logo.png" alt="MaklersizUy.uz" className="h-11 w-auto object-contain bg-white/95 rounded-xl p-1.5 shadow-lg" />
+            <div className="flex items-center gap-2.5">
+              <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 p-0.5 shadow-md flex items-center justify-center shrink-0">
+                <img src="/logo.png" alt="MaklersizUy.uz" className="h-full w-full object-contain bg-white rounded-[14px] p-1" />
+              </div>
+              <span className="text-xl font-black tracking-tight text-white">
+                Maklersiz<span className="text-emerald-400">Uy.uz</span>
+              </span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
               O'zbekistonda uy-joy ijarasini maklersiz, vositachisiz hamda to'g'ridan-to'g'ri egasidan topishga mo'ljallangan birinchi va eng yirik aqlli platforma.
