@@ -23,6 +23,9 @@ export type ViewState =
 
 const USER_KEY = 'maklersiz-user';
 const EXTRA_KEY = 'maklersiz-extra-listings';
+const VERIFICATIONS_KEY = 'maklersiz_verifications';
+const REPORTS_KEY = 'maklersiz_reports';
+const FRAUD_KEY = 'maklersiz_fraud_signals';
 
 function loadUser(): CurrentUser | null {
   try {
@@ -40,6 +43,39 @@ function loadExtraListings(): Listing[] {
   } catch {
     return [];
   }
+}
+
+function loadVerifications(): VerificationRequest[] {
+  try {
+    const raw = localStorage.getItem(VERIFICATIONS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as VerificationRequest[];
+      if (parsed && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  return MOCK_VERIFICATIONS;
+}
+
+function loadReports(): ReportItem[] {
+  try {
+    const raw = localStorage.getItem(REPORTS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as ReportItem[];
+      if (parsed && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  return MOCK_REPORTS;
+}
+
+function loadFraudSignals(): FraudSignal[] {
+  try {
+    const raw = localStorage.getItem(FRAUD_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as FraudSignal[];
+      if (parsed && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  return MOCK_FRAUD_SIGNALS;
 }
 
 interface AppStore {
@@ -151,14 +187,33 @@ export const useAppStore = create<AppStore>((set, get) => ({
   currentRole: savedUser?.role === 'OWNER' ? 'OWNER' : savedUser?.role === 'STUDENT' ? 'STUDENT' : 'TENANT',
   login: (user) => {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
-    set({
-      currentUser: user,
-      currentRole: user.role,
-      currentView: user.role === 'OWNER' ? 'HOME' : 'HOME',
-      showAuth: false,
-      aiMascotMessage: user.role === 'OWNER'
-        ? "Xush kelibsiz. Endi e'lon joylashingiz va boshqarishingiz mumkin."
-        : "Xush kelibsiz. Endi kvartiralarni o'zingiz, maklersiz ko'rishingiz mumkin.",
+    set((state) => {
+      let verifications = [...state.verifications];
+      const exists = verifications.some((v) => (v.userPhone && v.userPhone === user.phone) || (v.userId && v.userId === user.id));
+      if (!exists) {
+        const newVerif: VerificationRequest = {
+          id: `verif-${Date.now()}`,
+          userId: user.id,
+          userName: user.name,
+          userPhone: user.phone,
+          targetLevel: user.role === 'OWNER' ? 3 : 2,
+          documentType: 'PASSPORT',
+          status: 'PENDING',
+          submittedAt: "Hozirgina (Yangi ro'yxatdan o'tgan)",
+        };
+        verifications = [newVerif, ...verifications];
+        localStorage.setItem(VERIFICATIONS_KEY, JSON.stringify(verifications));
+      }
+      return {
+        currentUser: user,
+        currentRole: user.role,
+        verifications,
+        currentView: 'HOME',
+        showAuth: false,
+        aiMascotMessage: user.role === 'OWNER'
+          ? "Xush kelibsiz! Siz Admin panel va verificatsiya navbatida ro'yxatga olindingiz."
+          : "Xush kelibsiz. Endi kvartiralarni o'zingiz, maklersiz ko'rishingiz mumkin.",
+      };
     });
   },
   logout: () => {
@@ -291,17 +346,29 @@ export const useAppStore = create<AppStore>((set, get) => ({
     rentalType: 'ALL',
   }),
 
-  reports: MOCK_REPORTS,
-  fraudSignals: MOCK_FRAUD_SIGNALS,
-  verifications: MOCK_VERIFICATIONS,
-  addReport: (report) => set((state) => ({ reports: [report, ...state.reports] })),
-  addFraudSignal: (signal) => set((state) => ({ fraudSignals: [signal, ...state.fraudSignals] })),
-  resolveReport: (reportId, status) => set((state) => ({
-    reports: state.reports.map((r) => r.id === reportId ? { ...r, status } : r),
-  })),
-  updateVerification: (verificationId, status) => set((state) => ({
-    verifications: state.verifications.map((v) => v.id === verificationId ? { ...v, status } : v),
-  })),
+  reports: typeof window !== 'undefined' ? loadReports() : MOCK_REPORTS,
+  fraudSignals: typeof window !== 'undefined' ? loadFraudSignals() : MOCK_FRAUD_SIGNALS,
+  verifications: typeof window !== 'undefined' ? loadVerifications() : MOCK_VERIFICATIONS,
+  addReport: (report) => set((state) => {
+    const reports = [report, ...state.reports];
+    localStorage.setItem(REPORTS_KEY, JSON.stringify(reports));
+    return { reports };
+  }),
+  addFraudSignal: (signal) => set((state) => {
+    const fraudSignals = [signal, ...state.fraudSignals];
+    localStorage.setItem(FRAUD_KEY, JSON.stringify(fraudSignals));
+    return { fraudSignals };
+  }),
+  resolveReport: (reportId, status) => set((state) => {
+    const reports = state.reports.map((r) => r.id === reportId ? { ...r, status } : r);
+    localStorage.setItem(REPORTS_KEY, JSON.stringify(reports));
+    return { reports };
+  }),
+  updateVerification: (verificationId, status) => set((state) => {
+    const verifications = state.verifications.map((v) => v.id === verificationId ? { ...v, status } : v);
+    localStorage.setItem(VERIFICATIONS_KEY, JSON.stringify(verifications));
+    return { verifications };
+  }),
   refreshAdminData: async () => {
     try {
       const apiListings = await ApiService.getListings();
