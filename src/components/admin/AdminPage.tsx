@@ -9,16 +9,53 @@ import { TrustScoreBadge } from '../common/TrustScoreBadge';
 
 export const AdminPage: React.FC = () => {
   const { 
-    reports, verifications, fraudSignals, resolveReport, 
-    updateVerification, setCurrentView, refreshAdminData 
+    reports, verifications, fraudSignals, listings, removeListing, 
+    resolveReport, updateVerification, setCurrentView, refreshAdminData, 
+    setEditingListing, currentUser 
   } = useAppStore();
 
-  const [adminTab, setAdminTab] = useState<'DASHBOARD' | 'FRAUD' | 'VERIFICATION' | 'REPORTS' | 'AUDIT'>('DASHBOARD');
+  const [adminTab, setAdminTab] = useState<'DASHBOARD' | 'LISTINGS' | 'USERS' | 'FRAUD' | 'VERIFICATION' | 'REPORTS' | 'AUDIT'>('DASHBOARD');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshSuccessMsg, setRefreshSuccessMsg] = useState('');
+  const [listingSearch, setListingSearch] = useState('');
+  const [userSearch, setUserSearch] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState<'ALL' | 'OWNER' | 'STUDENT' | 'TENANT'>('ALL');
 
   const pendingVerifications = verifications.filter((v) => v.status === 'PENDING');
   const openReports = reports.filter((r) => r.status === 'OPEN' || r.status === 'UNDER_REVIEW');
+
+  // Filtered listings for admin view
+  const filteredListings = listings.filter((l) => {
+    if (!listingSearch.trim()) return true;
+    const q = listingSearch.toLowerCase();
+    return (
+      l.title.toLowerCase().includes(q) ||
+      l.district.toLowerCase().includes(q) ||
+      l.owner.name.toLowerCase().includes(q) ||
+      l.id.toLowerCase().includes(q)
+    );
+  });
+
+  // Unique users list derived from verifications + current user
+  const allAdminUsers = Array.from(
+    new Map(
+      [
+        ...(currentUser ? [{ id: currentUser.id, name: currentUser.name, phone: currentUser.phone, role: currentUser.role, status: 'APPROVED', time: "Faol foydalanuvchi" }] : []),
+        ...verifications.map((v) => ({ id: v.id, name: v.userName, phone: v.userPhone, role: v.targetLevel === 3 ? 'OWNER' : 'STUDENT', status: v.status, time: v.submittedAt })),
+        { id: 'user-jasur', name: 'Jasur Karimov', phone: '+998 90 123 45 67', role: 'OWNER', status: 'APPROVED', time: '2026-08-10' },
+        { id: 'user-nodira', name: 'Nodira Alimova', phone: '+998 93 718 88 85', role: 'OWNER', status: 'APPROVED', time: '2026-08-11' },
+        { id: 'user-dilnoza', name: 'Dilnoza Aliyeva', phone: '+998 97 700 11 22', role: 'STUDENT', status: 'APPROVED', time: '2026-08-12' },
+        { id: 'user-sardor', name: 'Sardor Usmonov', phone: '+998 94 555 44 33', role: 'STUDENT', status: 'PENDING', time: '2026-08-14' },
+      ].map((u) => [u.phone || u.id, u])
+    ).values()
+  );
+
+  const filteredUsers = allAdminUsers.filter((u) => {
+    if (userRoleFilter !== 'ALL' && u.role !== userRoleFilter) return false;
+    if (!userSearch.trim()) return true;
+    const q = userSearch.toLowerCase();
+    return u.name.toLowerCase().includes(q) || u.phone.toLowerCase().includes(q);
+  });
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -47,7 +84,7 @@ export const AdminPage: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-slate-400">
-              Platforma operatsiyalari, firibgarlik skanerlari, verification va moderation boshqaruvi.
+              Platforma operatsiyalari, e'lonlar bazasi, foydalanuvchilar, verification va moderation boshqaruvi.
             </p>
           </div>
         </div>
@@ -80,7 +117,7 @@ export const AdminPage: React.FC = () => {
       )}
 
       {/* Navigation Sub-Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3 text-xs font-bold">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3 text-xs font-bold overflow-x-auto hide-scrollbar">
         <button
           onClick={() => setAdminTab('DASHBOARD')}
           className={`px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
@@ -88,6 +125,24 @@ export const AdminPage: React.FC = () => {
           }`}
         >
           <BarChart3 className="w-4 h-4 text-emerald-400" /> Dashboard & KPI
+        </button>
+
+        <button
+          onClick={() => setAdminTab('LISTINGS')}
+          className={`px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
+            adminTab === 'LISTINGS' ? 'bg-emerald-800 text-white shadow-md' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <Database className="w-4 h-4 text-emerald-400" /> Barcha E'lonlar ({listings.length})
+        </button>
+
+        <button
+          onClick={() => setAdminTab('USERS')}
+          className={`px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
+            adminTab === 'USERS' ? 'bg-blue-900 text-white shadow-md' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <Users className="w-4 h-4 text-blue-400" /> Foydalanuvchilar ({allAdminUsers.length})
         </button>
 
         <button
@@ -188,6 +243,184 @@ export const AdminPage: React.FC = () => {
                   <div className="flex justify-between"><span>WIUT (Westminster):</span> <strong className="text-amber-400">17% qidiruv</strong></div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BARCHA E'LONLAR TAB */}
+      {adminTab === 'LISTINGS' && (
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-card space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h2 className="font-extrabold text-lg text-slate-900 flex items-center gap-2">
+                  <Database className="w-5 h-5 text-emerald-600" /> Barcha Kvartira va Xonalar Bazasi ({listings.length})
+                </h2>
+                <p className="text-xs text-slate-500">Platformadagi barcha faol, tasdiqlangan va sinov e'lonlarini tahrirlash yoki o'chirish.</p>
+              </div>
+
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  placeholder="E'lon nomi, tuman yoki e me'yordagi egasi..."
+                  value={listingSearch}
+                  onChange={(e) => setListingSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-emerald-600"
+                />
+              </div>
+            </div>
+
+            <div className="divide-y divide-slate-100">
+              {filteredListings.length === 0 ? (
+                <div className="py-12 text-center text-xs text-slate-400 font-bold">
+                  Hech qanday e'lon topilmadi.
+                </div>
+              ) : (
+                filteredListings.map((l) => (
+                  <div key={l.id} className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img
+                        src={l.images[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=70&w=300'}
+                        alt={l.title}
+                        className="w-16 h-12 rounded-xl object-cover border border-slate-200 shrink-0"
+                      />
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-extrabold text-sm text-slate-900 truncate hover:text-emerald-700">{l.title}</span>
+                          <TrustScoreBadge score={l.trustScore} size="sm" />
+                          <span className="text-[10px] font-mono bg-slate-100 px-2 py-0.5 rounded text-slate-600">{l.id}</span>
+                        </div>
+                        <p className="text-xs text-slate-500 font-medium">
+                          {l.district} tumani • <strong className="text-emerald-700">{l.price.toLocaleString('uz-UZ')} so'm</strong> • {l.rooms} xona ({l.area} m²) • Egasi: <span className="font-bold text-slate-700">{l.owner.name}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs shrink-0 w-full sm:w-auto justify-end">
+                      <button
+                        onClick={() => setCurrentView('LISTING_DETAIL', l.id)}
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-xl transition"
+                        title="Ko'rish"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setEditingListing(l)}
+                        className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-3 py-1.5 rounded-xl border border-emerald-200 transition"
+                      >
+                        Tahrirlash
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`"${l.title}" e'loni bazadan to'liq o'chirilsinmi?`)) {
+                            removeListing(l.id);
+                          }
+                        }}
+                        className="bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white font-bold px-3.5 py-1.5 rounded-xl border border-rose-200 transition active:scale-95"
+                      >
+                        O'chirish (Delete)
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FOYDALANUVCHILAR BAZASI TAB */}
+      {adminTab === 'USERS' && (
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-card space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h2 className="font-extrabold text-lg text-slate-900 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-blue-600" /> Foydalanuvchilar va Mijozlar Bazasi ({allAdminUsers.length})
+                </h2>
+                <p className="text-xs text-slate-500">Ro'yxatdan o'tgan barcha uy egalari, talabalar va ijarachilar.</p>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                  <button
+                    onClick={() => setUserRoleFilter('ALL')}
+                    className={`px-3 py-1 rounded-lg ${userRoleFilter === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'}`}
+                  >
+                    Barchasi
+                  </button>
+                  <button
+                    onClick={() => setUserRoleFilter('OWNER')}
+                    className={`px-3 py-1 rounded-lg ${userRoleFilter === 'OWNER' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'}`}
+                  >
+                    Uy Egalari
+                  </button>
+                  <button
+                    onClick={() => setUserRoleFilter('STUDENT')}
+                    className={`px-3 py-1 rounded-lg ${userRoleFilter === 'STUDENT' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'}`}
+                  >
+                    Talabalar
+                  </button>
+                </div>
+
+                <div className="relative w-full sm:w-60">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    placeholder="Ism yoki telefon..."
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-600"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="divide-y divide-slate-100">
+              {filteredUsers.length === 0 ? (
+                <div className="py-12 text-center text-xs text-slate-400 font-bold">
+                  Hech qanday foydalanuvchi topilmadi.
+                </div>
+              ) : (
+                filteredUsers.map((u) => (
+                  <div key={u.id} className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-slate-900 text-white font-black flex items-center justify-center text-sm shadow-sm">
+                        {u.name.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-sm text-slate-900">{u.name}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                            u.role === 'OWNER' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {u.role === 'OWNER' ? 'Uy Egasi' : u.role === 'STUDENT' ? 'Talaba' : 'Ijarachi'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 font-mono mt-0.5">
+                          📞 {u.phone} • Ro'yxatdan o'tgan: {u.time}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className={`font-bold px-3 py-1 rounded-xl text-xs ${
+                        u.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                      }`}>
+                        {u.status === 'APPROVED' ? '✅ Tasdiqlangan' : '⏳ Kutilmoqda'}
+                      </span>
+                      <button
+                        onClick={() => alert(`Siz ${u.name} profiliga verifikatsiya statusini berdingiz!`)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-1.5 rounded-xl transition"
+                      >
+                        Verifikatsiya Berish
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
