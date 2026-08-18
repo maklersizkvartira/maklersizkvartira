@@ -18,27 +18,12 @@ export const Header: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 flex items-center justify-between gap-3">
-        <button onClick={() => setCurrentView('HOME')} className="flex items-center gap-2.5 shrink-0 min-w-0 group text-left">
-          <div className="h-10 sm:h-11 w-10 sm:w-11 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 p-0.5 shadow-md shadow-emerald-600/20 group-hover:scale-105 transition-transform flex items-center justify-center shrink-0">
-            <img 
-              src="/logo.png" 
-              alt="MaklersizUy.uz" 
-              className="h-full w-full object-contain bg-white rounded-[14px] p-1" 
-            />
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-1">
-              <span className="text-base sm:text-xl font-black tracking-tight text-slate-900 leading-none group-hover:text-emerald-600 transition-colors">
-                Maklersiz<span className="text-emerald-600">Uy.uz</span>
-              </span>
-              <span className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full border border-emerald-300">
-                0%
-              </span>
-            </div>
-            <span className="text-[9px] font-extrabold text-slate-400 tracking-wider uppercase leading-none mt-1">
-              Vositachisiz • Egasi
-            </span>
-          </div>
+        <button onClick={() => setCurrentView('HOME')} className="flex items-center gap-2 shrink-0 min-w-0 group text-left">
+          <img 
+            src="/logo.png" 
+            alt="MaklersizUy.uz" 
+            className="h-10 sm:h-12 md:h-14 w-auto max-w-[180px] sm:max-w-[260px] object-contain transition-transform group-hover:scale-105" 
+          />
         </button>
 
         {/* Desktop Navigation Links */}
