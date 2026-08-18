@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Save, Edit3, CheckCircle2, Video, Trash2 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
+import { ApiService } from '../../services/apiService';
 import { UZBEKISTAN_REGIONS, TASHKENT_METRO_LINES } from '../../data/mockLocations';
 
 export const EditListingModal: React.FC = () => {
@@ -31,7 +32,7 @@ export const EditListingModal: React.FC = () => {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    updateListing({
+    const updated = {
       ...editingListing,
       title,
       description,
@@ -52,7 +53,12 @@ export const EditListingModal: React.FC = () => {
       utilitiesIncluded: utilities,
       petsAllowed: pets,
       parking,
-    });
+    };
+
+    updateListing(updated);
+    if (updated.id) {
+      ApiService.updateListing(updated.id, updated).catch(() => {});
+    }
   };
 
   return (

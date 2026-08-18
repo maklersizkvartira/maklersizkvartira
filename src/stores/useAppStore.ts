@@ -369,17 +369,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
     };
   }),
   removeListing: (listingId) => set((state) => {
+    ApiService.deleteListing(listingId).catch(() => {});
     const listings = state.listings.filter((l) => l.id !== listingId);
     const extras = listings.filter((l) => l.id.startsWith('listing-') && !MOCK_LISTINGS.some((m) => m.id === l.id));
     localStorage.setItem(EXTRA_KEY, JSON.stringify(extras));
     return { listings, aiMascotMessage: "E'lon o'chirildi." };
   }),
-  clearAllExtraListings: () => set((state) => {
+  clearAllExtraListings: () => set(() => {
     localStorage.removeItem(EXTRA_KEY);
-    const cleanListings = state.listings.filter((l) => MOCK_LISTINGS.some((m) => m.id === l.id));
     return {
-      listings: cleanListings.length ? cleanListings : MOCK_LISTINGS,
-      aiMascotMessage: "Barcha kiritilgan e'lonlar va kesh ma'lumotlari bazadan tozalab yuborildi!",
+      listings: [],
+      aiMascotMessage: "Barcha kiritilgan e'lonlar va kesh ma'lumotlari tozalab yuborildi!",
     };
   }),
 

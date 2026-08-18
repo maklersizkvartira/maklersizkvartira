@@ -276,6 +276,9 @@ export const CreateListingPage: React.FC = () => {
     };
 
     addListing(newListing);
+    ApiService.createListing(newListing).catch((err) => {
+      console.warn("Listing sync warning:", err);
+    });
   };
 
   return (
