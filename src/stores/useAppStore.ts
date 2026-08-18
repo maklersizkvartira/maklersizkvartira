@@ -40,10 +40,20 @@ function loadUser(): CurrentUser | null {
 function loadExtraListings(): Listing[] {
   try {
     const raw = localStorage.getItem(EXTRA_KEY);
-    return raw ? JSON.parse(raw) as Listing[] : [];
+    if (raw) {
+      const parsed = JSON.parse(raw) as Listing[];
+      return parsed.filter(
+        (l) =>
+          !['listing-1', 'listing-2', 'listing-3', 'listing-sherik-1'].includes(l.id) &&
+          l.owner?.name !== 'Jasur Karimov' &&
+          l.owner?.name !== 'Nodira Alimova' &&
+          l.owner?.name !== 'Bekzod Rahimov'
+      );
+    }
   } catch {
     return [];
   }
+  return [];
 }
 
 function loadVerifications(): VerificationRequest[] {
