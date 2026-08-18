@@ -119,8 +119,8 @@ export function rankListings(listings: Listing[], need: SearchNeed): RankedListi
       score += 18;
       why.push('Viloyat mos');
     }
-    if (need.district && need.district !== 'Barchasi' && listing.district === need.district) {
-      score += 24;
+    if (need.district && need.district !== 'Barchasi' && listing.district.toLowerCase() === need.district.toLowerCase()) {
+      score += 30;
       why.push('Tuman mos');
     }
     if (need.rooms) {
@@ -131,11 +131,20 @@ export function rankListings(listings: Listing[], need: SearchNeed): RankedListi
         score += 8;
       }
     }
-    if (need.maxPrice && listing.price <= need.maxPrice) {
-      score += 12;
-      const closeness = 1 - listing.price / need.maxPrice;
-      score += closeness * 8;
+
+    if (need.maxPrice) {
+      const p = listing.price;
+      if (p <= need.maxPrice) {
+        score += 25;
+        why.push('Narx mos');
+      } else if (p <= need.maxPrice * 1.35) {
+        score += 15;
+        why.push('Narx yaqin');
+      } else {
+        score -= 15;
+      }
     }
+
     if (need.minPrice && listing.price < need.minPrice) score -= 20;
     if (need.metro && need.metro !== 'Barchasi' && listing.metroStation === need.metro) {
       score += 16;
