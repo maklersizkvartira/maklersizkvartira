@@ -7,12 +7,12 @@ export const GOOGLE_PROJECT_ID = "maklersiz-uy";
 
 // Firebase configuration using environment variables with project credentials fallback
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyMaklersizUzSecretKeyForTestingGoogleAuth2026",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || `${GOOGLE_PROJECT_ID}.firebaseapp.com`,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || GOOGLE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || `${GOOGLE_PROJECT_ID}.appspot.com`,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyD9InxPaU3gRxGJUnU3hkLpSm7lQgfK_sA",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "maklersiz-uy.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "maklersiz-uy",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "maklersiz-uy.firebasestorage.app",
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "63173300413",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:63173300413:web:maklersizuygoogleauth"
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:63173300413:web:d69b2fe1fc5a5648e067d4"
 };
 
 // Initialize Firebase App
