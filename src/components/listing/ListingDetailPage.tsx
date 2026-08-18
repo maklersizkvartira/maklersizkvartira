@@ -234,6 +234,35 @@ export const ListingDetailPage: React.FC = () => {
             </p>
           </div>
 
+          {/* Aniq Manzil Card */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-card space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-lg text-slate-900 flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-emerald-600" />
+                <span>Kvartiraning Aniq Manzili</span>
+              </h3>
+              <button
+                onClick={() => setCurrentView('MAP')}
+                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs px-3.5 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1 transition-colors"
+              >
+                <span>Xaritada ko'rish 🗺</span>
+              </button>
+            </div>
+            
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+              <div className="text-sm font-bold text-slate-900">
+                📍 {listing.address || `${listing.district} tumani, ${listing.region}`}
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+                <span>Shahar/Viloyat: <strong>{listing.region}</strong></span>
+                <span>Tuman: <strong>{listing.district}</strong></span>
+                {listing.metroStation && (
+                  <span className="text-emerald-700 font-bold">🚇 Metro: {listing.metroStation} ({listing.metroDistanceMinutes || 5} min)</span>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Amenities & Features */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-card space-y-4">
             <h3 className="font-extrabold text-lg text-slate-900">Qulayliklar va Sharoitlar</h3>
