@@ -35,9 +35,11 @@ export const ChatPage: React.FC = () => {
   };
 
   const isMe = (senderId: string, senderRole: string) => {
-    if (currentUser?.id && senderId === currentUser.id) return true;
+    if (currentUser?.id) {
+      return senderId === currentUser.id;
+    }
     if (isOwner) return senderRole === 'OWNER';
-    return senderRole !== 'OWNER';
+    return senderRole === 'TENANT';
   };
 
   const filteredConversations = conversations.filter((c) => {
@@ -196,27 +198,27 @@ export const ChatPage: React.FC = () => {
       </div>
 
       {/* Message Feed Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-slate-50/80 min-h-0">
+      <div className="flex-1 overflow-y-auto px-3.5 py-4 sm:p-5 space-y-3.5 bg-slate-100/70 min-h-0">
         {currentMsgs.map((msg) => {
           const mine = isMe(msg.senderId, msg.senderRole);
           return (
-            <div key={msg.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+            <div key={msg.id} className={`flex w-full ${mine ? 'justify-end pr-1 sm:pr-2' : 'justify-start pl-1 sm:pl-2'}`}>
               <div
-                className={`max-w-[85%] sm:max-w-[70%] p-3.5 rounded-2xl text-xs sm:text-sm shadow-sm leading-relaxed ${
+                className={`max-w-[82%] sm:max-w-[72%] px-4 py-3 rounded-2xl text-[13px] sm:text-sm shadow-sm leading-relaxed break-words [word-break:break-word] ${
                   mine
-                    ? 'bg-gradient-to-br from-emerald-600 to-emerald-700 text-white rounded-br-xs'
-                    : 'bg-white text-slate-900 border border-slate-200/80 rounded-bl-xs'
+                    ? 'bg-gradient-to-br from-emerald-600 to-emerald-700 text-white rounded-tr-xs shadow-emerald-600/10'
+                    : 'bg-white text-slate-900 border border-slate-200/90 rounded-tl-xs'
                 }`}
               >
                 {!mine && (
-                  <div className="text-[10px] font-extrabold text-emerald-700 mb-1 flex items-center gap-1">
+                  <div className="text-[10.5px] font-extrabold text-emerald-700 mb-1 flex items-center gap-1">
                     <span>{msg.senderName}</span>
                   </div>
                 )}
-                <p className="whitespace-pre-line">{msg.text}</p>
-                <div className={`text-[9px] sm:text-[10px] mt-1.5 flex items-center justify-end gap-1 ${mine ? 'text-emerald-100' : 'text-slate-400'}`}>
+                <p className="whitespace-pre-wrap break-words leading-relaxed">{msg.text}</p>
+                <div className={`text-[9.5px] sm:text-[10px] mt-1.5 flex items-center justify-end gap-1 font-medium ${mine ? 'text-emerald-100' : 'text-slate-400'}`}>
                   <span>{msg.timestamp}</span>
-                  {mine && <CheckCheck className="w-3 h-3 text-emerald-200" />}
+                  {mine && <CheckCheck className="w-3.5 h-3.5 text-emerald-200" />}
                 </div>
               </div>
             </div>
