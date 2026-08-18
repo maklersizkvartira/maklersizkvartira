@@ -23,8 +23,8 @@ class Settings(BaseModel):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7          # 7 days
     
     # Google OAuth Credentials
-    GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "63173300413-jfijmf1cng9dtlopjdpabb1e881go6pl.apps.googleusercontent.com")
-    GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "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")
+    GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "your_google_client_id_here")
+    GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "your_google_client_secret_here")
     GOOGLE_PROJECT_ID: str = os.getenv("GOOGLE_PROJECT_ID", "maklersiz-uy")
 
     # Database Settings
