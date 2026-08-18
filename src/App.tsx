@@ -32,6 +32,15 @@ export const App: React.FC = () => {
   useEffect(() => {
     fetchListings();
 
+    // Check for Deep Link URL parameters (e.g. ?listing=listing-1 or ?id=listing-1 or #listing-1)
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const listingIdParam = urlParams.get('listing') || urlParams.get('id') || window.location.hash.replace('#', '');
+      if (listingIdParam && listingIdParam.startsWith('listing-')) {
+        setCurrentView('LISTING_DETAIL', listingIdParam);
+      }
+    } catch {}
+
     try {
       let guestId = sessionStorage.getItem('maklersiz_guest_id');
       if (!guestId) {
@@ -45,7 +54,7 @@ export const App: React.FC = () => {
         body: JSON.stringify({ session_id: guestId, page_path: window.location.pathname || '/' }),
       }).catch(() => {});
     } catch (e) {}
-  }, [fetchListings]);
+  }, [fetchListings, setCurrentView]);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-white">

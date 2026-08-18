@@ -119,8 +119,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
   currentView: savedUser?.role === 'OWNER' ? 'HOME' : 'HOME',
   selectedListingId: null,
   setCurrentView: (view, listingId = null) => {
-    set({ currentView: view, selectedListingId: listingId ?? get().selectedListingId });
+    const targetListingId = listingId ?? get().selectedListingId;
+    set({ currentView: view, selectedListingId: targetListingId });
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    if (typeof window !== 'undefined') {
+      try {
+        if (view === 'LISTING_DETAIL' && targetListingId) {
+          window.history.pushState({}, '', `/?listing=${targetListingId}`);
+        } else if (view === 'HOME') {
+          window.history.pushState({}, '', '/');
+        }
+      } catch (e) {}
+    }
   },
 
   currentUser: savedUser,
