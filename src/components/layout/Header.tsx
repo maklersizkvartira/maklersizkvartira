@@ -17,15 +17,8 @@ export const Header: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 flex items-center justify-between gap-3">
-        <button onClick={() => setCurrentView('HOME')} className="flex items-center gap-2 shrink-0 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-800 flex items-center justify-center text-white shrink-0">
-            <ShieldCheck className="w-5 h-5" />
-          </div>
-          <div className="text-left min-w-0">
-            <div className="text-[15px] sm:text-xl font-black text-slate-900 leading-none truncate">
-              Maklersiz<span className="text-emerald-600">.uz</span>
-            </div>
-          </div>
+        <button onClick={() => setCurrentView('HOME')} className="flex items-center gap-2 shrink-0 min-w-0 group text-left">
+          <img src="/logo.png" alt="MaklersizUy.uz" className="h-9 sm:h-10 w-auto object-contain transition-transform group-hover:scale-[1.02]" />
         </button>
 
         {/* Desktop Navigation Links */}

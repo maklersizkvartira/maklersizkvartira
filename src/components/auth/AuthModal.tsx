@@ -93,12 +93,9 @@ export const AuthModal: React.FC = () => {
 
         {/* Modal Header */}
         <div className="text-center space-y-2 mb-5">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-600 flex items-center justify-center text-white mx-auto shadow-md shadow-emerald-600/20">
-            <ShieldCheck className="w-8 h-8" />
-          </div>
-          <h2 className="text-2xl font-black text-slate-900">Maklersiz<span className="text-emerald-600">.uz</span></h2>
+          <img src="/logo.png" alt="MaklersizUy.uz" className="h-11 sm:h-12 w-auto object-contain mx-auto" />
           <p className="text-xs text-slate-500 px-2">
-            Uy egalari va talabalar uchun bevosita platforma
+            Uy egasi va xaridorni to'g'ridan-to'g'ri bog'laydi
           </p>
         </div>
 

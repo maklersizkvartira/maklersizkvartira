@@ -41,12 +41,7 @@ export const Footer: React.FC = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-xs pt-2">
           <div className="col-span-2 space-y-3">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-800 flex items-center justify-center text-white shadow-md shadow-emerald-600/20">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <span className="text-lg font-black tracking-tight text-white">
-                Maklersiz<span className="text-emerald-400">.uz</span>
-              </span>
+              <img src="/logo.png" alt="MaklersizUy.uz" className="h-10 sm:h-11 w-auto object-contain bg-white/95 rounded-xl p-1.5 shadow-lg" />
             </div>
             <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
               O'zbekistonda uy-joy ijarasini maklersiz, vositachisiz hamda to'g'ridan-to'g'ri egasidan topishga mo'ljallangan birinchi va eng yirik aqlli platforma.
