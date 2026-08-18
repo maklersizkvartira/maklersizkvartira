@@ -35,7 +35,7 @@ export const BottomNav: React.FC = () => {
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-lg border-t border-slate-200 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] pb-safe">
       <div className="flex items-stretch justify-around px-1 pt-1.5 pb-1">
         {navItems.map((item, idx) => {
-          const Icon = item.icon;
+          const Icon = item?.icon || Home;
           const isAuthShortcut = !currentUser && !isOwner && item.label === 'Kirish';
           const isActive = !isAuthShortcut && currentView === item.id;
           return (
