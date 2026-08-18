@@ -124,6 +124,41 @@ export const AdminPage: React.FC = () => {
               <span className="text-[10px] text-slate-400 font-medium">Listing Boost & Verified</span>
             </div>
           </div>
+
+          {/* AI Insights & Market Analytics Card */}
+          <div className="bg-slate-900 text-white p-6 rounded-3xl border border-emerald-500/40 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-emerald-400" />
+                <h3 className="font-extrabold text-base text-white">Shield AI Bozori va Talab Analytics</h3>
+              </div>
+              <span className="bg-emerald-950 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded">
+                AI Real-Time Insight
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800 space-y-2">
+                <h4 className="font-bold text-slate-200 text-sm">O'rtacha Ijara Narxlari (Xonalar bo'yicha)</h4>
+                <div className="space-y-1.5 pt-1 text-slate-300">
+                  <div className="flex justify-between"><span>1 xonali studio:</span> <strong className="text-emerald-400">3.2 mln so'm ($250)</strong></div>
+                  <div className="flex justify-between"><span>2 xonali kvartira:</span> <strong className="text-emerald-400">4.8 mln so'm ($375)</strong></div>
+                  <div className="flex justify-between"><span>3 xonali kvartira:</span> <strong className="text-emerald-400">6.5 mln so'm ($508)</strong></div>
+                  <div className="flex justify-between"><span>4+ xonali hovli:</span> <strong className="text-emerald-400">8.9 mln so'm ($695)</strong></div>
+                </div>
+              </div>
+
+              <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800 space-y-2">
+                <h4 className="font-bold text-slate-200 text-sm">Eng Yuqori Qidiruv Talabi (Universitetlar)</h4>
+                <div className="space-y-1.5 pt-1 text-slate-300">
+                  <div className="flex justify-between"><span>TDIU (Iqtisodiyot Univ.):</span> <strong className="text-amber-400">34% qidiruv</strong></div>
+                  <div className="flex justify-between"><span>TATU (IT Univ.):</span> <strong className="text-amber-400">28% qidiruv</strong></div>
+                  <div className="flex justify-between"><span>NUUz (Milliy Univ.):</span> <strong className="text-amber-400">21% qidiruv</strong></div>
+                  <div className="flex justify-between"><span>WIUT (Westminster):</span> <strong className="text-amber-400">17% qidiruv</strong></div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
