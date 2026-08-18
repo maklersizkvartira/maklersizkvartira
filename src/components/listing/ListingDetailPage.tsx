@@ -419,9 +419,10 @@ export const ListingDetailPage: React.FC = () => {
                       setShowAuth(true);
                     } else {
                       setShowPhone(true);
+                      listing.contactCount = (listing.contactCount || 0) + 1;
                     }
                   }}
-                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold py-3 px-4 rounded-xl border border-slate-300 flex items-center justify-center gap-2 text-sm transition-colors"
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-4 rounded-xl shadow-md flex items-center justify-center gap-2 text-sm transition-all hover:scale-[1.02]"
                 >
                   <Phone className="w-4 h-4 text-emerald-600" />
                   <span>Telefon Raqamni Ko'rish</span>
