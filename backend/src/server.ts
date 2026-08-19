@@ -59,7 +59,7 @@ function matchPhoneBackend(p1?: string | null, p2?: string | null) {
 
 // Gemini AI API Scanner
 async function scanListingAIGemini(title: string, description: string, price?: number, rooms?: number) {
-  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${GEMINI_API_KEY.trim()}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY.trim()}`;
   const prompt = `Siz O'zbekistonning ijaraga uy berish platformasidagi moderator AIsiz. Vazifangiz: quyidagi e'lon matni maklerga tegishlimi yoki yo'qmi shuni aniqlash.
 Agar makler bo'lsa (yoki komissiya, xizmat haqi bo'lsa, yoxud rieltorlik tashkiloti bo'lsa), shuningdek OLX kabi boshqa saytlardan ko'chirilganligiga ishora qiluvchi so'zlar bo'lsa (masalan "olx" yoki "ko'chirma"), uni REJECTED (yoki WARNING) deb belgilang.
 Oddiy uy egasi bo'lsa APPROVED deb belgilang.
@@ -202,7 +202,7 @@ app.post('/api/v1/ai/chat', async (req, res) => {
   if (!message) return res.status(400).json({ error: 'Message is required' });
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${GEMINI_API_KEY.trim()}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY.trim()}`;
     const prompt = `Foydalanuvchi kvartira qidiryapti. Uning yozgan gapi: "${message}"
 Vazifangiz: Shu gapdan viloyat (yoki shahar), tuman, xonalar soni va maksimal narxni ajratib olib JSON formatida qaytarish.
 Qoidalar: 
