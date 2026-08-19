@@ -71,6 +71,17 @@ export const ApiService = {
       } catch {}
     }
 
+    // Also check last stored user in USER_KEY if phone matches
+    if (!localMatched) {
+      try {
+        const lastUserRaw = localStorage.getItem('maklersiz_user');
+        if (lastUserRaw) {
+          const lastU: CurrentUser = JSON.parse(lastUserRaw);
+          if (matchPhone(lastU.phone, phone)) localMatched = lastU;
+        }
+      } catch {}
+    }
+
     try {
       const res = await fetchWithAuth(`${API_BASE}/auth/login`, {
         method: 'POST',
@@ -82,16 +93,23 @@ export const ApiService = {
         if (data.access_token) saveTokens(data.access_token, data.refresh_token);
         const remoteUser = (data.user || data.data?.user || (data.id ? data : null)) as CurrentUser | null;
         if (remoteUser) {
-          // If remote user has default avatar but localMatched has a custom avatar, preserve custom avatar
           const finalUser: CurrentUser = {
             ...remoteUser,
-            avatar: (localMatched?.avatar && !localMatched.avatar.includes('unsplash.com')) ? localMatched.avatar : (remoteUser.avatar || localMatched?.avatar),
+            id: localMatched?.id || remoteUser.id,
+            avatar: (localMatched?.avatar && !localMatched.avatar.includes('unsplash.com'))
+              ? localMatched.avatar
+              : (remoteUser.avatar || localMatched?.avatar),
           };
+          try {
+            const usersArr: CurrentUser[] = localUsersRaw ? JSON.parse(localUsersRaw) : [];
+            const filtered = usersArr.filter((u) => !matchPhone(u.phone, phone) && u.id !== finalUser.id);
+            filtered.push(finalUser);
+            localStorage.setItem('maklersiz_registered_users', JSON.stringify(filtered));
+          } catch {}
           return finalUser;
         }
       } else if (res) {
         const errJson = await res.json().catch(() => ({}));
-        // If backend returned error but we have localMatched, use localMatched
         if (localMatched) return localMatched;
         throw new Error(errJson.detail || errJson.message || "Telefon raqami yoki parol noto'g'ri.");
       }
@@ -156,6 +174,7 @@ export const ApiService = {
         if (remote) {
           registeredUser = {
             ...remote,
+            id: localExisting?.id || remote.id,
             avatar: chosenAvatar,
           };
         }
@@ -176,7 +195,7 @@ export const ApiService = {
 
     // Save to localStorage for offline matching
     try {
-      const filtered = existingArr.filter((u) => !matchPhone(u.phone, payloadPhone));
+      const filtered = existingArr.filter((u) => !matchPhone(u.phone, payloadPhone) && u.id !== registeredUser.id);
       filtered.push(registeredUser);
       localStorage.setItem('maklersiz_registered_users', JSON.stringify(filtered));
     } catch {}
@@ -184,13 +203,13 @@ export const ApiService = {
     return registeredUser;
   },
 
-  updateProfileAvatar: async (phone: string, avatar: string): Promise<void> => {
+  updateProfileAvatar: async (phone: string, avatar: string, userObj?: CurrentUser): Promise<void> => {
     // Update local registered users list
     try {
       const localUsersRaw = localStorage.getItem('maklersiz_registered_users');
       if (localUsersRaw) {
         const usersArr: CurrentUser[] = JSON.parse(localUsersRaw);
-        const updated = usersArr.map((u) => (matchPhone(u.phone, phone) ? { ...u, avatar } : u));
+        const updated = usersArr.map((u) => (matchPhone(u.phone, phone) || (userObj?.id && u.id === userObj.id) ? { ...u, avatar } : u));
         localStorage.setItem('maklersiz_registered_users', JSON.stringify(updated));
       }
     } catch {}
@@ -199,7 +218,13 @@ export const ApiService = {
     try {
       await fetchWithAuth(`${API_BASE}/auth/profile`, {
         method: 'POST',
-        body: JSON.stringify({ phone, avatar }),
+        body: JSON.stringify({
+          phone,
+          avatar,
+          id: userObj?.id,
+          name: userObj?.name,
+          role: userObj?.role,
+        }),
       });
     } catch {
       /* ignore */

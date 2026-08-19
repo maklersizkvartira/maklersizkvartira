@@ -246,6 +246,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   login: (user) => {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
+    try {
+      const localUsersRaw = localStorage.getItem('maklersiz_registered_users');
+      const usersArr = localUsersRaw ? JSON.parse(localUsersRaw) : [];
+      const filtered = usersArr.filter((u) => !matchPhone(u.phone, user.phone) && u.id !== user.id);
+      filtered.push(user);
+      localStorage.setItem('maklersiz_registered_users', JSON.stringify(filtered));
+    } catch {}
     set((state) => {
       let verifications = [...state.verifications];
       const exists = verifications.some((v) => (v.userPhone && v.userPhone === user.phone) || (v.userId && v.userId === user.id));
@@ -293,7 +300,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
     localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
 
     // Also update registered users storage so logging back in preserves the new avatar
-    ApiService.updateProfileAvatar(currentUser.phone, avatar).catch(() => {});
+    try {
+      const localUsersRaw = localStorage.getItem('maklersiz_registered_users');
+      const usersArr = localUsersRaw ? JSON.parse(localUsersRaw) : [];
+      const updated = usersArr.map((u) => (matchPhone(u.phone, currentUser.phone) || u.id === currentUser.id ? currentUser : u));
+      if (!updated.some((u) => u.id === currentUser.id)) {
+        updated.push(currentUser);
+      }
+      localStorage.setItem('maklersiz_registered_users', JSON.stringify(updated));
+    } catch {}
+
+    ApiService.updateProfileAvatar(currentUser.phone, avatar, currentUser).catch(() => {});
 
     const listings = state.listings.map((l) =>
       l.owner.id === currentUser.id ? { ...l, owner: { ...l.owner, avatar } } : l

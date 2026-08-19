@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { ShieldCheck, X, Home, GraduationCap, LogIn, UserPlus, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { SignupRole, UserRole } from '../../types';
-import { ApiService } from '../../services/apiService';
+import { ApiService, matchPhone } from '../../services/apiService';
 import { signInWithGooglePopup } from '../../config/firebase';
 
 export const AuthModal: React.FC = () => {
@@ -125,7 +125,15 @@ export const AuthModal: React.FC = () => {
       const user = await ApiService.register(name.trim(), phone.trim(), role, password.trim());
       triggerSuccessLogin(user, 'Ro\'yxatdan o\'tish muvaffaqiyatli amalga oshdi');
     } catch {
-      const u = {
+      const localUsersRaw = localStorage.getItem('maklersiz_registered_users');
+      let existing: any = null;
+      if (localUsersRaw) {
+        try {
+          const arr = JSON.parse(localUsersRaw);
+          existing = arr.find((u: any) => matchPhone(u.phone, phone.trim()));
+        } catch {}
+      }
+      const u = existing || {
         id: `user-${Date.now()}`,
         name: name.trim(),
         phone: phone.trim(),

@@ -200,6 +200,7 @@ app.post('/api/v1/auth/login', (req: Request, res: Response) => {
   res.json({
     status: 'success',
     user: user,
+    access_token: `token_${Date.now()}`,
     data: { user, token: `token_${Date.now()}` },
   });
 });
@@ -212,12 +213,15 @@ app.post('/api/v1/auth/register', (req: Request, res: Response) => {
   if (existing) {
     if (role) existing.role = role === 'OWNER' ? 'OWNER' : 'STUDENT';
     if (password) existing.password = password;
-    if (name) existing.name = name;
-    if (avatar && !avatar.includes('unsplash.com')) existing.avatar = avatar;
+    if (name && name !== 'Foydalanuvchi') existing.name = name;
+    if (avatar && (!existing.avatar || existing.avatar.includes('unsplash.com'))) {
+      existing.avatar = avatar;
+    }
     saveUsers(USERS_DB);
     res.json({
       status: 'success',
       user: existing,
+      access_token: `token_${Date.now()}`,
       data: { user: existing, token: `token_${Date.now()}` },
     });
     return;
@@ -245,20 +249,88 @@ app.post('/api/v1/auth/register', (req: Request, res: Response) => {
   res.json({
     status: 'success',
     user: newUser,
+    access_token: `token_${Date.now()}`,
     data: { user: newUser, token: `token_${Date.now()}` },
   });
 });
 
-// 3b. Auth Update Profile Avatar
+// 3b. Auth Google Login
+app.post('/api/v1/auth/google', (req: Request, res: Response) => {
+  const { email, name, avatar, uid, phone } = req.body || {};
+  let user = USERS_DB.find((u) => 
+    (uid && u.id === uid) || 
+    (email && u.email === email) || 
+    (phone && matchPhoneBackend(u.phone, phone))
+  );
+
+  if (user) {
+    if (name && (!user.name || user.name === 'Google Foydalanuvchisi')) user.name = name;
+    if (avatar && (!user.avatar || user.avatar.includes('unsplash.com'))) {
+      user.avatar = avatar;
+    }
+    saveUsers(USERS_DB);
+    return res.json({
+      status: 'success',
+      user,
+      access_token: `token_${Date.now()}`,
+      data: { user, token: `token_${Date.now()}` },
+    });
+  }
+
+  const newUser = {
+    id: uid || `user-${Date.now()}`,
+    name: name || 'Google Foydalanuvchisi',
+    email: email || '',
+    phone: phone || '+998901234567',
+    role: 'STUDENT',
+    avatar: avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300',
+    trustScore: 90,
+    status: 'ACTIVE',
+    createdAt: new Date().toISOString(),
+  };
+
+  USERS_DB.push(newUser);
+  saveUsers(USERS_DB);
+
+  res.json({
+    status: 'success',
+    user: newUser,
+    access_token: `token_${Date.now()}`,
+    data: { user: newUser, token: `token_${Date.now()}` },
+  });
+});
+
+// 3c. Auth Update Profile Avatar
 app.post('/api/v1/auth/profile', (req: Request, res: Response) => {
-  const { phone, avatar } = req.body || {};
-  const user = USERS_DB.find((u) => matchPhoneBackend(u.phone, phone));
-  if (user && avatar) {
-    user.avatar = avatar;
+  const { phone, avatar, id, name, role } = req.body || {};
+  let user = USERS_DB.find((u) => (id && u.id === id) || matchPhoneBackend(u.phone, phone));
+  if (user) {
+    if (avatar) user.avatar = avatar;
+    if (name && name !== 'Foydalanuvchi') user.name = name;
+    if (role) user.role = role;
     saveUsers(USERS_DB);
     res.json({ status: 'success', user });
     return;
   }
+
+  // Upsert user if not in backend database yet
+  if (phone || id) {
+    const newUser = {
+      id: id || `user-${Date.now()}`,
+      name: name || 'Foydalanuvchi',
+      phone: phone || '+998 90 000 00 00',
+      role: role || 'STUDENT',
+      avatar: avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300',
+      trustScore: 90,
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+    };
+    USERS_DB.push(newUser);
+    saveUsers(USERS_DB);
+    res.json({ status: 'success', user: newUser });
+    return;
+  }
+
   res.json({ status: 'ignored' });
 });
 
