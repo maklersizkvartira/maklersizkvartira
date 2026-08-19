@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   ShieldAlert, ShieldCheck, Users, FileText, AlertTriangle, CheckCircle2, 
-  XCircle, Eye, Activity, Database, Lock, Settings, BarChart3, Search, Image, RefreshCw 
+  XCircle, Eye, EyeOff, Activity, Database, Lock, Settings, BarChart3, Search, Image, RefreshCw 
 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { MOCK_AUDIT_LOGS } from '../../data/mockAdminData';
@@ -20,6 +20,16 @@ export const AdminPage: React.FC = () => {
   const [listingSearch, setListingSearch] = useState('');
   const [userSearch, setUserSearch] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<'ALL' | 'OWNER' | 'STUDENT' | 'TENANT'>('ALL');
+  const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
+
+  const togglePasswordVisibility = (id: string) => {
+    setVisiblePasswords(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const pendingVerifications = verifications.filter((v) => v.status === 'PENDING');
   const openReports = reports.filter((r) => r.status === 'OPEN' || r.status === 'UNDER_REVIEW');
@@ -36,16 +46,20 @@ export const AdminPage: React.FC = () => {
     );
   });
 
-  // Unique users list derived from verifications + current user
+  // Unique users list derived from verifications + current user + localStorage registered users
+  const registeredUsersRaw = localStorage.getItem('maklersiz_registered_users');
+  const registeredUsers = registeredUsersRaw ? JSON.parse(registeredUsersRaw) : [];
+
   const allAdminUsers = Array.from(
     new Map(
       [
-        ...(currentUser ? [{ id: currentUser.id, name: currentUser.name, phone: currentUser.phone, role: currentUser.role, status: 'APPROVED', time: "Faol foydalanuvchi" }] : []),
-        ...verifications.map((v) => ({ id: v.id, name: v.userName, phone: v.userPhone, role: v.targetLevel === 3 ? 'OWNER' : 'STUDENT', status: v.status, time: v.submittedAt })),
-        { id: 'user-jasur', name: 'Jasur Karimov', phone: '+998 90 123 45 67', role: 'OWNER', status: 'APPROVED', time: '2026-08-10' },
-        { id: 'user-nodira', name: 'Nodira Alimova', phone: '+998 93 718 88 85', role: 'OWNER', status: 'APPROVED', time: '2026-08-11' },
-        { id: 'user-dilnoza', name: 'Dilnoza Aliyeva', phone: '+998 97 700 11 22', role: 'STUDENT', status: 'APPROVED', time: '2026-08-12' },
-        { id: 'user-sardor', name: 'Sardor Usmonov', phone: '+998 94 555 44 33', role: 'STUDENT', status: 'PENDING', time: '2026-08-14' },
+        ...(currentUser ? [{ id: currentUser.id, name: currentUser.name, phone: currentUser.phone, role: currentUser.role, status: 'APPROVED', time: "Faol foydalanuvchi", password: currentUser.password }] : []),
+        ...registeredUsers.map((u: any) => ({ id: u.id, name: u.name, phone: u.phone, role: u.role, status: 'APPROVED', time: 'Yangi', password: u.password })),
+        ...verifications.map((v) => ({ id: v.id, name: v.userName, phone: v.userPhone, role: v.targetLevel === 3 ? 'OWNER' : 'STUDENT', status: v.status, time: v.submittedAt, password: undefined })),
+        { id: 'user-jasur', name: 'Jasur Karimov', phone: '+998 90 123 45 67', role: 'OWNER', status: 'APPROVED', time: '2026-08-10', password: 'mockpassword' },
+        { id: 'user-nodira', name: 'Nodira Alimova', phone: '+998 93 718 88 85', role: 'OWNER', status: 'APPROVED', time: '2026-08-11', password: 'mockpassword' },
+        { id: 'user-dilnoza', name: 'Dilnoza Aliyeva', phone: '+998 97 700 11 22', role: 'STUDENT', status: 'APPROVED', time: '2026-08-12', password: 'mockpassword' },
+        { id: 'user-sardor', name: 'Sardor Usmonov', phone: '+998 94 555 44 33', role: 'STUDENT', status: 'PENDING', time: '2026-08-14', password: 'mockpassword' },
       ].map((u) => [u.phone || u.id, u])
     ).values()
   );
@@ -402,6 +416,16 @@ export const AdminPage: React.FC = () => {
                         <p className="text-xs text-slate-500 font-mono mt-0.5">
                           📞 {u.phone} • Ro'yxatdan o'tgan: {u.time}
                         </p>
+                        {u.password && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-slate-500 font-mono font-bold px-2 py-0.5 bg-slate-100 rounded-lg">
+                              Parol: {visiblePasswords.has(u.id) ? u.password : '••••••••'}
+                            </span>
+                            <button onClick={() => togglePasswordVisibility(u.id)} className="text-slate-400 hover:text-slate-700 transition">
+                              {visiblePasswords.has(u.id) ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
 
