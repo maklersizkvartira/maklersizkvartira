@@ -100,6 +100,23 @@ export const Header: React.FC = () => {
     <header className="fixed top-0 inset-x-0 z-50 bg-slate-950 text-white border-b border-slate-800/80 shadow-lg">
       <AuthModal />
 
+      {/* Technical Maintenance Banner */}
+      <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-orange-500 text-slate-950 font-bold text-xs py-2 px-3 sm:px-4 shadow-md border-b border-amber-300">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="bg-slate-950 text-amber-400 text-[10px] font-black px-2 py-0.5 rounded-md shrink-0 uppercase tracking-wider animate-pulse">
+              ⚙️ Texnik Profilaktika
+            </span>
+            <span className="truncate text-[11px] sm:text-xs text-slate-950">
+              Hozirda platformada rejalashtirilgan optimizatsiya va yangilanish ishlari olib borilmoqda. Tizim taxminan 10–15 daqiqa ichida to'liq yangilanadi!
+            </span>
+          </div>
+          <span className="text-[10px] font-black text-slate-950 bg-amber-200/90 px-2.5 py-0.5 rounded-full shrink-0 font-mono hidden xs:inline-block border border-amber-400 shadow-xs">
+            ⏱️ 10–15 min
+          </span>
+        </div>
+      </div>
+
       {/* Top Notification Bar */}
       <div className="hidden sm:block bg-slate-900/90 text-slate-300 text-[11px] py-1.5 px-4 font-bold border-b border-slate-800">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
