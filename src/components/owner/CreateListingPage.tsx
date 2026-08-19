@@ -56,6 +56,7 @@ export const CreateListingPage: React.FC = () => {
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
   const [isDetectingGps, setIsDetectingGps] = useState(false);
+  const [gpsErrorPulse, setGpsErrorPulse] = useState(false);
   const [gpsSuccessMsg, setGpsSuccessMsg] = useState('');
   const [isScanningAI, setIsScanningAI] = useState(false);
   const [scan, setScan] = useState<ListingScanResult | null>(null);
@@ -508,10 +509,10 @@ export const CreateListingPage: React.FC = () => {
                         alert("Qurilmangizda GPS qo'llab-quvvatlanmaydi.");
                       }
                     }}
-                    className={`${lat && lng ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-500 hover:bg-rose-600 animate-pulse'} text-white font-extrabold text-[11px] px-3 py-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1 active:scale-95 cursor-pointer`}
+                    className={`${gpsErrorPulse ? 'scale-110 shadow-emerald-500/50 bg-emerald-500' : ''} ${lat && lng ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-emerald-500 hover:bg-emerald-600'} text-white font-extrabold text-[11px] px-3 py-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1 active:scale-95 cursor-pointer`}
                   >
-                    <MapPin className="w-3.5 h-3.5 text-white" />
-                    <span>{isDetectingGps ? "Aniqlanmoqda..." : lat && lng ? "✅ GPS Aniqlangan" : "GPS Lokatsiyani Aniqlash (Majburiy)"}</span>
+                    <MapPin className={`${gpsErrorPulse ? 'animate-bounce' : ''} w-3.5 h-3.5 text-white`} />
+                    <span className={gpsErrorPulse ? 'animate-pulse' : ''}>{isDetectingGps ? "Aniqlanmoqda..." : lat && lng ? "✅ GPS Aniqlangan" : "GPS Lokatsiyani Aniqlash (Majburiy)"}</span>
                   </button>
                 </div>
 
@@ -571,7 +572,15 @@ export const CreateListingPage: React.FC = () => {
               <div className="pt-4">
                 <button
                   type="button"
-                  onClick={() => setStep(2)}
+                  onClick={() => {
+                    if (!lat || !lng) {
+                      setGpsErrorPulse(true);
+                      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                      setTimeout(() => setGpsErrorPulse(false), 1500);
+                      return;
+                    }
+                    setStep(2);
+                  }}
                   className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-md text-sm active:scale-[0.99] cursor-pointer"
                 >
                   <span>Keyingi (Uy ma'lumoti)</span>

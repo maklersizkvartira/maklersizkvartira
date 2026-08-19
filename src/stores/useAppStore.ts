@@ -120,6 +120,7 @@ interface AppStore {
   updateListing: (updatedListing: Listing) => void;
   removeListing: (listingId: string) => void;
   clearAllExtraListings: () => void;
+  incrementListingStat: (listingId: string, stat: 'views' | 'favorites' | 'contacts') => void;
   editingListing: Listing | null;
   setEditingListing: (listing: Listing | null) => void;
 
@@ -382,6 +383,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set((state) => ({ listings: dedupeListings([...MOCK_LISTINGS, ...state.listings]) }));
     }
   },
+
+  incrementListingStat: (listingId, stat) => set((state) => {
+    const updatedListings = state.listings.map((l) => {
+      if (l.id !== listingId) return l;
+      const countField = stat === 'views' ? 'viewsCount' : stat === 'favorites' ? 'favoritesCount' : 'contactCount';
+      return { ...l, [countField]: (l[countField] || 0) + 1 };
+    });
+    return { listings: updatedListings };
+  }),
+
   editingListing: null,
   setEditingListing: (listing) => set({ editingListing: listing }),
   addListing: (newListing) => set((state) => {
@@ -429,7 +440,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
   favorites: ['listing-1'],
   toggleFavorite: (listingId) => set((state) => {
     const isFav = state.favorites.includes(listingId);
+    
+    // Also update the listing's local count
+    const updatedListings = state.listings.map((l) => {
+      if (l.id !== listingId) return l;
+      return { 
+        ...l, 
+        favoritesCount: Math.max(0, (l.favoritesCount || 0) + (isFav ? -1 : 1)) 
+      };
+    });
+
     return {
+      listings: updatedListings,
       favorites: isFav
         ? state.favorites.filter((id) => id !== listingId)
         : [...state.favorites, listingId],

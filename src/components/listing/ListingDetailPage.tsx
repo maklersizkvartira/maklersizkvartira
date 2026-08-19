@@ -17,7 +17,7 @@ export const ListingDetailPage: React.FC = () => {
     selectedListingId, listings, favorites, toggleFavorite, 
     openChatWithListing, setCurrentView, resolveReport,
     currentUser, setShowAuth, setEditingListing, removeListing,
-    currency
+    currency, incrementListingStat
   } = useAppStore();
 
   const [activeMedia, setActiveMedia] = useState<'IMAGE' | 'VIDEO' | 'TOUR360'>('IMAGE');
@@ -72,6 +72,13 @@ export const ListingDetailPage: React.FC = () => {
       l.id.endsWith(selectedListingId)
     )
   ) || directListing || (selectedListingId ? undefined : listings[0]);
+
+  useEffect(() => {
+    if (listing?.id) {
+      incrementListingStat(listing.id, 'views');
+    }
+  }, [listing?.id, incrementListingStat]);
+
 
   if (!listing) {
     if (isLoadingDirect || (selectedListingId && listings.length === 0)) {
@@ -548,7 +555,7 @@ export const ListingDetailPage: React.FC = () => {
                       setShowAuth(true);
                     } else {
                       setShowPhone(true);
-                      listing.contactCount = (listing.contactCount || 0) + 1;
+                      incrementListingStat(listing.id, 'contacts');
                     }
                   }}
                   className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-4 rounded-xl shadow-md flex items-center justify-center gap-2 text-sm transition-all hover:scale-[1.02]"
