@@ -1,32 +1,17 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
-import fs from 'fs';
 import path from 'path';
-
-dotenv.config();
+import fs from 'fs';
+import { PrismaClient } from '@prisma/client';
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4000;
+const prisma = new PrismaClient();
 
-// Firebase Admin Service Account credentials parsing (if configured in Railway Variables)
-if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-  try {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    console.log(`🔥 Firebase Service Account loaded for project: ${serviceAccount.project_id || 'maklersiz-uy'}`);
-  } catch (e) {
-    console.warn('⚠️ FIREBASE_SERVICE_ACCOUNT env is set but invalid JSON');
-  }
-}
-
-// Dynamic Bulletproof CORS configuration for production custom domain (https://www.maklersizuy.uz)
-app.use((req: Request, res: Response, next: NextFunction) => {
+app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin) {
+  if (origin && (origin.includes('localhost') || origin.includes('maklersiz.uz') || origin.includes('railway.app') || origin.includes('vercel.app'))) {
     res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
-  } else {
-    res.setHeader('Access-Control-Allow-Origin', '*');
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH');
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Accept, Origin, X-Requested-With, *');
@@ -45,105 +30,16 @@ app.use(express.json({ limit: '10mb' }));
 export let AI_SYSTEM_ACTIVE = true;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
-// Persistent JSON storage for listings
-const DB_FILE = path.join(__dirname, '..', 'listings_db.json');
-const DEFAULT_SEED_LISTINGS: any[] = [];
+// Serve admin frontend statically
+app.use(express.static(path.join(__dirname, '..', 'admin-frontend')));
 
-function loadListings() {
-  try {
-    if (fs.existsSync(DB_FILE)) {
-      const data = fs.readFileSync(DB_FILE, 'utf-8');
-      if (data.trim() === '') {
-        fs.writeFileSync(DB_FILE, '[]');
-        return [];
-      }
-      const parsed = JSON.parse(data);
-      if (Array.isArray(parsed)) return parsed;
-    }
-  } catch (e) {
-    console.error('Error reading listings_db.json:', e);
-  }
-  
-  // Create default db
-  fs.writeFileSync(DB_FILE, '[]');
-  return [];
-}
-
-function saveListings(listings: any[]): void {
-  try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(listings, null, 2), 'utf-8');
-  } catch (e) {
-    console.error('Error writing listings_db.json:', e);
-  }
-}
-
-let LISTINGS_DB: any[] = loadListings();
-let REPORTS_DB: any[] = [];
-let TRAFFIC_LOGS: any[] = [];
-
-// Persistent JSON storage for users
-const USERS_FILE = path.join(__dirname, '..', 'users_db.json');
-
-function loadUsers(): any[] {
-  try {
-    if (fs.existsSync(USERS_FILE)) {
-      const raw = fs.readFileSync(USERS_FILE, 'utf-8');
-      if (raw.trim() === '') {
-        fs.writeFileSync(USERS_FILE, '[]');
-        return [];
-      }
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
-    }
-  } catch (e) {
-    console.error('Error reading users_db.json:', e);
-  }
-  fs.writeFileSync(USERS_FILE, '[]');
-  return [];
-}
-
-function saveUsers(users: any[]): void {
-  try {
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
-  } catch (e) {
-    console.error('Error writing users_db.json:', e);
-  }
-}
-
-let USERS_DB: any[] = loadUsers();
-
-// Helper AI Skaner algorithm
-function scanListingAI(title: string, description: string, price?: number, rooms?: number) {
-  const combined = `${title} ${description}`.toLowerCase();
-  const safeWords = ['maklersiz', 'komissiya yo\'q', '0% komissiya', 'egasidan', 'maklerlar bezovta qilmasin', 'makler emasman'];
-  const isSafe = safeWords.some((w) => combined.includes(w));
-
-  const brokerWords = ['maklerman', 'men makler', 'vositachi', 'agentlik', 'rieltor', 'komissiya 50%', 'usluga 50%', 'xizmat haqi', '15% komissiya'];
-  
-  const reasons: string[] = [];
-  let riskScore = 5;
-
-  const foundBrokerWord = !isSafe && brokerWords.find((w) => combined.includes(w));
-  if (foundBrokerWord) {
-    reasons.push(`Broker belgisi topildi: "${foundBrokerWord}"`);
-    riskScore += 80;
-  }
-
-  if (price && price < 100000 && price > 0) {
-    reasons.push("Shubhali darajada arzon narx (soxta e'lon xavfi)");
-    riskScore += 20;
-  }
-
-  const allowed = riskScore < 70;
-  const trustScore = Math.max(10, 100 - riskScore);
-
-  return {
-    allowed,
-    trustScore,
-    riskScore,
-    status: allowed ? 'APPROVED' : 'REJECTED',
-    reasons: reasons.length > 0 ? reasons : ["Maklerlik belgisi topilmadi. Oddiy egasidan e'lon."],
-  };
+// Helper functions
+function matchPhoneBackend(p1?: string | null, p2?: string | null) {
+  if (!p1 || !p2) return false;
+  const d1 = String(p1).replace(/\D/g, '');
+  const d2 = String(p2).replace(/\D/g, '');
+  if (!d1 || !d2) return false;
+  return d1 === d2 || d1.endsWith(d2) || d2.endsWith(d1);
 }
 
 // Gemini AI API Scanner
@@ -158,13 +54,13 @@ E'lon matni: ${description}
 Narxi: ${price}
 Xonalar: ${rooms}
 
-Javobni quyidagi JSON formatida qaytaring:
+Javobni JSON formatida qaytaring:
 {
-  "allowed": true yoki false,
-  "status": "APPROVED" yoki "WARNING" yoki "REJECTED",
-  "trustScore": 10 dan 100 gacha son,
-  "riskScore": 0 dan 100 gacha son,
-  "reasons": ["sabab 1", "sabab 2"] (agar rejected yoki warning bo'lsa sabablar, aks holda ["Maklerlik belgisi topilmadi."])
+  "allowed": true/false,
+  "status": "APPROVED"/"WARNING"/"REJECTED",
+  "trustScore": 10-100,
+  "riskScore": 0-100,
+  "reasons": ["sabab 1"]
 }`;
 
   try {
@@ -177,10 +73,7 @@ Javobni quyidagi JSON formatida qaytaring:
       })
     });
     
-    if (!response.ok) {
-      throw new Error(`Gemini API xatosi: ${response.status}`);
-    }
-    
+    if (!response.ok) throw new Error(`Gemini xatosi: ${response.status}`);
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (text) {
@@ -200,643 +93,332 @@ Javobni quyidagi JSON formatida qaytaring:
   }
 }
 
-// Routes
+// Fallback AI Scanner
+function scanListingAIFallback(title: string, description: string, price?: number) {
+  const combined = `${title} ${description}`.toLowerCase();
+  const safeWords = ['maklersiz', 'komissiya yo\'q', '0% komissiya', 'egasidan'];
+  const isSafe = safeWords.some((w) => combined.includes(w));
+  const brokerWords = ['maklerman', 'vositachi', 'agentlik', 'komissiya 50%', 'usluga'];
+  const reasons: string[] = [];
+  let riskScore = 5;
 
-// 1. Health check
-app.get('/api/v1/health', (_req: Request, res: Response) => {
-  res.json({
-    status: 'OK',
-    service: 'Maklersiz.uz TypeScript Production Backend',
-    engine: 'Node.js + Express + TypeScript',
-    timestamp: new Date().toISOString(),
-  });
-});
-
-function matchPhoneBackend(p1?: string, p2?: string): boolean {
-  if (!p1 || !p2) return false;
-  const d1 = String(p1).replace(/\D/g, '');
-  const d2 = String(p2).replace(/\D/g, '');
-  if (!d1 || !d2) return false;
-  if (d1 === d2) return true;
-  if (d1.length >= 9 && d2.length >= 9 && d1.slice(-9) === d2.slice(-9)) return true;
-  return false;
+  const foundBrokerWord = !isSafe && brokerWords.find((w) => combined.includes(w));
+  if (foundBrokerWord) {
+    reasons.push(`Broker belgisi topildi: "${foundBrokerWord}"`);
+    riskScore += 80;
+  }
+  if (price && price < 100000 && price > 0) {
+    reasons.push("Shubhali darajada arzon narx");
+    riskScore += 20;
+  }
+  const allowed = riskScore < 70;
+  return {
+    allowed,
+    trustScore: Math.max(10, 100 - riskScore),
+    riskScore,
+    status: allowed ? 'APPROVED' : 'REJECTED',
+    reasons: reasons.length > 0 ? reasons : ["Maklerlik belgisi topilmadi."]
+  };
 }
 
-// 2. Auth Login
-app.post('/api/v1/auth/login', (req: Request, res: Response) => {
-  const { phone, password } = req.body || {};
-  const user = USERS_DB.find((u) => matchPhoneBackend(u.phone, phone));
+// Routes
 
-  if (!user) {
-    res.status(404).json({
-      status: 'error',
-      detail: "Ushbu telefon raqami bilan hisob topilmadi. Avval Ro'yxatdan o'tish bo'limida hisob yarating.",
-    });
-    return;
-  }
-
-  // Password verification if user has password set
-  if (user.password && password && user.password !== password) {
-    res.status(400).json({
-      status: 'error',
-      detail: "Parolingiz noto'g'ri. Iltimos, qayta kiriting.",
-    });
-    return;
-  }
-
-  res.json({
-    status: 'success',
-    user: user,
-    access_token: `token_${Date.now()}`,
-    data: { user, token: `token_${Date.now()}` },
-  });
+app.get('/api/v1/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), aiSystemActive: AI_SYSTEM_ACTIVE });
 });
 
-// 3. Auth Register
-app.post('/api/v1/auth/register', (req: Request, res: Response) => {
-  const { name, phone, role, password, avatar } = req.body || {};
-
-  const existing = USERS_DB.find((u) => matchPhoneBackend(u.phone, phone));
-  if (existing) {
-    if (role) existing.role = role === 'OWNER' ? 'OWNER' : 'STUDENT';
-    if (password) existing.password = password;
-    if (name && name !== 'Foydalanuvchi') existing.name = name;
-    if (avatar && (!existing.avatar || existing.avatar.includes('unsplash.com'))) {
-      existing.avatar = avatar;
+// AUTH
+app.post('/api/v1/auth/signup', async (req, res) => {
+  const { phone, password, name, role } = req.body;
+  try {
+    const existing = await prisma.user.findUnique({ where: { phone } });
+    if (existing) {
+      return res.status(400).json({ status: 'error', detail: 'Bu raqam band' });
     }
-    saveUsers(USERS_DB);
-    res.json({
-      status: 'success',
-      user: existing,
-      access_token: `token_${Date.now()}`,
-      data: { user: existing, token: `token_${Date.now()}` },
+    const newUser = await prisma.user.create({
+      data: { phone, name: name || 'Foydalanuvchi', role: role || 'OWNER' }
     });
-    return;
+    res.json({ status: 'success', token: `token_${phone}_${Date.now()}`, user: newUser });
+  } catch(e) {
+    res.status(500).json({ error: String(e) });
   }
-
-  const newUser = {
-    id: `user-${Date.now()}`,
-    name: name || 'Foydalanuvchi',
-    phone: phone || '+998 90 000 00 00',
-    password: password || 'password123',
-    role: role === 'OWNER' ? 'OWNER' : 'STUDENT',
-    avatar:
-      avatar ||
-      (role === 'OWNER'
-        ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300'
-        : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300'),
-    trustScore: 90,
-    status: 'ACTIVE',
-    createdAt: new Date().toISOString(),
-  };
-
-  USERS_DB.push(newUser);
-  saveUsers(USERS_DB);
-
-  res.json({
-    status: 'success',
-    user: newUser,
-    access_token: `token_${Date.now()}`,
-    data: { user: newUser, token: `token_${Date.now()}` },
-  });
 });
 
-// 3b. Auth Google Login
-app.post('/api/v1/auth/google', (req: Request, res: Response) => {
-  const { email, name, avatar, uid, phone } = req.body || {};
-  let user = USERS_DB.find((u) => 
-    (uid && u.id === uid) || 
-    (email && u.email === email) || 
-    (phone && matchPhoneBackend(u.phone, phone))
-  );
-
-  if (user) {
-    if (name && (!user.name || user.name === 'Google Foydalanuvchisi')) user.name = name;
-    if (avatar && (!user.avatar || user.avatar.includes('unsplash.com'))) {
-      user.avatar = avatar;
+app.post('/api/v1/auth/login', async (req, res) => {
+  const { phone } = req.body;
+  try {
+    let user = await prisma.user.findFirst({
+      where: { phone: { endsWith: phone.replace(/\D/g, '').slice(-9) } }
+    });
+    if (!user) {
+      user = await prisma.user.create({
+        data: { phone, name: 'Foydalanuvchi', role: 'OWNER' }
+      });
     }
-    saveUsers(USERS_DB);
-    return res.json({
-      status: 'success',
-      user,
-      access_token: `token_${Date.now()}`,
-      data: { user, token: `token_${Date.now()}` },
-    });
+    res.json({ status: 'success', token: `token_${user.phone}_${Date.now()}`, user });
+  } catch(e) {
+    res.status(500).json({ error: String(e) });
   }
-
-  const newUser = {
-    id: uid || `user-${Date.now()}`,
-    name: name || 'Google Foydalanuvchisi',
-    email: email || '',
-    phone: phone || '+998901234567',
-    role: 'STUDENT',
-    avatar: avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300',
-    trustScore: 90,
-    status: 'ACTIVE',
-    createdAt: new Date().toISOString(),
-  };
-
-  USERS_DB.push(newUser);
-  saveUsers(USERS_DB);
-
-  res.json({
-    status: 'success',
-    user: newUser,
-    access_token: `token_${Date.now()}`,
-    data: { user: newUser, token: `token_${Date.now()}` },
-  });
 });
 
-// 3c. Auth Update Profile Avatar
-app.post('/api/v1/auth/profile', (req: Request, res: Response) => {
-  const { phone, avatar, id, name, role } = req.body || {};
-  let user = USERS_DB.find((u) => (id && u.id === id) || matchPhoneBackend(u.phone, phone));
-  if (user) {
-    if (avatar) user.avatar = avatar;
-    if (name && name !== 'Foydalanuvchi') user.name = name;
-    if (role) user.role = role;
-    saveUsers(USERS_DB);
-    res.json({ status: 'success', user });
-    return;
-  }
-
-  // Upsert user if not in backend database yet
-  if (phone || id) {
-    const newUser = {
-      id: id || `user-${Date.now()}`,
-      name: name || 'Foydalanuvchi',
-      phone: phone || '+998 90 000 00 00',
-      role: role || 'STUDENT',
-      avatar: avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300',
-      trustScore: 90,
-      status: 'ACTIVE',
-      createdAt: new Date().toISOString(),
-    };
-    USERS_DB.push(newUser);
-    saveUsers(USERS_DB);
-    res.json({ status: 'success', user: newUser });
-    return;
-  }
-
-  res.json({ status: 'ignored' });
-});
-
-// 4. Traffic Track
-app.post('/api/v1/traffic/track', (req: Request, res: Response) => {
-  const { session_id, page_path } = req.body || {};
-  TRAFFIC_LOGS.push({ session_id, page_path, timestamp: new Date().toISOString() });
-  res.json({ status: 'success', message: 'Traffic tracked' });
-});
-
-// 5. Get All Listings
-app.get('/api/v1/listings', (req: Request, res: Response) => {
-  const { district, rooms, search } = req.query;
-  // Public listings are ONLY those that are APPROVED
-  let result = LISTINGS_DB.filter(l => l.aiCheckStatus === 'APPROVED');
-
-  if (district && district !== 'Barchasi') {
-    result = result.filter((l) => (l.district || '').toLowerCase() === String(district).toLowerCase());
-  }
-
-  if (rooms) {
-    result = result.filter((l) => String(l.rooms) === String(rooms));
-  }
-
-  if (search) {
-    const q = String(search).toLowerCase();
-    result = result.filter(
-      (l) => (l.title || '').toLowerCase().includes(q) || (l.description || '').toLowerCase().includes(q)
-    );
-  }
-
-  res.json({ status: 'success', totalCount: result.length, data: result, aiSystemActive: AI_SYSTEM_ACTIVE });
-});
-
-// 5b. Get My Listings
-app.get('/api/v1/listings/my', (req: Request, res: Response) => {
-  // We expect an Authorization Bearer token with the user's phone or ID.
-  // For simplicity since JWT might not be fully enforced on this route yet,
-  // we check the Authorization header.
+app.get('/api/v1/auth/me', async (req, res) => {
   const authHeader = req.headers.authorization || '';
   const token = authHeader.replace('Bearer ', '');
-  if (!token) {
-    return res.json({ status: 'success', data: [] });
-  }
-  
-  // Decoding our simple token format: `token_phone_timestamp`
+  if (!token) return res.status(401).json({ status: 'error' });
   const phonePart = token.split('_')[1];
-  if (!phonePart) {
-     return res.json({ status: 'success', data: [] });
-  }
-
-  const result = LISTINGS_DB.filter(l => matchPhoneBackend(l.owner?.phone, phonePart));
-  res.json({ status: 'success', totalCount: result.length, data: result });
-});
-
-// 6. Get Listing By ID
-app.get('/api/v1/listings/:id', (req: Request, res: Response) => {
-  const cleanId = String(req.params.id).trim();
-  const found = LISTINGS_DB.find(
-    (l) =>
-      String(l.id) === cleanId ||
-      String(l.id) === `listing-${cleanId}` ||
-      cleanId === `listing-${l.id}` ||
-      String(l.id).endsWith(cleanId) ||
-      cleanId.endsWith(String(l.id))
-  );
-
-  if (!found) {
-    res.status(404).json({ status: 'error', detail: "E'lon topilmadi" });
-    return;
-  }
-
-  res.json({ status: 'success', data: found });
-});
-
-// 7. Create Listing
-app.post('/api/v1/listings', (req: Request, res: Response) => {
-  const body = req.body || {};
-  const aiResult = scanListingAI(body.title || '', body.description || '', body.price, body.rooms);
-
-  // Instead of rejecting immediately for minor things, let's process asynchronously
-  // But if it's a clear broker with huge risk (e.g. riskScore > 90), we can reject immediately.
-  if (aiResult.riskScore > 90) {
-    res.status(403).json({
-      status: 'rejected',
-      error: aiResult.reasons.join(' | '),
-      aiAnalysis: aiResult,
+  try {
+    const user = await prisma.user.findFirst({
+      where: { phone: { endsWith: phonePart.replace(/\D/g, '').slice(-9) } }
     });
-    return;
+    if (!user) return res.status(401).json({ status: 'error' });
+    res.json({ status: 'success', user });
+  } catch(e) {
+    res.status(500).json({ error: String(e) });
   }
-
-  const defaultOwner = body.owner || {
-    id: `owner-${Date.now()}`,
-    name: 'Kvartira Egasi',
-    phone: '+998 90 000 00 00',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
-    role: 'OWNER',
-    trustScore: 90,
-    isVerified: true,
-  };
-
-  const isSimulatedCopied = (body.description || '').toLowerCase().includes('olx');
-
-  const newListing = {
-    id: body.id || `listing-${Date.now()}`,
-    title: body.title || 'Shinam Kvartira',
-    description: body.description || "To'g'ridan-to'g'ri egasidan.",
-    price: Number(body.price) || 3000000,
-    currency: body.currency || 'UZS',
-    depositPrice: Number(body.depositPrice) || 1000000,
-    utilitiesIncluded: Boolean(body.utilitiesIncluded),
-    rooms: Number(body.rooms) || 2,
-    area: Number(body.area) || 55,
-    floor: Number(body.floor) || 3,
-    totalFloors: Number(body.totalFloors) || 9,
-    propertyType: body.propertyType || 'APARTMENT',
-    region: body.region || 'Toshkent shahri',
-    district: body.district || 'Chilonzor',
-    address: body.address || `${body.district || 'Chilonzor'} ko'chasi`,
-    images: Array.isArray(body.images) && body.images.length > 0 ? body.images : [
-      'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1200',
-    ],
-    videoUrl: body.videoUrl || undefined,
-    hasVirtualTour: false,
-    owner: defaultOwner,
-    trustScore: aiResult.trustScore,
-    riskScore: aiResult.riskScore,
-    aiCheckStatus: 'UNDER_REVIEW', // Initial state for async scan
-    aiRiskReasons: ["AI rasmlarni va e'lonni chuqur tekshirmoqda..."],
-    safetyBadges: ['VERIFIED_OWNER', 'NO_COMMISSION'],
-    createdAt: new Date().toISOString(),
-    viewsCount: 1,
-    favoritesCount: 0,
-    contactCount: 0,
-  };
-
-  LISTINGS_DB.unshift(newListing);
-  saveListings(LISTINGS_DB);
-
-  // Async task simulation (Background Check)
-  setTimeout(async () => {
-    const listing = LISTINGS_DB.find(l => l.id === newListing.id);
-    if (listing) {
-      try {
-        if (!AI_SYSTEM_ACTIVE) {
-          // If it was inactive, let's test if it's back online. Actually we just try calling it always.
-        }
-        
-        const aiResponse = await scanListingAIGemini(listing.title, listing.description, listing.price, listing.rooms);
-        AI_SYSTEM_ACTIVE = true; // Mark as active if successful
-        
-        listing.aiCheckStatus = aiResponse.status;
-        listing.aiRiskReasons = aiResponse.reasons;
-        listing.trustScore = aiResponse.trustScore;
-        listing.riskScore = aiResponse.riskScore;
-        
-        if (!listing.safetyBadges.includes('AI_CHECKED')) {
-          listing.safetyBadges.push('AI_CHECKED');
-        }
-      } catch (err) {
-        // Fallback to legacy mock logic
-        AI_SYSTEM_ACTIVE = false;
-        if (isSimulatedCopied) {
-          listing.aiCheckStatus = 'WARNING';
-          listing.aiRiskReasons = [
-            "Sizning e'loningiz boshqa manbadan (OLX yoki boshqa) ko'chirilgani aniqlandi. Iltimos tahrirlang yoki o'chiring."
-          ];
-          listing.trustScore -= 30;
-        } else {
-          listing.aiCheckStatus = aiResult.status; // Fallback to original AI scan result
-          listing.aiRiskReasons = aiResult.reasons;
-          if (!listing.safetyBadges.includes('AI_CHECKED')) {
-            listing.safetyBadges.push('AI_CHECKED');
-          }
-        }
-      }
-      saveListings(LISTINGS_DB);
-    }
-  }, 10000); // 10 seconds background delay
-
-  res.json({
-    status: 'success',
-    data: newListing,
-  });
 });
 
-// 8. Update Listing
-app.put('/api/v1/listings/:id', (req: Request, res: Response) => {
-  const cleanId = String(req.params.id).trim();
+app.post('/api/v1/traffic/track', (req, res) => {
+  res.json({ status: 'success' });
+});
+
+// LISTINGS
+app.get('/api/v1/listings', async (req, res) => {
+  const { district, rooms, search } = req.query;
+  try {
+    const where: any = { aiCheckStatus: 'APPROVED' };
+    if (district && district !== 'Barchasi') where.district = String(district);
+    if (rooms) where.rooms = parseInt(String(rooms));
+    if (search) {
+      where.OR = [
+        { title: { contains: String(search), mode: 'insensitive' } },
+        { description: { contains: String(search), mode: 'insensitive' } }
+      ];
+    }
+    const listings = await prisma.listing.findMany({ where, include: { owner: true } });
+    res.json({ status: 'success', totalCount: listings.length, data: listings, aiSystemActive: AI_SYSTEM_ACTIVE });
+  } catch(e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+app.get('/api/v1/listings/my', async (req, res) => {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.replace('Bearer ', '');
+  const phonePart = token.split('_')[1];
+  if (!phonePart) return res.json({ status: 'success', data: [] });
+  
+  try {
+    const user = await prisma.user.findFirst({
+      where: { phone: { endsWith: phonePart.replace(/\D/g, '').slice(-9) } }
+    });
+    if (!user) return res.json({ status: 'success', data: [] });
+    
+    const listings = await prisma.listing.findMany({
+      where: { ownerId: user.id },
+      include: { owner: true }
+    });
+    res.json({ status: 'success', data: listings });
+  } catch(e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+app.get('/api/v1/listings/:id', async (req, res) => {
+  try {
+    const listing = await prisma.listing.findUnique({
+      where: { id: req.params.id },
+      include: { owner: true }
+    });
+    if (!listing) return res.status(404).json({ error: "Not found" });
+    res.json({ status: 'success', data: listing });
+  } catch(e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+app.post('/api/v1/listings', async (req, res) => {
+  const body = req.body || {};
+  try {
+    const fallbackResult = scanListingAIFallback(body.title || '', body.description || '', body.price);
+    if (fallbackResult.riskScore > 90) {
+      return res.status(403).json({ status: 'rejected', error: fallbackResult.reasons.join(' | ') });
+    }
+
+    let user = null;
+    if (body.owner && body.owner.phone) {
+      user = await prisma.user.findFirst({ where: { phone: body.owner.phone } });
+      if (!user) {
+        user = await prisma.user.create({ data: { phone: body.owner.phone, name: body.owner.name || 'Owner' }});
+      }
+    } else {
+      user = await prisma.user.findFirst();
+      if (!user) user = await prisma.user.create({ data: { phone: '+998901112233', name: 'Default Owner' }});
+    }
+
+    const listing = await prisma.listing.create({
+      data: {
+        title: body.title,
+        description: body.description,
+        price: body.price || 0,
+        rooms: body.rooms || 1,
+        district: body.district || 'Yunusobod',
+        images: body.images || [],
+        aiCheckStatus: 'UNDER_REVIEW',
+        aiRiskReasons: ["AI tekshirmoqda..."],
+        ownerId: user.id
+      },
+      include: { owner: true }
+    });
+
+    res.json({ status: 'success', data: listing });
+
+    setTimeout(async () => {
+      try {
+        let aiResponse;
+        if (AI_SYSTEM_ACTIVE) {
+           aiResponse = await scanListingAIGemini(listing.title, listing.description, listing.price, listing.rooms);
+        } else {
+           throw new Error("Force fallback");
+        }
+        AI_SYSTEM_ACTIVE = true;
+        await prisma.listing.update({
+          where: { id: listing.id },
+          data: {
+            aiCheckStatus: aiResponse.status,
+            trustScore: aiResponse.trustScore,
+            riskScore: aiResponse.riskScore,
+            aiRiskReasons: aiResponse.reasons,
+            safetyBadges: { push: 'AI_CHECKED' }
+          }
+        });
+      } catch (err) {
+        AI_SYSTEM_ACTIVE = false;
+        const isSimulatedCopied = (listing.description || '').toLowerCase().includes('olx');
+        await prisma.listing.update({
+          where: { id: listing.id },
+          data: {
+            aiCheckStatus: isSimulatedCopied ? 'WARNING' : fallbackResult.status,
+            aiRiskReasons: isSimulatedCopied ? ["Ko'chirma bo'lishi mumkin"] : fallbackResult.reasons,
+            trustScore: isSimulatedCopied ? 40 : fallbackResult.trustScore,
+            riskScore: isSimulatedCopied ? 60 : fallbackResult.riskScore
+          }
+        });
+      }
+    }, 10000);
+
+  } catch(e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+app.put('/api/v1/listings/:id', async (req, res) => {
   const updates = req.body || {};
-  let target = LISTINGS_DB.find((l) => String(l.id) === cleanId || String(l.id) === `listing-${cleanId}`);
-
-  if (target) {
-    Object.assign(target, updates);
-  } else {
-    target = { id: cleanId, ...updates };
-    LISTINGS_DB.unshift(target);
-  }
-
-  // Re-run AI scan on update
-  const aiResult = scanListingAI(target.title || '', target.description || '', target.price, target.rooms);
-  const isSimulatedCopied = (target.description || '').toLowerCase().includes('olx');
-
-  if (aiResult.riskScore > 90) {
-    res.status(403).json({
-      status: 'rejected',
-      error: aiResult.reasons.join(' | '),
-      aiAnalysis: aiResult,
+  delete updates.id;
+  delete updates.owner; // prevent relational mess here
+  try {
+    const listing = await prisma.listing.update({
+      where: { id: req.params.id },
+      data: {
+        ...updates,
+        aiCheckStatus: 'UNDER_REVIEW',
+        aiRiskReasons: ["Qayta tekshirmoqda..."]
+      },
+      include: { owner: true }
     });
-    return;
-  }
+    res.json({ status: 'success', data: listing });
 
-  target.aiCheckStatus = 'UNDER_REVIEW';
-  target.aiRiskReasons = ["AI rasmlarni va e'lonni qayta tekshirmoqda..."];
-  target.trustScore = aiResult.trustScore;
-  target.riskScore = aiResult.riskScore;
-
-  saveListings(LISTINGS_DB);
-
-  // Async task simulation (Background Check for updates)
-  setTimeout(async () => {
-    const listing = LISTINGS_DB.find(l => l.id === target.id);
-    if (listing) {
+    setTimeout(async () => {
       try {
         const aiResponse = await scanListingAIGemini(listing.title, listing.description, listing.price, listing.rooms);
-        AI_SYSTEM_ACTIVE = true; // Mark as active if successful
-        
-        listing.aiCheckStatus = aiResponse.status;
-        listing.aiRiskReasons = aiResponse.reasons;
-        listing.trustScore = aiResponse.trustScore;
-        listing.riskScore = aiResponse.riskScore;
-        
-        if (!listing.safetyBadges.includes('AI_CHECKED')) {
-          listing.safetyBadges.push('AI_CHECKED');
-        }
-      } catch (err) {
-        // Fallback to mock
-        AI_SYSTEM_ACTIVE = false;
-        if (isSimulatedCopied) {
-          listing.aiCheckStatus = 'WARNING';
-          listing.aiRiskReasons = [
-            "Sizning e'loningiz boshqa manbadan (OLX yoki boshqa) ko'chirilgani aniqlandi. Iltimos tahrirlang yoki o'chiring."
-          ];
-          listing.trustScore -= 30;
-        } else {
-          listing.aiCheckStatus = aiResult.status;
-          listing.aiRiskReasons = aiResult.reasons;
-          if (!listing.safetyBadges.includes('AI_CHECKED')) {
-            listing.safetyBadges.push('AI_CHECKED');
+        AI_SYSTEM_ACTIVE = true;
+        await prisma.listing.update({
+          where: { id: listing.id },
+          data: {
+            aiCheckStatus: aiResponse.status,
+            trustScore: aiResponse.trustScore,
+            riskScore: aiResponse.riskScore,
+            aiRiskReasons: aiResponse.reasons
           }
-        }
+        });
+      } catch (err) {
+        AI_SYSTEM_ACTIVE = false;
+        const fallback = scanListingAIFallback(listing.title, listing.description, listing.price);
+        await prisma.listing.update({
+          where: { id: listing.id },
+          data: { aiCheckStatus: fallback.status, aiRiskReasons: fallback.reasons }
+        });
       }
-      saveListings(LISTINGS_DB);
-    }
-  }, 10000); // 10 seconds background delay
-
-  res.json({ status: 'success', data: target });
-});
-
-// 9. Delete Listing
-app.delete('/api/v1/listings/:id', (req: Request, res: Response) => {
-  const cleanId = String(req.params.id).trim();
-  LISTINGS_DB = LISTINGS_DB.filter((l) => String(l.id) !== cleanId && String(l.id) !== `listing-${cleanId}`);
-  saveListings(LISTINGS_DB);
-  res.json({ status: 'success', message: "E'lon o'chirildi" });
-});
-
-// 10. AI Scan Endpoint
-app.post('/api/v1/ai/scan-listing', (req: Request, res: Response) => {
-  const { title, description, price, rooms } = req.body || {};
-  const aiAnalysis = scanListingAI(title || '', description || '', price, rooms);
-  res.status(aiAnalysis.allowed ? 200 : 403).json({
-    status: aiAnalysis.allowed ? 'success' : 'rejected',
-    aiAnalysis,
-  });
-});
-
-// 11. AI Write Copy
-app.post('/api/v1/ai/write-copy', (req: Request, res: Response) => {
-  const { district, region, rooms, area, furnished, metro, metroMinutes } = req.body || {};
-  const where = district || region || 'Toshkent';
-  const furn = furnished ? 'jihozlangan' : 'jihozlanmagan';
-  const metroBit = metro ? ` ${metro} metrosiga piyoda taxminan ${metroMinutes || 10} daqiqa.` : '';
-  const text = `${where} tumanida joylashgan, ${rooms || 2} xonali${area ? `, ${area} m²` : ''}, ${furn} kvartira ijaraga beriladi.${metroBit} Maklersiz, to'g'ridan-to'g'ri egasidan. Komissiya yo'q.`;
-  res.json({ status: 'success', text });
-});
-
-// 12. AI Price Suggestion
-app.post('/api/v1/ai/price', (req: Request, res: Response) => {
-  const { rooms } = req.body || {};
-  const base = 2200000;
-  const suggested = base * Math.max(1, Number(rooms) || 2);
-  res.json({ status: 'success', suggested, low: Math.round(suggested * 0.85), high: Math.round(suggested * 1.15) });
-});
-
-// 13. Reports Endpoints
-app.get('/api/v1/admin/reports', (_req: Request, res: Response) => {
-  res.json({ status: 'success', totalCount: REPORTS_DB.length, data: REPORTS_DB });
-});
-
-app.post('/api/v1/admin/reports', (req: Request, res: Response) => {
-  const newReport = { id: `rep-${Date.now()}`, ...req.body, createdAt: new Date().toISOString() };
-  REPORTS_DB.unshift(newReport);
-  res.json({ status: 'success', data: newReport });
-});
-
-app.post('/api/v1/admin/reports/:id/resolve', (req: Request, res: Response) => {
-  const rep = REPORTS_DB.find((r) => r.id === req.params.id);
-  if (rep) rep.status = 'RESOLVED';
-  res.json({ status: 'success', message: 'Report resolved' });
-});
-
-// 14. Admin Unblock & Reject
-app.post('/api/v1/admin/listings/:id/unblock', (req: Request, res: Response) => {
-  const item = LISTINGS_DB.find((l) => String(l.id) === req.params.id);
-  if (item) {
-    item.aiCheckStatus = 'APPROVED';
-    item.trustScore = 95;
-    saveListings(LISTINGS_DB);
-  }
-  res.json({ status: 'success', message: 'Listing unblocked' });
-});
-
-app.post('/api/v1/admin/listings/:id/reject', (req: Request, res: Response) => {
-  const item = LISTINGS_DB.find((l) => String(l.id) === req.params.id);
-  if (item) {
-    item.aiCheckStatus = 'REJECTED';
-    saveListings(LISTINGS_DB);
-  }
-  res.json({ status: 'success', message: 'Listing rejected' });
-});
-
-// 15. Verifications Endpoints
-let VERIFICATIONS_DB: any[] = [];
-
-app.get('/api/v1/verifications', (_req: Request, res: Response) => {
-  res.json({ status: 'success', totalCount: VERIFICATIONS_DB.length, data: VERIFICATIONS_DB });
-});
-app.get('/api/v1/admin/verifications', (_req: Request, res: Response) => {
-  res.json({ status: 'success', totalCount: VERIFICATIONS_DB.length, data: VERIFICATIONS_DB });
-});
-
-app.post('/api/v1/verifications', (req: Request, res: Response) => {
-  const body = req.body || {};
-  const newVerif = {
-    id: body.id || `verif-${Date.now()}`,
-    userId: body.userId || `user-${Date.now()}`,
-    userName: body.userName || 'Foydalanuvchi',
-    userPhone: body.userPhone || '+998 90 000 00 00',
-    targetLevel: body.targetLevel || 4,
-    documentType: body.type || body.documentType || 'PASSPORT',
-    passportImage: body.passportImage || body.document_url || undefined,
-    selfieImage: body.selfieImage || undefined,
-    cadastreCode: body.cadastreCode || undefined,
-    status: 'APPROVED',
-    submittedAt: new Date().toISOString(),
-  };
-  VERIFICATIONS_DB.unshift(newVerif);
-  res.json({ status: 'success', data: newVerif });
-});
-
-app.post('/api/v1/admin/verifications/submit', (req: Request, res: Response) => {
-  const body = req.body || {};
-  const newVerif = {
-    id: body.id || `verif-${Date.now()}`,
-    userId: body.userId || `user-${Date.now()}`,
-    userName: body.userName || 'Foydalanuvchi',
-    userPhone: body.userPhone || '+998 90 000 00 00',
-    targetLevel: body.targetLevel || 4,
-    documentType: body.type || body.documentType || 'PASSPORT',
-    passportImage: body.passportImage || body.document_url || undefined,
-    selfieImage: body.selfieImage || undefined,
-    cadastreCode: body.cadastreCode || undefined,
-    status: 'APPROVED',
-    submittedAt: new Date().toISOString(),
-  };
-  VERIFICATIONS_DB.unshift(newVerif);
-  res.json({ status: 'success', data: newVerif });
-});
-
-// 16. Stats
-app.get('/api/v1/stats', (_req: Request, res: Response) => {
-  res.json({
-    status: 'success',
-    data: {
-      totalUsers: USERS_DB.length,
-      totalListings: LISTINGS_DB.length,
-      approvedListings: LISTINGS_DB.filter((l) => l.aiCheckStatus === 'APPROVED').length,
-      dailyVisitors: 1420 + TRAFFIC_LOGS.length,
-    },
-  });
-});
-
-// Global 404 Fallback with CORS Headers
-// Admin API Endpoints
-app.patch('/api/v1/listings/:id/status', (req: Request, res: Response) => {
-  const item = LISTINGS_DB.find((l) => String(l.id) === req.params.id);
-  if (item) {
-    item.aiCheckStatus = req.body.status;
-    if (req.body.status === 'APPROVED') item.trustScore = 95;
-    saveListings(LISTINGS_DB);
-    res.json({ status: 'success', message: 'Listing status updated', data: item });
-  } else {
-    res.status(404).json({ status: 'error', message: 'Not found' });
+    }, 10000);
+  } catch(e) {
+    res.status(500).json({ error: String(e) });
   }
 });
 
-app.patch('/api/v1/listings/:id/featured', (req: Request, res: Response) => {
-  const item = LISTINGS_DB.find((l) => String(l.id) === req.params.id);
-  if (item) {
-    item.isFeatured = req.body.featured !== undefined ? req.body.featured : !item.isFeatured;
-    saveListings(LISTINGS_DB);
-    res.json({ status: 'success', message: 'Featured status updated', data: item });
-  } else {
-    res.status(404).json({ status: 'error', message: 'Not found' });
+app.delete('/api/v1/listings/:id', async (req, res) => {
+  try {
+    await prisma.listing.delete({ where: { id: req.params.id } });
+    res.json({ status: 'success' });
+  } catch(e) {
+    res.status(500).json({ error: String(e) });
   }
 });
 
-app.get('/api/v1/users', (_req: Request, res: Response) => {
-  res.json({
-    status: 'success',
-    totalCount: USERS_DB.length,
-    data: USERS_DB.map(u => ({ ...u, password: undefined })) // hide passwords
-  });
+app.post('/api/v1/listings/:id/view', async (req, res) => {
+  try {
+    await prisma.listing.update({
+      where: { id: req.params.id },
+      data: { viewsCount: { increment: 1 } }
+    });
+    res.json({ status: 'success' });
+  } catch(e) { res.status(500).json({ error: String(e) }); }
 });
 
-app.patch('/api/v1/users/:id/trust-score', (req: Request, res: Response) => {
-  const user = USERS_DB.find((u) => String(u.id) === req.params.id);
-  if (user) {
-    const delta = Number(req.body.delta) || 0;
-    user.trustScore = Math.max(0, Math.min(100, (user.trustScore || 50) + delta));
-    saveUsers(USERS_DB);
-    res.json({ status: 'success', message: 'User trust score updated', data: user });
-  } else {
-    res.status(404).json({ status: 'error', message: 'User not found' });
-  }
+app.post('/api/v1/listings/:id/favorite', async (req, res) => {
+  try {
+    await prisma.listing.update({
+      where: { id: req.params.id },
+      data: { favoritesCount: { increment: 1 } }
+    });
+    res.json({ status: 'success' });
+  } catch(e) { res.status(500).json({ error: String(e) }); }
 });
 
-app.get('/api/v1/admin/dashboard/stats', (_req: Request, res: Response) => {
-  res.json({
-    status: 'success',
-    data: {
-      totalListings: LISTINGS_DB.length,
-      pendingListings: LISTINGS_DB.filter(l => l.aiCheckStatus === 'PENDING').length,
-      approvedListings: LISTINGS_DB.filter(l => l.aiCheckStatus === 'APPROVED').length,
-      totalUsers: USERS_DB.length,
-      totalReports: REPORTS_DB.length
-    }
-  });
+// Admin endpoints
+app.get('/api/v1/admin/stats', async (req, res) => {
+  try {
+    const totalUsers = await prisma.user.count();
+    const totalListings = await prisma.listing.count();
+    const approved = await prisma.listing.count({ where: { aiCheckStatus: 'APPROVED' } });
+    res.json({ status: 'success', data: { totalUsers, totalListings, approvedListings: approved } });
+  } catch(e) { res.status(500).json({ error: String(e) }); }
 });
 
-// Serve admin frontend
-app.use('/admin', express.static(path.join(__dirname, '..', 'admin-frontend')));
-
-// Fallback for unknown routes
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({ status: 'error', detail: 'Endpoint not found' });
+app.post('/api/v1/admin/listings/:id/approve', async (req, res) => {
+  try {
+    await prisma.listing.update({ where: { id: req.params.id }, data: { aiCheckStatus: 'APPROVED' } });
+    res.json({ status: 'success' });
+  } catch(e) { res.status(500).json({ error: String(e) }); }
 });
 
-app.listen(Number(PORT), '0.0.0.0', () => {
-  console.log(`🚀 Maklersiz.uz TypeScript Production Server running on port ${PORT} (0.0.0.0)`);
+app.post('/api/v1/admin/listings/:id/reject', async (req, res) => {
+  try {
+    await prisma.listing.update({ where: { id: req.params.id }, data: { aiCheckStatus: 'REJECTED' } });
+    res.json({ status: 'success' });
+  } catch(e) { res.status(500).json({ error: String(e) }); }
+});
+
+app.get('/api/v1/admin/users', async (req, res) => {
+  try {
+    const users = await prisma.user.findMany();
+    res.json({ status: 'success', totalCount: users.length, data: users });
+  } catch(e) { res.status(500).json({ error: String(e) }); }
+});
+
+// Admin Static Panel
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'admin-frontend', 'index.html'));
+});
+
+app.listen(PORT, () => {
+  console.log(`🚀 Maklersiz PostgreSQL Backend running on port ${PORT}`);
 });
