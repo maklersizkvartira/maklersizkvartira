@@ -1,4 +1,5 @@
-FROM node:20-alpine
+FROM node:20-slim
+RUN apt-get update -y && apt-get install -y openssl
 WORKDIR /app
 
 # Copy backend package files and install dependencies
@@ -14,4 +15,4 @@ ENV PORT=5000
 EXPOSE 5000
 
 # Start compiled Node.js TypeScript server
-CMD ["node", "backend/dist/server.js"]
+CMD ["npm", "--prefix", "backend", "run", "start"]
