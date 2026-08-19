@@ -334,7 +334,8 @@ app.post('/api/v1/traffic/track', (req: Request, res: Response) => {
 // 5. Get All Listings
 app.get('/api/v1/listings', (req: Request, res: Response) => {
   const { district, rooms, search } = req.query;
-  let result = [...LISTINGS_DB];
+  // Public listings are ONLY those that are APPROVED
+  let result = LISTINGS_DB.filter(l => l.aiCheckStatus === 'APPROVED');
 
   if (district && district !== 'Barchasi') {
     result = result.filter((l) => (l.district || '').toLowerCase() === String(district).toLowerCase());
@@ -351,6 +352,27 @@ app.get('/api/v1/listings', (req: Request, res: Response) => {
     );
   }
 
+  res.json({ status: 'success', totalCount: result.length, data: result });
+});
+
+// 5b. Get My Listings
+app.get('/api/v1/listings/my', (req: Request, res: Response) => {
+  // We expect an Authorization Bearer token with the user's phone or ID.
+  // For simplicity since JWT might not be fully enforced on this route yet,
+  // we check the Authorization header.
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.replace('Bearer ', '');
+  if (!token) {
+    return res.json({ status: 'success', data: [] });
+  }
+  
+  // Decoding our simple token format: `token_phone_timestamp`
+  const phonePart = token.split('_')[1];
+  if (!phonePart) {
+     return res.json({ status: 'success', data: [] });
+  }
+
+  const result = LISTINGS_DB.filter(l => matchPhoneBackend(l.owner?.phone, phonePart));
   res.json({ status: 'success', totalCount: result.length, data: result });
 });
 
@@ -379,7 +401,9 @@ app.post('/api/v1/listings', (req: Request, res: Response) => {
   const body = req.body || {};
   const aiResult = scanListingAI(body.title || '', body.description || '', body.price, body.rooms);
 
-  if (!aiResult.allowed) {
+  // Instead of rejecting immediately for minor things, let's process asynchronously
+  // But if it's a clear broker with huge risk (e.g. riskScore > 90), we can reject immediately.
+  if (aiResult.riskScore > 90) {
     res.status(403).json({
       status: 'rejected',
       error: aiResult.reasons.join(' | '),
@@ -397,6 +421,8 @@ app.post('/api/v1/listings', (req: Request, res: Response) => {
     trustScore: 90,
     isVerified: true,
   };
+
+  const isSimulatedCopied = (body.description || '').toLowerCase().includes('olx');
 
   const newListing = {
     id: body.id || `listing-${Date.now()}`,
@@ -422,9 +448,9 @@ app.post('/api/v1/listings', (req: Request, res: Response) => {
     owner: defaultOwner,
     trustScore: aiResult.trustScore,
     riskScore: aiResult.riskScore,
-    aiCheckStatus: aiResult.status,
-    aiRiskReasons: aiResult.reasons,
-    safetyBadges: ['VERIFIED_OWNER', 'AI_CHECKED', 'NO_COMMISSION'],
+    aiCheckStatus: 'UNDER_REVIEW', // Initial state for async scan
+    aiRiskReasons: ["AI rasmlarni va e'lonni chuqur tekshirmoqda..."],
+    safetyBadges: ['VERIFIED_OWNER', 'NO_COMMISSION'],
     createdAt: new Date().toISOString(),
     viewsCount: 1,
     favoritesCount: 0,
@@ -434,7 +460,31 @@ app.post('/api/v1/listings', (req: Request, res: Response) => {
   LISTINGS_DB.unshift(newListing);
   saveListings(LISTINGS_DB);
 
-  res.status(201).json({ status: 'success', data: newListing });
+  // Async task simulation (Background Check)
+  setTimeout(() => {
+    const listing = LISTINGS_DB.find(l => l.id === newListing.id);
+    if (listing) {
+      if (isSimulatedCopied) {
+        listing.aiCheckStatus = 'WARNING';
+        listing.aiRiskReasons = [
+          "Sizning e'loningiz boshqa manbadan (OLX yoki boshqa) ko'chirilgani aniqlandi. Iltimos tahrirlang yoki o'chiring."
+        ];
+        listing.trustScore -= 30;
+      } else {
+        listing.aiCheckStatus = aiResult.status; // Fallback to original AI scan result (usually APPROVED)
+        listing.aiRiskReasons = aiResult.reasons;
+        if (!listing.safetyBadges.includes('AI_CHECKED')) {
+          listing.safetyBadges.push('AI_CHECKED');
+        }
+      }
+      saveListings(LISTINGS_DB);
+    }
+  }, 10000); // 10 seconds background delay
+
+  res.json({
+    status: 'success',
+    data: newListing,
+  });
 });
 
 // 8. Update Listing

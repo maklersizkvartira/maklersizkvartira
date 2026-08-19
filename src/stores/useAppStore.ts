@@ -371,11 +371,21 @@ export const useAppStore = create<AppStore>((set, get) => ({
         localStorage.removeItem('maklersiz-extra-listings');
       }
       const publicListings = await ApiService.getListings();
-      if (Array.isArray(publicListings)) {
-        set({ listings: publicListings });
-      } else {
-        set({ listings: [] });
+      
+      let finalData = Array.isArray(publicListings) ? publicListings : [];
+
+      const { currentUser } = useAppStore.getState();
+      if (currentUser && currentUser.role === 'OWNER') {
+        try {
+          const myListings = await ApiService.getMyListings();
+          if (Array.isArray(myListings) && myListings.length > 0) {
+            const base = finalData.filter((l) => !myListings.some((m) => m.id === l.id));
+            finalData = [...myListings, ...base];
+          }
+        } catch {}
       }
+
+      set({ listings: finalData });
     } catch (e) {
       console.warn('Network error fetching listings:', e);
       set({ listings: [] });

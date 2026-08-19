@@ -4,6 +4,7 @@ import { Header } from './components/layout/Header';
 import { BottomNav } from './components/layout/BottomNav';
 import { Footer } from './components/layout/Footer';
 import { ShieldMascot } from './components/common/ShieldMascot';
+import { GlobalAINotification } from './components/common/GlobalAINotification';
 
 import { HeroSection } from './components/home/HeroSection';
 import { QuickCategories } from './components/home/QuickCategories';
@@ -90,6 +91,7 @@ export const App: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-white">
       <Header />
+      <GlobalAINotification />
 
       <main className="flex-1 min-w-0 w-full pt-14 sm:pt-[5.5rem] pb-0">
         {currentView === 'HOME' && (

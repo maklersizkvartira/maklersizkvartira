@@ -16,7 +16,7 @@ export type VerificationLevel = 1 | 2 | 3 | 4 | 5;
 
 export type PropertyType = 'APARTMENT' | 'HOUSE' | 'ROOM' | 'STUDIO' | 'DORMITORY';
 
-export type AICheckStatus = 'APPROVED' | 'VERIFICATION_REQUIRED' | 'UNDER_REVIEW' | 'REJECTED';
+export type AICheckStatus = 'APPROVED' | 'VERIFICATION_REQUIRED' | 'UNDER_REVIEW' | 'REJECTED' | 'WARNING' | 'PENDING';
 
 export interface TrustScoreBreakdown {
   identityScore: number;       // +10 (Phone), +20 (Passport), +20 (Selfie)
