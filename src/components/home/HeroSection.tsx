@@ -79,7 +79,7 @@ export const HeroSection: React.FC = () => {
             </div>
 
             {/* Quick Audience Pills */}
-            <div className="flex flex-wrap gap-2 text-xs">
+            <div className="flex items-center gap-2 text-xs overflow-x-auto pb-1 no-scrollbar sm:flex-wrap">
               <button
                 type="button"
                 onClick={() => setFilters({ audience: 'ALL', rentalType: 'ALL' })}

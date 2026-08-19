@@ -91,21 +91,21 @@ export const Header: React.FC = () => {
         </nav>
 
         {/* Right Header User Controls */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
           {currentUser ? (
-            <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <button
                 onClick={() => setShowSidebar(true)}
-                className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white font-bold text-xs sm:text-sm pl-1.5 pr-3 py-1 rounded-full transition-all shadow-xs"
+                className="flex items-center gap-1.5 sm:gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white font-bold text-xs sm:text-sm pl-1 pr-2 sm:pl-1.5 sm:pr-3 py-1 rounded-full transition-all shadow-xs"
               >
                 <img
                   src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'}
                   alt=""
-                  className="w-8 h-8 rounded-full object-cover border border-emerald-400 shrink-0"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-emerald-400 shrink-0"
                 />
-                <div className="text-left min-w-0 max-w-[100px] sm:max-w-[150px]">
-                  <div className="font-extrabold text-xs text-white truncate leading-tight">{currentUser.name}</div>
-                  <div className="text-[10px] text-emerald-400 font-bold uppercase">{currentUser.role}</div>
+                <div className="text-left min-w-0 max-w-[65px] xs:max-w-[100px] sm:max-w-[150px]">
+                  <div className="font-extrabold text-[11px] sm:text-xs text-white truncate leading-tight">{currentUser.name}</div>
+                  <div className="hidden sm:block text-[10px] text-emerald-400 font-bold uppercase">{currentUser.role}</div>
                 </div>
               </button>
 
@@ -121,7 +121,7 @@ export const Header: React.FC = () => {
           ) : (
             <button
               onClick={() => setShowAuth(true, 'LOGIN')}
-              className="text-xs sm:text-sm font-bold text-slate-200 hover:text-white px-3 py-2 transition-colors"
+              className="text-xs sm:text-sm font-bold text-slate-200 hover:text-white px-2 sm:px-3 py-2 transition-colors"
             >
               Kirish
             </button>
@@ -131,21 +131,20 @@ export const Header: React.FC = () => {
             onClick={() => {
               if (!currentUser) {
                 setShowAuth(true, 'REGISTER');
-              } else if (currentUser.role === 'OWNER') {
-                setCurrentView('CREATE_LISTING');
               } else {
                 setCurrentView('CREATE_LISTING');
               }
             }}
-            className="rounded-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs sm:text-sm px-4 sm:px-5 py-2 sm:py-2.5 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 shrink-0"
+            className="rounded-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs sm:text-sm px-3 sm:px-5 py-1.5 sm:py-2.5 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 shrink-0"
           >
-            E'lon berish
+            <span className="hidden xs:inline">E'lon berish</span>
+            <span className="xs:hidden">+ E'lon</span>
           </button>
           {/* Sidebar Menu Drawer Toggle Button */}
           <button
             type="button"
             onClick={() => setShowSidebar((v) => !v)}
-            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 transition-colors shrink-0"
+            className="p-1.5 sm:p-2 rounded-xl bg-slate-900 border border-slate-700/80 text-white hover:bg-slate-800 transition-colors shrink-0"
             aria-label="Menyu"
           >
             <Menu className="w-5 h-5" />
