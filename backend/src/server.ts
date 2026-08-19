@@ -196,8 +196,8 @@ app.post('/api/v1/traffic/track', (req, res) => {
   res.json({ status: 'success' });
 });
 
-// AI CHAT
-app.post('/api/v1/ai/chat', async (req, res) => {
+// AI ASSISTANT
+app.post('/api/v1/smart/assistant', async (req, res) => {
   const { message } = req.body;
   if (!message) return res.status(400).json({ error: 'Message is required' });
 
