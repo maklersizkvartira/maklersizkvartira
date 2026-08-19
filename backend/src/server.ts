@@ -82,39 +82,21 @@ let TRAFFIC_LOGS: any[] = [];
 const USERS_FILE = path.join(__dirname, '..', 'users_db.json');
 
 function loadUsers(): any[] {
-  if (fs.existsSync(USERS_FILE)) {
-    try {
+  try {
+    if (fs.existsSync(USERS_FILE)) {
       const raw = fs.readFileSync(USERS_FILE, 'utf-8');
+      if (raw.trim() === '') {
+        fs.writeFileSync(USERS_FILE, '[]');
+        return [];
+      }
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    } catch (e) {
-      console.error('Error reading users_db.json:', e);
+      if (Array.isArray(parsed)) return parsed;
     }
+  } catch (e) {
+    console.error('Error reading users_db.json:', e);
   }
-  return [
-    {
-      id: 'user-zayniddin',
-      name: 'Zayniddin',
-      phone: '+998 93 718 88 85',
-      password: 'password123',
-      role: 'STUDENT',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300',
-      trustScore: 94,
-      status: 'ACTIVE',
-      createdAt: '2026-08-18T03:00:00Z',
-    },
-    {
-      id: 'user-jasur-owner',
-      name: 'Jasur (Uy Egasi)',
-      phone: '+998 90 123 45 67',
-      password: 'password123',
-      role: 'OWNER',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
-      trustScore: 98,
-      status: 'ACTIVE',
-      createdAt: '2026-08-18T03:00:00Z',
-    },
-  ];
+  fs.writeFileSync(USERS_FILE, '[]');
+  return [];
 }
 
 function saveUsers(users: any[]): void {
