@@ -363,24 +363,22 @@ export const useAppStore = create<AppStore>((set, get) => ({
     return { userXp: state.userXp + amount };
   }),
 
-  listings: dedupeListings([...MOCK_LISTINGS, ...extraListings]),
+  listings: [],
   fetchListings: async () => {
     try {
+      // Clear legacy local mock data to prevent ghost listings
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('maklersiz-extra-listings');
+      }
       const publicListings = await ApiService.getListings();
-      if (Array.isArray(publicListings) && publicListings.length > 0) {
-        set((state) => {
-          const merged = dedupeListings([...publicListings, ...state.listings, ...MOCK_LISTINGS]);
-          return { listings: merged };
-        });
+      if (Array.isArray(publicListings)) {
+        set({ listings: publicListings });
       } else {
-        set((state) => {
-          const merged = dedupeListings([...MOCK_LISTINGS, ...state.listings]);
-          return { listings: merged };
-        });
+        set({ listings: [] });
       }
     } catch (e) {
       console.warn('Network error fetching listings:', e);
-      set((state) => ({ listings: dedupeListings([...MOCK_LISTINGS, ...state.listings]) }));
+      set({ listings: [] });
     }
   },
 
