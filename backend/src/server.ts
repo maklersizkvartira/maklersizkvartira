@@ -33,7 +33,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const globalLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 100, // Limit each IP to 100 requests per minute
-  message: { error: 'Juda ko\\'p so\\'rov yuborildi. Iltimos biroz kuting.' },
+  message: { error: "Juda ko'p so'rov yuborildi. Iltimos biroz kuting." },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -42,7 +42,7 @@ app.use(globalLimiter);
 const postLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 5, // Limit each IP to 5 requests per hour for POST listings
-  message: { status: 'error', error: 'Kechirasiz, 1 soatda faqat 5 ta e\\'lon qo\\'shishingiz mumkin.' }
+  message: { status: 'error', error: "Kechirasiz, 1 soatda faqat 5 ta e'lon qo'shishingiz mumkin." }
 });
 
 // Serve admin frontend statically
