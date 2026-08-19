@@ -226,7 +226,10 @@ Qoidalar:
       })
     });
     
-    if (!response.ok) throw new Error(`Gemini xatosi: ${response.status}`);
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "No text");
+      throw new Error(`Gemini xatosi: ${response.status} - ${errorText}`);
+    }
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
