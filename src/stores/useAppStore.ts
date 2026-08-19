@@ -523,8 +523,37 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   activeConversationId: null,
-  conversations: [],
-  messages: {},
+  conversations: [
+    {
+      id: 'mock-conv-1',
+      listingId: 'listing-1',
+      listingTitle: 'Chilonzor 3-xona, Metro yonida',
+      listingPrice: 400,
+      listingImage: 'https://images.unsplash.com/photo-1502672260266-1c1de2d96674?auto=format&fit=crop&q=80&w=600',
+      ownerId: 'owner-1',
+      ownerName: 'Vosilhoja',
+      ownerAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=300',
+      tenantId: 'tenant-999',
+      tenantName: 'Azizbek',
+      tenantAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300',
+      lastMessage: "Assalomu alaykum, uy hali bo'shmi?",
+      lastMessageTime: '14:30',
+      unreadCount: 1,
+    }
+  ],
+  messages: {
+    'mock-conv-1': [
+      {
+        id: 'mock-msg-1',
+        conversationId: 'mock-conv-1',
+        senderId: 'tenant-999',
+        senderName: 'Azizbek',
+        senderRole: 'STUDENT',
+        text: "Assalomu alaykum, uy hali bo'shmi?",
+        timestamp: '14:30',
+      }
+    ]
+  },
 
   openChatWithListing: (listing) => set((state) => {
     if (!state.currentUser) {

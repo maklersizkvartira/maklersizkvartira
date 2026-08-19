@@ -21,7 +21,7 @@ export const HeroSection: React.FC = () => {
       <section className="relative overflow-hidden bg-slate-950 px-4 sm:px-6 pt-12 sm:pt-20 pb-28 sm:pb-36 text-white text-center">
         <div className="relative z-10 max-w-5xl mx-auto space-y-4 sm:space-y-6">
           {/* Animated 0% Commission Badge */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-black tracking-wider text-emerald-400 uppercase backdrop-blur-md">
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-black tracking-wider text-emerald-400 uppercase">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
@@ -40,9 +40,9 @@ export const HeroSection: React.FC = () => {
           </p>
         </div>
 
-        {/* Ambient Emerald Glow Effect */}
-        <div className="absolute top-0 right-0 h-[450px] w-[450px] translate-x-1/3 -translate-y-1/3 rounded-full bg-emerald-500/15 blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-0 left-0 h-[450px] w-[450px] -translate-x-1/3 translate-y-1/3 rounded-full bg-teal-500/10 blur-[120px] pointer-events-none" />
+        {/* Ambient Emerald Glow Effect (Simplified for mobile) */}
+        <div className="absolute top-0 right-0 h-[300px] w-[300px] sm:h-[450px] sm:w-[450px] translate-x-1/3 -translate-y-1/3 rounded-full bg-emerald-500/15 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 h-[300px] w-[300px] sm:h-[450px] sm:w-[450px] -translate-x-1/3 translate-y-1/3 rounded-full bg-teal-500/10 blur-3xl pointer-events-none" />
       </section>
 
       {/* Sleek Search Trigger */}

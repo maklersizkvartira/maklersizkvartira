@@ -202,7 +202,7 @@ export const ChatPage: React.FC = () => {
   );
 
   const Thread = currentConv ? (
-    <div className="bg-white md:rounded-3xl md:border md:border-slate-200/80 shadow-card flex flex-col h-full min-h-0 overflow-hidden relative">
+    <div className="bg-slate-50 md:bg-white md:rounded-3xl md:border md:border-slate-200/80 md:shadow-card flex flex-col h-full min-h-0 overflow-hidden relative">
       {/* Top Peer Info Header */}
       <div className="px-3 sm:px-4 py-2.5 border-b border-slate-200/80 bg-white flex items-center justify-between gap-2.5 shrink-0 shadow-xs z-10">
         <div className="flex items-center gap-2 min-w-0">
@@ -282,7 +282,7 @@ export const ChatPage: React.FC = () => {
       )}
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 bg-slate-100/60 min-h-0">
+      <div className="flex-1 overflow-y-auto p-2.5 sm:p-4 space-y-3 bg-[#e8edea]/40 md:bg-slate-100/60 min-h-0">
         <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl text-xs text-emerald-900 flex gap-2.5 shadow-sm">
           <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
@@ -297,10 +297,10 @@ export const ChatPage: React.FC = () => {
           const mine = isMe(msg.senderId, msg.senderRole);
           return (
             <div key={msg.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] sm:max-w-[75%] p-3 sm:p-3.5 rounded-2xl text-xs sm:text-sm shadow-xs ${
+              <div className={`max-w-[85%] sm:max-w-[75%] p-2.5 sm:p-3.5 rounded-[20px] text-[13px] sm:text-sm shadow-sm ${
                 mine 
-                  ? 'bg-emerald-600 text-white rounded-br-xs' 
-                  : 'bg-white text-slate-900 border border-slate-200/80 rounded-bl-xs'
+                  ? 'bg-[#00a884] text-white rounded-br-sm' 
+                  : 'bg-white text-slate-900 border border-slate-200/50 rounded-bl-sm'
               }`}>
                 {!mine && <div className="text-[10px] font-extrabold text-emerald-700 mb-1">{msg.senderName}</div>}
 
@@ -350,7 +350,7 @@ export const ChatPage: React.FC = () => {
       </div>
 
       {/* Quick Preset Reply Chips */}
-      <div className="px-3 py-2 bg-white border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+      <div className="px-2 py-2 bg-white border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto hide-scrollbar shrink-0">
         {QuickChips.map((chip) => (
           <button
             key={chip}
@@ -379,7 +379,7 @@ export const ChatPage: React.FC = () => {
           value={inputMsg}
           onChange={(e) => setInputMsg(e.target.value)}
           placeholder="Xabar yozing..."
-          className="flex-1 bg-slate-100 focus:bg-white focus:ring-2 focus:ring-emerald-500 border border-slate-200 rounded-full px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold outline-none transition-all"
+          className="flex-1 bg-slate-100 focus:bg-white focus:ring-2 focus:ring-emerald-500 border border-slate-200 rounded-full px-4 py-2.5 sm:py-3 text-[13px] sm:text-sm font-semibold outline-none transition-all"
         />
 
         <button
@@ -465,7 +465,7 @@ export const ChatPage: React.FC = () => {
       )}
     </div>
   ) : (
-    <div className="flex flex-1 flex-col items-center justify-center text-slate-400 text-sm space-y-3 bg-white rounded-3xl border border-slate-200/80 shadow-card p-6 text-center">
+    <div className="flex flex-1 flex-col items-center justify-center text-slate-400 text-sm space-y-3 bg-slate-50 md:bg-white md:rounded-3xl md:border md:border-slate-200/80 md:shadow-card p-6 text-center">
       <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
         <MessageSquare className="w-8 h-8" />
       </div>
@@ -484,10 +484,10 @@ export const ChatPage: React.FC = () => {
   return (
     <div className="md:max-w-6xl md:mx-auto md:px-6 md:py-6">
       <div className="h-[calc(100dvh-3.5rem-4.25rem)] md:h-[calc(100dvh-6rem)] md:min-h-[580px] flex md:gap-4">
-        <div className={`${mobileThread ? 'hidden' : 'flex'} md:flex w-full md:w-80 flex-col min-h-0`}>
+        <div className={`${mobileThread ? 'hidden' : 'flex'} md:flex w-full md:w-80 flex-col min-h-0 bg-white md:bg-transparent`}>
           {List}
         </div>
-        <div className={`${mobileThread ? 'flex' : 'hidden'} md:flex flex-1 flex-col min-h-0`}>
+        <div className={`${mobileThread ? 'flex' : 'hidden'} md:flex flex-1 flex-col min-h-0 bg-slate-50 md:bg-transparent`}>
           {Thread}
         </div>
       </div>
