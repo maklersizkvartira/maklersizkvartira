@@ -219,38 +219,24 @@ export const Header: React.FC = () => {
         </nav>
 
         {/* Right Header User Controls */}
-        <div className="flex items-center gap-1 sm:gap-2.5">
-
-          {/* Mobile Quick Favorites (Yurakcha) Button */}
-          <button
-            type="button"
-            onClick={() => navTo('FAVORITES')}
-            className="relative p-2 rounded-xl bg-slate-900 border border-slate-700/80 text-slate-200 hover:text-white transition-colors shrink-0"
-            title="Saralanganlar"
-          >
-            <Heart className={`w-4 h-4 sm:w-5 sm:h-5 ${favorites.length > 0 ? 'text-rose-500 fill-rose-500' : ''}`} />
-            {favorites.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black min-w-4 h-4 px-1 rounded-full flex items-center justify-center">
-                {favorites.length}
-              </span>
-            )}
-          </button>
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
 
           {/* User Avatar / Login status button */}
           {currentUser ? (
-            <div className="flex items-center gap-1 sm:gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <button
                 onClick={() => setShowSidebar(true)}
-                className="flex items-center gap-1 sm:gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white font-bold text-xs sm:text-sm pl-1 pr-2 sm:pl-1.5 sm:pr-3 py-1 rounded-full transition-all shadow-xs"
+                className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white font-bold text-xs sm:text-sm p-1 sm:pl-1.5 sm:pr-3 rounded-full transition-all shadow-xs shrink-0"
+                title={currentUser.name}
               >
                 <img
                   src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'}
-                  alt=""
+                  alt={currentUser.name}
                   className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-emerald-400 shrink-0"
                 />
-                <div className="text-left min-w-0 max-w-[60px] xs:max-w-[100px] sm:max-w-[150px]">
-                  <div className="font-extrabold text-[10px] sm:text-xs text-white truncate leading-tight">{currentUser.name}</div>
-                  <div className="hidden sm:block text-[10px] text-emerald-400 font-bold uppercase">{currentUser.role === 'OWNER' ? 'Uy Egasi' : 'Talaba'}</div>
+                <div className="hidden sm:block text-left min-w-0 sm:max-w-[150px]">
+                  <div className="font-extrabold text-xs text-white truncate leading-tight">{currentUser.name}</div>
+                  <div className="text-[10px] text-emerald-400 font-bold uppercase">{currentUser.role === 'OWNER' ? 'Uy Egasi' : 'Talaba'}</div>
                 </div>
               </button>
 
@@ -266,7 +252,7 @@ export const Header: React.FC = () => {
           ) : (
             <button
               onClick={() => setShowAuth(true, 'LOGIN')}
-              className="text-xs sm:text-sm font-bold text-slate-200 hover:text-white px-1.5 sm:px-3 py-1.5 transition-colors"
+              className="text-xs sm:text-sm font-bold text-slate-200 hover:text-white px-2 sm:px-3 py-1.5 transition-colors shrink-0"
             >
               Kirish
             </button>
@@ -281,10 +267,10 @@ export const Header: React.FC = () => {
                 setCurrentView('CREATE_LISTING');
               }
             }}
-            className="rounded-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs sm:text-sm px-2.5 sm:px-5 py-1.5 sm:py-2.5 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 shrink-0"
+            className="rounded-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2.5 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 shrink-0 whitespace-nowrap"
           >
-            <span className="hidden xs:inline">E'lon berish</span>
-            <span className="xs:hidden">+ E'lon</span>
+            <span className="hidden sm:inline">+ E'lon berish</span>
+            <span className="sm:hidden">+ E'lon</span>
           </button>
 
           {/* Sidebar Menu Drawer Toggle Button */}
