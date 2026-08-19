@@ -211,15 +211,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const meData = await initAuthFromStorage();
       if (!meData) return; // Token invalid or expired
 
-      // Normalise backend response to CurrentUser shape
+      const localSaved = loadUser();
       const restoredUser: CurrentUser = {
-        id: meData.id,
-        name: meData.name ||
-          `${meData.first_name ?? ''} ${meData.last_name ?? ''}`.trim() ||
-          (meData.email ?? 'Foydalanuvchi'),
-        phone: meData.phone ?? meData.email ?? '',
-        role: (meData.role as CurrentUser['role']) ?? 'STUDENT',
-        avatar: meData.avatar ?? meData.avatar_url,
+        id: localSaved?.id || meData.id,
+        name: (localSaved?.name && localSaved.name !== 'Foydalanuvchi')
+          ? localSaved.name
+          : (meData.name || `${meData.first_name ?? ''} ${meData.last_name ?? ''}`.trim() || meData.email || 'Foydalanuvchi'),
+        phone: localSaved?.phone || meData.phone || meData.email || '',
+        role: (localSaved?.role || meData.role || 'STUDENT') as CurrentUser['role'],
+        avatar: (localSaved?.avatar && !localSaved.avatar.includes('unsplash.com'))
+          ? localSaved.avatar
+          : (meData.avatar || meData.avatar_url || localSaved?.avatar),
       };
       localStorage.setItem(USER_KEY, JSON.stringify(restoredUser));
       set({

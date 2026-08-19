@@ -61,12 +61,12 @@ export const ApiService = {
 
   // ── Login / Register ──────────────────────────────────────────────────────────
   login: async (phone: string, password?: string): Promise<CurrentUser> => {
-    // Check local registered users list first to preserve custom avatar/data
+    // Check local registered users list first to preserve custom avatar/data/role
     const localUsersRaw = localStorage.getItem('maklersiz_registered_users');
-    let localMatched: CurrentUser | null = null;
+    let localMatched: (CurrentUser & { password?: string }) | null = null;
     if (localUsersRaw) {
       try {
-        const usersArr: CurrentUser[] = JSON.parse(localUsersRaw);
+        const usersArr: (CurrentUser & { password?: string })[] = JSON.parse(localUsersRaw);
         localMatched = usersArr.find((u) => matchPhone(u.phone, phone)) || null;
       } catch {}
     }
@@ -74,9 +74,9 @@ export const ApiService = {
     // Also check last stored user in USER_KEY if phone matches
     if (!localMatched) {
       try {
-        const lastUserRaw = localStorage.getItem('maklersiz_user');
+        const lastUserRaw = localStorage.getItem('maklersiz-user');
         if (lastUserRaw) {
-          const lastU: CurrentUser = JSON.parse(lastUserRaw);
+          const lastU: CurrentUser & { password?: string } = JSON.parse(lastUserRaw);
           if (matchPhone(lastU.phone, phone)) localMatched = lastU;
         }
       } catch {}
@@ -93,34 +93,45 @@ export const ApiService = {
         if (data.access_token) saveTokens(data.access_token, data.refresh_token);
         const remoteUser = (data.user || data.data?.user || (data.id ? data : null)) as CurrentUser | null;
         if (remoteUser) {
-          const finalUser: CurrentUser = {
+          const finalUser: CurrentUser & { password?: string } = {
             ...remoteUser,
             id: localMatched?.id || remoteUser.id,
             role: (localMatched?.role || remoteUser.role || 'STUDENT') as CurrentUser['role'],
             avatar: (localMatched?.avatar && !localMatched.avatar.includes('unsplash.com'))
               ? localMatched.avatar
               : (remoteUser.avatar || localMatched?.avatar),
+            password: password || localMatched?.password,
           };
           try {
             const usersArr: CurrentUser[] = localUsersRaw ? JSON.parse(localUsersRaw) : [];
             const filtered = usersArr.filter((u) => !matchPhone(u.phone, phone) && u.id !== finalUser.id);
             filtered.push(finalUser);
             localStorage.setItem('maklersiz_registered_users', JSON.stringify(filtered));
+            localStorage.setItem('maklersiz-user', JSON.stringify(finalUser));
           } catch {}
           return finalUser;
         }
       } else if (res) {
         const errJson = await res.json().catch(() => ({}));
-        if (localMatched) return localMatched;
+        if (res.status === 400) {
+          throw new Error(errJson.detail || errJson.message || "Parolingiz noto'g'ri. Iltimos, qayta kiriting.");
+        }
+        if (res.status === 404) {
+          if (localMatched) {
+            if (localMatched.password && password && localMatched.password !== password) {
+              throw new Error("Parolingiz noto'g'ri. Iltimos, qayta kiriting.");
+            }
+            return localMatched;
+          }
+          throw new Error(errJson.detail || errJson.message || "Ushbu telefon raqami bilan hisob topilmadi. Avval Ro'yxatdan o'tish bo'limida hisob yarating.");
+        }
         throw new Error(errJson.detail || errJson.message || "Telefon raqami yoki parol noto'g'ri.");
       }
     } catch (err: any) {
-      if (localMatched) return localMatched;
       if (err?.message) throw err;
       console.warn('login: backend unavailable');
     }
 
-    if (localMatched) return localMatched;
 
     throw new Error("Ushbu telefon raqami bilan hisob topilmadi. Avval Ro'yxatdan o'tish bo'limiga o'ting.");
   },
@@ -196,9 +207,11 @@ export const ApiService = {
 
     // Save to localStorage for offline matching
     try {
+      const userWithPass = { ...registeredUser, password: payloadPassword };
       const filtered = existingArr.filter((u) => !matchPhone(u.phone, payloadPhone) && u.id !== registeredUser.id);
-      filtered.push(registeredUser);
+      filtered.push(userWithPass);
       localStorage.setItem('maklersiz_registered_users', JSON.stringify(filtered));
+      localStorage.setItem('maklersiz-user', JSON.stringify(userWithPass));
     } catch {}
 
     return registeredUser;
