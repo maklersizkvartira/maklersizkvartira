@@ -1,5 +1,5 @@
 // Maklersiz.uz Production Header Component - Vercel Deploy Trigger
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ShieldCheck, LogIn, User, MapPin, Menu, X, Home, Search, MessageSquare, 
   PlusCircle, List, GraduationCap, LogOut, ChevronDown, Sparkles, Award, Phone,
@@ -15,6 +15,14 @@ export const Header: React.FC = () => {
   } = useAppStore();
   const [showSidebar, setShowSidebar] = useState(false);
   const [showCatMenu, setShowCatMenu] = useState(false);
+  const [showAvatarToggle, setShowAvatarToggle] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setShowAvatarToggle((prev) => !prev);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const xpVal = userXp || 120;
   const level = Math.floor(xpVal / 100) + 1;
@@ -221,9 +229,9 @@ export const Header: React.FC = () => {
         {/* Right Header User Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
 
-          {/* User Avatar / Login status button */}
+          {/* User Avatar / Login status button (Desktop Only) */}
           {currentUser ? (
-            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <div className="hidden sm:flex items-center gap-1 sm:gap-2 shrink-0">
               <button
                 onClick={() => setShowSidebar(true)}
                 className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white font-bold text-xs sm:text-sm p-1 sm:pl-1.5 sm:pr-3 rounded-full transition-all shadow-xs shrink-0"
@@ -234,7 +242,7 @@ export const Header: React.FC = () => {
                   alt={currentUser.name}
                   className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-emerald-400 shrink-0"
                 />
-                <div className="hidden sm:block text-left min-w-0 sm:max-w-[150px]">
+                <div className="text-left min-w-0 sm:max-w-[150px]">
                   <div className="font-extrabold text-xs text-white truncate leading-tight">{currentUser.name}</div>
                   <div className="text-[10px] text-emerald-400 font-bold uppercase">{currentUser.role === 'OWNER' ? 'Uy Egasi' : 'Talaba'}</div>
                 </div>
@@ -244,7 +252,7 @@ export const Header: React.FC = () => {
               <button
                 onClick={handleLogout}
                 title="Tizimdan chiqish"
-                className="hidden sm:flex items-center justify-center p-2.5 rounded-full bg-slate-900 hover:bg-rose-950/80 border border-slate-700 hover:border-rose-500 text-slate-300 hover:text-rose-400 transition-all shadow-xs shrink-0 cursor-pointer"
+                className="flex items-center justify-center p-2.5 rounded-full bg-slate-900 hover:bg-rose-950/80 border border-slate-700 hover:border-rose-500 text-slate-300 hover:text-rose-400 transition-all shadow-xs shrink-0 cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -252,7 +260,7 @@ export const Header: React.FC = () => {
           ) : (
             <button
               onClick={() => setShowAuth(true, 'LOGIN')}
-              className="text-xs sm:text-sm font-bold text-slate-200 hover:text-white px-2 sm:px-3 py-1.5 transition-colors shrink-0"
+              className="hidden sm:block text-xs sm:text-sm font-bold text-slate-200 hover:text-white px-2 sm:px-3 py-1.5 transition-colors shrink-0"
             >
               Kirish
             </button>
@@ -287,14 +295,29 @@ export const Header: React.FC = () => {
             <span className="sm:hidden">+ E'lon</span>
           </button>
 
-          {/* Sidebar Menu Drawer Toggle Button */}
+          {/* Sidebar Menu Drawer Toggle Button / Mobile Alternating Avatar */}
           <button
             type="button"
             onClick={() => setShowSidebar((v) => !v)}
-            className="p-1.5 sm:p-2 rounded-xl bg-slate-900 border border-slate-700/80 text-white hover:bg-slate-800 transition-colors shrink-0"
+            className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-900 border border-slate-700/80 hover:bg-slate-800 transition-colors shrink-0 flex items-center justify-center overflow-hidden"
             aria-label="Menyu"
           >
-            <Menu className="w-5 h-5" />
+            {currentUser ? (
+              <>
+                <div className={`absolute inset-0 flex items-center justify-center transition-all duration-700 ${showAvatarToggle ? 'opacity-100 scale-100 rotate-0' : 'opacity-0 scale-50 rotate-180'}`}>
+                  <img
+                    src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'}
+                    alt={currentUser.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className={`absolute inset-0 flex items-center justify-center text-white transition-all duration-700 ${!showAvatarToggle ? 'opacity-100 scale-100 rotate-0' : 'opacity-0 scale-50 -rotate-180'}`}>
+                  <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
+              </>
+            ) : (
+              <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            )}
           </button>
         </div>
       </div>

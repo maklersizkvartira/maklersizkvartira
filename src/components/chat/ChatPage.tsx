@@ -379,7 +379,7 @@ export const ChatPage: React.FC = () => {
           value={inputMsg}
           onChange={(e) => setInputMsg(e.target.value)}
           placeholder="Xabar yozing..."
-          className="flex-1 bg-slate-100 focus:bg-white focus:ring-2 focus:ring-emerald-500 border border-slate-200 rounded-full px-4 py-2.5 sm:py-3 text-[13px] sm:text-sm font-semibold outline-none transition-all"
+          className="flex-1 min-w-0 bg-slate-100 focus:bg-white focus:ring-2 focus:ring-emerald-500 border border-slate-200 rounded-full px-4 py-2.5 sm:py-3 text-[13px] sm:text-sm font-semibold outline-none transition-all"
         />
 
         <button
@@ -484,10 +484,10 @@ export const ChatPage: React.FC = () => {
   return (
     <div className="md:max-w-6xl md:mx-auto md:px-6 md:py-6">
       <div className="h-[calc(100dvh-3.5rem-4.25rem)] md:h-[calc(100dvh-6rem)] md:min-h-[580px] flex md:gap-4">
-        <div className={`${mobileThread ? 'hidden' : 'flex'} md:flex w-full md:w-80 flex-col min-h-0 bg-white md:bg-transparent`}>
+        <div className={`${mobileThread ? 'hidden' : 'flex'} md:flex w-full md:w-80 flex-col min-h-0 bg-white md:bg-transparent min-w-0`}>
           {List}
         </div>
-        <div className={`${mobileThread ? 'flex' : 'hidden'} md:flex flex-1 flex-col min-h-0 bg-slate-50 md:bg-transparent`}>
+        <div className={`${mobileThread ? 'flex' : 'hidden'} md:flex flex-1 flex-col min-h-0 bg-slate-50 md:bg-transparent w-full max-w-full overflow-hidden min-w-0`}>
           {Thread}
         </div>
       </div>
