@@ -122,20 +122,23 @@ let USERS_DB: any[] = loadUsers();
 // Helper AI Skaner algorithm
 function scanListingAI(title: string, description: string, price?: number, rooms?: number) {
   const combined = `${title} ${description}`.toLowerCase();
-  const brokerWords = ['makler', 'rieltor', 'rieltorlik', 'komissiya 50%', 'usluga 50%', 'xizmat haqi', 'komissya', '15% komissiya', 'maklerman'];
+  const safeWords = ['maklersiz', 'komissiya yo\'q', '0% komissiya', 'egasidan', 'maklerlar bezovta qilmasin', 'makler emasman'];
+  const isSafe = safeWords.some((w) => combined.includes(w));
+
+  const brokerWords = ['maklerman', 'men makler', 'vositachi', 'agentlik', 'rieltor', 'komissiya 50%', 'usluga 50%', 'xizmat haqi', '15% komissiya'];
   
   const reasons: string[] = [];
   let riskScore = 5;
 
-  const foundBrokerWord = brokerWords.find((w) => combined.includes(w));
+  const foundBrokerWord = !isSafe && brokerWords.find((w) => combined.includes(w));
   if (foundBrokerWord) {
     reasons.push(`Broker belgisi topildi: "${foundBrokerWord}"`);
     riskScore += 80;
   }
 
-  if (price && price < 300000 && price > 0) {
+  if (price && price < 100000 && price > 0) {
     reasons.push("Shubhali darajada arzon narx (soxta e'lon xavfi)");
-    riskScore += 40;
+    riskScore += 20;
   }
 
   const allowed = riskScore < 70;

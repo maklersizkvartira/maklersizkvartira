@@ -18,9 +18,9 @@ export interface ListingScanResult {
   message: string;
 }
 
-const BROKER_RE = /\b(maklerman|men makler|vositachi|agentlik|rieltor|komissiya ol|foiz ol|vositachilik|bir nechta kvartira|kvartiralarim bor|10 ta kvartira)\b/i;
+const BROKER_RE = /\b(maklerman|men makler|vositachi|agentlik|rieltor|komissiya 50%|usluga 50%|15% komissiya|vositachilik|bir nechta kvartira|kvartiralarim bor|10 ta kvartira)\b/i;
 const SCAM_RE = /\b(kartaga o['’`]tkaz|plastik karta|oldindan to['’`]lov|oldindan pul|zaklad|sms kod|karta parol|telegramga pul|ko['’`]rmasdan to['’`]la)\b/i;
-const SAFE_RE = /\b(maklersiz|komissiya yo['’`]q|0%\s*komissiya|egasidan|to['’`]g['’`]ridan[\s-]*to['’`]g['’`]ri|zaklad yo['’`]q|zaklad olinmaydi|oldindan pul shart emas|kartaga pul o['’`]tkazmang)\b/i;
+const SAFE_RE = /\b(maklersiz|komissiya yo['’`]q|0%\s*komissiya|egasidan|to['’`]g['’`]ridan[\s-]*to['’`]g['’`]ri|zaklad yo['’`]q|zaklad olinmaydi|oldindan pul shart emas|kartaga pul o['’`]tkazmang|maklerlar bezovta qilmasin|makler emasman)\b/i;
 
 export function scanListingLocal(title: string, description: string, price?: number, rooms?: number): ListingScanResult {
   const text = `${title} ${description}`.trim();
@@ -46,7 +46,7 @@ export function scanListingLocal(title: string, description: string, price?: num
       field: targetField,
       issue: `Matningizda maklerlik yoki vositachilik kalit so'zi ("${word}") aniqlandi.`,
       matchedWord: word,
-      fixSuggestion: `"${word}" so'zini o'chiring yoki o'rniga "Egasidan to'g'ridan-to'g meksika 0% komissiya" deb yozing.`,
+      fixSuggestion: `"${word}" so'zini o'chiring yoki o'rniga "Egasidan to'g'ridan-to'g'ri 0% komissiya" deb yozing.`,
     });
     brokerProbability = 88;
     riskScore = 80;
@@ -67,15 +67,15 @@ export function scanListingLocal(title: string, description: string, price?: num
     brokerProbability = Math.max(brokerProbability, 70);
   }
 
-  if (typeof price === 'number' && typeof rooms === 'number' && rooms >= 2 && price > 0 && price < 1500000) {
-    reasons.push(`📍 Narx maydonida xatolik: ${price.toLocaleString('uz-UZ')} so'm (${rooms} xonali uy uchun juda arzon)`);
+  if (typeof price === 'number' && typeof rooms === 'number' && rooms >= 2 && price > 0 && price < 500000) {
+    reasons.push(`📍 Narx maydonida eslatma: ${price.toLocaleString('uz-UZ')} so'm (${rooms} xonali uy uchun birmuncha arzon)`);
     fieldErrors.push({
       field: 'Narx',
-      issue: `${rooms} xonali kvartira uchun ${price.toLocaleString('uz-UZ')} so'm narx real bozor me'yoridan o'ta arzon (zaklad tuzog'i shubhasi).`,
+      issue: `${rooms} xonali kvartira uchun ${price.toLocaleString('uz-UZ')} so'm narx biroz past ko'rinmoqda.`,
       matchedWord: `${price} so'm`,
-      fixSuggestion: `Narxni real oylik ijara narxiga moslab o'zgartiring (masalan: 3,500,000 so'm).`,
+      fixSuggestion: `Narx to'g'ri kiritilganiga ishonch hosil qiling.`,
     });
-    riskScore = Math.max(riskScore, 75);
+    riskScore = Math.max(riskScore, 30);
   }
 
   if (riskScore >= 70 || brokerProbability >= 70) {

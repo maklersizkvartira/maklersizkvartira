@@ -888,6 +888,7 @@ export const CreateListingPage: React.FC = () => {
 
                 <div className="flex flex-col sm:flex-row gap-2">
                   <button
+                    type="button"
                     onClick={() => {
                       // AI Auto-fix text
                       let cleanedTitle = title.replace(/\b(makler|zaklad|vositachi|agentlik)\b/gi, '').trim();
@@ -904,8 +905,12 @@ export const CreateListingPage: React.FC = () => {
                     <span>✨ AI Matnni Tuzatish</span>
                   </button>
 
-                  <button onClick={() => setStep(1)} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-4 rounded-xl text-xs transition-colors">
-                    O'zim tahrirlash
+                  <button
+                    type="button"
+                    onClick={handleSubmitListing}
+                    className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-4 rounded-xl text-xs transition-colors shadow-md"
+                  >
+                    Baribir Nashr Qilish
                   </button>
 
                   <a
@@ -935,10 +940,6 @@ export const CreateListingPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleSubmitListing}
-                    onTouchEnd={(e) => {
-                      e.preventDefault();
-                      handleSubmitListing(e);
-                    }}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black py-4 px-6 rounded-2xl text-base shadow-2xl shadow-emerald-600/40 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer border-2 border-emerald-400/40"
                   >
                     <CheckCircle2 className="w-6 h-6" />
