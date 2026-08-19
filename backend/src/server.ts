@@ -500,7 +500,47 @@ app.put('/api/v1/listings/:id', (req: Request, res: Response) => {
     LISTINGS_DB.unshift(target);
   }
 
+  // Re-run AI scan on update
+  const aiResult = scanListingAI(target.title || '', target.description || '', target.price, target.rooms);
+  const isSimulatedCopied = (target.description || '').toLowerCase().includes('olx');
+
+  if (aiResult.riskScore > 90) {
+    res.status(403).json({
+      status: 'rejected',
+      error: aiResult.reasons.join(' | '),
+      aiAnalysis: aiResult,
+    });
+    return;
+  }
+
+  target.aiCheckStatus = 'UNDER_REVIEW';
+  target.aiRiskReasons = ["AI rasmlarni va e'lonni qayta tekshirmoqda..."];
+  target.trustScore = aiResult.trustScore;
+  target.riskScore = aiResult.riskScore;
+
   saveListings(LISTINGS_DB);
+
+  // Async task simulation (Background Check for updates)
+  setTimeout(() => {
+    const listing = LISTINGS_DB.find(l => l.id === target.id);
+    if (listing) {
+      if (isSimulatedCopied) {
+        listing.aiCheckStatus = 'WARNING';
+        listing.aiRiskReasons = [
+          "Sizning e'loningiz boshqa manbadan (OLX yoki boshqa) ko'chirilgani aniqlandi. Iltimos tahrirlang yoki o'chiring."
+        ];
+        listing.trustScore -= 30;
+      } else {
+        listing.aiCheckStatus = aiResult.status;
+        listing.aiRiskReasons = aiResult.reasons;
+        if (!listing.safetyBadges.includes('AI_CHECKED')) {
+          listing.safetyBadges.push('AI_CHECKED');
+        }
+      }
+      saveListings(LISTINGS_DB);
+    }
+  }, 10000); // 10 seconds background delay
+
   res.json({ status: 'success', data: target });
 });
 
