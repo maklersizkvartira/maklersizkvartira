@@ -38,7 +38,7 @@ function resetDailyUsage(): void {
 }
 
 export const ShieldMascot: React.FC = () => {
-  const { listings, setCurrentView, setFilters, setSearchQuery, setShowAuth, aiMascotMessage } = useAppStore();
+  const { listings, setCurrentView, setFilters, setSearchQuery, setShowAuth, aiMascotMessage, setAiSystemActive } = useAppStore();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [usageCount, setUsageCount] = useState<number>(getDailyUsage());
@@ -102,9 +102,11 @@ export const ShieldMascot: React.FC = () => {
           }
         }
       } else {
+        setAiSystemActive(false);
         setLog((prev) => [...prev, { from: 'ai', text: "🤖 Xatolik yuz berdi. Iltimos qaytadan urinib ko'ring." }]);
       }
     } catch (e) {
+      setAiSystemActive(false);
       setLog((prev) => [...prev, { from: 'ai', text: "🤖 Tarmoq xatosi. Iltimos qaytadan urinib ko'ring." }]);
     } finally {
       setLoading(false);
