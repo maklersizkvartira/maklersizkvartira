@@ -74,30 +74,7 @@ export const App: React.FC = () => {
       <main className="flex-1 min-w-0 w-full pt-14 sm:pt-[5.5rem] pb-0">
         {currentView === 'HOME' && (
           <>
-            {isOwner && (
-              <div className="bg-slate-900 text-white px-4 py-3 border-b border-slate-800">
-                <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="bg-emerald-600 text-white font-bold px-2 py-0.5 rounded text-[11px] shrink-0">Uy Egasi</span>
-                    <span className="font-semibold text-slate-300 truncate">Salom, {currentUser.name.split(' ')[0]}. Bosh sahifa va kvartiralar.</span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => setCurrentView('MY_LISTINGS')}
-                      className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3 py-1.5 rounded-lg transition-colors hidden sm:inline-block"
-                    >
-                      Mening e'lonlarim
-                    </button>
-                    <button
-                      onClick={() => setCurrentView('CREATE_LISTING')}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
-                    >
-                      + Yangi e'lon
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+
 
             {isStudent && (
               <div className="bg-emerald-50 border-b border-emerald-100 px-4 py-3 text-center">

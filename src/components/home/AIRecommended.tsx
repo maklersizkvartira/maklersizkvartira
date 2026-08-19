@@ -23,7 +23,7 @@ export const AIRecommended: React.FC = () => {
     if (pool.length <= 1 || paused) return;
     const id = window.setInterval(() => {
       setStart((s) => (s + 1) % pool.length);
-    }, 4000);
+    }, 10000);
     return () => window.clearInterval(id);
   }, [pool.length, paused]);
 

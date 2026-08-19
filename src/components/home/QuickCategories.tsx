@@ -108,47 +108,23 @@ export const QuickCategories: React.FC = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      <div className="flex overflow-x-auto no-scrollbar gap-2 sm:gap-4 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
         {categories.map((cat) => {
           const Icon = cat?.icon || Home;
-          const isHovered = hoveredId === cat.id;
 
           return (
-            <div
+            <button
               key={cat.id}
               onClick={cat.action}
-              onMouseEnter={() => setHoveredId(cat.id)}
-              onMouseLeave={() => setHoveredId(null)}
-              className={`group relative cursor-pointer rounded-2xl border border-slate-200/90 bg-gradient-to-br ${cat.gradientBg} p-3.5 sm:p-5 text-left transition-all duration-300 hover:border-emerald-500/50 hover:shadow-xl hover:shadow-emerald-500/10 hover:-translate-y-1 active:scale-[0.97] flex flex-col justify-between space-y-3 shadow-xs overflow-hidden`}
+              className="flex flex-col items-center justify-center min-w-[85px] sm:min-w-[100px] p-3 rounded-2xl bg-white border border-slate-200/60 hover:border-emerald-500/50 hover:bg-emerald-50/30 hover:shadow-md transition-all group shrink-0"
             >
-              <div className="flex items-center justify-between gap-1">
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center border ${cat.badgeColor} transition-transform group-hover:scale-110 shadow-xs shrink-0`}>
-                  <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
-                </div>
-                <ChevronRight className={`w-4 h-4 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all ${isHovered ? 'opacity-100' : 'opacity-40'}`} />
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-transform group-hover:scale-110 ${cat.badgeColor}`}>
+                <Icon className="w-5 h-5" />
               </div>
-
-              <div className="space-y-1 min-w-0">
-                <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 group-hover:text-emerald-700 transition-colors truncate">
-                  {cat.name}
-                </h3>
-                <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold line-clamp-1">
-                  {cat.desc}
-                </p>
-
-                {/* Sub-tags indicator on hover/desktop */}
-                <div className="flex flex-wrap gap-1 pt-1">
-                  {cat.subTags.map((tag, tIdx) => (
-                    <span
-                      key={tIdx}
-                      className="text-[9px] font-bold bg-white/80 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded-md group-hover:border-emerald-300 group-hover:text-emerald-800 transition-colors"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
+              <span className="text-[10px] sm:text-xs font-extrabold text-slate-700 group-hover:text-emerald-700 text-center leading-tight">
+                {cat.name}
+              </span>
+            </button>
           );
         })}
       </div>
