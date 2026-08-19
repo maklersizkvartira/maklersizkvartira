@@ -291,6 +291,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (!state.currentUser) return {};
     const currentUser = { ...state.currentUser, avatar };
     localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+
+    // Also update registered users storage so logging back in preserves the new avatar
+    ApiService.updateProfileAvatar(currentUser.phone, avatar).catch(() => {});
+
     const listings = state.listings.map((l) =>
       l.owner.id === currentUser.id ? { ...l, owner: { ...l.owner, avatar } } : l
     );

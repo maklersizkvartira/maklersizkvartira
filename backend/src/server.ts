@@ -165,11 +165,20 @@ app.get('/api/v1/health', (_req: Request, res: Response) => {
   });
 });
 
+function matchPhoneBackend(p1?: string, p2?: string): boolean {
+  if (!p1 || !p2) return false;
+  const d1 = String(p1).replace(/\D/g, '');
+  const d2 = String(p2).replace(/\D/g, '');
+  if (!d1 || !d2) return false;
+  if (d1 === d2) return true;
+  if (d1.length >= 9 && d2.length >= 9 && d1.slice(-9) === d2.slice(-9)) return true;
+  return false;
+}
+
 // 2. Auth Login
 app.post('/api/v1/auth/login', (req: Request, res: Response) => {
   const { phone, password } = req.body || {};
-  const cleanPhone = (phone || '').replace(/\D/g, '');
-  const user = USERS_DB.find((u) => u.phone.replace(/\D/g, '') === cleanPhone);
+  const user = USERS_DB.find((u) => matchPhoneBackend(u.phone, phone));
 
   if (!user) {
     res.status(404).json({
@@ -198,13 +207,13 @@ app.post('/api/v1/auth/login', (req: Request, res: Response) => {
 // 3. Auth Register
 app.post('/api/v1/auth/register', (req: Request, res: Response) => {
   const { name, phone, role, password, avatar } = req.body || {};
-  const cleanPhone = (phone || '').replace(/\D/g, '');
 
-  const existing = USERS_DB.find((u) => u.phone.replace(/\D/g, '') === cleanPhone);
+  const existing = USERS_DB.find((u) => matchPhoneBackend(u.phone, phone));
   if (existing) {
     if (role) existing.role = role === 'OWNER' ? 'OWNER' : 'STUDENT';
     if (password) existing.password = password;
     if (name) existing.name = name;
+    if (avatar && !avatar.includes('unsplash.com')) existing.avatar = avatar;
     saveUsers(USERS_DB);
     res.json({
       status: 'success',
@@ -238,6 +247,19 @@ app.post('/api/v1/auth/register', (req: Request, res: Response) => {
     user: newUser,
     data: { user: newUser, token: `token_${Date.now()}` },
   });
+});
+
+// 3b. Auth Update Profile Avatar
+app.post('/api/v1/auth/profile', (req: Request, res: Response) => {
+  const { phone, avatar } = req.body || {};
+  const user = USERS_DB.find((u) => matchPhoneBackend(u.phone, phone));
+  if (user && avatar) {
+    user.avatar = avatar;
+    saveUsers(USERS_DB);
+    res.json({ status: 'success', user });
+    return;
+  }
+  res.json({ status: 'ignored' });
 });
 
 // 4. Traffic Track

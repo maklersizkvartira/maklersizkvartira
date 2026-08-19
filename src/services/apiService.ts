@@ -16,7 +16,18 @@ import {
 // Re-export so existing code that imports API_BASE_URL from here still works
 export const API_BASE_URL = API_BASE;
 
-// ─── Auth ─────────────────────────────────────────────────────────────────────
+// Phone number normalization helper: matches numbers by digits or last 9 digits (Uzbekistan suffix)
+export function matchPhone(p1?: string | null, p2?: string | null): boolean {
+  if (!p1 || !p2) return false;
+  const d1 = String(p1).replace(/\D/g, '');
+  const d2 = String(p2).replace(/\D/g, '');
+  if (!d1 || !d2) return false;
+  if (d1 === d2) return true;
+  if (d1.length >= 9 && d2.length >= 9 && d1.slice(-9) === d2.slice(-9)) {
+    return true;
+  }
+  return false;
+}
 
 export const ApiService = {
   // ── OTP ──────────────────────────────────────────────────────────────────────
@@ -50,6 +61,16 @@ export const ApiService = {
 
   // ── Login / Register ──────────────────────────────────────────────────────────
   login: async (phone: string, password?: string): Promise<CurrentUser> => {
+    // Check local registered users list first to preserve custom avatar/data
+    const localUsersRaw = localStorage.getItem('maklersiz_registered_users');
+    let localMatched: CurrentUser | null = null;
+    if (localUsersRaw) {
+      try {
+        const usersArr: CurrentUser[] = JSON.parse(localUsersRaw);
+        localMatched = usersArr.find((u) => matchPhone(u.phone, phone)) || null;
+      } catch {}
+    }
+
     try {
       const res = await fetchWithAuth(`${API_BASE}/auth/login`, {
         method: 'POST',
@@ -59,28 +80,28 @@ export const ApiService = {
       if (res?.ok) {
         const data = await res.json();
         if (data.access_token) saveTokens(data.access_token, data.refresh_token);
-        if (data.user) return data.user as CurrentUser;
-        if (data.data?.user) return data.data.user as CurrentUser;
-        if (data.id) return data as CurrentUser;
+        const remoteUser = (data.user || data.data?.user || (data.id ? data : null)) as CurrentUser | null;
+        if (remoteUser) {
+          // If remote user has default avatar but localMatched has a custom avatar, preserve custom avatar
+          const finalUser: CurrentUser = {
+            ...remoteUser,
+            avatar: (localMatched?.avatar && !localMatched.avatar.includes('unsplash.com')) ? localMatched.avatar : (remoteUser.avatar || localMatched?.avatar),
+          };
+          return finalUser;
+        }
       } else if (res) {
         const errJson = await res.json().catch(() => ({}));
+        // If backend returned error but we have localMatched, use localMatched
+        if (localMatched) return localMatched;
         throw new Error(errJson.detail || errJson.message || "Telefon raqami yoki parol noto'g'ri.");
       }
     } catch (err: any) {
+      if (localMatched) return localMatched;
       if (err?.message) throw err;
       console.warn('login: backend unavailable');
     }
 
-    // LocalStorage fallback for offline mode matching
-    const localUsersRaw = localStorage.getItem('maklersiz_registered_users');
-    if (localUsersRaw) {
-      try {
-        const usersArr: CurrentUser[] = JSON.parse(localUsersRaw);
-        const cleanPhone = phone.replace(/\D/g, '');
-        const matched = usersArr.find((u) => u.phone.replace(/\D/g, '') === cleanPhone);
-        if (matched) return matched;
-      } catch {}
-    }
+    if (localMatched) return localMatched;
 
     throw new Error("Ushbu telefon raqami bilan hisob topilmadi. Avval Ro'yxatdan o'tish bo'limiga o'ting.");
   },
@@ -97,11 +118,23 @@ export const ApiService = {
         ? (password || 'SecureDefault2026!')
         : (nameOrPayload.password || 'SecureDefault2026!');
 
+    // Check if user already exists locally to preserve custom avatar and existing ID
+    const localUsersRaw = localStorage.getItem('maklersiz_registered_users');
+    let localExisting: CurrentUser | null = null;
+    let existingArr: CurrentUser[] = [];
+    if (localUsersRaw) {
+      try {
+        existingArr = JSON.parse(localUsersRaw);
+        localExisting = existingArr.find((u) => matchPhone(u.phone, payloadPhone)) || null;
+      } catch {}
+    }
+
     const defaultAvatar =
       payloadRole === 'OWNER'
         ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300'
         : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300';
 
+    const chosenAvatar = localExisting?.avatar || defaultAvatar;
     let registeredUser: CurrentUser | null = null;
 
     try {
@@ -112,16 +145,20 @@ export const ApiService = {
           phone: payloadPhone,
           role: payloadRole,
           password: payloadPassword,
-          avatar: defaultAvatar,
+          avatar: chosenAvatar,
         }),
         skipAuth: true,
       });
       if (res?.ok) {
         const data = await res.json();
         if (data.access_token) saveTokens(data.access_token, data.refresh_token);
-        if (data.user) registeredUser = data.user as CurrentUser;
-        else if (data.data?.user) registeredUser = data.data.user as CurrentUser;
-        else if (data.id) registeredUser = data as CurrentUser;
+        const remote = (data.user || data.data?.user || (data.id ? data : null)) as CurrentUser | null;
+        if (remote) {
+          registeredUser = {
+            ...remote,
+            avatar: chosenAvatar,
+          };
+        }
       }
     } catch {
       console.warn('register: backend unavailable');
@@ -129,24 +166,44 @@ export const ApiService = {
 
     if (!registeredUser) {
       registeredUser = {
-        id: `user-${Date.now()}`,
+        id: localExisting?.id || `user-${Date.now()}`,
         name: payloadName,
         phone: payloadPhone,
         role: payloadRole as 'OWNER' | 'STUDENT',
-        avatar: defaultAvatar,
+        avatar: chosenAvatar,
       };
     }
 
     // Save to localStorage for offline matching
     try {
-      const existingRaw = localStorage.getItem('maklersiz_registered_users');
-      const existingArr: CurrentUser[] = existingRaw ? JSON.parse(existingRaw) : [];
-      const filtered = existingArr.filter((u) => u.phone.replace(/\D/g, '') !== payloadPhone.replace(/\D/g, ''));
+      const filtered = existingArr.filter((u) => !matchPhone(u.phone, payloadPhone));
       filtered.push(registeredUser);
       localStorage.setItem('maklersiz_registered_users', JSON.stringify(filtered));
     } catch {}
 
     return registeredUser;
+  },
+
+  updateProfileAvatar: async (phone: string, avatar: string): Promise<void> => {
+    // Update local registered users list
+    try {
+      const localUsersRaw = localStorage.getItem('maklersiz_registered_users');
+      if (localUsersRaw) {
+        const usersArr: CurrentUser[] = JSON.parse(localUsersRaw);
+        const updated = usersArr.map((u) => (matchPhone(u.phone, phone) ? { ...u, avatar } : u));
+        localStorage.setItem('maklersiz_registered_users', JSON.stringify(updated));
+      }
+    } catch {}
+
+    // Update backend DB if available
+    try {
+      await fetchWithAuth(`${API_BASE}/auth/profile`, {
+        method: 'POST',
+        body: JSON.stringify({ phone, avatar }),
+      });
+    } catch {
+      /* ignore */
+    }
   },
 
   // ── Google Auth ───────────────────────────────────────────────────────────────
