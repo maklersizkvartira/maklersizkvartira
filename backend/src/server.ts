@@ -268,6 +268,7 @@ Qoidalar:
     res.json({
       status: 'success',
       reply: "🤖 Shield AI: Uzr, so'rovni tushunishda xatolik yuz berdi. Iltimos Qidiruv bo'limidan foydalanib ko'ring.",
+      debugError: String(error)
     });
   }
 });
