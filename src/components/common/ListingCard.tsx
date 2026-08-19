@@ -101,53 +101,52 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
           </>
         )}
 
-        <div className="absolute top-1.5 left-1.5 right-1.5 sm:top-3 sm:left-3 sm:right-3 flex items-start justify-between gap-1 z-10">
+        {/* Top Left Trust Badge */}
+        <div className="absolute top-2 left-2 z-20">
           <TrustScoreBadge score={listing.trustScore} showText={false} size="sm" />
-          <div className="flex items-center gap-1.5">
-            {listing.videoUrl && (
-              <span className="text-[10px] font-black text-white bg-rose-600/90 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/20 shadow-xs flex items-center gap-1">
-                🎥 Video
-              </span>
-            )}
-            {images.length > 1 && (
-              <span className="text-[10px] font-black text-white bg-slate-900/70 backdrop-blur-md px-2 py-1 rounded-full border border-white/10 shadow-xs">
-                {currentImgIndex + 1}/{images.length}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                const shareUrl = `${window.location.origin}/?listing=${listing.id}`;
-                if (navigator.share) {
-                  navigator.share({
-                    title: listing.title,
-                    text: `🏠 ${listing.title} — ${listing.price.toLocaleString('uz-UZ')} so'm. Maklersiz, 0% komissiya!`,
-                    url: shareUrl,
-                  }).catch(() => {});
-                } else {
-                  navigator.clipboard.writeText(shareUrl);
-                  alert("🔗 E'lon havolasi ko'chirildi!");
-                }
-              }}
-              className="p-1.5 sm:p-2 rounded-full bg-slate-900/60 hover:bg-slate-900/90 text-white backdrop-blur-md transition-transform active:scale-90 shrink-0"
-              title="Ulashish"
-            >
-              <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleFavorite(listing.id);
-              }}
-              className={`p-1.5 sm:p-2 rounded-full backdrop-blur-md transition-transform active:scale-90 shrink-0 ${
-                favorite ? 'bg-rose-500 text-white shadow-md' : 'bg-slate-900/60 text-white'
-              }`}
-            >
-              <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${favorite ? 'fill-white' : ''}`} />
-            </button>
-          </div>
+        </div>
+
+        {/* Top Right Action Buttons (Heart + Share) */}
+        <div className="absolute top-2 right-2 flex items-center gap-1 sm:gap-1.5 z-20">
+          {listing.videoUrl && (
+            <span className="hidden xs:inline-flex text-[9px] font-black text-white bg-rose-600/90 backdrop-blur-md px-1.5 py-0.5 rounded-full border border-white/20 shadow-xs">
+              🎥 Video
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              const shareUrl = `${window.location.origin}/?listing=${listing.id}`;
+              if (navigator.share) {
+                navigator.share({
+                  title: listing.title,
+                  text: `🏠 ${listing.title} — ${listing.price.toLocaleString('uz-UZ')} so'm. Maklersiz, 0% komissiya!`,
+                  url: shareUrl,
+                }).catch(() => {});
+              } else {
+                navigator.clipboard.writeText(shareUrl);
+                alert("🔗 E'lon havolasi ko'chirildi!");
+              }
+            }}
+            className="p-1.5 sm:p-2 rounded-full bg-slate-900/60 hover:bg-slate-900/90 text-white backdrop-blur-md transition-transform active:scale-90 shrink-0"
+            title="Ulashish"
+          >
+            <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFavorite(listing.id);
+            }}
+            className={`p-1.5 sm:p-2 rounded-full backdrop-blur-md transition-all active:scale-90 shrink-0 shadow-md ${
+              favorite ? 'bg-rose-500 text-white border border-rose-400' : 'bg-slate-900/70 text-white hover:bg-slate-900 border border-white/20'
+            }`}
+            title={favorite ? "Saralangandan chiqarish" : "Saralashga saqlash"}
+          >
+            <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${favorite ? 'fill-white' : ''}`} />
+          </button>
         </div>
 
         <div className="absolute bottom-1.5 left-1.5 right-1.5 sm:bottom-3 sm:left-3 sm:right-3 flex items-center justify-between gap-1 text-white z-10">

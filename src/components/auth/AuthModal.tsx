@@ -123,6 +123,8 @@ export const AuthModal: React.FC = () => {
     setError('');
     try {
       const user = await ApiService.register(name.trim(), phone.trim(), role, password.trim());
+      // Explicitly enforce chosen role on returned user
+      if (user) user.role = role;
       triggerSuccessLogin(user, 'Ro\'yxatdan o\'tish muvaffaqiyatli amalga oshdi');
     } catch {
       const localUsersRaw = localStorage.getItem('maklersiz_registered_users');
@@ -133,12 +135,14 @@ export const AuthModal: React.FC = () => {
           existing = arr.find((u: any) => matchPhone(u.phone, phone.trim()));
         } catch {}
       }
-      const u = existing || {
-        id: `user-${Date.now()}`,
-        name: name.trim(),
-        phone: phone.trim(),
-        role,
-      };
+      const u = existing
+        ? { ...existing, role: role, name: name.trim() || existing.name }
+        : {
+            id: `user-${Date.now()}`,
+            name: name.trim(),
+            phone: phone.trim(),
+            role: role,
+          };
       triggerSuccessLogin(u, 'Ro\'yxatdan o\'tish muvaffaqiyatli amalga oshdi');
     } finally {
       setBusy(false);

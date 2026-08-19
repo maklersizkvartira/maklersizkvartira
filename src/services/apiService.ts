@@ -96,6 +96,7 @@ export const ApiService = {
           const finalUser: CurrentUser = {
             ...remoteUser,
             id: localMatched?.id || remoteUser.id,
+            role: (localMatched?.role || remoteUser.role || 'STUDENT') as CurrentUser['role'],
             avatar: (localMatched?.avatar && !localMatched.avatar.includes('unsplash.com'))
               ? localMatched.avatar
               : (remoteUser.avatar || localMatched?.avatar),

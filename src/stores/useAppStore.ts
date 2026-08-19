@@ -3,7 +3,7 @@ import { UserRole, Listing, ReportItem, VerificationRequest, ChatMessage, Conver
 import { MOCK_LISTINGS } from '../data/mockListings';
 import { MOCK_OWNERS } from '../data/mockUsers';
 import { MOCK_REPORTS, MOCK_VERIFICATIONS, MOCK_FRAUD_SIGNALS } from '../data/mockAdminData';
-import { ApiService } from '../services/apiService';
+import { ApiService, matchPhone } from '../services/apiService';
 import { clearTokens, getAccessToken, initAuthFromStorage } from '../services/authService';
 
 export type ViewState =
@@ -104,6 +104,7 @@ interface AppStore {
   initAuth: () => Promise<void>;
   login: (user: CurrentUser) => void;
   logout: () => void;
+  switchRole: (newRole: SignupRole) => void;
   updateAvatar: (avatar: string) => void;
   setActiveConversation: (id: string | null) => void;
   setCurrentRole: (role: UserRole) => void;
@@ -294,6 +295,33 @@ export const useAppStore = create<AppStore>((set, get) => ({
       aiMascotMessage: 'Siz chiqdingiz.',
     });
   },
+
+  switchRole: (newRole) => set((state) => {
+    if (!state.currentUser) return {};
+    const updatedUser: CurrentUser = { ...state.currentUser, role: newRole };
+    localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+    try {
+      const localUsersRaw = localStorage.getItem('maklersiz_registered_users');
+      const usersArr = localUsersRaw ? JSON.parse(localUsersRaw) : [];
+      const updated = usersArr.map((u: any) =>
+        u.id === updatedUser.id || (u.phone && updatedUser.phone && u.phone.replace(/\D/g, '') === updatedUser.phone.replace(/\D/g, ''))
+          ? updatedUser
+          : u
+      );
+      localStorage.setItem('maklersiz_registered_users', JSON.stringify(updated));
+    } catch {}
+
+    ApiService.updateProfileAvatar(updatedUser.phone, updatedUser.avatar || '', updatedUser).catch(() => {});
+
+    return {
+      currentUser: updatedUser,
+      currentRole: newRole,
+      aiMascotMessage: newRole === 'OWNER'
+        ? "Rol 'Uy Egasi' ga o'zgartirildi."
+        : "Rol 'Talaba' ga o'zgartirildi.",
+    };
+  }),
+
   updateAvatar: (avatar) => set((state) => {
     if (!state.currentUser) return {};
     const currentUser = { ...state.currentUser, avatar };
@@ -332,18 +360,24 @@ export const useAppStore = create<AppStore>((set, get) => ({
     return { userXp: state.userXp + amount };
   }),
 
-  listings: dedupeListings(extraListings),
+  listings: dedupeListings([...MOCK_LISTINGS, ...extraListings]),
   fetchListings: async () => {
     try {
       const publicListings = await ApiService.getListings();
-      if (Array.isArray(publicListings)) {
+      if (Array.isArray(publicListings) && publicListings.length > 0) {
         set((state) => {
-          const merged = dedupeListings([...publicListings, ...state.listings]);
+          const merged = dedupeListings([...publicListings, ...state.listings, ...MOCK_LISTINGS]);
+          return { listings: merged };
+        });
+      } else {
+        set((state) => {
+          const merged = dedupeListings([...MOCK_LISTINGS, ...state.listings]);
           return { listings: merged };
         });
       }
     } catch (e) {
       console.warn('Network error fetching listings:', e);
+      set((state) => ({ listings: dedupeListings([...MOCK_LISTINGS, ...state.listings]) }));
     }
   },
   editingListing: null,
