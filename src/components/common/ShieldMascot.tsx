@@ -98,7 +98,7 @@ export const ShieldMascot: React.FC = () => {
   return (
     <div className="fixed bottom-20 right-3 left-3 sm:left-auto sm:bottom-6 sm:right-6 z-40 max-w-sm sm:w-96 ml-auto pointer-events-auto">
       {open ? (
-        <div className="bg-slate-950/95 backdrop-blur-xl text-white rounded-3xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-emerald-500/40 flex flex-col max-h-[80vh] sm:max-h-[480px] overflow-hidden">
+        <div className="bg-slate-950 text-white rounded-3xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-emerald-500/40 flex flex-col max-h-[80vh] sm:max-h-[480px] overflow-hidden">
           
           {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 mb-3 shrink-0">
@@ -188,7 +188,7 @@ export const ShieldMascot: React.FC = () => {
       ) : (
         <button
           onClick={() => setOpen(true)}
-          className="group flex items-center gap-2.5 bg-slate-950/90 backdrop-blur-md text-white px-4 py-3 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.4)] border border-emerald-500/50 hover:border-emerald-400 transition-all active:scale-95 ml-auto"
+          className="group flex items-center gap-2.5 bg-slate-950 text-white px-4 py-3 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.4)] border border-emerald-500/50 hover:border-emerald-400 transition-all active:scale-95 ml-auto"
         >
           <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white shadow-md shadow-emerald-600/40">
             <Shield className="w-4 h-4 animate-pulse" />

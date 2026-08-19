@@ -44,7 +44,7 @@ export const TrustStats: React.FC = () => {
           onClick={() => setIsExpanded(!isExpanded)}
           className="w-full bg-slate-900 hover:bg-slate-850 border border-slate-800 p-4 rounded-2xl flex items-center justify-between gap-3 transition-colors shadow-md group active:scale-[0.99]"
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
               <BarChart3 className="w-5 h-5" />
             </div>

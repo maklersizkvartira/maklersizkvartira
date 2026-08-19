@@ -5,7 +5,7 @@ import {
 import { useAppStore } from '../../stores/useAppStore';
 
 export const QuickCategories: React.FC = () => {
-  const { setFilters, setCurrentView } = useAppStore();
+  const { setFilters, resetFilters, setCurrentView } = useAppStore();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const categories = [
@@ -18,6 +18,7 @@ export const QuickCategories: React.FC = () => {
       gradientBg: 'from-amber-500/10 via-orange-500/5 to-transparent',
       subTags: ['Yigitlarga', 'Qizlarga', 'Xonadosh'],
       action: () => {
+        resetFilters();
         setFilters({ rentalType: 'ROOMMATE' });
         setCurrentView('SEARCH');
       }
@@ -31,6 +32,7 @@ export const QuickCategories: React.FC = () => {
       gradientBg: 'from-blue-500/10 via-indigo-500/5 to-transparent',
       subTags: ["O'zMU", 'TTA', 'INHA'],
       action: () => {
+        resetFilters();
         setFilters({ audience: 'STUDENT' });
         setCurrentView('SEARCH');
       }
@@ -44,6 +46,7 @@ export const QuickCategories: React.FC = () => {
       gradientBg: 'from-emerald-500/10 via-teal-500/5 to-transparent',
       subTags: ['2 xona', '3 xona', 'Boshlang\'ich ijara'],
       action: () => {
+        resetFilters();
         setFilters({ roomsCount: 2 });
         setCurrentView('SEARCH');
       }
@@ -57,6 +60,7 @@ export const QuickCategories: React.FC = () => {
       gradientBg: 'from-indigo-500/10 via-purple-500/5 to-transparent',
       subTags: ['Chilonzor', 'Yunusobod', 'Buyuk Ipak Yoli'],
       action: () => {
+        resetFilters();
         setFilters({ selectedMetro: 'Yunusobod' });
         setCurrentView('SEARCH');
       }
@@ -70,6 +74,7 @@ export const QuickCategories: React.FC = () => {
       gradientBg: 'from-rose-500/10 via-pink-500/5 to-transparent',
       subTags: ['< 3 mln', '< 4 mln', 'Depozitsiz'],
       action: () => {
+        resetFilters();
         setFilters({ maxPrice: 4000000 });
         setCurrentView('SEARCH');
       }
@@ -83,6 +88,7 @@ export const QuickCategories: React.FC = () => {
       gradientBg: 'from-purple-500/10 via-violet-500/5 to-transparent',
       subTags: ['Rakatboshi', 'Yevroremont', 'Studio'],
       action: () => {
+        resetFilters();
         setFilters({ minTrustScore: 90 });
         setCurrentView('SEARCH');
       }
