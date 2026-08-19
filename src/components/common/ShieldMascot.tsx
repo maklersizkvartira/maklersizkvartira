@@ -3,7 +3,7 @@ import { Shield, Sparkles, X, MessageSquare, Send } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { replyAsAssistant } from '../../services/aiEngine';
 
-const DAILY_LIMIT = 10;
+const DAILY_LIMIT = 3;
 
 function getDailyUsage(): number {
   try {
@@ -42,6 +42,7 @@ export const ShieldMascot: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [usageCount, setUsageCount] = useState<number>(getDailyUsage());
+  const isLimitReached = usageCount >= DAILY_LIMIT;
   const [log, setLog] = useState<{ from: 'ai' | 'me'; text: string }[]>([
     { from: 'ai', text: "🤖 Salom! Men Shield AI yordamchisiman. Masalan yozing: «Chilonzordan 3ml ga kvartira kerak» yoki «Yunusobod 2 xona»." },
   ]);
@@ -173,12 +174,14 @@ export const ShieldMascot: React.FC = () => {
             <input
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Chilonzordan 3ml ga..."
-              className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              disabled={isLimitReached}
+              placeholder={isLimitReached ? "Bugungi limit tugadi" : "Chilonzordan 3ml ga..."}
+              className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <button
               type="submit"
-              className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl p-2.5 shadow-lg shadow-emerald-600/30 transition-all active:scale-95 shrink-0 flex items-center justify-center"
+              disabled={isLimitReached || !text.trim()}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl p-2.5 shadow-lg shadow-emerald-600/30 transition-all active:scale-95 shrink-0 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
             >
               <Send className="w-4 h-4" />
             </button>

@@ -1,8 +1,8 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import path from 'path';
-import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
+import rateLimit from 'express-rate-limit';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -29,6 +29,21 @@ app.use(express.json({ limit: '10mb' }));
 
 export let AI_SYSTEM_ACTIVE = true;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+
+const globalLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 100, // Limit each IP to 100 requests per minute
+  message: { error: 'Juda ko\\'p so\\'rov yuborildi. Iltimos biroz kuting.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(globalLimiter);
+
+const postLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // Limit each IP to 5 requests per hour for POST listings
+  message: { status: 'error', error: 'Kechirasiz, 1 soatda faqat 5 ta e\\'lon qo\\'shishingiz mumkin.' }
+});
 
 // Serve admin frontend statically
 app.use(express.static(path.join(__dirname, '..', 'admin-frontend')));
@@ -183,7 +198,10 @@ app.post('/api/v1/traffic/track', (req, res) => {
 
 // LISTINGS
 app.get('/api/v1/listings', async (req, res) => {
-  const { district, rooms, search } = req.query;
+  const { district, rooms, search, limit, page } = req.query;
+  const take = limit ? parseInt(String(limit)) : 20;
+  const skip = page ? (parseInt(String(page)) - 1) * take : 0;
+  
   try {
     const where: any = { aiCheckStatus: 'APPROVED' };
     if (district && district !== 'Barchasi') where.district = String(district);
@@ -194,8 +212,16 @@ app.get('/api/v1/listings', async (req, res) => {
         { description: { contains: String(search), mode: 'insensitive' } }
       ];
     }
-    const listings = await prisma.listing.findMany({ where, include: { owner: true } });
-    res.json({ status: 'success', totalCount: listings.length, data: listings, aiSystemActive: AI_SYSTEM_ACTIVE });
+    const totalCount = await prisma.listing.count({ where });
+    const listings = await prisma.listing.findMany({
+      where,
+      take,
+      skip,
+      orderBy: { createdAt: 'desc' },
+      include: { owner: true }
+    });
+    const totalPages = Math.ceil(totalCount / take);
+    res.json({ status: 'success', totalCount, totalPages, currentPage: page ? parseInt(String(page)) : 1, data: listings, aiSystemActive: AI_SYSTEM_ACTIVE });
   } catch(e) {
     res.status(500).json({ error: String(e) });
   }
@@ -236,7 +262,7 @@ app.get('/api/v1/listings/:id', async (req, res) => {
   }
 });
 
-app.post('/api/v1/listings', async (req, res) => {
+app.post('/api/v1/listings', postLimiter, async (req, res) => {
   const body = req.body || {};
   try {
     const fallbackResult = scanListingAIFallback(body.title || '', body.description || '', body.price);
