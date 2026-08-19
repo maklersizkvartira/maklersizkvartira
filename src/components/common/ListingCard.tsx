@@ -72,7 +72,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
             <button
               type="button"
               onClick={handlePrevImg}
-              className="absolute left-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-slate-900/70 hover:bg-slate-900 text-white backdrop-blur-md transition-all active:scale-90 z-20 shadow-md opacity-90 sm:opacity-0 group-hover:opacity-100"
+              className="absolute left-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-slate-900/70 hover:bg-slate-900 text-white  transition-all active:scale-90 z-20 shadow-md opacity-90 sm:opacity-0 group-hover:opacity-100"
               title="Oldingi rasm"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -81,14 +81,14 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
             <button
               type="button"
               onClick={handleNextImg}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-slate-900/70 hover:bg-slate-900 text-white backdrop-blur-md transition-all active:scale-90 z-20 shadow-md opacity-90 sm:opacity-0 group-hover:opacity-100"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-slate-900/70 hover:bg-slate-900 text-white  transition-all active:scale-90 z-20 shadow-md opacity-90 sm:opacity-0 group-hover:opacity-100"
               title="Keyingi rasm"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
 
             {/* Photo Index Indicator Dots */}
-            <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-1 z-20 bg-slate-900/60 px-2 py-0.5 rounded-full backdrop-blur-md border border-white/10">
+            <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-1 z-20 bg-slate-900/60 px-2 py-0.5 rounded-full  border border-white/10">
               {images.map((_, i) => (
                 <span
                   key={i}
@@ -109,7 +109,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
         {/* Top Right Action Buttons (Heart + Share) */}
         <div className="absolute top-2 right-2 flex items-center gap-1 sm:gap-1.5 z-20">
           {listing.videoUrl && (
-            <span className="hidden xs:inline-flex text-[9px] font-black text-white bg-rose-600/90 backdrop-blur-md px-1.5 py-0.5 rounded-full border border-white/20 shadow-xs">
+            <span className="hidden xs:inline-flex text-[9px] font-black text-white bg-rose-600/90  px-1.5 py-0.5 rounded-full border border-white/20 shadow-xs">
               🎥 Video
             </span>
           )}
@@ -129,7 +129,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
                 alert("🔗 E'lon havolasi ko'chirildi!");
               }
             }}
-            className="p-1.5 sm:p-2 rounded-full bg-slate-900/60 hover:bg-slate-900/90 text-white backdrop-blur-md transition-transform active:scale-90 shrink-0"
+            className="p-1.5 sm:p-2 rounded-full bg-slate-900/60 hover:bg-slate-900/90 text-white  transition-transform active:scale-90 shrink-0"
             title="Ulashish"
           >
             <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -140,7 +140,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
               e.stopPropagation();
               toggleFavorite(listing.id);
             }}
-            className={`p-1.5 sm:p-2 rounded-full backdrop-blur-md transition-all active:scale-90 shrink-0 shadow-md ${
+            className={`p-1.5 sm:p-2 rounded-full  transition-all active:scale-90 shrink-0 shadow-md ${
               favorite ? 'bg-rose-500 text-white border border-rose-400' : 'bg-slate-900/70 text-white hover:bg-slate-900 border border-white/20'
             }`}
             title={favorite ? "Saralangandan chiqarish" : "Saralashga saqlash"}
@@ -150,7 +150,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
         </div>
 
         <div className="absolute bottom-1.5 left-1.5 right-1.5 sm:bottom-3 sm:left-3 sm:right-3 flex items-center justify-between gap-1 text-white z-10">
-          <span className="bg-slate-900/80 backdrop-blur-md px-1.5 sm:px-2 py-0.5 rounded-md font-semibold text-[10px] sm:text-xs border border-white/20">
+          <span className="bg-slate-900/80  px-1.5 sm:px-2 py-0.5 rounded-md font-semibold text-[10px] sm:text-xs border border-white/20">
             {listing.rooms} xona • {listing.area} m²
           </span>
           {listing.owner.isVerified && (

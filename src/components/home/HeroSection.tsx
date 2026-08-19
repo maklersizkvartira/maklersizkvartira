@@ -41,8 +41,8 @@ export const HeroSection: React.FC = () => {
         </div>
 
         {/* Ambient Emerald Glow Effect (Simplified for mobile) */}
-        <div className="absolute top-0 right-0 h-[300px] w-[300px] sm:h-[450px] sm:w-[450px] translate-x-1/3 -translate-y-1/3 rounded-full bg-emerald-500/15 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 h-[300px] w-[300px] sm:h-[450px] sm:w-[450px] -translate-x-1/3 translate-y-1/3 rounded-full bg-teal-500/10 blur-3xl pointer-events-none" />
+        <div className="hidden sm:block absolute top-0 right-0 h-[300px] w-[300px] sm:h-[450px] sm:w-[450px] translate-x-1/3 -translate-y-1/3 rounded-full bg-emerald-500/15 blur-3xl pointer-events-none" />
+        <div className="hidden sm:block absolute bottom-0 left-0 h-[300px] w-[300px] sm:h-[450px] sm:w-[450px] -translate-x-1/3 translate-y-1/3 rounded-full bg-teal-500/10 blur-3xl pointer-events-none" />
       </section>
 
       {/* Sleek Search Trigger */}
