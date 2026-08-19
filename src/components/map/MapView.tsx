@@ -98,8 +98,8 @@ export const MapView: React.FC = () => {
           zoomControl: false,
         }).setView([41.311, 69.279], 12);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors',
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
           maxZoom: 19,
         }).addTo(map);
 
@@ -121,8 +121,11 @@ export const MapView: React.FC = () => {
         const customIcon = L.divIcon({
           className: 'custom-map-marker',
           html: `
-            <div class="cursor-pointer group flex items-center gap-1 bg-slate-900 text-white hover:bg-emerald-600 font-extrabold text-[11px] px-2.5 py-1 rounded-full shadow-lg border border-white/30 transition-transform transform hover:scale-110 active:scale-95 whitespace-nowrap">
-              <span>📍 ${priceText}</span>
+            <div class="cursor-pointer group relative flex flex-col items-center">
+              <div class="bg-white/95 backdrop-blur-md text-emerald-800 hover:bg-emerald-600 hover:text-white font-black text-[12px] px-3 py-1.5 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-emerald-500/30 transition-all transform hover:-translate-y-1 hover:scale-110 active:scale-95 whitespace-nowrap">
+                ${priceText}
+              </div>
+              <div class="w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-white/95 mt-[-1px] group-hover:border-t-emerald-600 transition-colors"></div>
             </div>
           `,
           iconSize: [65, 26],

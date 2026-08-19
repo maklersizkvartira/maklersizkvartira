@@ -81,7 +81,7 @@ export const AIRecommended: React.FC = () => {
           onTouchStart={() => setPaused(true)}
         >
           {visible.map((listing) => (
-            <div key={`${start}-${listing.id}`} className="listing-swap min-w-0">
+            <div key={listing.id} className="min-w-0">
               <ListingCard listing={listing} />
             </div>
           ))}

@@ -189,7 +189,13 @@ export const ChatPage: React.FC = () => {
             );
           })
         ) : (
-          <div className="p-8 text-center text-xs text-slate-400">Suhbatlar topilmadi</div>
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50 m-4 rounded-3xl border border-slate-100">
+            <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+              <MessageSquare className="w-8 h-8 text-slate-300" />
+            </div>
+            <p className="text-sm font-bold text-slate-500">Suhbatlar topilmadi</p>
+            <p className="text-xs text-slate-400 mt-1">Sizda hozircha hech qanday xabarlar yo'q.</p>
+          </div>
         )}
       </div>
     </div>
@@ -459,13 +465,15 @@ export const ChatPage: React.FC = () => {
       )}
     </div>
   ) : (
-    <div className="hidden md:flex flex-1 flex-col items-center justify-center text-slate-400 text-sm space-y-3 bg-white rounded-3xl border border-slate-200/80 shadow-card">
-      <MessageSquare className="w-12 h-12 text-slate-300" />
+    <div className="flex flex-1 flex-col items-center justify-center text-slate-400 text-sm space-y-3 bg-white rounded-3xl border border-slate-200/80 shadow-card p-6 text-center">
+      <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
+        <MessageSquare className="w-8 h-8" />
+      </div>
       <p className="font-bold text-slate-600">Suhbatni tanlang yoki yangi e'lon joylang</p>
       <button
         type="button"
         onClick={handleOpenCreateListing}
-        className="bg-emerald-600 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-md shadow-emerald-600/20"
+        className="bg-emerald-600 text-white font-extrabold text-xs px-5 py-3 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition-all mt-4"
       >
         <PlusCircle className="w-4 h-4" />
         <span>Yangi E'lon Joylash</span>

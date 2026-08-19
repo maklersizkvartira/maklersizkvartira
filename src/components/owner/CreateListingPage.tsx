@@ -260,6 +260,11 @@ export const CreateListingPage: React.FC = () => {
       e.preventDefault();
     }
 
+    if (!lat || !lng) {
+      alert("Iltimos, e'lon joylashdan avval 'GPS Lokatsiyani Aniqlash' tugmasini bosib manzilni aniqlang. Bu xaritada e'loningizni aniq ko'rsatish uchun majburiydir.");
+      return;
+    }
+
     const owner = {
       ...MOCK_OWNERS.owner_jasur,
       id: currentUser?.id || `owner-${Date.now()}`,
@@ -503,10 +508,10 @@ export const CreateListingPage: React.FC = () => {
                         alert("Qurilmangizda GPS qo'llab-quvvatlanmaydi.");
                       }
                     }}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] px-3 py-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1 active:scale-95 cursor-pointer"
+                    className={`${lat && lng ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-500 hover:bg-rose-600 animate-pulse'} text-white font-extrabold text-[11px] px-3 py-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1 active:scale-95 cursor-pointer`}
                   >
                     <MapPin className="w-3.5 h-3.5 text-white" />
-                    <span>{isDetectingGps ? "Aniqlanmoqda..." : "GPS Lokatsiyani Aniqlash"}</span>
+                    <span>{isDetectingGps ? "Aniqlanmoqda..." : lat && lng ? "✅ GPS Aniqlangan" : "GPS Lokatsiyani Aniqlash (Majburiy)"}</span>
                   </button>
                 </div>
 
