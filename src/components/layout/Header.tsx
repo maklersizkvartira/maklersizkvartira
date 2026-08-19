@@ -1,3 +1,4 @@
+// Maklersiz.uz Production Header Component - Vercel Deploy Trigger
 import React, { useState } from 'react';
 import { 
   ShieldCheck, LogIn, User, MapPin, Menu, X, Home, Search, MessageSquare, 
