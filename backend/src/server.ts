@@ -42,6 +42,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 
+export let AI_SYSTEM_ACTIVE = true;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+
 // Persistent JSON storage for listings
 const DB_FILE = path.join(__dirname, '..', 'listings_db.json');
 const DEFAULT_SEED_LISTINGS: any[] = [];
@@ -141,6 +144,60 @@ function scanListingAI(title: string, description: string, price?: number, rooms
     status: allowed ? 'APPROVED' : 'REJECTED',
     reasons: reasons.length > 0 ? reasons : ["Maklerlik belgisi topilmadi. Oddiy egasidan e'lon."],
   };
+}
+
+// Gemini AI API Scanner
+async function scanListingAIGemini(title: string, description: string, price?: number, rooms?: number) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+  const prompt = `Siz O'zbekistonning ijaraga uy berish platformasidagi moderator AIsiz. Vazifangiz: quyidagi e'lon matni maklerga tegishlimi yoki yo'qmi shuni aniqlash.
+Agar makler bo'lsa (yoki komissiya, xizmat haqi bo'lsa, yoxud rieltorlik tashkiloti bo'lsa), shuningdek OLX kabi boshqa saytlardan ko'chirilganligiga ishora qiluvchi so'zlar bo'lsa (masalan "olx" yoki "ko'chirma"), uni REJECTED (yoki WARNING) deb belgilang.
+Oddiy uy egasi bo'lsa APPROVED deb belgilang.
+
+E'lon sarlavhasi: ${title}
+E'lon matni: ${description}
+Narxi: ${price}
+Xonalar: ${rooms}
+
+Javobni quyidagi JSON formatida qaytaring:
+{
+  "allowed": true yoki false,
+  "status": "APPROVED" yoki "WARNING" yoki "REJECTED",
+  "trustScore": 10 dan 100 gacha son,
+  "riskScore": 0 dan 100 gacha son,
+  "reasons": ["sabab 1", "sabab 2"] (agar rejected yoki warning bo'lsa sabablar, aks holda ["Maklerlik belgisi topilmadi."])
+}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Gemini API xatosi: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (text) {
+      const parsed = JSON.parse(text);
+      return {
+        allowed: parsed.allowed ?? true,
+        status: parsed.status || 'APPROVED',
+        trustScore: parsed.trustScore || 90,
+        riskScore: parsed.riskScore || 10,
+        reasons: parsed.reasons || ["Maklerlik belgisi topilmadi."]
+      };
+    }
+    throw new Error("Bo'sh javob");
+  } catch (error) {
+    console.error("Gemini AI xatosi:", error);
+    throw error;
+  }
 }
 
 // Routes
@@ -352,7 +409,7 @@ app.get('/api/v1/listings', (req: Request, res: Response) => {
     );
   }
 
-  res.json({ status: 'success', totalCount: result.length, data: result });
+  res.json({ status: 'success', totalCount: result.length, data: result, aiSystemActive: AI_SYSTEM_ACTIVE });
 });
 
 // 5b. Get My Listings
@@ -461,20 +518,40 @@ app.post('/api/v1/listings', (req: Request, res: Response) => {
   saveListings(LISTINGS_DB);
 
   // Async task simulation (Background Check)
-  setTimeout(() => {
+  setTimeout(async () => {
     const listing = LISTINGS_DB.find(l => l.id === newListing.id);
     if (listing) {
-      if (isSimulatedCopied) {
-        listing.aiCheckStatus = 'WARNING';
-        listing.aiRiskReasons = [
-          "Sizning e'loningiz boshqa manbadan (OLX yoki boshqa) ko'chirilgani aniqlandi. Iltimos tahrirlang yoki o'chiring."
-        ];
-        listing.trustScore -= 30;
-      } else {
-        listing.aiCheckStatus = aiResult.status; // Fallback to original AI scan result (usually APPROVED)
-        listing.aiRiskReasons = aiResult.reasons;
+      try {
+        if (!AI_SYSTEM_ACTIVE) {
+          // If it was inactive, let's test if it's back online. Actually we just try calling it always.
+        }
+        
+        const aiResponse = await scanListingAIGemini(listing.title, listing.description, listing.price, listing.rooms);
+        AI_SYSTEM_ACTIVE = true; // Mark as active if successful
+        
+        listing.aiCheckStatus = aiResponse.status;
+        listing.aiRiskReasons = aiResponse.reasons;
+        listing.trustScore = aiResponse.trustScore;
+        listing.riskScore = aiResponse.riskScore;
+        
         if (!listing.safetyBadges.includes('AI_CHECKED')) {
           listing.safetyBadges.push('AI_CHECKED');
+        }
+      } catch (err) {
+        // Fallback to legacy mock logic
+        AI_SYSTEM_ACTIVE = false;
+        if (isSimulatedCopied) {
+          listing.aiCheckStatus = 'WARNING';
+          listing.aiRiskReasons = [
+            "Sizning e'loningiz boshqa manbadan (OLX yoki boshqa) ko'chirilgani aniqlandi. Iltimos tahrirlang yoki o'chiring."
+          ];
+          listing.trustScore -= 30;
+        } else {
+          listing.aiCheckStatus = aiResult.status; // Fallback to original AI scan result
+          listing.aiRiskReasons = aiResult.reasons;
+          if (!listing.safetyBadges.includes('AI_CHECKED')) {
+            listing.safetyBadges.push('AI_CHECKED');
+          }
         }
       }
       saveListings(LISTINGS_DB);
@@ -521,20 +598,36 @@ app.put('/api/v1/listings/:id', (req: Request, res: Response) => {
   saveListings(LISTINGS_DB);
 
   // Async task simulation (Background Check for updates)
-  setTimeout(() => {
+  setTimeout(async () => {
     const listing = LISTINGS_DB.find(l => l.id === target.id);
     if (listing) {
-      if (isSimulatedCopied) {
-        listing.aiCheckStatus = 'WARNING';
-        listing.aiRiskReasons = [
-          "Sizning e'loningiz boshqa manbadan (OLX yoki boshqa) ko'chirilgani aniqlandi. Iltimos tahrirlang yoki o'chiring."
-        ];
-        listing.trustScore -= 30;
-      } else {
-        listing.aiCheckStatus = aiResult.status;
-        listing.aiRiskReasons = aiResult.reasons;
+      try {
+        const aiResponse = await scanListingAIGemini(listing.title, listing.description, listing.price, listing.rooms);
+        AI_SYSTEM_ACTIVE = true; // Mark as active if successful
+        
+        listing.aiCheckStatus = aiResponse.status;
+        listing.aiRiskReasons = aiResponse.reasons;
+        listing.trustScore = aiResponse.trustScore;
+        listing.riskScore = aiResponse.riskScore;
+        
         if (!listing.safetyBadges.includes('AI_CHECKED')) {
           listing.safetyBadges.push('AI_CHECKED');
+        }
+      } catch (err) {
+        // Fallback to mock
+        AI_SYSTEM_ACTIVE = false;
+        if (isSimulatedCopied) {
+          listing.aiCheckStatus = 'WARNING';
+          listing.aiRiskReasons = [
+            "Sizning e'loningiz boshqa manbadan (OLX yoki boshqa) ko'chirilgani aniqlandi. Iltimos tahrirlang yoki o'chiring."
+          ];
+          listing.trustScore -= 30;
+        } else {
+          listing.aiCheckStatus = aiResult.status;
+          listing.aiRiskReasons = aiResult.reasons;
+          if (!listing.safetyBadges.includes('AI_CHECKED')) {
+            listing.safetyBadges.push('AI_CHECKED');
+          }
         }
       }
       saveListings(LISTINGS_DB);
