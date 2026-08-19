@@ -114,7 +114,7 @@ export const QuickCategories: React.FC = () => {
         </button>
       </div>
 
-      <div className="flex overflow-x-auto no-scrollbar gap-2 sm:gap-4 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+      <div className="flex overflow-x-auto hide-scrollbar gap-2 sm:gap-4 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
         {categories.map((cat) => {
           const Icon = cat?.icon || Home;
 

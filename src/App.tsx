@@ -28,6 +28,7 @@ export const App: React.FC = () => {
   const { currentView, currentUser, fetchListings, setCurrentView, initAuth } = useAppStore();
   const isOwner = currentUser?.role === 'OWNER';
   const isStudent = currentUser?.role === 'STUDENT';
+  const [isAppReady, setIsAppReady] = React.useState(false);
 
   useEffect(() => {
     // 1. Restore session from token — must run before fetchListings
@@ -64,8 +65,27 @@ export const App: React.FC = () => {
       }).catch(() => {});
     } catch (e) {}
 
-    return () => clearInterval(intervalId);
+    const timer = setTimeout(() => setIsAppReady(true), 1000);
+    return () => {
+      clearInterval(intervalId);
+      clearTimeout(timer);
+    };
   }, [fetchListings, setCurrentView, initAuth]);
+
+  if (!isAppReady) {
+    return (
+      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-emerald-600 text-white">
+        <div className="flex items-center justify-center w-20 h-20 bg-white rounded-3xl shadow-2xl mb-6 animate-bounce">
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+        </div>
+        <h1 className="text-3xl sm:text-4xl font-black tracking-widest uppercase mb-2 animate-pulse">Maklersiz.uz</h1>
+        <p className="text-xs sm:text-sm font-bold opacity-90 animate-pulse">E'lonlar va xarita yuklanmoqda...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-white">

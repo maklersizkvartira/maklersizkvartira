@@ -56,7 +56,10 @@ export const HeroSection: React.FC = () => {
           </div>
           <div className="text-left flex-1 min-w-0">
             <div className="font-black text-sm sm:text-base text-slate-900 truncate">Qayerdan izlayapsiz?</div>
-            <div className="text-xs text-slate-500 font-medium truncate">Tuman, ko'cha, mo'ljal yoki metro...</div>
+            <div className="text-xs text-slate-500 font-medium truncate">
+              <span className="sm:hidden">Bu yerni bosing</span>
+              <span className="hidden sm:inline">Tuman, ko'cha, mo'ljal yoki metro...</span>
+            </div>
           </div>
         </button>
       </div>
