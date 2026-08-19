@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Shield, Sparkles, X, MessageSquare, Send } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
-import { replyAsAssistant } from '../../services/aiEngine';
+import { API_BASE_URL } from '../../services/apiService';
 
 const DAILY_LIMIT = 3;
 
@@ -44,10 +44,11 @@ export const ShieldMascot: React.FC = () => {
   const [usageCount, setUsageCount] = useState<number>(getDailyUsage());
   const isLimitReached = usageCount >= DAILY_LIMIT;
   const [log, setLog] = useState<{ from: 'ai' | 'me'; text: string }[]>([
-    { from: 'ai', text: "🤖 Salom! Men Shield AI yordamchisiman. Masalan yozing: «Chilonzordan 3ml ga kvartira kerak» yoki «Yunusobod 2 xona»." },
+    { from: 'ai', text: "🤖 Salom! Men Shield AI yordamchisiman. Masalan yozing: «Chilonzordan 3 mlnga kvartira kerak» yoki «Yunusobod 2 xona»." },
   ]);
+  const [loading, setLoading] = useState(false);
 
-  const send = () => {
+  const send = async () => {
     const msg = text.trim();
     if (!msg) return;
 
@@ -65,35 +66,54 @@ export const ShieldMascot: React.FC = () => {
       return;
     }
 
-    const nextUsage = incrementDailyUsage();
-    setUsageCount(nextUsage);
-
-    const reply = replyAsAssistant(msg, listings);
-    setLog((prev) => [
-      ...prev,
-      { from: 'me', text: msg },
-      { from: 'ai', text: `${reply.text}\n\n(📊 Bugungi AI so'rovlar: ${nextUsage}/${DAILY_LIMIT})` }
-    ]);
+    setLog((prev) => [...prev, { from: 'me', text: msg }]);
     setText('');
+    setLoading(true);
 
-    if (reply.need) {
-      setFilters({
-        selectedRegion: reply.need.region || 'Barchasi',
-        selectedDistrict: reply.need.district || 'Barchasi',
-        roomsCount: reply.need.rooms ?? null,
-        maxPrice: reply.need.maxPrice || 100000000,
-        audience: reply.need.audience || 'ALL',
-        selectedMetro: 'Barchasi',
-        sortBy: 'AI',
-      } as any);
-      if (reply.need.district) {
-        setSearchQuery(reply.need.district);
+    try {
+      const response = await fetch(`${API_BASE_URL}/ai/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg })
+      });
+      const data = await response.json();
+      
+      const nextUsage = incrementDailyUsage();
+      setUsageCount(nextUsage);
+
+      if (data.status === 'success') {
+        setLog((prev) => [
+          ...prev,
+          { from: 'ai', text: `${data.reply}\n\n(📊 Bugungi AI so'rovlar: ${nextUsage}/${DAILY_LIMIT})` }
+        ]);
+
+        if (data.need) {
+          setFilters({
+            selectedRegion: data.need.region || 'Barchasi',
+            selectedDistrict: data.need.district || 'Barchasi',
+            roomsCount: data.need.rooms ?? null,
+            maxPrice: data.need.maxPrice || 100000000,
+            audience: data.need.audience || 'ALL',
+            selectedMetro: 'Barchasi',
+            sortBy: 'AI',
+          } as any);
+          if (data.need.district) {
+            setSearchQuery(data.need.district);
+          }
+        }
+      } else {
+        setLog((prev) => [...prev, { from: 'ai', text: "🤖 Xatolik yuz berdi. Iltimos qaytadan urinib ko'ring." }]);
       }
+    } catch (e) {
+      setLog((prev) => [...prev, { from: 'ai', text: "🤖 Tarmoq xatosi. Iltimos qaytadan urinib ko'ring." }]);
+    } finally {
+      setLoading(false);
     }
-    if (reply.go === 'AUTH') setShowAuth(true);
-    if (reply.go === 'SEARCH') setCurrentView('SEARCH');
-    if (reply.go === 'CREATE_LISTING') setCurrentView('CREATE_LISTING');
-    if (reply.go === 'HOME') setCurrentView('HOME');
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+    setLog([{ from: 'ai', text: "🤖 Salom! Men Shield AI yordamchisiman. Masalan yozing: «Chilonzordan 3 mlnga kvartira kerak» yoki «Yunusobod 2 xona»." }]);
   };
 
   return (
@@ -134,7 +154,7 @@ export const ShieldMascot: React.FC = () => {
                 🔄 Reset
               </button>
               <button
-                onClick={() => setOpen(false)}
+                onClick={handleClose}
                 className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition"
               >
                 <X className="w-4 h-4" />
@@ -174,13 +194,13 @@ export const ShieldMascot: React.FC = () => {
             <input
               value={text}
               onChange={(e) => setText(e.target.value)}
-              disabled={isLimitReached}
-              placeholder={isLimitReached ? "Bugungi limit tugadi" : "Chilonzordan 3ml ga..."}
+              disabled={isLimitReached || loading}
+              placeholder={isLimitReached ? "Bugungi limit tugadi" : loading ? "AI o'ylamoqda..." : "Chilonzordan 3ml ga..."}
               className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <button
               type="submit"
-              disabled={isLimitReached || !text.trim()}
+              disabled={isLimitReached || !text.trim() || loading}
               className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl p-2.5 shadow-lg shadow-emerald-600/30 transition-all active:scale-95 shrink-0 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
             >
               <Send className="w-4 h-4" />

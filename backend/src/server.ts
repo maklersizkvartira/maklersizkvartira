@@ -196,6 +196,81 @@ app.post('/api/v1/traffic/track', (req, res) => {
   res.json({ status: 'success' });
 });
 
+// AI CHAT
+app.post('/api/v1/ai/chat', async (req, res) => {
+  const { message } = req.body;
+  if (!message) return res.status(400).json({ error: 'Message is required' });
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const prompt = `Foydalanuvchi kvartira qidiryapti. Uning yozgan gapi: "${message}"
+Vazifangiz: Shu gapdan viloyat (yoki shahar), tuman, xonalar soni va maksimal narxni ajratib olib JSON formatida qaytarish.
+Qoidalar: 
+- Narxni so'mda ifodalang (masalan, 3mln = 3000000 yoki 300 dollar = taxminan 3800000). Agar aytilmagan bo'lsa null bo'lsin.
+- Agar tuman aytilmagan bo'lsa, null bo'lsin. Agar "Toshkent" desa, region: "Toshkent", district: null.
+- Faqat JSON qaytaring. Boshqa matn kerak emas.
+
+{
+  "region": "Toshkent",
+  "district": "Chilonzor",
+  "rooms": 2,
+  "maxPrice": 4000000
+}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      })
+    });
+    
+    if (!response.ok) throw new Error(`Gemini xatosi: ${response.status}`);
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!text) throw new Error("Bo'sh javob");
+    const parsed = JSON.parse(text);
+
+    // Baza qidiruvi
+    const where: any = { aiCheckStatus: 'APPROVED' };
+    if (parsed.district) where.district = { contains: parsed.district, mode: 'insensitive' };
+    if (parsed.rooms) where.rooms = parseInt(parsed.rooms);
+    if (parsed.maxPrice) where.price = { lte: parseInt(parsed.maxPrice) };
+
+    const listings = await prisma.listing.findMany({
+      where,
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      include: { owner: true }
+    });
+
+    let aiText = "";
+    if (listings.length > 0) {
+      const districtText = parsed.district ? `${parsed.district} tumanidan` : "Siz uchun";
+      aiText = `🤖 Shield AI: ${districtText} mos ${listings.length} ta eng yaxshi kvartirani topdim:\n\n` +
+               listings.map((l, i) => `${i + 1}) ${l.title} — ${Math.round(l.price).toLocaleString('uz-UZ')} so'm (${l.district})`).join('\n') +
+               `\n\nBarcha mos kvartiralarni Qidiruv sahifasidan to'liq ko'rishingiz mumkin!`;
+    } else {
+      aiText = "🤖 Shield AI: Kechirasiz, aynan siz xohlagan shartlarga mos kvartira hozircha bazada yo'q. Qidiruv bo'limidan boshqacha izlab ko'ring.";
+    }
+
+    res.json({
+      status: 'success',
+      reply: aiText,
+      need: parsed,
+      listings
+    });
+  } catch (error) {
+    console.error("AI Chat error:", error);
+    res.json({
+      status: 'success',
+      reply: "🤖 Shield AI: Uzr, so'rovni tushunishda xatolik yuz berdi. Iltimos Qidiruv bo'limidan foydalanib ko'ring.",
+    });
+  }
+});
+
 // LISTINGS
 app.get('/api/v1/listings', async (req, res) => {
   const { district, rooms, search, limit, page } = req.query;
