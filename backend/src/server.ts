@@ -607,6 +607,67 @@ app.get('/api/v1/stats', (_req: Request, res: Response) => {
 });
 
 // Global 404 Fallback with CORS Headers
+// Admin API Endpoints
+app.patch('/api/v1/listings/:id/status', (req: Request, res: Response) => {
+  const item = LISTINGS_DB.find((l) => String(l.id) === req.params.id);
+  if (item) {
+    item.aiCheckStatus = req.body.status;
+    if (req.body.status === 'APPROVED') item.trustScore = 95;
+    saveListings(LISTINGS_DB);
+    res.json({ status: 'success', message: 'Listing status updated', data: item });
+  } else {
+    res.status(404).json({ status: 'error', message: 'Not found' });
+  }
+});
+
+app.patch('/api/v1/listings/:id/featured', (req: Request, res: Response) => {
+  const item = LISTINGS_DB.find((l) => String(l.id) === req.params.id);
+  if (item) {
+    item.isFeatured = req.body.featured !== undefined ? req.body.featured : !item.isFeatured;
+    saveListings(LISTINGS_DB);
+    res.json({ status: 'success', message: 'Featured status updated', data: item });
+  } else {
+    res.status(404).json({ status: 'error', message: 'Not found' });
+  }
+});
+
+app.get('/api/v1/users', (_req: Request, res: Response) => {
+  res.json({
+    status: 'success',
+    totalCount: USERS_DB.length,
+    data: USERS_DB.map(u => ({ ...u, password: undefined })) // hide passwords
+  });
+});
+
+app.patch('/api/v1/users/:id/trust-score', (req: Request, res: Response) => {
+  const user = USERS_DB.find((u) => String(u.id) === req.params.id);
+  if (user) {
+    const delta = Number(req.body.delta) || 0;
+    user.trustScore = Math.max(0, Math.min(100, (user.trustScore || 50) + delta));
+    saveUsers(USERS_DB);
+    res.json({ status: 'success', message: 'User trust score updated', data: user });
+  } else {
+    res.status(404).json({ status: 'error', message: 'User not found' });
+  }
+});
+
+app.get('/api/v1/admin/dashboard/stats', (_req: Request, res: Response) => {
+  res.json({
+    status: 'success',
+    data: {
+      totalListings: LISTINGS_DB.length,
+      pendingListings: LISTINGS_DB.filter(l => l.aiCheckStatus === 'PENDING').length,
+      approvedListings: LISTINGS_DB.filter(l => l.aiCheckStatus === 'APPROVED').length,
+      totalUsers: USERS_DB.length,
+      totalReports: REPORTS_DB.length
+    }
+  });
+});
+
+// Serve admin frontend
+app.use('/admin', express.static(path.join(__dirname, '..', 'admin-frontend')));
+
+// Fallback for unknown routes
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ status: 'error', detail: 'Endpoint not found' });
 });
