@@ -231,7 +231,8 @@ Qoidalar:
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!text) throw new Error("Bo'sh javob");
-    const parsed = JSON.parse(text);
+    const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(cleanText);
 
     // Baza qidiruvi
     const where: any = { aiCheckStatus: 'APPROVED' };
