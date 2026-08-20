@@ -102,14 +102,6 @@ export const App: React.FC = () => {
           <>
 
 
-            {isStudent && (
-              <div className="pt-4 pb-1 bg-zinc-950 text-center px-4">
-                <p className="text-sm sm:text-base font-extrabold text-zinc-300">
-                  Salom, <span className="text-emerald-400 font-black">{currentUser.name.split(' ')[0]}</span> 👋 Kvartirani egasidan to'g'ridan-to'g'ri, 0% komissiya bilan tanlang.
-                </p>
-              </div>
-            )}
-
             <HeroSection />
             <QuickCategories />
             <AIRecommended />

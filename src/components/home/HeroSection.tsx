@@ -9,7 +9,7 @@ export const HeroSection: React.FC = () => {
     searchQuery, setSearchQuery, 
     selectedRegion, selectedDistrict, selectedMetro,
     roomsCount, audience, rentalType,
-    setFilters, setCurrentView 
+    setFilters, setCurrentView, currentUser 
   } = useAppStore();
 
   const [showSearchModal, setShowSearchModal] = useState(false);
@@ -25,6 +25,14 @@ export const HeroSection: React.FC = () => {
         <div className="absolute bottom-0 left-0 h-[400px] w-[400px] -translate-x-1/3 translate-y-1/3 rounded-full bg-emerald-600/10 blur-[100px] pointer-events-none" />
 
         <div className="relative z-10 max-w-5xl mx-auto space-y-5 sm:space-y-8 mt-4">
+          
+          {/* Student / Tenant Transparent Greeting */}
+          {currentUser && currentUser.role !== 'OWNER' && (
+            <p className="text-sm sm:text-base font-extrabold text-zinc-300 mb-2">
+              Salom, <span className="text-emerald-400 font-black">{currentUser.name.split(' ')[0]}</span> 👋 Kvartirani egasidan to'g'ridan-to'g'ri, 0% komissiya bilan tanlang.
+            </p>
+          )}
+
           {/* Serious 0% Commission Badge */}
           <div className="inline-flex items-center gap-2.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 backdrop-blur-md px-5 py-2 text-xs font-black tracking-widest text-indigo-300 shadow-[0_0_30px_rgba(99,102,241,0.2)]">
             <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
