@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Shield, Sparkles, X, MessageSquare, Send, RotateCcw, ChevronRight } from 'lucide-react';
+import { Shield, Sparkles, X, MessageSquare, Send, RotateCcw, ChevronRight, ShieldCheck, ArrowRight, MapPin } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { API_BASE_URL } from '../../services/apiService';
 import { getAccessToken } from '../../services/authService';
@@ -262,49 +262,97 @@ export const ShieldMascot: React.FC = () => {
                 }`}>
                   <div className="whitespace-pre-line break-words">{m.text}</div>
 
-                  {/* Interactive Listing Cards */}
+                  {/* Interactive Premium Listing Cards */}
                   {m.listings && m.listings.length > 0 && (
-                    <div className="mt-3 space-y-2">
+                    <div className="mt-3 space-y-3">
                       {m.listings.map((l: any) => {
-                        const img = Array.isArray(l.images) && l.images.length > 0 ? l.images[0] : 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80';
+                        const img = Array.isArray(l.images) && l.images.length > 0
+                          ? l.images[0]
+                          : 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80';
                         const formattedPrice = Math.round(l.price || 0).toLocaleString('uz-UZ');
+
+                        const handleCardClick = (e: React.MouseEvent) => {
+                          e.stopPropagation();
+                          // 1. Ensure listing exists in store so detail page renders instantly
+                          const existingInStore = useAppStore.getState().listings.find(item => item.id === l.id);
+                          if (!existingInStore) {
+                            useAppStore.setState(state => ({
+                              listings: [l, ...state.listings]
+                            }));
+                          }
+                          // 2. Open listing detail page directly
+                          setCurrentView('LISTING_DETAIL', l.id);
+                          setOpen(false);
+                        };
 
                         return (
                           <div
                             key={l.id}
-                            className="bg-slate-950/90 border border-slate-800 hover:border-emerald-500/60 rounded-xl p-2 transition flex gap-2.5 items-center group cursor-pointer"
-                            onClick={() => {
-                              setCurrentView('LISTING_DETAIL', l.id);
-                              setOpen(false);
-                            }}
+                            onClick={handleCardClick}
+                            className="group relative bg-slate-950/90 hover:bg-slate-900 border border-emerald-500/40 hover:border-emerald-400 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5"
                           >
-                            <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-slate-800 relative">
-                              <img src={img} alt={l.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
-                            </div>
+                            {/* Card Banner Image */}
+                            <div className="h-28 w-full relative overflow-hidden bg-slate-900">
+                              <img
+                                src={img}
+                                alt={l.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
 
-                            <div className="min-w-0 flex-1">
-                              <h5 className="text-[11px] font-bold text-white truncate group-hover:text-emerald-400 transition">
-                                {l.title}
-                              </h5>
-                              <p className="text-[10px] text-slate-400 mt-0.5 truncate">
-                                📍 {l.district || 'Toshkent'} • 🏠 {l.rooms} xona
-                              </p>
-                              <div className="text-[11px] font-extrabold text-emerald-400 mt-0.5">
-                                {formattedPrice} so'm<span className="text-[9px] text-slate-500 font-normal">/oy</span>
+                              {/* Badges */}
+                              <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                                <span className="bg-emerald-500 text-slate-950 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-md">
+                                  0% Komissiya
+                                </span>
+                              </div>
+
+                              <div className="absolute top-2 right-2">
+                                <span className="bg-slate-950/80 backdrop-blur-md text-emerald-400 border border-emerald-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md">
+                                  <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                                  Uy egasi
+                                </span>
+                              </div>
+
+                              {/* Price Badge */}
+                              <div className="absolute bottom-2 left-2">
+                                <div className="bg-slate-950/90 backdrop-blur-md border border-emerald-500/50 text-emerald-400 px-2.5 py-1 rounded-xl text-xs font-black shadow-lg">
+                                  {formattedPrice} <span className="text-[10px] font-normal text-slate-300">so'm/oy</span>
+                                </div>
                               </div>
                             </div>
 
-                            <button
-                              type="button"
-                              className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 group-hover:bg-emerald-500 group-hover:text-slate-950 px-2 py-1 rounded-lg border border-emerald-500/30 transition shrink-0 self-center"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setCurrentView('LISTING_DETAIL', l.id);
-                                setOpen(false);
-                              }}
-                            >
-                              To'liqroq
-                            </button>
+                            {/* Card Info */}
+                            <div className="p-3">
+                              <h5 className="text-xs font-extrabold text-white group-hover:text-emerald-400 transition line-clamp-1">
+                                {l.title}
+                              </h5>
+                              <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5 truncate">
+                                <span className="flex items-center gap-0.5 text-slate-300">
+                                  <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
+                                  {l.district || 'Toshkent'}
+                                </span>
+                                <span>•</span>
+                                <span className="text-slate-300">🏠 {l.rooms} xona</span>
+                                {l.area && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="text-slate-300">📐 {l.area} m²</span>
+                                  </>
+                                )}
+                              </p>
+
+                              {/* View Action Button */}
+                              <div className="mt-3">
+                                <button
+                                  type="button"
+                                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-slate-950 font-black text-xs py-2 px-3 rounded-xl transition duration-200 shadow-[0_4px_15px_rgba(16,185,129,0.3)] flex items-center justify-center gap-1.5 group-hover:scale-[1.01]"
+                                >
+                                  <span>To'liq ma'lumotni ko'rish</span>
+                                  <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         );
                       })}
