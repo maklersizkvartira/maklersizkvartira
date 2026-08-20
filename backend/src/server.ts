@@ -196,121 +196,156 @@ app.post('/api/v1/traffic/track', (req, res) => {
   res.json({ status: 'success' });
 });
 
-// AI ASSISTANT (Shield AI powered by OpenAI)
-app.post('/api/v1/smart/assistant', async (req, res) => {
-  const { message } = req.body;
+// -----------------------------------------------------------------
+// SHIELD AI -- Multi-turn Conversation Assistant
+// Architecture inspired by ai-chat-copy/ai/services.py:
+//   - Session per guest (sessionKey from localStorage)
+//   - Last 12 messages loaded as history (_build_messages pattern)
+//   - system prompt + history + new message sent to OpenAI
+//   - AI reply saved to DB -- conversation persists across refreshes
+// -----------------------------------------------------------------
+
+const SHIELD_AI_SYSTEM_PROMPT = [
+  'Siz "MaklersizUy.uz" platformasining rasmiy aqlli yordamchisi -- Shield AI siz.',
+  '',
+  'Platforma:',
+  '- 0% komissiyali maklersiz kvartira ijara va sherikchilik.',
+  '- Foydalanuvchilar uy egalari bilan bevosita boglanadi.',
+  '- Toshkent tumanlari, viloyatlar, Roommate, Pasport verifikatsiyasi.',
+  '',
+  'Vazifalaringiz:',
+  '1. Samimiy ozbekcha javob bering.',
+  '2. Xabardan: viloyat, tuman, xonalar, maks narx, auditoriya, ijara turi ajrating.',
+  '3. Xavfsizlik: Hech qachon uyni kormasdan oldindan kartaga pul otkazmang!',
+  '4. Avvalgi savol kontekstini hisobga oling.',
+  '',
+  'Javobingiz FAQAT quyidagi JSON formatida bolishi shart:',
+  '{',
+  '  "region": "Toshkent" yoki null,',
+  '  "district": "Chilonzor" yoki null,',
+  '  "rooms": 2 yoki null,',
+  '  "maxPrice": 4000000 yoki null,',
+  '  "audience": "STUDENT" yoki "FAMILY" yoki "ALL",',
+  '  "rentalType": "FULL" yoki "ROOMMATE" yoki "ALL",',
+  '  "replyText": "Javob matni"',
+  '}',
+  '',
+  'Qoidalar:',
+  '- 3 mln=3000000. 1 USD=12700 UZS.',
+  '- Tumanlar: Chilonzor, Yunusobod, Mirzo Ulugbek, Yakkasaroy, Mirobod, Shayxontohur, Olmazor, Sergeli, Uchtepa, Yashnobod, Bektemir.',
+  '- Faqat toza JSON. Boshqa matn yoq.',
+].join('\n');
+
+app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
+  const { message, sessionKey } = req.body as { message: string; sessionKey?: string };
   if (!message) return res.status(400).json({ error: 'Message is required' });
 
+  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+  const openaiUrl = 'https://api.openai.com/v1/chat/completions';
+
   try {
-    const url = 'https://api.openai.com/v1/chat/completions';
-    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+    // 1. Session upsert (like get_or_create_session in ai-chat-copy)
+    const key = sessionKey || ('anon-' + Date.now());
+    let session: any = null;
+    try {
+      session = await (prisma as any).aISession.findUnique({ where: { sessionKey: key } });
+      if (!session) session = await (prisma as any).aISession.create({ data: { sessionKey: key } });
+    } catch (e) { session = null; }
 
-    const SHIELD_AI_SYSTEM_PROMPT = `Siz "MaklersizUy.uz" platformasining rasmiy aqlli sun'iy intellekt yordamchisi — Shield AI 🛡️ siz.
-
-Platforma Haqida:
-- MaklersizUy.uz — O'zbekistondagi 0% komissiyali, maklersiz kvartira ijara va sherikchilik platformasi.
-- Foydalanuvchilar uy egalari bilan bevosita bog'lanishadi. Maklerlar hamda vositachilik haq to'lovlari (0% komissiya) mavjud emas.
-- Imkoniyatlar: Toshkent tumanlari va viloyatlardan kvartiralar izlash, Talabalar uchun sherikchilik (Roommate) bo'limi, Pasport/Kadastr verifikatsiyasi va Shield AI xavfsizlik filtri.
-
-Sizning Vazifalaringiz:
-1. Foydalanuvchining kiritgan xabarini tahlil qilib, unga samimiy, do'stona va foydali o'zbek tilida javob berish.
-2. Xabardan qidiruv parametrlarini (viloyat, tuman, xonalar soni, maks narx, auditoriya va ijara turi) ajratib olish.
-3. Agar foydalanuvchi xavfsizlik yoki shartnoma haqida so'rasa, "Hech qachon uy egalariga uyini ko'rmasdan oldindan kartaga pul o'tkazmang!" deb uqtiring.
-
-Javobingiz faqat quyidagi JSON formatida bo'lishi shart:
-{
-  "region": string | null,
-  "district": string | null,
-  "rooms": number | null,
-  "maxPrice": number | null,
-  "audience": "STUDENT" | "FAMILY" | "ALL",
-  "rentalType": "FULL" | "ROOMMATE" | "ALL",
-  "replyText": "Foydalanuvchiga yoziladigan xushfe'l va tushunarli matnli javob"
-}
-
-Qoidalar:
-- Narxlar: 3 mln = 3000000. 300$ = 3810000 (1 USD = 12700 UZS).
-- Toshkent tumanlari: Chilonzor, Yunusobod, Mirzo Ulug'bek, Yakkasaroy, Mirobod, Shayxontohur, Olmazor, Sergeli, Uchtepa, Yashnobod, Bektemir.
-- Faqat toza JSON obyektini qaytaring.`;
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: SHIELD_AI_SYSTEM_PROMPT },
-          { role: "user", content: message }
-        ]
-      })
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "No text");
-      throw new Error(`OpenAI xatosi: ${response.status} - ${errorText}`);
+    // 2. Load last 12 messages as history (like _build_messages[:12] in ai-chat-copy)
+    let history: { role: string; content: string }[] = [];
+    if (session) {
+      try {
+        const dbMsgs = await (prisma as any).aIMessage.findMany({
+          where: { sessionId: session.id },
+          orderBy: { createdAt: 'desc' },
+          take: 12,
+        });
+        history = dbMsgs.reverse().map((m: any) => ({ role: m.role, content: m.content }));
+      } catch (e) { history = []; }
     }
-    const data = await response.json();
-    const text = data.choices?.[0]?.message?.content;
-    
-    if (!text) throw new Error("Bo'sh javob");
-    const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+    // 3. Save incoming user message to DB
+    if (session) {
+      try { await (prisma as any).aIMessage.create({ data: { sessionId: session.id, role: 'user', content: message } }); } catch (e) {}
+    }
+
+    // 4. Build OpenAI messages (system + history + new user message)
+    const openaiMessages = [
+      { role: 'system', content: SHIELD_AI_SYSTEM_PROMPT },
+      ...history,
+      { role: 'user', content: message },
+    ];
+
+    // 5. Call OpenAI
+    const aiRes = await fetch(openaiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + OPENAI_API_KEY },
+      body: JSON.stringify({ model: 'gpt-4o-mini', response_format: { type: 'json_object' }, messages: openaiMessages }),
+    });
+    if (!aiRes.ok) {
+      const errText = await aiRes.text().catch(() => '');
+      throw new Error('OpenAI xatosi: ' + aiRes.status + ' ' + errText);
+    }
+    const aiData = await aiRes.json();
+    const rawText: string = aiData.choices?.[0]?.message?.content || '';
+    if (!rawText) throw new Error('Empty response from OpenAI');
+    const cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
     const parsed = JSON.parse(cleanText);
 
-    // Baza qidiruvi
+    // 6. DB listings search
     const where: any = { aiCheckStatus: 'APPROVED' };
     if (parsed.district) where.district = { contains: parsed.district, mode: 'insensitive' };
-    if (parsed.rooms) where.rooms = parseInt(parsed.rooms);
-    if (parsed.maxPrice) where.price = { lte: parseInt(parsed.maxPrice) };
+    if (parsed.rooms) where.rooms = parseInt(String(parsed.rooms));
+    if (parsed.maxPrice) where.price = { lte: parseInt(String(parsed.maxPrice)) };
+    const listings = await prisma.listing.findMany({ where, take: 5, orderBy: { createdAt: 'desc' }, include: { owner: true } });
 
-    const listings = await prisma.listing.findMany({
-      where,
-      take: 5,
-      orderBy: { createdAt: 'desc' },
-      include: { owner: true }
-    });
-
-    let aiText = "";
+    // 7. Build human-readable reply text
+    let aiText = '';
     if (listings.length > 0) {
-      const districtText = parsed.district ? `${parsed.district} tumanidan` : "Siz uchun";
-      aiText = `🤖 Shield AI: ${parsed.replyText || `${districtText} mos ${listings.length} ta eng yaxshi kvartirani topdim:`}\n\n` +
-               listings.map((l, i) => `${i + 1}) ${l.title} — ${Math.round(l.price).toLocaleString('uz-UZ')} so'm (${l.district})`).join('\n') +
-               `\n\nBarcha mos kvartiralarni Qidiruv sahifasidan to'liq ko'rishingiz mumkin!`;
+      const place = parsed.district ? (parsed.district + ' tumanidan') : 'Siz uchun';
+      const listStr = listings.map((l: any, i: number) => {
+        return (i + 1) + ') ' + l.title + ' -- ' + Math.round(l.price).toLocaleString('uz-UZ') + ' som (' + l.district + ')';
+      }).join('\n');
+      aiText = (parsed.replyText || (place + ' mos ' + listings.length + ' ta kvartira topdim:')) + '\n\n' + listStr + '\n\nBarcha mos kvartiralarni Qidiruv sahifasidan toliq koring!';
     } else {
-      // Qidiruvda topilmagan bo'lsa, bazadagi bor tumanlarni olib AI orqali taklif beramiz
-      const availableListings = await prisma.listing.findMany({
-         where: { aiCheckStatus: 'APPROVED' },
-         select: { district: true },
-         distinct: ['district'],
-         take: 10
-      });
-      const availableDistricts = availableListings.map(l => l.district).filter(Boolean);
-      
-      if (availableDistricts.length > 0 && parsed.district) {
-        aiText = `🤖 Shield AI: Kechirasiz, ${parsed.district} tumanida hozircha e'lonlar topilmadi. Lekin hozirda quyidagi tumanlarda (${availableDistricts.join(', ')}) kvartiralar bor. Qidiruv bo'limidan ko'rib chiqishingiz mumkin!`;
+      const av = await prisma.listing.findMany({ where: { aiCheckStatus: 'APPROVED' }, select: { district: true }, distinct: ['district'], take: 8 });
+      const dists = av.map((l: any) => l.district).filter(Boolean);
+      if (dists.length > 0 && parsed.district) {
+        aiText = (parsed.replyText || (parsed.district + ' tumanida hozircha elon yoq.')) + '\n\nMavjud tumanlar: ' + dists.join(', ') + '. Qidiruv bolimida korib chiqing!';
       } else {
-        aiText = `🤖 Shield AI: ${parsed.replyText || "Kechirasiz, aynan siz xohlagan shartlarga mos kvartira hozircha bazada yo'q. Qidiruv bo'limidan boshqacha izlab ko'ring."}`;
+        aiText = parsed.replyText || 'Kechirasiz, mos kvartira topilmadi. Qidiruv bolimidan boshqacha izlab koring.';
       }
     }
 
-    res.json({
-      status: 'success',
-      reply: aiText,
-      need: parsed,
-      listings
-    });
+    // 8. Save AI reply to DB (like create_ai_message in ai-chat-copy)
+    if (session) {
+      try { await (prisma as any).aIMessage.create({ data: { sessionId: session.id, role: 'assistant', content: aiText } }); } catch (e) {}
+    }
+
+    res.json({ status: 'success', reply: aiText, need: parsed, listings, sessionKey: key });
   } catch (error) {
-    console.error("AI Chat error:", error);
-    res.json({
-      status: 'success',
-      reply: "🤖 Shield AI: Uzr, so'rovni tushunishda xatolik yuz berdi. Iltimos Qidiruv bo'limidan foydalanib ko'ring.",
-      debugError: String(error)
-    });
+    console.error('Shield AI error:', error);
+    res.json({ status: 'success', reply: 'Shield AI: Uzr, xatolik yuz berdi. Qidiruv bolimidan foydalaning.', debugError: String(error) });
   }
 });
+
+// GET /api/v1/smart/assistant/history -- restore previous messages on reload
+app.get('/api/v1/smart/assistant/history', async (req: Request, res: Response) => {
+  const { sessionKey } = req.query as { sessionKey?: string };
+  if (!sessionKey) return res.json({ status: 'success', messages: [] });
+  try {
+    const session = await (prisma as any).aISession.findUnique({ where: { sessionKey } }).catch(() => null);
+    if (!session) return res.json({ status: 'success', messages: [] });
+    const messages = await (prisma as any).aIMessage.findMany({
+      where: { sessionId: session.id },
+      orderBy: { createdAt: 'asc' },
+      take: 50,
+    }).catch(() => []);
+    res.json({ status: 'success', messages: messages || [] });
+  } catch (e) { res.json({ status: 'success', messages: [] }); }
+});
+
 
 // LISTINGS
 app.get('/api/v1/listings', async (req, res) => {

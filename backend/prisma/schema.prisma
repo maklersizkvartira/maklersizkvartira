@@ -20,6 +20,7 @@ model User {
   updatedAt  DateTime @updatedAt
 
   listings   Listing[]
+  aiSessions AISession[]
 }
 
 model Listing {
@@ -30,20 +31,43 @@ model Listing {
   rooms         Int
   district      String?
   images        String[]
-  
+
   aiCheckStatus String   @default("APPROVED")
   trustScore    Int      @default(50)
   riskScore     Int      @default(0)
   aiRiskReasons String[]
   safetyBadges  String[]
-  
+
   viewsCount    Int      @default(0)
   favoritesCount Int     @default(0)
   contactCount  Int      @default(0)
-  
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   ownerId       String
   owner         User     @relation(fields: [ownerId], references: [id])
+}
+
+// Shield AI Chat Session — one per anonymous guest (by sessionKey from localStorage)
+model AISession {
+  id         String      @id @default(uuid())
+  sessionKey String      @unique
+  userId     String?
+  user       User?       @relation(fields: [userId], references: [id])
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  messages   AIMessage[]
+}
+
+// Each turn in a Shield AI conversation
+model AIMessage {
+  id        String    @id @default(uuid())
+  sessionId String
+  session   AISession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String    // "user" | "assistant"
+  content   String
+  createdAt DateTime  @default(now())
+
+  @@index([sessionId, createdAt])
 }
