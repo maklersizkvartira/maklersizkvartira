@@ -108,36 +108,23 @@ export const Header: React.FC = () => {
   const districts = ['Chilonzor', 'Yunusobod', "Mirzo Ulug'bek", 'Yakkasaroy', 'Shayxontohur', 'Sergeli'];
 
   return (
-    <header className={`fixed top-0 inset-x-0 z-50 transition-colors shadow-xl border-b ${
-      themeMode === 'light'
-        ? 'bg-white/95 text-slate-900 border-slate-200/80 backdrop-blur-md'
-        : 'bg-slate-950/95 text-white border-slate-800/80 backdrop-blur-md'
-    }`}>
+    <header className="fixed top-2 sm:top-4 inset-x-0 z-50 px-2 sm:px-6 transition-all pointer-events-none">
       <AuthModal />
 
-      {/* Top Notification Bar */}
-      <div className={`hidden sm:block text-[11px] py-1.5 px-4 font-bold border-b ${
-        themeMode === 'light' ? 'bg-slate-100/90 text-slate-700 border-slate-200' : 'bg-slate-900/90 text-slate-300 border-slate-800'
+      <div className={`max-w-7xl mx-auto rounded-2xl sm:rounded-full transition-all shadow-2xl border backdrop-blur-xl pointer-events-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4 ${
+        themeMode === 'light'
+          ? 'bg-white/95 text-slate-900 border-slate-200/90 shadow-slate-300/40'
+          : 'bg-slate-950/90 text-white border-slate-800/90 shadow-black/80'
       }`}>
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <span className="flex items-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-            MaklersizUy.uz — 0% Komissiya! Egasidan to'g'ridan-to'g'ri ijara va xonadosh topish.
-          </span>
-          <span className="text-emerald-500 font-mono">24/7 Qo'llab-quvvatlash: @MaklersizUy_Support</span>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
         {/* Logo */}
         <button onClick={() => setCurrentView('HOME')} className="flex items-center gap-2 shrink-0 min-w-0 group text-left">
-          <span className={`text-lg sm:text-2xl font-black tracking-tighter ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+          <span className={`text-base sm:text-xl font-black tracking-tighter ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
             MAKLERSIZ<span className="text-emerald-500">UY</span>
           </span>
         </button>
 
         {/* Desktop Navigation Links */}
-        <nav className={`hidden lg:flex items-center gap-7 text-xs sm:text-sm font-bold relative ${
+        <nav className={`hidden lg:flex items-center gap-6 text-xs sm:text-sm font-bold relative ${
           themeMode === 'light' ? 'text-slate-700' : 'text-slate-300'
         }`}>
           <button
@@ -236,45 +223,8 @@ export const Header: React.FC = () => {
           </button>
         </nav>
 
-        {/* Right Header User Controls */}
+        {/* Right Header Controls Group */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-
-          {/* User Avatar / Login status button (Desktop Only) */}
-          {currentUser ? (
-            <div className="hidden sm:flex items-center gap-1 sm:gap-2 shrink-0">
-              <button
-                onClick={() => setShowSidebar(true)}
-                className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white font-bold text-xs sm:text-sm p-1 sm:pl-1.5 sm:pr-3 rounded-full transition-all shadow-xs shrink-0"
-                title={currentUser.name}
-              >
-                <img
-                  src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'}
-                  alt={currentUser.name}
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-emerald-400 shrink-0"
-                />
-                <div className="text-left min-w-0 sm:max-w-[150px]">
-                  <div className="font-extrabold text-xs text-white truncate leading-tight">{currentUser.name}</div>
-                  <div className="text-[10px] text-emerald-400 font-bold uppercase">{currentUser.role === 'OWNER' ? 'Uy Egasi' : 'Talaba'}</div>
-                </div>
-              </button>
-
-              {/* Desktop Direct Logout Button */}
-              <button
-                onClick={handleLogout}
-                title="Tizimdan chiqish"
-                className="flex items-center justify-center p-2.5 rounded-full bg-slate-900 hover:bg-rose-950/80 border border-slate-700 hover:border-rose-500 text-slate-300 hover:text-rose-400 transition-all shadow-xs shrink-0 cursor-pointer"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowAuth(true, 'LOGIN')}
-              className="hidden sm:block text-xs sm:text-sm font-bold text-slate-200 hover:text-white px-2 sm:px-3 py-1.5 transition-colors shrink-0"
-            >
-              Kirish
-            </button>
-          )}
 
           {/* Dark / Light Theme Toggle */}
           <button
@@ -305,7 +255,7 @@ export const Header: React.FC = () => {
             /* Student / Tenant Role: Show Favorites / Saved Listings Button (NO Create Listing) */
             <button
               onClick={() => setCurrentView('FAVORITES')}
-              className="flex items-center gap-1.5 rounded-full bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 font-extrabold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2.5 shadow-xs transition-all active:scale-95 shrink-0 whitespace-nowrap"
+              className="flex items-center gap-1.5 rounded-full bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 font-extrabold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 shadow-xs transition-all active:scale-95 shrink-0 whitespace-nowrap"
             >
               <Heart className="w-3.5 h-3.5 fill-emerald-400 text-emerald-400" />
               <span className="hidden sm:inline">Saqlanganlar ({favorites.length})</span>
@@ -321,10 +271,48 @@ export const Header: React.FC = () => {
                   setCurrentView('CREATE_LISTING');
                 }
               }}
-              className="rounded-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2.5 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 shrink-0 whitespace-nowrap"
+              className="rounded-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 shrink-0 whitespace-nowrap"
             >
               <span className="hidden sm:inline">+ E'lon berish</span>
               <span className="sm:hidden">+ E'lon</span>
+            </button>
+          )}
+
+          {/* User Profile / Auth Button (PLACED AT THE VERY END / OXIRIDA) */}
+          {currentUser ? (
+            <div className="hidden sm:flex items-center gap-1 sm:gap-2 shrink-0">
+              <button
+                onClick={() => setShowSidebar(true)}
+                className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700/90 text-white font-bold text-xs sm:text-sm p-1 sm:pl-1.5 sm:pr-3 rounded-full transition-all shadow-md shrink-0 cursor-pointer"
+                title={currentUser.name}
+              >
+                <img
+                  src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'}
+                  alt={currentUser.name}
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-emerald-400 shrink-0"
+                />
+                <div className="text-left min-w-0 sm:max-w-[130px]">
+                  <div className="font-extrabold text-xs text-white truncate leading-tight">{currentUser.name}</div>
+                  <div className="text-[10px] text-emerald-400 font-bold uppercase">{currentUser.role === 'OWNER' ? 'Uy Egasi' : 'Talaba'}</div>
+                </div>
+              </button>
+
+              {/* Desktop Direct Logout Button */}
+              <button
+                onClick={handleLogout}
+                title="Tizimdan chiqish"
+                className="flex items-center justify-center p-2 rounded-full bg-slate-900 hover:bg-rose-950/80 border border-slate-700 hover:border-rose-500 text-slate-300 hover:text-rose-400 transition-all shadow-xs shrink-0 cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowAuth(true, 'LOGIN')}
+              className="hidden sm:flex items-center gap-2 rounded-full bg-slate-900 hover:bg-slate-800 border border-slate-700/80 px-3.5 py-1.5 sm:px-4 sm:py-2 text-white font-bold text-xs sm:text-sm shadow-md transition-all shrink-0 cursor-pointer"
+            >
+              <User className="w-4 h-4 text-emerald-400" />
+              <span>Kirish / Ro'yxatdan o'tish</span>
             </button>
           )}
 
