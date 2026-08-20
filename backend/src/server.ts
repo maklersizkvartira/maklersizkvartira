@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
@@ -31,8 +31,8 @@ export let AI_SYSTEM_ACTIVE = true;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
 const globalLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 100, // Limit each IP to 100 requests per minute
+  windowMs: 1 * 60 * 1000,
+  max: 100,
   message: { error: "Juda ko'p so'rov yuborildi. Iltimos biroz kuting." },
   standardHeaders: true,
   legacyHeaders: false,
@@ -40,8 +40,8 @@ const globalLimiter = rateLimit({
 app.use(globalLimiter);
 
 const postLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5, // Limit each IP to 5 requests per hour for POST listings
+  windowMs: 60 * 60 * 1000,
+  max: 5,
   message: { status: 'error', error: "Kechirasiz, 1 soatda faqat 5 ta e'lon qo'shishingiz mumkin." }
 });
 
@@ -49,12 +49,22 @@ const postLimiter = rateLimit({
 app.use(express.static(path.join(__dirname, '..', 'admin-frontend')));
 
 // Helper functions
-function matchPhoneBackend(p1?: string | null, p2?: string | null) {
-  if (!p1 || !p2) return false;
-  const d1 = String(p1).replace(/\D/g, '');
-  const d2 = String(p2).replace(/\D/g, '');
-  if (!d1 || !d2) return false;
-  return d1 === d2 || d1.endsWith(d2) || d2.endsWith(d1);
+function parseUserIdFromToken(tokenHeader?: string): string | null {
+  if (!tokenHeader) return null;
+  const raw = tokenHeader.replace('Bearer ', '').trim();
+  if (!raw) return null;
+  const parts = raw.split('_');
+  if (parts.length >= 2) {
+    return parts[1];
+  }
+  return null;
+}
+
+function generateAuthTokens(userId: string) {
+  const ts = Date.now();
+  const accessToken = `token_${userId}_${ts}`;
+  const refreshToken = `refresh_${userId}_${ts}`;
+  return { access_token: accessToken, refresh_token: refreshToken, token: accessToken };
 }
 
 // Gemini AI API Scanner
@@ -119,34 +129,31 @@ function scanListingAIFallback(title: string, description: string, price?: numbe
 
   const foundBrokerWord = !isSafe && brokerWords.find((w) => combined.includes(w));
   if (foundBrokerWord) {
-    reasons.push(`Broker belgisi topildi: "${foundBrokerWord}
+    reasons.push(`Broker belgisi topildi: "${foundBrokerWord}"`);
+    riskScore += 80;
+  }
+  if (price && price < 100000 && price > 0) {
+    reasons.push("Shubhali darajada arzon narx");
+    riskScore += 20;
+  }
+  const allowed = riskScore < 70;
+  return {
+    allowed,
+    trustScore: Math.max(10, 100 - riskScore),
+    riskScore,
+    status: allowed ? 'APPROVED' : 'REJECTED',
+    reasons: reasons.length > 0 ? reasons : ["Maklerlik belgisi topilmadi."]
+  };
+}
 
+// ─── HEALTH ──────────────────────────────────────────────────────────────────
 app.get('/api/v1/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), aiSystemActive: AI_SYSTEM_ACTIVE });
 });
 
-// ????????? AUTH & USER MANAGEMENT ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// ─── AUTH & USER MANAGEMENT ──────────────────────────────────────────────────
 
-function parseUserIdFromToken(tokenHeader?: string): string | null {
-  if (!tokenHeader) return null;
-  const raw = tokenHeader.replace('Bearer ', '').trim();
-  if (!raw) return null;
-  const parts = raw.split('_');
-  if (parts.length >= 2) {
-    return parts[1]; // returns userId UUID or phone
-  }
-  return null;
-}
-
-function generateAuthTokens(userId: string) {
-  const ts = Date.now();
-  const accessToken = `token_${userId}_${ts}`;
-  const refreshToken = `refresh_${userId}_${ts}`;
-  return { access_token: accessToken, refresh_token: refreshToken, token: accessToken };
-}
-
-// Signup / Register Handler
-const handleRegister = async (req: any, res: any) => {
+const handleRegister = async (req: Request, res: Response) => {
   const { phone, password, name, role, avatar } = req.body;
   const cleanPhone = String(phone || '').trim();
   if (!cleanPhone) {
@@ -196,9 +203,8 @@ const handleRegister = async (req: any, res: any) => {
 app.post('/api/v1/auth/signup', handleRegister);
 app.post('/api/v1/auth/register', handleRegister);
 
-// Login Handler
-app.post('/api/v1/auth/login', async (req: any, res: any) => {
-  const { phone, password } = req.body;
+app.post('/api/v1/auth/login', async (req: Request, res: Response) => {
+  const { phone } = req.body;
   const cleanPhone = String(phone || '').trim();
   if (!cleanPhone) {
     return res.status(400).json({ status: 'error', message: 'Telefon raqam kiritilmadi' });
@@ -233,8 +239,7 @@ app.post('/api/v1/auth/login', async (req: any, res: any) => {
   }
 });
 
-// Google Auth Handler
-app.post('/api/v1/auth/google', async (req: any, res: any) => {
+app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
   const { email, name, avatar, uid } = req.body;
   const identifier = email || (uid ? `google:${uid}` : `google:${Date.now()}`);
 
@@ -275,8 +280,7 @@ app.post('/api/v1/auth/google', async (req: any, res: any) => {
   }
 });
 
-// /auth/me Handler
-app.get('/api/v1/auth/me', async (req: any, res: any) => {
+app.get('/api/v1/auth/me', async (req: Request, res: Response) => {
   const authHeader = req.headers.authorization || '';
   const tokenRaw = authHeader.replace('Bearer ', '').trim();
   if (!tokenRaw) return res.status(401).json({ status: 'error', message: 'Token missing' });
@@ -316,8 +320,7 @@ app.get('/api/v1/auth/me', async (req: any, res: any) => {
   }
 });
 
-// Profile update Handler
-app.post('/api/v1/auth/profile', async (req: any, res: any) => {
+app.post('/api/v1/auth/profile', async (req: Request, res: Response) => {
   const { phone, avatar, id, name, role } = req.body;
   try {
     let user = null;
@@ -347,8 +350,7 @@ app.post('/api/v1/auth/profile', async (req: any, res: any) => {
   }
 });
 
-// Token refresh Handler
-app.post('/api/v1/auth/refresh', async (req: any, res: any) => {
+app.post('/api/v1/auth/refresh', async (req: Request, res: Response) => {
   const { refresh_token } = req.body;
   const userId = parseUserIdFromToken(refresh_token);
   if (!userId) return res.status(401).json({ status: 'error', message: 'Invalid refresh token' });
@@ -364,21 +366,16 @@ app.post('/api/v1/auth/refresh', async (req: any, res: any) => {
   }
 });
 
-// Logout Handler
-app.post('/api/v1/auth/logout', (_req: any, res: any) => {
+app.post('/api/v1/auth/logout', (_req: Request, res: Response) => {
   res.json({ status: 'success' });
 });
 
-app.post('/api/v1/traffic/track', (_req: any, res: any) => {
+app.post('/api/v1/traffic/track', (_req: Request, res: Response) => {
   res.json({ status: 'success' });
 });
+
 // -----------------------------------------------------------------
 // SHIELD AI -- Multi-turn Conversation Assistant
-// Architecture inspired by ai-chat-copy/ai/services.py:
-//   - Session per guest (sessionKey from localStorage)
-//   - Last 12 messages loaded as history (_build_messages pattern)
-//   - system prompt + history + new message sent to OpenAI
-//   - AI reply saved to DB -- conversation persists across refreshes
 // -----------------------------------------------------------------
 
 const SHIELD_AI_SYSTEM_PROMPT = [
@@ -418,10 +415,9 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
 
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
   const openaiUrl = 'https://api.openai.com/v1/chat/completions';
-  const DAILY_AI_LIMIT = 10; // per session per day
+  const DAILY_AI_LIMIT = 10;
 
   try {
-    // 1. Session upsert (like get_or_create_session in ai-chat-copy)
     const key = sessionKey || ('anon-' + Date.now());
     let session: any = null;
     try {
@@ -429,7 +425,6 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
       if (!session) session = await (prisma as any).aISession.create({ data: { sessionKey: key } });
     } catch (e) { session = null; }
 
-    // 2. Backend rate limiting — count today's user messages in this session
     if (session) {
       try {
         const todayStart = new Date();
@@ -447,10 +442,9 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
             sessionKey: key,
           });
         }
-      } catch (e) { /* ignore rate limit errors */ }
+      } catch (e) { /* ignore */ }
     }
 
-    // 2. Load last 12 messages as history (like _build_messages[:12] in ai-chat-copy)
     let history: { role: string; content: string }[] = [];
     if (session) {
       try {
@@ -463,19 +457,16 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
       } catch (e) { history = []; }
     }
 
-    // 3. Save incoming user message to DB
     if (session) {
       try { await (prisma as any).aIMessage.create({ data: { sessionId: session.id, role: 'user', content: message } }); } catch (e) {}
     }
 
-    // 4. Build OpenAI messages (system + history + new user message)
     const openaiMessages = [
       { role: 'system', content: SHIELD_AI_SYSTEM_PROMPT },
       ...history,
       { role: 'user', content: message },
     ];
 
-    // 5. Call OpenAI
     const aiRes = await fetch(openaiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + OPENAI_API_KEY },
@@ -491,14 +482,12 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
     const cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
     const parsed = JSON.parse(cleanText);
 
-    // 6. DB listings search
     const where: any = { aiCheckStatus: 'APPROVED' };
     if (parsed.district) where.district = { contains: parsed.district, mode: 'insensitive' };
     if (parsed.rooms) where.rooms = parseInt(String(parsed.rooms));
     if (parsed.maxPrice) where.price = { lte: parseInt(String(parsed.maxPrice)) };
     const listings = await prisma.listing.findMany({ where, take: 5, orderBy: { createdAt: 'desc' }, include: { owner: true } });
 
-    // 7. Build human-readable reply text
     let aiText = '';
     if (listings.length > 0) {
       const place = parsed.district ? (parsed.district + ' tumanidan') : 'Siz uchun';
@@ -516,7 +505,6 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
       }
     }
 
-    // 8. Get remaining quota from DB
     let remaining = DAILY_AI_LIMIT - 1;
     if (session) {
       try {
@@ -529,7 +517,6 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
       } catch (e) { /* ignore */ }
     }
 
-    // 9. Save AI reply to DB (like create_ai_message in ai-chat-copy)
     if (session) {
       try { await (prisma as any).aIMessage.create({ data: { sessionId: session.id, role: 'assistant', content: aiText } }); } catch (e) {}
     }
@@ -541,7 +528,6 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/v1/smart/assistant/history -- restore previous messages on reload
 app.get('/api/v1/smart/assistant/history', async (req: Request, res: Response) => {
   const { sessionKey } = req.query as { sessionKey?: string };
   const DAILY_AI_LIMIT = 10;
@@ -567,8 +553,7 @@ app.get('/api/v1/smart/assistant/history', async (req: Request, res: Response) =
   } catch (e) { res.json({ status: 'success', messages: [], remaining: DAILY_AI_LIMIT, limit: DAILY_AI_LIMIT }); }
 });
 
-
-// LISTINGS
+// ─── LISTINGS ────────────────────────────────────────────────────────────────
 app.get('/api/v1/listings', async (req, res) => {
   const { district, rooms, search, limit, page } = req.query;
   const take = limit ? parseInt(String(limit)) : 20;
@@ -712,7 +697,7 @@ app.post('/api/v1/listings', postLimiter, async (req, res) => {
 app.put('/api/v1/listings/:id', async (req, res) => {
   const updates = req.body || {};
   delete updates.id;
-  delete updates.owner; // prevent relational mess here
+  delete updates.owner;
   try {
     const listing = await prisma.listing.update({
       where: { id: req.params.id },
@@ -781,7 +766,7 @@ app.post('/api/v1/listings/:id/favorite', async (req, res) => {
   } catch(e) { res.status(500).json({ error: String(e) }); }
 });
 
-// Admin endpoints
+// ─── ADMIN ───────────────────────────────────────────────────────────────────
 app.get('/api/v1/admin/stats', async (req, res) => {
   try {
     const totalUsers = await prisma.user.count();
