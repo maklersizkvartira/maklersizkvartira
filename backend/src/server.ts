@@ -402,15 +402,14 @@ const SHIELD_AI_SYSTEM_PROMPT = [
   'Platforma haqida:',
   '- 0% komissiyali, maklersiz kvartira ijara va sherikchilik platformasi.',
   '- Foydalanuvchilar uy egalari bilan bevosita bog\'lanadi. Maklerlar yo\'q.',
-  '- Toshkent tumanlari, viloyatlar, Talabalar sherikchilik (Roommate) bo\'limi, Pasport verifikatsiyasi.',
   '',
-  'Vazifalaringiz:',
-  '1. MUKAMMAL, TO\'G\'RI O\'ZBEK GRAMMATIKASI VA IMLOSIDA JAVOB BERING. Imlo xatolari taqiqlanadi! (Masalan "hoziq" EMAS, "hozir" deb yozing!).',
-  '2. Agar foydalanuvchining ismi ma\'lum bo\'lmasa, suhbat davomida odob bilan ismini so\'rang (masalan: "Ismingizni bilsam bo\'ladimi?").',
-  '3. Agar foydalanuvchining ismi ma\'lum bo\'lsa, unga ismi bilan samimiy murojaat qiling (masalan: "Jasur aka", "Anvarbek", va h.k.).',
-  '4. Foydalanuvchi xabaridan qidiruv parametrlarini (viloyat, tuman, xonalar soni, maks narx, auditoriya, ijara turi) hamda ismini ajrating.',
-  '5. Xavfsizlik: Hech qachon uyni ko\'rmasdan oldindan kartaga pul o\'tkazmaslikni uqtiring!',
-  '6. Suhbat xulosasini (chatSummary) 1-2 jumlada tayyorlang.',
+  'VAZIFALAR VA QAT\'IY QOIDALAR:',
+  '1. O\'ZBEKONA ODOB VA HURMAT: Har doim samimiy va hurmat bilan salom bering ("Assalomu alaykum, [Ism]!" yoki "Assalomu alaykum!"). "Siz" deb murojaat qiling.',
+  '2. BEVOSITA VA QISQA JAVOB: Mijoz bergan savoliga avval 1-2 ta aniq, londa va tushunarli jumlada bevosita javob bering. Hech qachon uzundan-uzun matn yozmang va savolni javobsiz qoldirmang!',
+  '3. TAVSIYA VA UYLARNI OXIRIDA BERISH: Mijozning savoliga javob berib bo\'lgach, javobingiz ENG OXIRIDA muloyimlik bilan variantlarni taklif qiling (Masalan: "Xohlasangiz, quyidagi mos variantlarni ko\'rib chiqishingiz mumkin:"). Javob boshidayoq e\'lon sotishga o\'tib ketmang!',
+  '4. MUKAMMAL IMLO: FAQAT to\'g\'ri o\'zbek grammatikasi va imlosida yozing (masalan: "hoziq" emas, "hozir" deb yozing).',
+  '5. ISMNI SO\'RASH: Agar mijoz ismi noma\'lum bo\'lsa, odob bilan ismini so\'rang.',
+  '6. XAVFSIZLIK: Uyni ko\'rmasdan turib kartaga oldindan pul o\'tkazmaslikni uqtiring.',
   '',
   'Javobingiz FAQAT quyidagi JSON formatida bo\'lishi shart:',
   '{',
@@ -420,15 +419,14 @@ const SHIELD_AI_SYSTEM_PROMPT = [
   '  "maxPrice": 4000000 yoki null,',
   '  "audience": "STUDENT" yoki "FAMILY" yoki "ALL",',
   '  "rentalType": "FULL" yoki "ROOMMATE" yoki "ALL",',
-  '  "userName": "Jasur" yoki null,',
-  '  "chatSummary": "Chilonzordan 4 mln so\'mgacha 2 xonali kvartira izlamoqda",',
-  '  "replyText": "Jasur aka, Chilonzor tumanidan siz uchun mos eng yaxshi kvartiralarni topdim! Quyida ularning kartalari keltirilgan, ustiga bosib to\'liqroq ma\'lumot olishingiz mumkin:"',
+  '  "userName": "Zayniddin" yoki null,',
+  '  "chatSummary": "Chilonzordan 2 va 3 xonali kvartiralar farqi haqida so\'radi",',
+  '  "replyText": "Assalomu alaykum, Zayniddin! Agar 1-2 kishi bo\'lsangiz 2 xonali tejamkorroq, agar oilangiz bo\'lsa yoki kengroq joy kerak bo\'lsa 3 xonali ma\'qulroq. Xohlasangiz, siz uchun mos variantlarni quyida ko\'rib chiqishingiz mumkin:"',
   '}',
   '',
   'Qoidalar:',
   '- 3 mln = 3000000. 1 USD = 12700 UZS.',
-  '- Toshkent tumanlari: Chilonzor, Yunusobod, Mirzo Ulug\'bek, Yakkasaroy, Mirobod, Shayxontohur, Olmazor, Sergeli, Uchtepa, Yashnobod, Bektemir.',
-  '- Faqat toza JSON. Boshqa matn yoki kod bloki yo\'q.',
+  '- Faqat toza JSON formatida javob bering.',
 ].join('\n');
 
 app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
@@ -489,13 +487,16 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
     let history: { role: string; content: string }[] = [];
     if (session) {
       try {
-        const dbMsgs = await (prisma as any).aIMessage.findMany({
+        const past = await (prisma as any).aIMessage.findMany({
           where: { sessionId: session.id },
-          orderBy: { createdAt: 'desc' },
-          take: 12,
+          orderBy: { createdAt: 'asc' },
+          take: 20,
         });
-        history = dbMsgs.reverse().map((m: any) => ({ role: m.role, content: m.content }));
-      } catch (e) { history = []; }
+        history = past.map((m: any) => ({
+          role: m.role === 'user' ? 'user' : 'assistant',
+          content: m.content,
+        }));
+      } catch (e) { /* ignore */ }
     }
 
     if (session) {
@@ -533,18 +534,13 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
     if (parsed.maxPrice) where.price = { lte: parseInt(String(parsed.maxPrice)) };
     const listings = await prisma.listing.findMany({ where, take: 5, orderBy: { createdAt: 'desc' }, include: { owner: true } });
 
-    let aiText = '';
-    if (listings.length > 0) {
-      const nameSalute = (parsed.userName || authUser?.name || userName) ? `${parsed.userName || authUser?.name || userName}, ` : '';
-      const place = parsed.district ? `${parsed.district} tumanidan` : 'Toshkentdan';
-      aiText = parsed.replyText || `${nameSalute}${place} sizga mos eng yaxshi ${listings.length} ta kvartirani topdim! Quyidagi kartalarning ustiga bosib to'liqroq ma'lumot olishingiz mumkin:`;
-    } else {
-      const av = await prisma.listing.findMany({ where: { aiCheckStatus: 'APPROVED' }, select: { district: true }, distinct: ['district'], take: 8 });
-      const dists = av.map((l: any) => l.district).filter(Boolean);
-      if (dists.length > 0 && parsed.district) {
-        aiText = parsed.replyText || `${parsed.district} tumanida hozircha mos e'lon yo'q. Mavjud tumanlar: ${dists.join(', ')}. Qidiruv bo'limidan ko'rib chiqing!`;
+    let aiText = parsed.replyText || '';
+    if (!aiText) {
+      const nameSalute = (parsed.userName || authUser?.name || userName) ? `Assalomu alaykum, ${parsed.userName || authUser?.name || userName}! ` : 'Assalomu alaykum! ';
+      if (listings.length > 0) {
+        aiText = `${nameSalute}Siz so'ragan bo'lim bo'yicha mos variantlarni topdim. Xohlasangiz, quyidagi kartalar ustiga bosib to'liqroq ma'lumot olishingiz mumkin:`;
       } else {
-        aiText = parsed.replyText || 'Kechirasiz, mos kvartira topilmadi. Qidiruv bo\'limidan boshqacha izlab ko\'ring.';
+        aiText = `${nameSalute}Siz so'ragan parametrlar bo'yicha uylar qidirildi. Qidiruv bo'limidan boshqa tumanlarni ham ko'rib chiqishingiz mumkin.`;
       }
     }
 
@@ -564,41 +560,10 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
       try { await (prisma as any).aIMessage.create({ data: { sessionId: session.id, role: 'assistant', content: aiText } }); } catch (e) {}
     }
 
-    // ── Send Real-time Telegram Notification to Group ────────────────────────
-    try {
-      const identifiedName = parsed.userName || authUser?.name || userName || 'Noma\'lum mijoz';
-      const identifiedPhone = authUser?.phone || userPhone || (authUser ? 'Ro\'yxatdan o\'tgan' : 'Kiritilmadi');
-      const nowTashkent = new Date().toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent' });
-
-      const searchDetails: string[] = [];
-      if (parsed.district && parsed.district !== 'Barchasi') searchDetails.push(`📍 <b>Tuman:</b> ${parsed.district}`);
-      if (parsed.rooms) searchDetails.push(`🏠 <b>Xonalar:</b> ${parsed.rooms} xona`);
-      if (parsed.maxPrice) searchDetails.push(`💰 <b>Maks narx:</b> ${Math.round(parsed.maxPrice).toLocaleString('uz-UZ')} so'm`);
-
-      const searchBlock = searchDetails.length > 0 ? searchDetails.join('\n') + '\n\n' : '';
-
-      const tgHtml = `🤖 <b>Shield AI — Yangi Suhbat So'rovi</b> 🛡️
-
-👤 <b>Mijoz:</b> ${identifiedName}
-📱 <b>Telefon:</b> ${identifiedPhone}
-
-${searchBlock}📝 <b>AI Xulosasi:</b>
-<i>${parsed.chatSummary || parsed.replyText || 'Suhbat o\'tkazildi'}</i>
-
-💬 <b>Mijoz xabari:</b>
-"${message}"
-
-⏰ <i>Vaqt: ${nowTashkent}</i>`;
-
-      sendTelegramGroupNotification(tgHtml).catch(() => {});
-    } catch (tgErr) {
-      console.warn("Failed to dispatch Telegram notification:", tgErr);
-    }
-
     res.json({ status: 'success', reply: aiText, need: parsed, listings, sessionKey: key, remaining, limit: DAILY_AI_LIMIT });
   } catch (error) {
     console.error('Shield AI error:', error);
-    res.json({ status: 'success', reply: 'Shield AI: Uzr, xatolik yuz berdi. Qidiruv bolimidan foydalaning.', debugError: String(error) });
+    res.json({ status: 'success', reply: 'Shield AI: Uzr, xatolik yuz berdi. Qidiruv bo\'limidan foydalaning.', debugError: String(error) });
   }
 });
 
