@@ -236,20 +236,6 @@ export const Header: React.FC = () => {
             {themeMode === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-300" />}
           </button>
 
-          {/* Currency Toggle */}
-          <button
-            onClick={() => setCurrency(currency === 'USD' ? 'UZS' : 'USD')}
-            className="flex items-center bg-slate-900 border border-slate-700/80 rounded-full p-0.5 shadow-inner transition-colors shrink-0"
-            title="Valyutani o'zgartirish"
-          >
-            <span className={`text-[10px] sm:text-[11px] font-black px-2 py-1 rounded-full transition-all ${currency === 'UZS' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
-              UZS
-            </span>
-            <span className={`text-[10px] sm:text-[11px] font-black px-2 py-1 rounded-full transition-all ${currency === 'USD' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
-              Y.e
-            </span>
-          </button>
-
           {/* Role Provider Enforcement Action Button */}
           {isTenantOrStudent ? (
             /* Student / Tenant Role: Show Favorites / Saved Listings Button (NO Create Listing) */
