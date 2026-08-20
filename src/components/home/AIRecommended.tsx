@@ -66,12 +66,14 @@ export const AIRecommended: React.FC = () => {
       {visible.length === 0 ? (
         <div className="bg-white p-8 rounded-3xl border border-slate-200/80 text-center space-y-3">
           <p className="text-xs sm:text-sm text-slate-500 font-bold">Hozircha e'lonlar mavjud emas.</p>
-          <button
-            onClick={() => setCurrentView('CREATE_LISTING')}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl transition shadow-md"
-          >
-            + Birinchi bo'lib e'lon joylash
-          </button>
+          {(!currentUser || currentUser.role === 'OWNER') && (
+            <button
+              onClick={() => setCurrentView('CREATE_LISTING')}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl transition shadow-md"
+            >
+              + Birinchi bo'lib e'lon joylash
+            </button>
+          )}
         </div>
       ) : (
         <div
