@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { Sparkles } from 'lucide-react';
 import { useAppStore } from './stores/useAppStore';
 import { Header } from './components/layout/Header';
 import { BottomNav } from './components/layout/BottomNav';
@@ -76,18 +75,15 @@ export const App: React.FC = () => {
 
   if (!isAppReady) {
     return (
-      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-950 text-white">
-        {/* Minimalist Logo */}
-        <div className="flex items-center gap-2">
-          <span className="text-3xl sm:text-4xl font-black tracking-tighter text-white">
-            MAKLERSIZ<span className="text-emerald-500">UY</span>
-          </span>
+      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-emerald-600 text-white">
+        <div className="flex items-center justify-center w-20 h-20 bg-white rounded-3xl shadow-2xl mb-6 animate-bounce">
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
         </div>
-
-        {/* Minimalist Thin Animated Progress Line */}
-        <div className="w-40 h-1 bg-slate-900 rounded-full overflow-hidden mt-8 border border-slate-800">
-          <div className="h-full bg-emerald-500 rounded-full animate-pulse transition-all duration-500 w-3/4" />
-        </div>
+        <h1 className="text-3xl sm:text-4xl font-black tracking-widest uppercase mb-2 animate-pulse">Maklersiz.uz</h1>
+        <p className="text-xs sm:text-sm font-bold opacity-90 animate-pulse">E'lonlar va xarita yuklanmoqda...</p>
       </div>
     );
   }
@@ -103,20 +99,10 @@ export const App: React.FC = () => {
 
 
             {isStudent && (
-              <div className="pt-4 pb-2 bg-slate-950 flex justify-center px-4">
-                <div className="inline-flex items-center gap-3 bg-slate-900/90 border border-emerald-500/30 rounded-2xl px-5 py-3 shadow-xl backdrop-blur-md">
-                  <div className="w-9 h-9 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shrink-0">
-                    <Sparkles className="w-5 h-5 text-emerald-400" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm sm:text-base font-extrabold text-white">
-                      Salom, <span className="text-emerald-400 font-black">{currentUser.name.split(' ')[0]}</span> 👋
-                    </p>
-                    <p className="text-xs text-slate-400 font-medium">
-                      Kvartirani egasidan to'g'ridan-to'g'ri, 0% komissiya bilan tanlang.
-                    </p>
-                  </div>
-                </div>
+              <div className="bg-emerald-50 border-b border-emerald-100 px-4 py-3 text-center">
+                <p className="text-sm font-bold text-emerald-900">
+                  Salom, {currentUser.name.split(' ')[0]}. Kvartirani o'zingiz, maklersiz tanlang.
+                </p>
               </div>
             )}
 
