@@ -8,6 +8,7 @@ export interface CurrentUser {
   phone: string;
   role: SignupRole;
   avatar?: string;
+  password?: string;
 }
 
 export type TrustLevel = 'RED' | 'YELLOW' | 'GREEN' | 'PREMIUM_GREEN';
