@@ -99,30 +99,54 @@ export const CreateListingPage: React.FC = () => {
     let matchedDistrict = 'Chilonzor';
     let fullStreet = '';
 
-    let closestDist = Infinity;
-    for (const [dName, [dLat, dLng]] of Object.entries(DISTRICT_COORDINATES)) {
-      const dist = Math.hypot(detectedLat - dLat, detectedLng - dLng);
-      if (dist < closestDist) {
-        closestDist = dist;
-        matchedDistrict = dName;
-      }
-    }
-
     try {
       const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${detectedLat}&lon=${detectedLng}`);
       if (res.ok) {
         const data = await res.json();
         const addr = data.address || {};
+
+        // Match Region
+        const stateOrCity = addr.state || addr.city || addr.region || '';
+        for (const reg of UZBEKISTAN_REGIONS) {
+          const coreName = reg.name.toLowerCase().replace(" viloyati", "").replace(" shahri", "");
+          if (stateOrCity.toLowerCase().includes(coreName)) {
+            matchedRegion = reg.name;
+            break;
+          }
+        }
+
+        const activeRegObj = UZBEKISTAN_REGIONS.find((r) => r.name === matchedRegion) || UZBEKISTAN_REGIONS[0];
+
+        // Match District
+        const rawDist = addr.city_district || addr.suburb || addr.district || addr.county || addr.town || '';
+        if (rawDist) {
+          for (const d of activeRegObj.districts) {
+            const cleanD = d.toLowerCase().replace("'", "").replace("ʻ", "");
+            if (rawDist.toLowerCase().replace("'", "").replace("ʻ", "").includes(cleanD)) {
+              matchedDistrict = d;
+              break;
+            }
+          }
+        }
+
         const road = addr.road || addr.street || addr.neighbourhood || addr.suburb || `${matchedDistrict} tumani`;
         const houseNumber = addr.house_number ? `, ${addr.house_number}-uy` : '';
         fullStreet = `${road}${houseNumber}`;
       }
     } catch {
-      // Fallback
+      // Fallback ok
     }
 
-    if (!fullStreet) {
-      fullStreet = `${matchedDistrict} ko'chasi, kvartira`;
+    if (!fullStreet || matchedDistrict === 'Chilonzor') {
+      let closestDist = Infinity;
+      for (const [dName, [dLat, dLng]] of Object.entries(DISTRICT_COORDINATES)) {
+        const dist = Math.hypot(detectedLat - dLat, detectedLng - dLng);
+        if (dist < closestDist) {
+          closestDist = dist;
+          matchedDistrict = dName;
+        }
+      }
+      if (!fullStreet) fullStreet = `${matchedDistrict} tumani, 12-uy`;
     }
 
     return { region: matchedRegion, district: matchedDistrict, address: fullStreet };

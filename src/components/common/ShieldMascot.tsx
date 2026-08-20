@@ -421,18 +421,20 @@ export const ShieldMascot: React.FC = () => {
         /* ── Floating trigger ── */
         <button
           onClick={() => setOpen(true)}
-          className="group flex items-center gap-2.5 bg-slate-950 text-white px-4 py-3 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.4)] border border-emerald-500/50 hover:border-emerald-400 hover:shadow-[0_10px_40px_rgba(16,185,129,0.2)] transition-all active:scale-95 ml-auto"
+          className="group flex items-center gap-3 bg-slate-950/95 backdrop-blur-md text-white px-4 py-2.5 rounded-full shadow-2xl border border-emerald-500/40 hover:border-emerald-400 hover:shadow-emerald-500/20 transition-all duration-300 active:scale-95 ml-auto"
         >
-          <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white shadow-md shadow-emerald-600/40 group-hover:scale-110 transition-transform">
-            <Shield className="w-4 h-4 animate-pulse" />
+          <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-xs group-hover:scale-110 transition-transform">
+            <Shield className="w-4 h-4" />
           </div>
           <div className="flex flex-col text-left">
             <span className="text-xs font-black text-white flex items-center gap-1">
-              Shield AI <Sparkles className="w-3 h-3 text-amber-400 fill-amber-400" />
+              Shield AI <Sparkles className="w-3 h-3 text-emerald-400" />
             </span>
-            <span className="text-[10px] text-emerald-400 font-medium">Aqlli Yordamchi</span>
+            <span className="text-[10px] text-slate-300 font-bold">Aqlli Yordamchi</span>
           </div>
-          <MessageSquare className="w-4 h-4 text-emerald-400 ml-1 group-hover:animate-bounce" />
+          <div className="w-7 h-7 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center font-bold text-xs ml-1 shadow-sm group-hover:bg-emerald-400 transition-colors">
+            <MessageSquare className="w-3.5 h-3.5 stroke-[2.5]" />
+          </div>
         </button>
       )}
     </div>

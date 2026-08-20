@@ -295,11 +295,11 @@ export const Header: React.FC = () => {
             <span className="sm:hidden">+ E'lon</span>
           </button>
 
-          {/* Sidebar Menu Drawer Toggle Button / Mobile Alternating Avatar */}
+          {/* Sidebar Menu Drawer Toggle Button (Mobile/Tablet Only) */}
           <button
             type="button"
             onClick={() => setShowSidebar((v) => !v)}
-            className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-900 border border-slate-700/80 hover:bg-slate-800 transition-colors shrink-0 flex items-center justify-center overflow-hidden"
+            className="lg:hidden relative w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-900 border border-slate-700/80 hover:bg-slate-800 transition-colors shrink-0 flex items-center justify-center overflow-hidden"
             aria-label="Menyu"
           >
             {currentUser ? (

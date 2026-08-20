@@ -96,40 +96,71 @@ export const QuickCategories: React.FC = () => {
   ];
 
   return (
-    <section id="kategoriyalar" className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-4 sm:space-y-6">
-      <div className="flex items-center justify-between">
+    <section id="kategoriyalar" className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-14 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-slate-200/60 pb-5">
         <div>
-          <div className="inline-flex items-center gap-1.5 text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-1">
-            Sara Toifalar
+          <div className="inline-flex items-center gap-2 text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-3 py-1 rounded-full uppercase tracking-wider mb-2 shadow-2xs">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Sara Kategoriya Bo'limlari</span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Kategoriyalar va Izlash</h2>
-          <p className="text-xs text-slate-500 font-medium hidden sm:block">O'zingizga mos ijara turini bosing yoki ustiga keltiring</p>
+          <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
+            Kategoriyalar Bo'yicha Tezkor Qidiruv
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
+            O'zingizga ma'qul ijara turini tanlang va uylarni ko'ring
+          </p>
         </div>
         <button
           onClick={() => setCurrentView('SEARCH')}
-          className="text-xs font-extrabold text-emerald-700 hover:text-emerald-600 flex items-center gap-1 transition-colors bg-emerald-50 sm:bg-transparent px-3 py-1.5 sm:p-0 rounded-xl"
+          className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs sm:text-sm shadow-md transition-all group"
         >
-          <span>Barchasi</span>
-          <ArrowRight className="w-4 h-4" />
+          <span>Barcha e'lonlarni ko'rish</span>
+          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
         </button>
       </div>
 
-      <div className="flex overflow-x-auto hide-scrollbar gap-2 sm:gap-4 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+      {/* Grid of Large Premium Interactive Category Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-5">
         {categories.map((cat) => {
           const Icon = cat?.icon || Home;
+          const isMetro = cat.id === 'metro';
+          const isStudent = cat.id === 'students';
+          const isSherik = cat.id === 'sherikchilik';
 
           return (
             <button
               key={cat.id}
               onClick={cat.action}
-              className="flex flex-col items-center justify-center min-w-[85px] sm:min-w-[100px] p-3 rounded-2xl bg-white border border-slate-200/60 hover:border-emerald-500/50 hover:bg-emerald-50/30 hover:shadow-md transition-all group shrink-0"
+              className="flex flex-col items-center justify-between p-5 rounded-3xl bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 group shrink-0 text-center relative overflow-hidden"
             >
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-transform group-hover:scale-110 ${cat.badgeColor}`}>
-                <Icon className="w-5 h-5" />
+              {/* Animated Top Ambient Gradient */}
+              <div className={`absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r ${cat.gradientBg} opacity-0 group-hover:opacity-100 transition-opacity`} />
+
+              {/* Icon Container with Micro-Animations */}
+              <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center mb-3 transition-all duration-300 shadow-sm border border-slate-100 group-hover:scale-110 group-hover:-translate-y-1 ${cat.badgeColor}`}>
+                <Icon className={`w-7 h-7 sm:w-8 sm:h-8 transition-all duration-300 ${
+                  isMetro ? 'group-hover:translate-x-1.5' : isStudent ? 'group-hover:-rotate-12' : isSherik ? 'group-hover:scale-125' : 'group-hover:rotate-6'
+                }`} />
               </div>
-              <span className="text-[10px] sm:text-xs font-extrabold text-slate-700 group-hover:text-emerald-700 text-center leading-tight">
-                {cat.name}
-              </span>
+
+              {/* Content */}
+              <div className="space-y-1 w-full">
+                <h3 className="text-sm sm:text-base font-black text-slate-900 group-hover:text-emerald-600 transition-colors leading-tight">
+                  {cat.name}
+                </h3>
+                <p className="text-[11px] text-slate-500 font-medium line-clamp-2 leading-snug">
+                  {cat.desc}
+                </p>
+              </div>
+
+              {/* Sub-tags */}
+              <div className="mt-3 pt-2 border-t border-slate-100 w-full flex flex-wrap justify-center gap-1">
+                {cat.subTags.slice(0, 2).map((tag, i) => (
+                  <span key={i} className="text-[10px] font-bold text-slate-600 bg-slate-50 group-hover:bg-emerald-50 group-hover:text-emerald-700 px-2 py-0.5 rounded-md transition-colors">
+                    {tag}
+                  </span>
+                ))}
+              </div>
             </button>
           );
         })}
