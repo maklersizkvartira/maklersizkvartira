@@ -2,6 +2,7 @@
 
 @theme {
   --breakpoint-xs: 25rem;
+  --font-sans: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
 }
 
 *, *::before, *::after {
@@ -32,7 +33,7 @@ html, body {
   body {
     background-color: #f8fafc;
     color: #0f172a;
-    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
   }
   
   img, video, iframe {

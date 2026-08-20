@@ -17,45 +17,47 @@ export const HeroSection: React.FC = () => {
 
   return (
     <div className="w-full">
-      {/* Dark Luxury Hero Background */}
-      <section className="relative overflow-hidden bg-slate-950 px-4 sm:px-6 pt-12 sm:pt-20 pb-28 sm:pb-36 text-white text-center">
-        <div className="relative z-10 max-w-5xl mx-auto space-y-4 sm:space-y-6">
+      {/* Ultra Premium Dark Luxury Hero Background */}
+      <section className="relative overflow-hidden bg-zinc-950 px-4 sm:px-6 pt-12 sm:pt-20 pb-28 sm:pb-36 text-white text-center">
+        {/* Massive Radial Glows */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/40 via-zinc-950 to-zinc-950" />
+        <div className="absolute top-0 right-0 h-[500px] w-[500px] translate-x-1/3 -translate-y-1/3 rounded-full bg-violet-600/20 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-0 left-0 h-[400px] w-[400px] -translate-x-1/3 translate-y-1/3 rounded-full bg-emerald-600/10 blur-[100px] pointer-events-none" />
+
+        <div className="relative z-10 max-w-5xl mx-auto space-y-5 sm:space-y-8 mt-4">
           {/* Serious 0% Commission Badge */}
-          <div className="inline-flex items-center gap-2.5 rounded-full border border-emerald-500/30 bg-slate-900/90 px-4 py-1.5 text-xs font-extrabold tracking-wide text-emerald-400 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>0% KOMISSIYA • TO'G'RIDAN-TO'G'RI IJARA</span>
+          <div className="inline-flex items-center gap-2.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 backdrop-blur-md px-5 py-2 text-xs font-black tracking-widest text-indigo-300 shadow-[0_0_30px_rgba(99,102,241,0.2)]">
+            <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+            <span className="uppercase">0% Komissiya • To'g'ridan-to'g'ri ijara</span>
           </div>
 
           {/* Main Hero Headline */}
-          <h1 className="text-3xl xs:text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[1.1] text-white">
-            Maklersiz Kvartira Toping
+          <h1 className="text-4xl xs:text-5xl sm:text-7xl font-black tracking-tighter leading-[1.05] text-white drop-shadow-2xl">
+            Maklersiz Kvartira <br className="hidden sm:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-indigo-400">Toping</span>
           </h1>
 
           {/* Hero Subtitle */}
-          <p className="max-w-2xl mx-auto text-slate-300 text-xs sm:text-lg md:text-xl font-medium leading-relaxed">
-            O'zbekiston bo'ylab 12 viloyat va 120+ tumanlarda ishonchli va tekshirilgan uylar.
+          <p className="max-w-2xl mx-auto text-zinc-400 text-sm sm:text-lg md:text-xl font-medium leading-relaxed">
+            O'zbekiston bo'ylab 12 viloyat va 120+ tumanlarda ishonchli va tekshirilgan uylar. Vositasiz. Ortiqcha to'lovsiz.
           </p>
         </div>
-
-        {/* Subtle Ambient Emerald Glow Effect */}
-        <div className="hidden sm:block absolute top-0 right-0 h-[350px] w-[350px] sm:h-[450px] sm:w-[450px] translate-x-1/3 -translate-y-1/3 rounded-full bg-emerald-600/10 blur-3xl pointer-events-none" />
-        <div className="hidden sm:block absolute bottom-0 left-0 h-[350px] w-[350px] sm:h-[450px] sm:w-[450px] -translate-x-1/3 translate-y-1/3 rounded-full bg-emerald-600/10 blur-3xl pointer-events-none" />
       </section>
 
       {/* Sleek Search Trigger */}
-      <div className="relative z-20 max-w-3xl mx-auto px-4 sm:px-6 -mt-8 sm:-mt-10">
+      <div className="relative z-20 max-w-4xl mx-auto px-4 sm:px-6 -mt-10 sm:-mt-12">
         <button
           onClick={() => setShowSearchModal(true)}
-          className="w-full flex items-center gap-3.5 bg-slate-900/95 hover:bg-slate-900 border border-slate-800 p-3.5 sm:p-4 rounded-full shadow-2xl backdrop-blur-xl transition-all duration-300 group cursor-pointer hover:border-emerald-500/50 hover:shadow-emerald-500/10"
+          className="w-full flex items-center gap-4 bg-zinc-900/90 hover:bg-zinc-800/95 border border-zinc-700/80 p-4 sm:p-5 rounded-[2rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.8)] backdrop-blur-2xl transition-all duration-500 group cursor-pointer hover:border-indigo-500/50 hover:shadow-[0_20px_50px_-12px_rgba(99,102,241,0.3)] hover:-translate-y-1"
         >
-          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-500 rounded-full flex items-center justify-center text-slate-950 group-hover:scale-110 transition-transform duration-300 shrink-0 shadow-lg shadow-emerald-500/20">
-            <Search className="w-5 h-5 sm:w-6 sm:h-6" />
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-indigo-500 to-emerald-500 rounded-full flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-500 shrink-0 shadow-lg shadow-indigo-500/30">
+            <Search className="w-5 h-5 sm:w-7 sm:h-7" />
           </div>
           <div className="text-left flex-1 min-w-0">
-            <div className="font-black text-sm sm:text-base text-white truncate">Qayerdan izlayapsiz?</div>
-            <div className="text-xs text-slate-400 font-medium truncate">
-              <span className="sm:hidden">Bu yerni bosing</span>
-              <span className="hidden sm:inline">Tuman, ko'cha, mo'ljal yoki metro...</span>
+            <div className="font-black text-base sm:text-xl text-white truncate group-hover:text-indigo-300 transition-colors">Qayerdan izlayapsiz?</div>
+            <div className="text-xs sm:text-sm text-zinc-400 font-medium truncate mt-0.5">
+              <span className="sm:hidden">Bu yerni bosing...</span>
+              <span className="hidden sm:inline">Tuman, ko'cha, mo'ljal yoki metro kiriting...</span>
             </div>
           </div>
         </button>
