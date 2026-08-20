@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ShieldCheck, X, Home, GraduationCap, LogIn, UserPlus, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
+import { ShieldCheck, X, Home, Search, LogIn, UserPlus, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { SignupRole, UserRole } from '../../types';
 import { ApiService, matchPhone } from '../../services/apiService';
@@ -308,11 +308,11 @@ export const AuthModal: React.FC = () => {
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-                          <GraduationCap className="w-6 h-6" />
+                          <Search className="w-6 h-6" />
                         </div>
                         <div>
-                          <div className="text-base font-black text-slate-900">Men talabaman</div>
-                          <div className="text-xs text-slate-600">O'zimga kvartira qidiraman</div>
+                          <div className="text-base font-black text-slate-900">Kvartira izlayapman</div>
+                          <div className="text-xs text-slate-600">Oila, talaba yoki sheriklikka</div>
                         </div>
                       </div>
                     </button>
