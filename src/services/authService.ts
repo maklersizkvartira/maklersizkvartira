@@ -112,26 +112,31 @@ export async function fetchWithAuth(
   });
 
   const accessToken = getAccessToken();
-  let response = await fetch(url, {
-    ...fetchOpts,
-    headers: buildHeaders(accessToken),
-  });
+  try {
+    let response = await fetch(url, {
+      ...fetchOpts,
+      headers: buildHeaders(accessToken),
+    });
 
-  // If 401 and we have a refresh token, try to refresh once
-  if (response.status === 401 && !skipAuth && getRefreshToken()) {
-    const newToken = await refreshAccessToken();
-    if (newToken) {
-      response = await fetch(url, {
-        ...fetchOpts,
-        headers: buildHeaders(newToken),
-      });
-    } else {
-      // Refresh failed — signal caller to log out
-      return null;
+    // If 401 and we have a refresh token, try to refresh once
+    if (response.status === 401 && !skipAuth && getRefreshToken()) {
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        response = await fetch(url, {
+          ...fetchOpts,
+          headers: buildHeaders(newToken),
+        });
+      } else {
+        // Refresh failed — signal caller to log out
+        return null;
+      }
     }
-  }
 
-  return response;
+    return response;
+  } catch (err) {
+    console.warn(`Network error fetching ${url}:`, err);
+    return null;
+  }
 }
 
 // ─── /auth/me Bootstrap ───────────────────────────────────────────────────────
