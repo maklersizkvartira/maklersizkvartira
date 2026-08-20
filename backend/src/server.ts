@@ -196,7 +196,7 @@ app.post('/api/v1/traffic/track', (req, res) => {
   res.json({ status: 'success' });
 });
 
-// AI ASSISTANT
+// AI ASSISTANT (Shield AI powered by OpenAI)
 app.post('/api/v1/smart/assistant', async (req, res) => {
   const { message } = req.body;
   if (!message) return res.status(400).json({ error: 'Message is required' });
@@ -205,19 +205,33 @@ app.post('/api/v1/smart/assistant', async (req, res) => {
     const url = 'https://api.openai.com/v1/chat/completions';
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
-    const prompt = `Foydalanuvchi kvartira qidiryapti. Uning yozgan gapi: "${message}"
-Vazifangiz: Shu gapdan viloyat (yoki shahar), tuman, xonalar soni va maksimal narxni ajratib olib JSON formatida qaytarish.
-Qoidalar: 
-- Narxni so'mda ifodalang (masalan, 3mln = 3000000 yoki 300 dollar = taxminan 3800000). Agar aytilmagan bo'lsa null bo'lsin.
-- Agar tuman aytilmagan bo'lsa, null bo'lsin. Agar "Toshkent" desa, region: "Toshkent", district: null.
-- Faqat JSON qaytaring. Boshqa matn kerak emas.
+    const SHIELD_AI_SYSTEM_PROMPT = `Siz "MaklersizUy.uz" platformasining rasmiy aqlli sun'iy intellekt yordamchisi — Shield AI 🛡️ siz.
 
+Platforma Haqida:
+- MaklersizUy.uz — O'zbekistondagi 0% komissiyali, maklersiz kvartira ijara va sherikchilik platformasi.
+- Foydalanuvchilar uy egalari bilan bevosita bog'lanishadi. Maklerlar hamda vositachilik haq to'lovlari (0% komissiya) mavjud emas.
+- Imkoniyatlar: Toshkent tumanlari va viloyatlardan kvartiralar izlash, Talabalar uchun sherikchilik (Roommate) bo'limi, Pasport/Kadastr verifikatsiyasi va Shield AI xavfsizlik filtri.
+
+Sizning Vazifalaringiz:
+1. Foydalanuvchining kiritgan xabarini tahlil qilib, unga samimiy, do'stona va foydali o'zbek tilida javob berish.
+2. Xabardan qidiruv parametrlarini (viloyat, tuman, xonalar soni, maks narx, auditoriya va ijara turi) ajratib olish.
+3. Agar foydalanuvchi xavfsizlik yoki shartnoma haqida so'rasa, "Hech qachon uy egalariga uyini ko'rmasdan oldindan kartaga pul o'tkazmang!" deb uqtiring.
+
+Javobingiz faqat quyidagi JSON formatida bo'lishi shart:
 {
-  "region": "Toshkent",
-  "district": "Chilonzor",
-  "rooms": 2,
-  "maxPrice": 4000000
-}`;
+  "region": string | null,
+  "district": string | null,
+  "rooms": number | null,
+  "maxPrice": number | null,
+  "audience": "STUDENT" | "FAMILY" | "ALL",
+  "rentalType": "FULL" | "ROOMMATE" | "ALL",
+  "replyText": "Foydalanuvchiga yoziladigan xushfe'l va tushunarli matnli javob"
+}
+
+Qoidalar:
+- Narxlar: 3 mln = 3000000. 300$ = 3810000 (1 USD = 12700 UZS).
+- Toshkent tumanlari: Chilonzor, Yunusobod, Mirzo Ulug'bek, Yakkasaroy, Mirobod, Shayxontohur, Olmazor, Sergeli, Uchtepa, Yashnobod, Bektemir.
+- Faqat toza JSON obyektini qaytaring.`;
 
     const response = await fetch(url, {
       method: 'POST',
@@ -229,8 +243,8 @@ Qoidalar:
         model: "gpt-4o-mini",
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: "You are a helpful JSON parser." },
-          { role: "user", content: prompt }
+          { role: "system", content: SHIELD_AI_SYSTEM_PROMPT },
+          { role: "user", content: message }
         ]
       })
     });
@@ -262,7 +276,7 @@ Qoidalar:
     let aiText = "";
     if (listings.length > 0) {
       const districtText = parsed.district ? `${parsed.district} tumanidan` : "Siz uchun";
-      aiText = `🤖 Shield AI: ${districtText} mos ${listings.length} ta eng yaxshi kvartirani topdim:\n\n` +
+      aiText = `🤖 Shield AI: ${parsed.replyText || `${districtText} mos ${listings.length} ta eng yaxshi kvartirani topdim:`}\n\n` +
                listings.map((l, i) => `${i + 1}) ${l.title} — ${Math.round(l.price).toLocaleString('uz-UZ')} so'm (${l.district})`).join('\n') +
                `\n\nBarcha mos kvartiralarni Qidiruv sahifasidan to'liq ko'rishingiz mumkin!`;
     } else {
@@ -276,33 +290,9 @@ Qoidalar:
       const availableDistricts = availableListings.map(l => l.district).filter(Boolean);
       
       if (availableDistricts.length > 0 && parsed.district) {
-        const suggestionPrompt = `Foydalanuvchi "${parsed.district}" tumanidan kvartira qidirdi, lekin bazada bu tumanda kvartira yo'q.
-Bazada hozir faqat quyidagi tumanlarda kvartiralar bor: ${availableDistricts.join(', ')}.
-Iltimos, o'zbek tilida qisqa va chiroyli tarzda (do'stona yordamchi sifatida) "Kechirasiz, ${parsed.district} tumanida hozircha e'lonlar yo'q ekan, lekin manabu tumanlarda (${availableDistricts.join(', ')}) kvartiralar bor, ehtimol ularni ham ko'rib chiqarsiz" degan ma'noda javob yozing. Matnni "Shield AI: " deb boshlamang, shunchaki gapni o'zini qaytaring. Faqat matn bo'lsin.`;
-
-        try {
-          const sugRes = await fetch(url, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${OPENAI_API_KEY}`
-            },
-            body: JSON.stringify({
-              model: "gpt-4o-mini",
-              messages: [{ role: "user", content: suggestionPrompt }]
-            })
-          });
-          if (sugRes.ok) {
-            const sugData = await sugRes.json();
-            aiText = "🤖 Shield AI: " + (sugData.choices?.[0]?.message?.content || "Kechirasiz, siz xohlagan manzil bo'yicha kvartira topilmadi.");
-          } else {
-            aiText = "🤖 Shield AI: Kechirasiz, aynan siz xohlagan shartlarga mos kvartira hozircha bazada yo'q. Boshqa tumanlarni ko'rib chiqing.";
-          }
-        } catch {
-          aiText = "🤖 Shield AI: Kechirasiz, aynan siz xohlagan shartlarga mos kvartira hozircha bazada yo'q. Qidiruv bo'limidan boshqacha izlab ko'ring.";
-        }
+        aiText = `🤖 Shield AI: Kechirasiz, ${parsed.district} tumanida hozircha e'lonlar topilmadi. Lekin hozirda quyidagi tumanlarda (${availableDistricts.join(', ')}) kvartiralar bor. Qidiruv bo'limidan ko'rib chiqishingiz mumkin!`;
       } else {
-        aiText = "🤖 Shield AI: Kechirasiz, aynan siz xohlagan shartlarga mos kvartira hozircha bazada yo'q. Qidiruv bo'limidan boshqacha izlab ko'ring.";
+        aiText = `🤖 Shield AI: ${parsed.replyText || "Kechirasiz, aynan siz xohlagan shartlarga mos kvartira hozircha bazada yo'q. Qidiruv bo'limidan boshqacha izlab ko'ring."}`;
       }
     }
 
