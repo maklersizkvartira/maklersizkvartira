@@ -157,13 +157,17 @@ export const ShieldMascot: React.FC = () => {
     }
   };
 
-  const handleCloseChat = () => {
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+
+  const confirmCloseAndSendSummary = async () => {
+    setShowCloseConfirm(false);
     setOpen(false);
+
     if (log.some(m => m.from === 'me')) {
       const sessionKey = getOrCreateSessionKey();
       const token = getAccessToken();
       try {
-        fetch(`${API_BASE_URL}/smart/assistant/close`, {
+        await fetch(`${API_BASE_URL}/smart/assistant/close`, {
           method: 'POST',
           keepalive: true,
           headers: {
@@ -178,10 +182,7 @@ export const ShieldMascot: React.FC = () => {
         }).catch(() => {});
       } catch { /* ignore */ }
     }
-  };
 
-  const handleClearHistory = () => {
-    handleCloseChat();
     localStorage.removeItem(SESSION_KEY_STORAGE);
     setHistoryLoaded(false);
     setRemaining(null);
@@ -190,6 +191,43 @@ export const ShieldMascot: React.FC = () => {
 
   return (
     <div className="fixed bottom-20 right-3 left-3 sm:left-auto sm:bottom-6 sm:right-6 z-40 max-w-sm sm:w-96 ml-auto pointer-events-auto">
+
+      {/* ── Close Confirmation Modal Alert ── */}
+      {showCloseConfirm && (
+        <div className="fixed inset-0 z-[200] bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4" onClick={() => setShowCloseConfirm(false)}>
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-xs w-full shadow-2xl text-center space-y-4 animate-in fade-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/30">
+              <Shield className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-white">Suhbatni yakunlaysizmi?</h3>
+              <p className="text-xs text-slate-400 mt-1 font-medium leading-relaxed">
+                Suhbat yakunlangach, to'liq xulosa guruhga yuboriladi va chat tarixi tozalanadi.
+              </p>
+            </div>
+            <div className="flex gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowCloseConfirm(false)}
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-extrabold text-xs py-3 rounded-2xl transition cursor-pointer"
+              >
+                Yo'q, davom etish
+              </button>
+              <button
+                type="button"
+                onClick={confirmCloseAndSendSummary}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs py-3 rounded-2xl transition shadow-lg shadow-emerald-600/30 cursor-pointer"
+              >
+                Ha, yakunlash
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {open ? (
         <div className="bg-slate-950 text-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] border border-emerald-500/40 flex flex-col max-h-[82vh] sm:max-h-[520px] overflow-hidden">
 
@@ -221,15 +259,17 @@ export const ShieldMascot: React.FC = () => {
             <div className="flex items-center gap-1 shrink-0">
               <button
                 type="button"
-                onClick={handleClearHistory}
+                onClick={() => setShowCloseConfirm(true)}
                 className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition"
                 title="Suhbatni tozalash"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
               </button>
               <button
-                onClick={handleCloseChat}
+                type="button"
+                onClick={() => setShowCloseConfirm(true)}
                 className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition"
+                title="Suhbatni yopish"
               >
                 <X className="w-4 h-4" />
               </button>
