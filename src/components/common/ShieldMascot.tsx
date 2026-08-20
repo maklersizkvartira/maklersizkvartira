@@ -19,6 +19,7 @@ function getOrCreateSessionKey(): string {
 interface ChatMsg {
   from: 'ai' | 'me';
   text: string;
+  listings?: any[];
 }
 
 export const ShieldMascot: React.FC = () => {
@@ -121,14 +122,18 @@ export const ShieldMascot: React.FC = () => {
       }
 
       if (data.status === 'success') {
-        // Show remaining note if low
         const rem = typeof data.remaining === 'number' ? data.remaining : null;
         const note = rem !== null && rem <= 2 && rem > 0
           ? `\n\n(⚠️ ${rem} ta so'rov qoldi)`
           : rem === 0 ? '\n\n(⚠️ Bugungi limit tugadi)' : '';
-        setLog(prev => [...prev, { from: 'ai', text: data.reply + note }]);
 
-        // Apply search filters from AI
+        // Apply search filters from AI & store listings in chat message
+        setLog(prev => [...prev, {
+          from: 'ai',
+          text: data.reply + note,
+          listings: Array.isArray(data.listings) && data.listings.length > 0 ? data.listings : undefined,
+        }]);
+
         if (data.need) {
           setFilters({
             selectedRegion: data.need.region || 'Barchasi',
@@ -250,12 +255,61 @@ export const ShieldMascot: React.FC = () => {
                     <Shield className="w-3 h-3" />
                   </div>
                 )}
-                <div className={`max-w-[82%] p-3 rounded-2xl text-xs leading-relaxed break-words ${
+                <div className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed break-words ${
                   m.from === 'me'
                     ? 'bg-emerald-600/30 text-white border border-emerald-500/30 rounded-tr-sm font-medium'
                     : 'bg-slate-900 text-slate-200 border border-slate-800 rounded-tl-sm'
                 }`}>
                   <div className="whitespace-pre-line break-words">{m.text}</div>
+
+                  {/* Interactive Listing Cards */}
+                  {m.listings && m.listings.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {m.listings.map((l: any) => {
+                        const img = Array.isArray(l.images) && l.images.length > 0 ? l.images[0] : 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80';
+                        const formattedPrice = Math.round(l.price || 0).toLocaleString('uz-UZ');
+
+                        return (
+                          <div
+                            key={l.id}
+                            className="bg-slate-950/90 border border-slate-800 hover:border-emerald-500/60 rounded-xl p-2 transition flex gap-2.5 items-center group cursor-pointer"
+                            onClick={() => {
+                              setCurrentView('LISTING_DETAIL', l.id);
+                              setOpen(false);
+                            }}
+                          >
+                            <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-slate-800 relative">
+                              <img src={img} alt={l.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <h5 className="text-[11px] font-bold text-white truncate group-hover:text-emerald-400 transition">
+                                {l.title}
+                              </h5>
+                              <p className="text-[10px] text-slate-400 mt-0.5 truncate">
+                                📍 {l.district || 'Toshkent'} • 🏠 {l.rooms} xona
+                              </p>
+                              <div className="text-[11px] font-extrabold text-emerald-400 mt-0.5">
+                                {formattedPrice} so'm<span className="text-[9px] text-slate-500 font-normal">/oy</span>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 group-hover:bg-emerald-500 group-hover:text-slate-950 px-2 py-1 rounded-lg border border-emerald-500/30 transition shrink-0 self-center"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCurrentView('LISTING_DETAIL', l.id);
+                                setOpen(false);
+                              }}
+                            >
+                              To'liqroq
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

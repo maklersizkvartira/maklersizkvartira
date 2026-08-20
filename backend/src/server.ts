@@ -405,7 +405,7 @@ const SHIELD_AI_SYSTEM_PROMPT = [
   '- Toshkent tumanlari, viloyatlar, Talabalar sherikchilik (Roommate) bo\'limi, Pasport verifikatsiyasi.',
   '',
   'Vazifalaringiz:',
-  '1. Samimiy va xushfe\'l o\'zbek tilida javob bering.',
+  '1. MUKAMMAL, TO\'G\'RI O\'ZBEK GRAMMATIKASI VA IMLOSIDA JAVOB BERING. Imlo xatolari taqiqlanadi! (Masalan "hoziq" EMAS, "hozir" deb yozing!).',
   '2. Agar foydalanuvchining ismi ma\'lum bo\'lmasa, suhbat davomida odob bilan ismini so\'rang (masalan: "Ismingizni bilsam bo\'ladimi?").',
   '3. Agar foydalanuvchining ismi ma\'lum bo\'lsa, unga ismi bilan samimiy murojaat qiling (masalan: "Jasur aka", "Anvarbek", va h.k.).',
   '4. Foydalanuvchi xabaridan qidiruv parametrlarini (viloyat, tuman, xonalar soni, maks narx, auditoriya, ijara turi) hamda ismini ajrating.',
@@ -422,7 +422,7 @@ const SHIELD_AI_SYSTEM_PROMPT = [
   '  "rentalType": "FULL" yoki "ROOMMATE" yoki "ALL",',
   '  "userName": "Jasur" yoki null,',
   '  "chatSummary": "Chilonzordan 4 mln so\'mgacha 2 xonali kvartira izlamoqda",',
-  '  "replyText": "Jasur aka, Chilonzordan 2 ta ajoyib kvartira topdim!"',
+  '  "replyText": "Jasur aka, Chilonzor tumanidan siz uchun mos eng yaxshi kvartiralarni topdim! Quyida ularning kartalari keltirilgan, ustiga bosib to\'liqroq ma\'lumot olishingiz mumkin:"',
   '}',
   '',
   'Qoidalar:',
@@ -535,18 +535,16 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
 
     let aiText = '';
     if (listings.length > 0) {
-      const place = parsed.district ? (parsed.district + ' tumanidan') : 'Siz uchun';
-      const listStr = listings.map((l: any, i: number) => {
-        return (i + 1) + ') ' + l.title + ' -- ' + Math.round(l.price).toLocaleString('uz-UZ') + ' som (' + l.district + ')';
-      }).join('\n');
-      aiText = (parsed.replyText || (place + ' mos ' + listings.length + ' ta kvartira topdim:')) + '\n\n' + listStr + '\n\nBarcha mos kvartiralarni Qidiruv sahifasidan toliq koring!';
+      const nameSalute = (parsed.userName || authUser?.name || userName) ? `${parsed.userName || authUser?.name || userName}, ` : '';
+      const place = parsed.district ? `${parsed.district} tumanidan` : 'Toshkentdan';
+      aiText = parsed.replyText || `${nameSalute}${place} sizga mos eng yaxshi ${listings.length} ta kvartirani topdim! Quyidagi kartalarning ustiga bosib to'liqroq ma'lumot olishingiz mumkin:`;
     } else {
       const av = await prisma.listing.findMany({ where: { aiCheckStatus: 'APPROVED' }, select: { district: true }, distinct: ['district'], take: 8 });
       const dists = av.map((l: any) => l.district).filter(Boolean);
       if (dists.length > 0 && parsed.district) {
-        aiText = (parsed.replyText || (parsed.district + ' tumanida hozircha elon yoq.')) + '\n\nMavjud tumanlar: ' + dists.join(', ') + '. Qidiruv bolimida korib chiqing!';
+        aiText = parsed.replyText || `${parsed.district} tumanida hozircha mos e'lon yo'q. Mavjud tumanlar: ${dists.join(', ')}. Qidiruv bo'limidan ko'rib chiqing!`;
       } else {
-        aiText = parsed.replyText || 'Kechirasiz, mos kvartira topilmadi. Qidiruv bolimidan boshqacha izlab koring.';
+        aiText = parsed.replyText || 'Kechirasiz, mos kvartira topilmadi. Qidiruv bo\'limidan boshqacha izlab ko\'ring.';
       }
     }
 
