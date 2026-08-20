@@ -242,6 +242,7 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
 
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
   const openaiUrl = 'https://api.openai.com/v1/chat/completions';
+  const DAILY_AI_LIMIT = 10; // per session per day
 
   try {
     // 1. Session upsert (like get_or_create_session in ai-chat-copy)
@@ -251,6 +252,27 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
       session = await (prisma as any).aISession.findUnique({ where: { sessionKey: key } });
       if (!session) session = await (prisma as any).aISession.create({ data: { sessionKey: key } });
     } catch (e) { session = null; }
+
+    // 2. Backend rate limiting — count today's user messages in this session
+    if (session) {
+      try {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayCount = await (prisma as any).aIMessage.count({
+          where: { sessionId: session.id, role: 'user', createdAt: { gte: todayStart } },
+        });
+        if (todayCount >= DAILY_AI_LIMIT) {
+          return res.json({
+            status: 'limit_reached',
+            reply: `Bugungi ${DAILY_AI_LIMIT} ta bepul Shield AI so'rovingiz tugadi. Ertaga yangilanadi! Hozircha Qidiruv sahifasidan bepul foydalanishingiz mumkin.`,
+            used: todayCount,
+            limit: DAILY_AI_LIMIT,
+            remaining: 0,
+            sessionKey: key,
+          });
+        }
+      } catch (e) { /* ignore rate limit errors */ }
+    }
 
     // 2. Load last 12 messages as history (like _build_messages[:12] in ai-chat-copy)
     let history: { role: string; content: string }[] = [];
@@ -318,12 +340,25 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
       }
     }
 
-    // 8. Save AI reply to DB (like create_ai_message in ai-chat-copy)
+    // 8. Get remaining quota from DB
+    let remaining = DAILY_AI_LIMIT - 1;
+    if (session) {
+      try {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const usedToday = await (prisma as any).aIMessage.count({
+          where: { sessionId: session.id, role: 'user', createdAt: { gte: todayStart } },
+        });
+        remaining = Math.max(0, DAILY_AI_LIMIT - usedToday);
+      } catch (e) { /* ignore */ }
+    }
+
+    // 9. Save AI reply to DB (like create_ai_message in ai-chat-copy)
     if (session) {
       try { await (prisma as any).aIMessage.create({ data: { sessionId: session.id, role: 'assistant', content: aiText } }); } catch (e) {}
     }
 
-    res.json({ status: 'success', reply: aiText, need: parsed, listings, sessionKey: key });
+    res.json({ status: 'success', reply: aiText, need: parsed, listings, sessionKey: key, remaining, limit: DAILY_AI_LIMIT });
   } catch (error) {
     console.error('Shield AI error:', error);
     res.json({ status: 'success', reply: 'Shield AI: Uzr, xatolik yuz berdi. Qidiruv bolimidan foydalaning.', debugError: String(error) });
@@ -333,17 +368,27 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
 // GET /api/v1/smart/assistant/history -- restore previous messages on reload
 app.get('/api/v1/smart/assistant/history', async (req: Request, res: Response) => {
   const { sessionKey } = req.query as { sessionKey?: string };
-  if (!sessionKey) return res.json({ status: 'success', messages: [] });
+  const DAILY_AI_LIMIT = 10;
+  if (!sessionKey) return res.json({ status: 'success', messages: [], remaining: DAILY_AI_LIMIT, limit: DAILY_AI_LIMIT });
   try {
     const session = await (prisma as any).aISession.findUnique({ where: { sessionKey } }).catch(() => null);
-    if (!session) return res.json({ status: 'success', messages: [] });
-    const messages = await (prisma as any).aIMessage.findMany({
-      where: { sessionId: session.id },
-      orderBy: { createdAt: 'asc' },
-      take: 50,
-    }).catch(() => []);
-    res.json({ status: 'success', messages: messages || [] });
-  } catch (e) { res.json({ status: 'success', messages: [] }); }
+    if (!session) return res.json({ status: 'success', messages: [], remaining: DAILY_AI_LIMIT, limit: DAILY_AI_LIMIT });
+
+    const [messages, todayCount] = await Promise.all([
+      (prisma as any).aIMessage.findMany({
+        where: { sessionId: session.id },
+        orderBy: { createdAt: 'asc' },
+        take: 50,
+      }).catch(() => []),
+      (async () => {
+        const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+        return (prisma as any).aIMessage.count({ where: { sessionId: session.id, role: 'user', createdAt: { gte: todayStart } } }).catch(() => 0);
+      })(),
+    ]);
+
+    const remaining = Math.max(0, DAILY_AI_LIMIT - todayCount);
+    res.json({ status: 'success', messages: messages || [], remaining, limit: DAILY_AI_LIMIT });
+  } catch (e) { res.json({ status: 'success', messages: [], remaining: DAILY_AI_LIMIT, limit: DAILY_AI_LIMIT }); }
 });
 
 

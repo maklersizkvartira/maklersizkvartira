@@ -6,6 +6,7 @@ import { MOCK_REPORTS, MOCK_VERIFICATIONS, MOCK_FRAUD_SIGNALS } from '../data/mo
 import { ApiService, matchPhone } from '../services/apiService';
 import { clearTokens, getAccessToken, initAuthFromStorage } from '../services/authService';
 
+
 export type ViewState =
   | 'HOME'
   | 'SEARCH'
@@ -22,76 +23,6 @@ export type ViewState =
   | 'MY_LISTINGS'
   | 'PROFILE';
 
-const USER_KEY = 'maklersiz-user';
-const EXTRA_KEY = 'maklersiz-extra-listings';
-const VERIFICATIONS_KEY = 'maklersiz_verifications';
-const REPORTS_KEY = 'maklersiz_reports';
-const FRAUD_KEY = 'maklersiz_fraud_signals';
-
-function loadUser(): CurrentUser | null {
-  try {
-    const raw = localStorage.getItem(USER_KEY);
-    return raw ? JSON.parse(raw) as CurrentUser : null;
-  } catch {
-    return null;
-  }
-}
-
-export function dedupeListings(items: Listing[]): Listing[] {
-  const map = new Map<string, Listing>();
-  for (const item of items) {
-    if (item && item.id) {
-      map.set(item.id, item);
-    }
-  }
-  return Array.from(map.values());
-}
-
-function loadExtraListings(): Listing[] {
-  try {
-    const raw = localStorage.getItem(EXTRA_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Listing[];
-      if (Array.isArray(parsed)) {
-        return dedupeListings(parsed);
-      }
-    }
-  } catch {}
-  return [];
-}
-
-function loadVerifications(): VerificationRequest[] {
-  try {
-    const raw = localStorage.getItem(VERIFICATIONS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as VerificationRequest[];
-      if (parsed && parsed.length > 0) return parsed;
-    }
-  } catch {}
-  return MOCK_VERIFICATIONS;
-}
-
-function loadReports(): ReportItem[] {
-  try {
-    const raw = localStorage.getItem(REPORTS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as ReportItem[];
-      if (parsed && parsed.length > 0) return parsed;
-    }
-  } catch {}
-  return MOCK_REPORTS;
-}
-
-function loadFraudSignals(): FraudSignal[] {
-  try {
-    const raw = localStorage.getItem(FRAUD_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as FraudSignal[];
-      if (parsed && parsed.length > 0) return parsed;
-    }
-  } catch {}
-  return MOCK_FRAUD_SIGNALS;
-}
 
 interface AppStore {
   currentView: ViewState;
@@ -167,8 +98,14 @@ interface AppStore {
   setShowAuth: (open: boolean, tab?: 'LOGIN' | 'REGISTER') => void;
 }
 
-const savedUser = typeof window !== 'undefined' ? loadUser() : null;
-const extraListings = typeof window !== 'undefined' ? loadExtraListings() : [];
+
+export function dedupeListings(items: Listing[]): Listing[] {
+  const map = new Map<string, Listing>();
+  for (const item of items) {
+    if (item && item.id) map.set(item.id, item);
+  }
+  return Array.from(map.values());
+}
 
 const getInitialUrlListingId = (): string | null => {
   if (typeof window === 'undefined') return null;
@@ -183,10 +120,11 @@ const getInitialUrlListingId = (): string | null => {
 
 const initialListingId = getInitialUrlListingId();
 
+
 export const useAppStore = create<AppStore>((set, get) => ({
   currency: 'USD',
   setCurrency: (c) => set({ currency: c }),
-  currentView: initialListingId ? 'LISTING_DETAIL' : (savedUser?.role === 'OWNER' ? 'HOME' : 'HOME'),
+  currentView: initialListingId ? 'LISTING_DETAIL' : 'HOME',
   selectedListingId: initialListingId,
   setCurrentView: (view, listingId = null) => {
     const targetListingId = listingId ?? get().selectedListingId;
@@ -204,35 +142,27 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
   },
 
-  currentUser: savedUser,
-  currentRole: savedUser?.role === 'OWNER' ? 'OWNER' : savedUser?.role === 'STUDENT' ? 'STUDENT' : 'TENANT',
+  currentUser: null,   // Always null on start — initAuth() populates from backend
+  currentRole: 'TENANT',
+
 
   initAuth: async () => {
-    // If no token exists, nothing to restore
     if (!getAccessToken()) return;
     try {
+      // Always fetch fresh user data from backend — no localStorage cache
       const meData = await initAuthFromStorage();
-      if (!meData) return; // Token invalid or expired
+      if (!meData) { clearTokens(); return; }
 
-      const localSaved = loadUser();
       const restoredUser: CurrentUser = {
-        id: localSaved?.id || meData.id,
-        name: (localSaved?.name && localSaved.name !== 'Foydalanuvchi')
-          ? localSaved.name
-          : (meData.name || `${meData.first_name ?? ''} ${meData.last_name ?? ''}`.trim() || meData.email || 'Foydalanuvchi'),
-        phone: localSaved?.phone || meData.phone || meData.email || '',
-        role: (localSaved?.role || meData.role || 'STUDENT') as CurrentUser['role'],
-        avatar: (localSaved?.avatar && !localSaved.avatar.includes('unsplash.com'))
-          ? localSaved.avatar
-          : (meData.avatar || meData.avatar_url || localSaved?.avatar),
+        id: meData.id,
+        name: meData.name || `${meData.first_name ?? ''} ${meData.last_name ?? ''}`.trim() || meData.email || 'Foydalanuvchi',
+        phone: meData.phone || meData.email || '',
+        role: (meData.role || 'STUDENT') as CurrentUser['role'],
+        avatar: meData.avatar || meData.avatar_url,
       };
-      localStorage.setItem(USER_KEY, JSON.stringify(restoredUser));
-      set({
-        currentUser: restoredUser,
-        currentRole: restoredUser.role,
-      });
+      set({ currentUser: restoredUser, currentRole: restoredUser.role });
 
-      // Also refresh the user's own listings if they're an owner
+      // Fetch owner's listings from backend
       if (restoredUser.role === 'OWNER') {
         try {
           const myListings = await ApiService.getMyListings();
@@ -245,52 +175,27 @@ export const useAppStore = create<AppStore>((set, get) => ({
         } catch { /* ignore */ }
       }
     } catch {
-      // Session expired — clean up
       clearTokens();
     }
   },
 
   login: (user) => {
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
-    try {
-      const localUsersRaw = localStorage.getItem('maklersiz_registered_users');
-      const usersArr = localUsersRaw ? JSON.parse(localUsersRaw) : [];
-      const filtered = usersArr.filter((u) => !matchPhone(u.phone, user.phone) && u.id !== user.id);
-      filtered.push(user);
-      localStorage.setItem('maklersiz_registered_users', JSON.stringify(filtered));
-    } catch {}
+    // Don't cache user in localStorage — backend is source of truth
+    // Only tokens are kept in localStorage (handled by authService)
     set((state) => {
-      let verifications = [...state.verifications];
-      const exists = verifications.some((v) => (v.userPhone && v.userPhone === user.phone) || (v.userId && v.userId === user.id));
-      if (!exists) {
-        const newVerif: VerificationRequest = {
-          id: `verif-${Date.now()}`,
-          userId: user.id,
-          userName: user.name,
-          userPhone: user.phone,
-          targetLevel: user.role === 'OWNER' ? 3 : 2,
-          documentType: 'PASSPORT',
-          status: 'PENDING',
-          submittedAt: "Hozirgina (Yangi ro'yxatdan o'tgan)",
-        };
-        verifications = [newVerif, ...verifications];
-        localStorage.setItem(VERIFICATIONS_KEY, JSON.stringify(verifications));
-      }
       return {
         currentUser: user,
         currentRole: user.role,
-        verifications,
         currentView: 'HOME',
         showAuth: false,
         aiMascotMessage: user.role === 'OWNER'
-          ? "Xush kelibsiz! Siz Admin panel va verificatsiya navbatida ro'yxatga olindingiz."
+          ? "Xush kelibsiz! Siz Admin panel va verificatsiya navbatiga kirdi."
           : "Xush kelibsiz. Endi kvartiralarni o'zingiz, maklersiz ko'rishingiz mumkin.",
       };
     });
   },
 
   logout: () => {
-    localStorage.removeItem(USER_KEY);
     clearTokens();
     ApiService.logout().catch(() => {});
     set({
@@ -304,20 +209,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   switchRole: (newRole) => set((state) => {
     if (!state.currentUser) return {};
     const updatedUser: CurrentUser = { ...state.currentUser, role: newRole };
-    localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
-    try {
-      const localUsersRaw = localStorage.getItem('maklersiz_registered_users');
-      const usersArr = localUsersRaw ? JSON.parse(localUsersRaw) : [];
-      const updated = usersArr.map((u: any) =>
-        u.id === updatedUser.id || (u.phone && updatedUser.phone && u.phone.replace(/\D/g, '') === updatedUser.phone.replace(/\D/g, ''))
-          ? updatedUser
-          : u
-      );
-      localStorage.setItem('maklersiz_registered_users', JSON.stringify(updated));
-    } catch {}
-
+    // Sync to backend
     ApiService.updateProfileAvatar(updatedUser.phone, updatedUser.avatar || '', updatedUser).catch(() => {});
-
     return {
       currentUser: updatedUser,
       currentRole: newRole,
@@ -330,26 +223,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
   updateAvatar: (avatar) => set((state) => {
     if (!state.currentUser) return {};
     const currentUser = { ...state.currentUser, avatar };
-    localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
-
-    // Also update registered users storage so logging back in preserves the new avatar
-    try {
-      const localUsersRaw = localStorage.getItem('maklersiz_registered_users');
-      const usersArr = localUsersRaw ? JSON.parse(localUsersRaw) : [];
-      const updated = usersArr.map((u) => (matchPhone(u.phone, currentUser.phone) || u.id === currentUser.id ? currentUser : u));
-      if (!updated.some((u) => u.id === currentUser.id)) {
-        updated.push(currentUser);
-      }
-      localStorage.setItem('maklersiz_registered_users', JSON.stringify(updated));
-    } catch {}
-
+    // Sync to backend
     ApiService.updateProfileAvatar(currentUser.phone, avatar, currentUser).catch(() => {});
-
     const listings = state.listings.map((l) =>
       l.owner.id === currentUser.id ? { ...l, owner: { ...l.owner, avatar } } : l
     );
-    const extras = listings.filter((l) => l.id.startsWith('listing-') && !MOCK_LISTINGS.some((m) => m.id === l.id));
-    localStorage.setItem(EXTRA_KEY, JSON.stringify(extras));
     const conversations = state.conversations.map((c) =>
       c.ownerId === currentUser.id ? { ...c, ownerAvatar: avatar } : c
     );
@@ -407,7 +285,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setEditingListing: (listing) => set({ editingListing: listing }),
   addListing: (newListing) => set((state) => {
     const listings = dedupeListings([newListing, ...state.listings]);
-    localStorage.setItem(EXTRA_KEY, JSON.stringify(listings));
     return {
       listings,
       currentView: 'MY_LISTINGS',
@@ -424,27 +301,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
   }),
   updateListing: (updatedListing) => set((state) => {
     const listings = dedupeListings(state.listings.map((l) => (l.id === updatedListing.id ? updatedListing : l)));
-    localStorage.setItem(EXTRA_KEY, JSON.stringify(listings));
-    return {
-      listings,
-      editingListing: null,
-      aiMascotMessage: "E'lon muvaffaqiyatli tahrirlandi!",
-    };
+    return { listings, editingListing: null, aiMascotMessage: "E'lon muvaffaqiyatli tahrirlandi!" };
   }),
   removeListing: (listingId) => set((state) => {
     ApiService.deleteListing(listingId).catch(() => {});
     const listings = state.listings.filter((l) => l.id !== listingId);
-    localStorage.setItem(EXTRA_KEY, JSON.stringify(listings));
-    const extras = listings.filter((l) => l.id.startsWith('listing-') && !MOCK_LISTINGS.some((m) => m.id === l.id));
-    localStorage.setItem(EXTRA_KEY, JSON.stringify(extras));
     return { listings, aiMascotMessage: "E'lon o'chirildi." };
   }),
   clearAllExtraListings: () => set(() => {
-    localStorage.removeItem(EXTRA_KEY);
-    return {
-      listings: [],
-      aiMascotMessage: "Barcha kiritilgan e'lonlar va kesh ma'lumotlari tozalab yuborildi!",
-    };
+    if (typeof window !== 'undefined') localStorage.removeItem('maklersiz-extra-listings');
+    return { listings: [], aiMascotMessage: "Barcha e'lonlar tozalandi!" };
   }),
 
   favorites: ['listing-1'],
@@ -498,29 +364,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
     rentalType: 'ALL',
   }),
 
-  reports: typeof window !== 'undefined' ? loadReports() : MOCK_REPORTS,
-  fraudSignals: typeof window !== 'undefined' ? loadFraudSignals() : MOCK_FRAUD_SIGNALS,
-  verifications: typeof window !== 'undefined' ? loadVerifications() : MOCK_VERIFICATIONS,
-  addReport: (report) => set((state) => {
-    const reports = [report, ...state.reports];
-    localStorage.setItem(REPORTS_KEY, JSON.stringify(reports));
-    return { reports };
-  }),
-  addFraudSignal: (signal) => set((state) => {
-    const fraudSignals = [signal, ...state.fraudSignals];
-    localStorage.setItem(FRAUD_KEY, JSON.stringify(fraudSignals));
-    return { fraudSignals };
-  }),
-  resolveReport: (reportId, status) => set((state) => {
-    const reports = state.reports.map((r) => r.id === reportId ? { ...r, status } : r);
-    localStorage.setItem(REPORTS_KEY, JSON.stringify(reports));
-    return { reports };
-  }),
-  updateVerification: (verificationId, status) => set((state) => {
-    const verifications = state.verifications.map((v) => v.id === verificationId ? { ...v, status } : v);
-    localStorage.setItem(VERIFICATIONS_KEY, JSON.stringify(verifications));
-    return { verifications };
-  }),
+  reports: MOCK_REPORTS,
+  fraudSignals: MOCK_FRAUD_SIGNALS,
+  verifications: MOCK_VERIFICATIONS,
+  addReport: (report) => set((state) => ({ reports: [report, ...state.reports] })),
+  addFraudSignal: (signal) => set((state) => ({ fraudSignals: [signal, ...state.fraudSignals] })),
+  resolveReport: (reportId, status) => set((state) => ({
+    reports: state.reports.map((r) => r.id === reportId ? { ...r, status } : r),
+  })),
+  updateVerification: (verificationId, status) => set((state) => ({
+    verifications: state.verifications.map((v) => v.id === verificationId ? { ...v, status } : v),
+  })),
   refreshAdminData: async () => {
     try {
       const apiListings = await ApiService.getListings();
