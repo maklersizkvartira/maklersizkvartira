@@ -202,7 +202,9 @@ app.post('/api/v1/smart/assistant', async (req, res) => {
   if (!message) return res.status(400).json({ error: 'Message is required' });
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY.trim()}`;
+    const url = 'https://api.openai.com/v1/chat/completions';
+    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
     const prompt = `Foydalanuvchi kvartira qidiryapti. Uning yozgan gapi: "${message}"
 Vazifangiz: Shu gapdan viloyat (yoki shahar), tuman, xonalar soni va maksimal narxni ajratib olib JSON formatida qaytarish.
 Qoidalar: 
@@ -219,19 +221,26 @@ Qoidalar:
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
+        model: "gpt-4o-mini",
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: "You are a helpful JSON parser." },
+          { role: "user", content: prompt }
+        ]
       })
     });
     
     if (!response.ok) {
       const errorText = await response.text().catch(() => "No text");
-      throw new Error(`Gemini xatosi: ${response.status} - ${errorText}`);
+      throw new Error(`OpenAI xatosi: ${response.status} - ${errorText}`);
     }
     const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const text = data.choices?.[0]?.message?.content;
     
     if (!text) throw new Error("Bo'sh javob");
     const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
