@@ -152,8 +152,30 @@ export const ShieldMascot: React.FC = () => {
     }
   };
 
+  const handleCloseChat = async () => {
+    setOpen(false);
+    if (log.some(m => m.from === 'me')) {
+      const sessionKey = getOrCreateSessionKey();
+      const token = getAccessToken();
+      try {
+        await fetch(`${API_BASE_URL}/smart/assistant/close`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            sessionKey,
+            userName: currentUser?.name || null,
+            userPhone: currentUser?.phone || null,
+          }),
+        });
+      } catch { /* ignore */ }
+    }
+  };
+
   const handleClearHistory = () => {
-    // Remove session key so a new session starts
+    handleCloseChat();
     localStorage.removeItem(SESSION_KEY_STORAGE);
     setHistoryLoaded(false);
     setRemaining(null);
@@ -200,7 +222,7 @@ export const ShieldMascot: React.FC = () => {
                 <RotateCcw className="w-3.5 h-3.5" />
               </button>
               <button
-                onClick={() => setOpen(false)}
+                onClick={handleCloseChat}
                 className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition"
               >
                 <X className="w-4 h-4" />
