@@ -111,22 +111,16 @@ export const Header: React.FC = () => {
     <header className="fixed top-2 sm:top-4 inset-x-0 z-50 px-2 sm:px-6 transition-all pointer-events-none">
       <AuthModal />
 
-      <div className={`max-w-7xl mx-auto rounded-2xl sm:rounded-full transition-all shadow-2xl border backdrop-blur-xl pointer-events-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4 ${
-        themeMode === 'light'
-          ? 'bg-white/95 text-slate-900 border-slate-200/90 shadow-slate-300/40'
-          : 'bg-slate-950/90 text-white border-slate-800/90 shadow-black/80'
-      }`}>
+      <div className="max-w-7xl mx-auto rounded-2xl sm:rounded-full transition-all shadow-2xl border border-slate-800/90 bg-slate-950/90 text-white backdrop-blur-xl pointer-events-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4 shadow-black/80">
         {/* Logo */}
         <button onClick={() => setCurrentView('HOME')} className="flex items-center gap-2 shrink-0 min-w-0 group text-left">
-          <span className={`text-base sm:text-xl font-black tracking-tighter ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+          <span className="text-base sm:text-xl font-black tracking-tighter text-white">
             MAKLERSIZ<span className="text-emerald-500">UY</span>
           </span>
         </button>
 
         {/* Desktop Navigation Links */}
-        <nav className={`hidden lg:flex items-center gap-6 text-xs sm:text-sm font-bold relative ${
-          themeMode === 'light' ? 'text-slate-700' : 'text-slate-300'
-        }`}>
+        <nav className="hidden lg:flex items-center gap-6 text-xs sm:text-sm font-bold relative text-slate-300">
           <button
             onClick={() => setCurrentView('HOME')}
             className={`hover:text-emerald-500 transition-colors ${currentView === 'HOME' ? 'text-emerald-500 font-black' : ''}`}

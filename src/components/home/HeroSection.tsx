@@ -46,14 +46,14 @@ export const HeroSection: React.FC = () => {
       <div className="relative z-20 max-w-3xl mx-auto px-4 sm:px-6 -mt-8 sm:-mt-10">
         <button
           onClick={() => setShowSearchModal(true)}
-          className="w-full flex items-center gap-3 bg-white hover:bg-slate-50 border border-slate-200/80 p-3 sm:p-4 rounded-full shadow-xl transition-all group"
+          className="w-full flex items-center gap-3.5 bg-slate-900/95 hover:bg-slate-900 border border-slate-800 p-3.5 sm:p-4 rounded-full shadow-2xl backdrop-blur-xl transition-all duration-300 group cursor-pointer hover:border-emerald-500/50 hover:shadow-emerald-500/10"
         >
-          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-500 rounded-full flex items-center justify-center text-slate-900 group-hover:scale-105 transition-transform shrink-0">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-500 rounded-full flex items-center justify-center text-slate-950 group-hover:scale-110 transition-transform duration-300 shrink-0 shadow-lg shadow-emerald-500/20">
             <Search className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div className="text-left flex-1 min-w-0">
-            <div className="font-black text-sm sm:text-base text-slate-900 truncate">Qayerdan izlayapsiz?</div>
-            <div className="text-xs text-slate-500 font-medium truncate">
+            <div className="font-black text-sm sm:text-base text-white truncate">Qayerdan izlayapsiz?</div>
+            <div className="text-xs text-slate-400 font-medium truncate">
               <span className="sm:hidden">Bu yerni bosing</span>
               <span className="hidden sm:inline">Tuman, ko'cha, mo'ljal yoki metro...</span>
             </div>
