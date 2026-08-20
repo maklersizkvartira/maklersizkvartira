@@ -608,19 +608,19 @@ app.post('/api/v1/smart/assistant/close', async (req: Request, res: Response) =>
 
     const fullTranscript = messages.map((m: any) => `${m.role === 'user' ? 'Mijoz' : 'Shield AI'}: ${m.content}`).join('\n');
 
-    const summaryPrompt = `Quyida mijozning Shield AI yordamchisi bilan bo'lgan to'liq suhbat transkripti berilgan.
-Suhbatni tahlil qilib, mijoz nima qidirgani, talablari, byudjeti va erishilgan natija haqida 2-3 jumlalik to'liq XULOSA tayyorlang.
+    const summaryPrompt = `Quyida mijozning Shield AI yordamchisi bilan bo'lgan suhbat transkripti berilgan.
+Ushbu suhbatni tahlil qilib, mijoz aynan ushbu muloqotda nima so'ragani, talablari, tumani, byudjeti va natijasi haqida 2-3 jumlalik to'liq XULOSA tayyorlang. Aytilmagan ma'lumotlarni o'zingizdan to'qimang.
 
 Transkript:
 ${fullTranscript}
 
 Javobni FAQAT quyidagi JSON formatida bering:
 {
-  "userName": "Mijoz ismi (agar suhbatda aytilgan bo'lsa)" yoki null,
-  "district": "Tuman (masalan Chilonzor)" yoki null,
+  "userName": "Mijoz ismi (agar aytilgan bo'lsa)" yoki null,
+  "district": "Tuman (agar aytilgan bo'lsa)" yoki null,
   "rooms": 2 yoki null,
   "maxPrice": 4000000 yoki null,
-  "finalSummary": "Mijoz Chilonzor tumanidan 4 mln so'mgacha 2 xonali kvartira izlamoqda."
+  "finalSummary": "Mijoz 2 va 3 xonali kvartiralar tavsiyasi haqida so'radi."
 }`;
 
     let parsed: any = {};
@@ -667,6 +667,15 @@ ${searchBlock}📝 <b>Toliq AI Xulosasi:</b>
 ⏰ <i>Yakunlangan vaqt: ${nowTashkent}</i>`;
 
     await sendTelegramGroupNotification(tgHtml);
+
+    // Erase session & messages from database so next chat session is 100% fresh!
+    try {
+      await (prisma as any).aIMessage.deleteMany({ where: { sessionId: session.id } });
+      await (prisma as any).aISession.delete({ where: { id: session.id } });
+    } catch (e) {
+      console.warn('Failed to erase session from DB:', e);
+    }
+
     res.json({ status: 'success' });
   } catch (err) {
     console.error('Close assistant error:', err);
