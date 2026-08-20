@@ -224,13 +224,7 @@ app.post('/api/v1/auth/login', async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      user = await prisma.user.create({
-        data: {
-          phone: cleanPhone,
-          name: 'Foydalanuvchi',
-          role: 'STUDENT',
-        }
-      });
+      return res.status(401).json({ status: 'error', message: 'Telefon raqami noto\'g\'ri yoki ro\'yxatdan o\'tmagan' });
     }
 
     const tokens = generateAuthTokens(user.id);

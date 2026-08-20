@@ -101,7 +101,7 @@ export const ApiService = {
         if (res.status === 400) {
           throw new Error(errJson.detail || errJson.message || "Parolingiz noto'g'ri. Iltimos, qayta kiriting.");
         }
-        if (res.status === 404) {
+        if (res.status === 404 || res.status === 401) {
           if (localMatched) {
             if (localMatched.password && password && localMatched.password !== password) {
               throw new Error("Parolingiz noto'g'ri. Iltimos, qayta kiriting.");
