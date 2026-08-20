@@ -13,26 +13,58 @@ const SCAM_RE = /\b(kartaga o['’`]tkaz|plastik karta|oldindan to['’`]lov|old
 const SAFE_RE = /\b(maklersiz|komissiya yo['’`]q|0%\s*komissiya|egasidan)\b/i;
 
 export class AIService {
-  async scanListing(title: string, description: string, price?: number, rooms?: number): Promise<AIScanResult> {
+  async scanListing(title: string, description: string, price?: number, rooms?: number, images?: string[]): Promise<AIScanResult> {
     const text = `${title || ''} ${description || ''}`;
     const reasons: string[] = [];
     let brokerProbability = 4;
     let riskScore = 6;
     const looksSafe = SAFE_RE.test(text);
+    
     if (BROKER_RE.test(text) && !looksSafe) {
       reasons.push("Matnda makler yoki vositachi ekanligi seziladi.");
       brokerProbability = 88;
       riskScore = 80;
     }
+    
     if (SCAM_RE.test(text)) {
       reasons.push("Oldindan kartaga pul o'tkazish yoki firibgarlik belgisi bor.");
       riskScore = Math.max(riskScore, 90);
       brokerProbability = Math.max(brokerProbability, 70);
     }
+    
     if (typeof price === 'number' && typeof rooms === 'number' && rooms >= 2 && price > 0 && price < 1500000) {
       reasons.push("Narx xonalar soniga nisbatan g'ayritabiiy arzon.");
       riskScore = Math.max(riskScore, 75);
     }
+
+    // Google Lens Image Search using SerpApi
+    if (images && images.length > 0 && images[0].startsWith('http') && !images[0].includes('unsplash.com')) {
+      try {
+        const serpKey = process.env.SERPAPI_KEY || "58d6c5e2e669e083122ff7e97f69cb10deb8bc155549be892aa58cf6045205f9";
+        const url = `https://serpapi.com/search.json?engine=google_lens&url=${encodeURIComponent(images[0])}&api_key=${serpKey}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.visual_matches && Array.isArray(data.visual_matches)) {
+          const badDomains = ['olx', 'uybor', 'krisha', 'avito', 'domik', 'pinterest', 'shutterstock', 'stock'];
+          let stolenCount = 0;
+          for (const match of data.visual_matches) {
+            const link = match.link ? match.link.toLowerCase() : '';
+            if (badDomains.some(domain => link.includes(domain))) {
+              stolenCount++;
+            }
+          }
+          if (stolenCount > 0) {
+            reasons.push("Rasm internetdan o'g'irlangan (boshqa saytlarda topildi).");
+            riskScore = Math.max(riskScore, 95);
+            brokerProbability = Math.max(brokerProbability, 80);
+          }
+        }
+      } catch (err) {
+        console.error("SerpAPI error:", err);
+      }
+    }
+
     if (riskScore >= 70 || brokerProbability >= 70) {
       return {
         allowed: false,
@@ -44,13 +76,14 @@ export class AIService {
         message: "Bu e'lon makler yoki firibgar e'loniga o'xshaydi. Joylashtirish taqiqlanadi.",
       };
     }
+    
     return {
       allowed: true,
       trustScore: 94,
       riskScore,
       brokerProbability,
       status: 'APPROVED',
-      reasons: ['Maklerlik belgisi topilmadi'],
+      reasons: reasons.length > 0 ? reasons : ['Maklerlik belgisi topilmadi'],
       message: "E'lon tekshiruvdan o'tdi.",
     };
   }

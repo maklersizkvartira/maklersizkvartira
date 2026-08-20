@@ -117,7 +117,7 @@ export const ListingsController = {
   createListing: async (req: Request, res: Response) => {
     const { title, description, price, region, district, rooms, area, images, owner } = req.body || {};
 
-    const aiResult = await aiService.scanListing(title || '', description || '', price, rooms);
+    const aiResult = await aiService.scanListing(title || '', description || '', price, rooms, images);
 
     if (!aiResult.allowed) {
       return res.status(403).json({
