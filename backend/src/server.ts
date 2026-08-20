@@ -10,8 +10,10 @@ const prisma = new PrismaClient();
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && (origin.includes('localhost') || origin.includes('maklersiz.uz') || origin.includes('railway.app') || origin.includes('vercel.app'))) {
+  if (origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH');
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Accept, Origin, X-Requested-With, *');
