@@ -190,7 +190,7 @@ export const ShieldMascot: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-20 right-3 left-3 sm:left-auto sm:bottom-6 sm:right-6 z-40 max-w-sm sm:w-96 ml-auto pointer-events-auto">
+    <div className="fixed bottom-20 right-3 left-3 sm:left-auto sm:bottom-6 sm:right-6 z-40 max-w-full sm:w-[480px] md:w-[520px] ml-auto pointer-events-auto">
 
       {/* ── Close Confirmation Modal Alert ── */}
       {showCloseConfirm && (
@@ -229,21 +229,21 @@ export const ShieldMascot: React.FC = () => {
       )}
 
       {open ? (
-        <div className="bg-slate-950 text-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] border border-emerald-500/40 flex flex-col max-h-[82vh] sm:max-h-[520px] overflow-hidden">
+        <div className="bg-slate-950 text-white rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.75)] border border-emerald-500/40 flex flex-col h-[85vh] sm:h-[630px] max-h-[90vh] overflow-hidden">
 
           {/* ── Header ── */}
-          <div className="flex items-center justify-between border-b border-slate-800/80 p-4 shrink-0">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-2xl bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
+          <div className="flex items-center justify-between border-b border-slate-800/80 p-4 sm:p-5 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
                 <Shield className="w-5 h-5 animate-pulse" />
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <h4 className="font-extrabold text-sm text-white flex items-center gap-1">
-                    Shield AI <Sparkles className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="font-extrabold text-base text-white flex items-center gap-1">
+                    Shield AI <Sparkles className="w-4 h-4 text-amber-400 fill-amber-400" />
                   </h4>
                   {remaining !== null && (
-                    <span className={`text-[10px] font-mono font-black px-2 py-0.5 rounded-full border ${
+                    <span className={`text-[11px] font-mono font-black px-2.5 py-0.5 rounded-full border ${
                       remaining <= 2
                         ? 'bg-red-950 text-red-400 border-red-500/30'
                         : 'bg-emerald-950 text-emerald-400 border-emerald-500/30'
@@ -252,39 +252,39 @@ export const ShieldMascot: React.FC = () => {
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-slate-400 truncate">Aqlli uy qidiruv yordamchisi</p>
+                <p className="text-xs text-slate-400 truncate">Aqlli uy qidiruv yordamchisi</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
                 onClick={() => setShowCloseConfirm(true)}
-                className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition"
+                className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition cursor-pointer"
                 title="Suhbatni tozalash"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
+                <RotateCcw className="w-4 h-4" />
               </button>
               <button
                 type="button"
                 onClick={() => setShowCloseConfirm(true)}
-                className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition"
+                className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition cursor-pointer"
                 title="Suhbatni yopish"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
           </div>
 
           {/* ── Messages ── */}
-          <div className="flex-1 overflow-y-auto space-y-2.5 p-4 min-h-0 scrollbar-thin scrollbar-thumb-slate-800">
+          <div className="flex-1 overflow-y-auto space-y-3.5 p-4 sm:p-5 min-h-0 scrollbar-thin scrollbar-thumb-slate-800">
             {/* Loading history indicator */}
             {!historyLoaded && (
               <div className="flex justify-center py-8">
-                <div className="flex gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce [animation-delay:0ms]" />
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce [animation-delay:150ms]" />
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce [animation-delay:300ms]" />
+                <div className="flex gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:0ms]" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:150ms]" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:300ms]" />
                 </div>
               </div>
             )}
@@ -292,14 +292,14 @@ export const ShieldMascot: React.FC = () => {
             {log.map((m, i) => (
               <div key={i} className={`flex ${m.from === 'me' ? 'justify-end' : 'justify-start'}`}>
                 {m.from === 'ai' && (
-                  <div className="w-6 h-6 rounded-full bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 mr-2 mt-0.5">
-                    <Shield className="w-3 h-3" />
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 mr-2.5 mt-1">
+                    <Shield className="w-4 h-4" />
                   </div>
                 )}
-                <div className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed break-words ${
+                <div className={`max-w-[88%] p-3.5 sm:p-4 rounded-2xl text-sm sm:text-base leading-relaxed break-words ${
                   m.from === 'me'
                     ? 'bg-emerald-600/30 text-white border border-emerald-500/30 rounded-tr-sm font-medium'
-                    : 'bg-slate-900 text-slate-200 border border-slate-800 rounded-tl-sm'
+                    : 'bg-slate-900 text-slate-100 border border-slate-800 rounded-tl-sm'
                 }`}>
                   <div className="whitespace-pre-line break-words">{m.text}</div>
 
