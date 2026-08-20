@@ -93,7 +93,7 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-zinc-50 text-zinc-900 selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-screen flex flex-col bg-zinc-950 text-zinc-300 selection:bg-emerald-500 selection:text-white">
       <Header />
       <GlobalAINotification />
 

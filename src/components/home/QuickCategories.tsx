@@ -97,16 +97,16 @@ export const QuickCategories: React.FC = () => {
 
   return (
     <section id="kategoriyalar" className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-14 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-slate-200/60 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-zinc-800/80 pb-5">
         <div>
           <div className="inline-flex items-center gap-2 text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-3 py-1 rounded-full uppercase tracking-wider mb-2 shadow-2xs">
             <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
             <span>Sara Kategoriya Bo'limlari</span>
           </div>
-          <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
+          <h2 className="text-2xl sm:text-4xl font-black text-zinc-100 tracking-tight">
             Kategoriyalar Bo'yicha Tezkor Qidiruv
           </h2>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
+          <p className="text-xs sm:text-sm text-zinc-400 font-medium mt-1">
             O'zingizga ma'qul ijara turini tanlang va uylarni ko'ring
           </p>
         </div>
@@ -131,7 +131,7 @@ export const QuickCategories: React.FC = () => {
             <button
               key={cat.id}
               onClick={cat.action}
-              className="flex flex-col items-center justify-between p-5 rounded-3xl bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 group shrink-0 text-center relative overflow-hidden"
+              className="flex flex-col items-center justify-between p-5 rounded-3xl bg-zinc-900 border border-zinc-800/80 hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 group shrink-0 text-center relative overflow-hidden"
             >
               {/* Animated Top Ambient Gradient */}
               <div className={`absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r ${cat.gradientBg} opacity-0 group-hover:opacity-100 transition-opacity`} />
@@ -145,18 +145,18 @@ export const QuickCategories: React.FC = () => {
 
               {/* Content */}
               <div className="space-y-1 w-full">
-                <h3 className="text-sm sm:text-base font-black text-slate-900 group-hover:text-emerald-600 transition-colors leading-tight">
+                <h3 className="text-sm sm:text-base font-black text-zinc-100 group-hover:text-emerald-500 transition-colors leading-tight">
                   {cat.name}
                 </h3>
-                <p className="text-[11px] text-slate-500 font-medium line-clamp-2 leading-snug">
+                <p className="text-[11px] text-zinc-400 font-medium line-clamp-2 leading-snug">
                   {cat.desc}
                 </p>
               </div>
 
               {/* Sub-tags */}
-              <div className="mt-3 pt-2 border-t border-slate-100 w-full flex flex-wrap justify-center gap-1">
+              <div className="mt-3 pt-2 border-t border-zinc-800/80 w-full flex flex-wrap justify-center gap-1">
                 {cat.subTags.slice(0, 2).map((tag, i) => (
-                  <span key={i} className="text-[10px] font-bold text-slate-600 bg-slate-50 group-hover:bg-emerald-50 group-hover:text-emerald-700 px-2 py-0.5 rounded-md transition-colors">
+                  <span key={i} className="text-[10px] font-bold text-zinc-300 bg-zinc-800/50 group-hover:bg-emerald-500/10 group-hover:text-emerald-400 px-2 py-0.5 rounded-md transition-colors">
                     {tag}
                   </span>
                 ))}
