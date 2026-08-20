@@ -45,6 +45,8 @@ interface AppStore {
 
   currency: 'USD' | 'UZS';
   setCurrency: (c: 'USD' | 'UZS') => void;
+  themeMode: 'dark' | 'light';
+  toggleThemeMode: () => void;
   listings: Listing[];
   fetchListings: () => Promise<void>;
   addListing: (newListing: Listing) => void;
@@ -124,6 +126,20 @@ const initialListingId = getInitialUrlListingId();
 export const useAppStore = create<AppStore>((set, get) => ({
   currency: 'USD',
   setCurrency: (c) => set({ currency: c }),
+  themeMode: 'dark',
+  toggleThemeMode: () => set((state) => {
+    const nextMode = state.themeMode === 'dark' ? 'light' : 'dark';
+    if (typeof document !== 'undefined') {
+      if (nextMode === 'light') {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+      } else {
+        document.documentElement.classList.remove('light');
+        document.documentElement.classList.add('dark');
+      }
+    }
+    return { themeMode: nextMode };
+  }),
   currentView: initialListingId ? 'LISTING_DETAIL' : 'HOME',
   selectedListingId: initialListingId,
   setCurrentView: (view, listingId = null) => {

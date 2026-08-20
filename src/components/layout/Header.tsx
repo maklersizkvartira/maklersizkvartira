@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   ShieldCheck, LogIn, User, MapPin, Menu, X, Home, Search, MessageSquare, 
   PlusCircle, List, GraduationCap, LogOut, ChevronDown, Sparkles, Award, Phone,
-  Heart, Layers, Handshake, Users, TrainFront, TrendingDown, Building2
+  Heart, Layers, Handshake, Users, TrainFront, TrendingDown, Building2, Sun, Moon
 } from 'lucide-react';
 import { useAppStore, ViewState } from '../../stores/useAppStore';
 import { AuthModal } from '../auth/AuthModal';
@@ -11,11 +11,13 @@ import { AuthModal } from '../auth/AuthModal';
 export const Header: React.FC = () => {
   const { 
     setCurrentView, currentView, currentUser, setShowAuth, logout, userXp,
-    favorites, setFilters, currency, setCurrency
+    favorites, setFilters, currency, setCurrency, themeMode, toggleThemeMode
   } = useAppStore();
   const [showSidebar, setShowSidebar] = useState(false);
   const [showCatMenu, setShowCatMenu] = useState(false);
   const [showAvatarToggle, setShowAvatarToggle] = useState(true);
+
+  const isTenantOrStudent = currentUser && (currentUser.role as string) !== 'OWNER';
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -106,39 +108,47 @@ export const Header: React.FC = () => {
   const districts = ['Chilonzor', 'Yunusobod', "Mirzo Ulug'bek", 'Yakkasaroy', 'Shayxontohur', 'Sergeli'];
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 bg-slate-950 text-white border-b border-slate-800/80 shadow-lg">
+    <header className={`fixed top-0 inset-x-0 z-50 transition-colors shadow-xl border-b ${
+      themeMode === 'light'
+        ? 'bg-white/95 text-slate-900 border-slate-200/80 backdrop-blur-md'
+        : 'bg-slate-950/95 text-white border-slate-800/80 backdrop-blur-md'
+    }`}>
       <AuthModal />
 
       {/* Top Notification Bar */}
-      <div className="hidden sm:block bg-slate-900/90 text-slate-300 text-[11px] py-1.5 px-4 font-bold border-b border-slate-800">
+      <div className={`hidden sm:block text-[11px] py-1.5 px-4 font-bold border-b ${
+        themeMode === 'light' ? 'bg-slate-100/90 text-slate-700 border-slate-200' : 'bg-slate-900/90 text-slate-300 border-slate-800'
+      }`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <span className="flex items-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
             MaklersizUy.uz — 0% Komissiya! Egasidan to'g'ridan-to'g'ri ijara va xonadosh topish.
           </span>
-          <span className="text-emerald-400 font-mono">24/7 Qo'llab-quvvatlash: @MaklersizUy_Support</span>
+          <span className="text-emerald-500 font-mono">24/7 Qo'llab-quvvatlash: @MaklersizUy_Support</span>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
         {/* Logo */}
         <button onClick={() => setCurrentView('HOME')} className="flex items-center gap-2 shrink-0 min-w-0 group text-left">
-          <span className="text-lg sm:text-2xl font-black tracking-tighter text-white">
-            MAKLERSIZ<span className="text-emerald-400">UY</span>
+          <span className={`text-lg sm:text-2xl font-black tracking-tighter ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+            MAKLERSIZ<span className="text-emerald-500">UY</span>
           </span>
         </button>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden lg:flex items-center gap-7 text-xs sm:text-sm font-bold text-slate-300 relative">
+        <nav className={`hidden lg:flex items-center gap-7 text-xs sm:text-sm font-bold relative ${
+          themeMode === 'light' ? 'text-slate-700' : 'text-slate-300'
+        }`}>
           <button
             onClick={() => setCurrentView('HOME')}
-            className={`hover:text-emerald-400 transition-colors ${currentView === 'HOME' ? 'text-emerald-400 font-black' : ''}`}
+            className={`hover:text-emerald-500 transition-colors ${currentView === 'HOME' ? 'text-emerald-500 font-black' : ''}`}
           >
             Bosh sahifa
           </button>
           <button
             onClick={() => setCurrentView('SEARCH')}
-            className={`hover:text-emerald-400 transition-colors ${currentView === 'SEARCH' ? 'text-emerald-400 font-black' : ''}`}
+            className={`hover:text-emerald-500 transition-colors ${currentView === 'SEARCH' ? 'text-emerald-500 font-black' : ''}`}
           >
             Ijaraga olish
           </button>
@@ -266,6 +276,16 @@ export const Header: React.FC = () => {
             </button>
           )}
 
+          {/* Dark / Light Theme Toggle */}
+          <button
+            type="button"
+            onClick={toggleThemeMode}
+            className="w-8 h-8 rounded-full bg-slate-900 border border-slate-700/80 hover:bg-slate-800 transition-colors shrink-0 flex items-center justify-center text-amber-400 cursor-pointer"
+            title={themeMode === 'dark' ? "Kunduzi (Light) rejimiga o'tish" : "Tungi (Dark) rejimiga o'tish"}
+          >
+            {themeMode === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-300" />}
+          </button>
+
           {/* Currency Toggle */}
           <button
             onClick={() => setCurrency(currency === 'USD' ? 'UZS' : 'USD')}
@@ -280,20 +300,33 @@ export const Header: React.FC = () => {
             </span>
           </button>
 
-          {/* E'lon berish button */}
-          <button
-            onClick={() => {
-              if (!currentUser) {
-                setShowAuth(true, 'REGISTER');
-              } else {
-                setCurrentView('CREATE_LISTING');
-              }
-            }}
-            className="rounded-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2.5 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 shrink-0 whitespace-nowrap"
-          >
-            <span className="hidden sm:inline">+ E'lon berish</span>
-            <span className="sm:hidden">+ E'lon</span>
-          </button>
+          {/* Role Provider Enforcement Action Button */}
+          {isTenantOrStudent ? (
+            /* Student / Tenant Role: Show Favorites / Saved Listings Button (NO Create Listing) */
+            <button
+              onClick={() => setCurrentView('FAVORITES')}
+              className="flex items-center gap-1.5 rounded-full bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 font-extrabold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2.5 shadow-xs transition-all active:scale-95 shrink-0 whitespace-nowrap"
+            >
+              <Heart className="w-3.5 h-3.5 fill-emerald-400 text-emerald-400" />
+              <span className="hidden sm:inline">Saqlanganlar ({favorites.length})</span>
+              <span className="sm:hidden">({favorites.length})</span>
+            </button>
+          ) : (
+            /* Owner Role or Guest: Show + E'lon berish Button */
+            <button
+              onClick={() => {
+                if (!currentUser) {
+                  setShowAuth(true, 'REGISTER');
+                } else {
+                  setCurrentView('CREATE_LISTING');
+                }
+              }}
+              className="rounded-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2.5 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 shrink-0 whitespace-nowrap"
+            >
+              <span className="hidden sm:inline">+ E'lon berish</span>
+              <span className="sm:hidden">+ E'lon</span>
+            </button>
+          )}
 
           {/* Sidebar Menu Drawer Toggle Button (Mobile/Tablet Only) */}
           <button
