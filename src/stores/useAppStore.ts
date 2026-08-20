@@ -246,15 +246,20 @@ export const useAppStore = create<AppStore>((set, get) => ({
   listings: [],
   fetchListings: async () => {
     try {
-      // Clear legacy local mock data to prevent ghost listings
       if (typeof window !== 'undefined') {
         localStorage.removeItem('maklersiz-extra-listings');
       }
-      const publicListings = await ApiService.getListings();
-      
+      const { selectedDistrict, roomsCount, maxPrice, searchQuery } = get();
+      const params: Record<string, any> = {};
+      if (selectedDistrict && selectedDistrict !== 'Barchasi') params.district = selectedDistrict;
+      if (roomsCount !== null) params.rooms = roomsCount;
+      if (maxPrice && maxPrice < 100000000) params.maxPrice = maxPrice;
+      if (searchQuery && searchQuery.trim()) params.search = searchQuery.trim();
+
+      const publicListings = await ApiService.getListings(params);
       let finalData = Array.isArray(publicListings) ? publicListings : [];
 
-      const { currentUser } = useAppStore.getState();
+      const { currentUser } = get();
       if (currentUser && currentUser.role === 'OWNER') {
         try {
           const myListings = await ApiService.getMyListings();
@@ -347,22 +352,31 @@ export const useAppStore = create<AppStore>((set, get) => ({
   audience: 'ALL',
   rentalType: 'ALL',
 
-  setSearchQuery: (query) => set({ searchQuery: query, currentView: 'SEARCH' }),
-  setFilters: (newFilters) => set(newFilters),
-  resetFilters: () => set({
-    searchQuery: '',
-    selectedRegion: 'Barchasi',
-    selectedDistrict: 'Barchasi',
-    selectedUniversity: 'Barchasi',
-    selectedMetro: 'Barchasi',
-    maxPrice: 10000000,
-    roomsCount: null,
-    onlyVerified: false,
-    minTrustScore: 0,
-    sortBy: 'AI',
-    audience: 'ALL',
-    rentalType: 'ALL',
-  }),
+  setSearchQuery: (query) => {
+    set({ searchQuery: query, currentView: 'SEARCH' });
+    get().fetchListings();
+  },
+  setFilters: (newFilters) => {
+    set(newFilters);
+    get().fetchListings();
+  },
+  resetFilters: () => {
+    set({
+      searchQuery: '',
+      selectedRegion: 'Barchasi',
+      selectedDistrict: 'Barchasi',
+      selectedUniversity: 'Barchasi',
+      selectedMetro: 'Barchasi',
+      maxPrice: 10000000,
+      roomsCount: null,
+      onlyVerified: false,
+      minTrustScore: 0,
+      sortBy: 'AI',
+      audience: 'ALL',
+      rentalType: 'ALL',
+    });
+    get().fetchListings();
+  },
 
   reports: MOCK_REPORTS,
   fraudSignals: MOCK_FRAUD_SIGNALS,
