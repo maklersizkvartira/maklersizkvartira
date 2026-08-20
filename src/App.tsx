@@ -103,10 +103,20 @@ export const App: React.FC = () => {
 
 
             {isStudent && (
-              <div className="pt-4 pb-1 bg-slate-950 text-center px-4">
-                <p className="text-sm sm:text-base font-extrabold text-slate-300">
-                  Salom, <span className="text-emerald-400 font-black">{currentUser.name.split(' ')[0]}</span> 👋 Kvartirani egasidan to'g'ridan-to'g'ri, 0% komissiya bilan tanlang.
-                </p>
+              <div className="pt-4 pb-2 bg-slate-950 flex justify-center px-4">
+                <div className="inline-flex items-center gap-3 bg-slate-900/90 border border-emerald-500/30 rounded-2xl px-5 py-3 shadow-xl backdrop-blur-md">
+                  <div className="w-9 h-9 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shrink-0">
+                    <Sparkles className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm sm:text-base font-extrabold text-white">
+                      Salom, <span className="text-emerald-400 font-black">{currentUser.name.split(' ')[0]}</span> 👋
+                    </p>
+                    <p className="text-xs text-slate-400 font-medium">
+                      Kvartirani egasidan to'g'ridan-to'g'ri, 0% komissiya bilan tanlang.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 

@@ -218,10 +218,31 @@ export const Header: React.FC = () => {
         </nav>
 
         {/* Right Header Controls Group */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
 
-          {/* Action Button: Show + E'lon berish ONLY for Owners or Guests */}
-          {(!currentUser || currentUser.role === 'OWNER') && (
+          {/* Dark / Light Theme Toggle */}
+          <button
+            type="button"
+            onClick={toggleThemeMode}
+            className="w-8 h-8 rounded-full bg-slate-900 border border-slate-700/80 hover:bg-slate-800 transition-colors shrink-0 flex items-center justify-center text-amber-400 cursor-pointer"
+            title={themeMode === 'dark' ? "Kunduzi (Light) rejimiga o'tish" : "Tungi (Dark) rejimiga o'tish"}
+          >
+            {themeMode === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-300" />}
+          </button>
+
+          {/* Role Provider Enforcement Action Button */}
+          {isTenantOrStudent ? (
+            /* Student / Tenant Role: Show Favorites / Saved Listings Button (NO Create Listing) */
+            <button
+              onClick={() => setCurrentView('FAVORITES')}
+              className="flex items-center gap-1.5 rounded-full bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 font-extrabold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 shadow-xs transition-all active:scale-95 shrink-0 whitespace-nowrap"
+            >
+              <Heart className="w-3.5 h-3.5 fill-emerald-400 text-emerald-400" />
+              <span className="hidden sm:inline">Saqlanganlar ({favorites.length})</span>
+              <span className="sm:hidden">({favorites.length})</span>
+            </button>
+          ) : (
+            /* Owner Role or Guest: Show + E'lon berish Button */
             <button
               onClick={() => {
                 if (!currentUser) {
@@ -230,7 +251,7 @@ export const Header: React.FC = () => {
                   setCurrentView('CREATE_LISTING');
                 }
               }}
-              className="rounded-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 shrink-0 whitespace-nowrap cursor-pointer"
+              className="rounded-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 shrink-0 whitespace-nowrap"
             >
               <span className="hidden sm:inline">+ E'lon berish</span>
               <span className="sm:hidden">+ E'lon</span>
@@ -239,21 +260,32 @@ export const Header: React.FC = () => {
 
           {/* User Profile / Auth Button (PLACED AT THE VERY END / OXIRIDA) */}
           {currentUser ? (
-            <button
-              onClick={() => setShowSidebar(true)}
-              className="hidden sm:flex items-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700/90 text-white font-bold text-xs sm:text-sm p-1 sm:pl-1.5 sm:pr-3 rounded-full transition-all shadow-md shrink-0 cursor-pointer"
-              title={currentUser.name}
-            >
-              <img
-                src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'}
-                alt={currentUser.name}
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-emerald-400 shrink-0"
-              />
-              <div className="text-left min-w-0 sm:max-w-[130px]">
-                <div className="font-extrabold text-xs text-white truncate leading-tight">{currentUser.name}</div>
-                <div className="text-[10px] text-emerald-400 font-bold uppercase">{currentUser.role === 'OWNER' ? 'Uy Egasi' : 'Talaba'}</div>
-              </div>
-            </button>
+            <div className="hidden sm:flex items-center gap-1 sm:gap-2 shrink-0">
+              <button
+                onClick={() => setShowSidebar(true)}
+                className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700/90 text-white font-bold text-xs sm:text-sm p-1 sm:pl-1.5 sm:pr-3 rounded-full transition-all shadow-md shrink-0 cursor-pointer"
+                title={currentUser.name}
+              >
+                <img
+                  src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'}
+                  alt={currentUser.name}
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-emerald-400 shrink-0"
+                />
+                <div className="text-left min-w-0 sm:max-w-[130px]">
+                  <div className="font-extrabold text-xs text-white truncate leading-tight">{currentUser.name}</div>
+                  <div className="text-[10px] text-emerald-400 font-bold uppercase">{currentUser.role === 'OWNER' ? 'Uy Egasi' : 'Talaba'}</div>
+                </div>
+              </button>
+
+              {/* Desktop Direct Logout Button */}
+              <button
+                onClick={handleLogout}
+                title="Tizimdan chiqish"
+                className="flex items-center justify-center p-2 rounded-full bg-slate-900 hover:bg-rose-950/80 border border-slate-700 hover:border-rose-500 text-slate-300 hover:text-rose-400 transition-all shadow-xs shrink-0 cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           ) : (
             <button
               onClick={() => setShowAuth(true, 'LOGIN')}

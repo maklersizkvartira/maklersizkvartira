@@ -152,12 +152,6 @@ export const CreateListingPage: React.FC = () => {
     return { region: matchedRegion, district: matchedDistrict, address: fullStreet };
   };
 
-  React.useEffect(() => {
-    if (currentUser && currentUser.role !== 'OWNER') {
-      setCurrentView('SEARCH');
-    }
-  }, [currentUser, setCurrentView]);
-
   if (!currentUser) {
     return (
       <div className="max-w-md mx-auto px-4 py-16 text-center space-y-4">
@@ -174,7 +168,18 @@ export const CreateListingPage: React.FC = () => {
   }
 
   if (currentUser.role !== 'OWNER') {
-    return null;
+    return (
+      <div className="max-w-md mx-auto px-4 py-16 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+          <Building2 className="w-8 h-8" />
+        </div>
+        <h1 className="text-2xl font-black text-slate-900">Talaba e'lon joylay olmaydi</h1>
+        <p className="text-slate-600 text-sm">Bu yerda faqat kvartira egasi e'lon qo'yadi. Siz kvartiralarni qidirishingiz va ko'rishingiz mumkin.</p>
+        <button onClick={() => setCurrentView('SEARCH')} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 rounded-2xl transition-all shadow-md">
+          Kvartiralarni ko'rish
+        </button>
+      </div>
+    );
   }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
