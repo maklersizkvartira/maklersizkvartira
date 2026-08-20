@@ -564,6 +564,37 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
       try { await (prisma as any).aIMessage.create({ data: { sessionId: session.id, role: 'assistant', content: aiText } }); } catch (e) {}
     }
 
+    // ── Send Real-time Telegram Notification to Group ────────────────────────
+    try {
+      const identifiedName = parsed.userName || authUser?.name || userName || 'Noma\'lum mijoz';
+      const identifiedPhone = authUser?.phone || userPhone || (authUser ? 'Ro\'yxatdan o\'tgan' : 'Kiritilmadi');
+      const nowTashkent = new Date().toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent' });
+
+      const searchDetails: string[] = [];
+      if (parsed.district && parsed.district !== 'Barchasi') searchDetails.push(`📍 <b>Tuman:</b> ${parsed.district}`);
+      if (parsed.rooms) searchDetails.push(`🏠 <b>Xonalar:</b> ${parsed.rooms} xona`);
+      if (parsed.maxPrice) searchDetails.push(`💰 <b>Maks narx:</b> ${Math.round(parsed.maxPrice).toLocaleString('uz-UZ')} so'm`);
+
+      const searchBlock = searchDetails.length > 0 ? searchDetails.join('\n') + '\n\n' : '';
+
+      const tgHtml = `🤖 <b>Shield AI — Yangi Suhbat So'rovi</b> 🛡️
+
+👤 <b>Mijoz:</b> ${identifiedName}
+📱 <b>Telefon:</b> ${identifiedPhone}
+
+${searchBlock}📝 <b>AI Xulosasi:</b>
+<i>${parsed.chatSummary || parsed.replyText || 'Suhbat o\'tkazildi'}</i>
+
+💬 <b>Mijoz xabari:</b>
+"${message}"
+
+⏰ <i>Vaqt: ${nowTashkent}</i>`;
+
+      sendTelegramGroupNotification(tgHtml).catch(() => {});
+    } catch (tgErr) {
+      console.warn("Failed to dispatch Telegram notification:", tgErr);
+    }
+
     res.json({ status: 'success', reply: aiText, need: parsed, listings, sessionKey: key, remaining, limit: DAILY_AI_LIMIT });
   } catch (error) {
     console.error('Shield AI error:', error);

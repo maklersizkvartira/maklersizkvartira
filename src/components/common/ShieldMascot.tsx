@@ -157,14 +157,15 @@ export const ShieldMascot: React.FC = () => {
     }
   };
 
-  const handleCloseChat = async () => {
+  const handleCloseChat = () => {
     setOpen(false);
     if (log.some(m => m.from === 'me')) {
       const sessionKey = getOrCreateSessionKey();
       const token = getAccessToken();
       try {
-        await fetch(`${API_BASE_URL}/smart/assistant/close`, {
+        fetch(`${API_BASE_URL}/smart/assistant/close`, {
           method: 'POST',
+          keepalive: true,
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -174,7 +175,7 @@ export const ShieldMascot: React.FC = () => {
             userName: currentUser?.name || null,
             userPhone: currentUser?.phone || null,
           }),
-        });
+        }).catch(() => {});
       } catch { /* ignore */ }
     }
   };
