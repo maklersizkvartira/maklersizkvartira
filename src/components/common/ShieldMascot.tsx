@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Shield, Sparkles, X, MessageSquare, Send, RotateCcw, ChevronRight } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { API_BASE_URL } from '../../services/apiService';
+import { getAccessToken } from '../../services/authService';
 
 // ─── Session key: only a tiny ID in localStorage. All DATA is in backend DB ──
 const SESSION_KEY_STORAGE = 'shield-ai-sk';
@@ -94,9 +95,13 @@ export const ShieldMascot: React.FC = () => {
 
     try {
       const sessionKey = getOrCreateSessionKey();
+      const token = getAccessToken();
       const response = await fetch(`${API_BASE_URL}/smart/assistant`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           message: msg,
           sessionKey,

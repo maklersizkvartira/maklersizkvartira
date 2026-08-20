@@ -440,6 +440,20 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
   };
   if (!message) return res.status(400).json({ error: 'Message is required' });
 
+  // Resolve authenticated user from Bearer token if provided
+  const authHeader = req.headers.authorization || '';
+  let authUser: any = null;
+  const userIdFromToken = parseUserIdFromToken(authHeader);
+  if (userIdFromToken) {
+    try {
+      authUser = await prisma.user.findUnique({ where: { id: userIdFromToken } }).catch(() => null);
+      if (!authUser && userIdFromToken.replace(/\D/g, '').length >= 7) {
+        const digits = userIdFromToken.replace(/\D/g, '');
+        authUser = await prisma.user.findFirst({ where: { phone: { endsWith: digits.slice(-9) } } }).catch(() => null);
+      }
+    } catch (e) { authUser = null; }
+  }
+
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
   const openaiUrl = 'https://api.openai.com/v1/chat/completions';
   const DAILY_AI_LIMIT = 10;
@@ -488,7 +502,8 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
       try { await (prisma as any).aIMessage.create({ data: { sessionId: session.id, role: 'user', content: message } }); } catch (e) {}
     }
 
-    const userContextStr = userName ? `\n[Tizimdagi mijoz ismi: ${userName}]` : '';
+    const effectiveName = authUser?.name || userName || null;
+    const userContextStr = effectiveName ? `\n[Tizimdagi mijoz ismi: ${effectiveName}]` : '';
 
     const openaiMessages = [
       { role: 'system', content: SHIELD_AI_SYSTEM_PROMPT + userContextStr },
@@ -496,6 +511,7 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
       { role: 'user', content: message },
     ];
 
+    // Explicitly use OpenAI gpt-4o-mini model
     const aiRes = await fetch(openaiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + OPENAI_API_KEY },
@@ -552,21 +568,24 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
 
     // ── Send Telegram Notification to Group ───────────────────────────────────
     try {
-      const identifiedName = parsed.userName || userName || 'Noma\'lum mijoz';
-      const identifiedPhone = userPhone || 'Mavjud emas';
+      const identifiedName = parsed.userName || authUser?.name || userName || 'Noma\'lum mijoz';
+      const identifiedPhone = authUser?.phone || userPhone || (authUser ? 'Ro\'yxatdan o\'tgan' : 'Kiritilmadi');
       const nowTashkent = new Date().toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent' });
+
+      const searchDetails: string[] = [];
+      if (parsed.district && parsed.district !== 'Barchasi') searchDetails.push(`📍 <b>Tuman:</b> ${parsed.district}`);
+      if (parsed.rooms) searchDetails.push(`🏠 <b>Xonalar:</b> ${parsed.rooms} xona`);
+      if (parsed.maxPrice) searchDetails.push(`💰 <b>Maks narx:</b> ${Math.round(parsed.maxPrice).toLocaleString('uz-UZ')} so'm`);
+
+      const searchBlock = searchDetails.length > 0 ? searchDetails.join('\n') + '\n\n' : '';
 
       const tgHtml = `🤖 <b>Shield AI — Suhbat Xulosasi</b> 🛡️
 
 👤 <b>Mijoz:</b> ${identifiedName}
-📱 <b>Akaunt/Tel:</b> ${identifiedPhone}
-📍 <b>Tuman:</b> ${parsed.district || 'Barchasi'}
-🏠 <b>Xonalar:</b> ${parsed.rooms ? parsed.rooms + ' xona' : 'Ixtiyoriy'}
-💰 <b>Maks narx:</b> ${parsed.maxPrice ? Math.round(parsed.maxPrice).toLocaleString('uz-UZ') + " so'm" : 'Kiritilmadi'}
-🎯 <b>Turi:</b> ${parsed.audience || 'ALL'} (${parsed.rentalType || 'ALL'})
+📱 <b>Telefon:</b> ${identifiedPhone}
 
-📝 <b>AI Xulosasi:</b>
-<i>${parsed.chatSummary || parsed.replyText || 'Kvartira qidiruv so\'rovi kelib tushdi.'}</i>
+${searchBlock}📝 <b>AI Xulosasi:</b>
+<i>${parsed.chatSummary || parsed.replyText || 'Suhbat bo\'ldi'}</i>
 
 💬 <b>Mijoz xabari:</b>
 "${message}"
