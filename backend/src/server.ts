@@ -370,25 +370,49 @@ app.post('/api/v1/traffic/track', (_req: Request, res: Response) => {
   res.json({ status: 'success' });
 });
 
+// ????????? TELEGRAM BOT NOTIFICATIONS ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8819756746:AAEJaKGx9zT0wQRWkVLZN-BDRGdbs9MjfWY';
+const TELEGRAM_GROUP_ID = process.env.TELEGRAM_GROUP_ID || '-1003935734144';
+
+async function sendTelegramGroupNotification(htmlMessage: string) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_GROUP_ID) return;
+  try {
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN.trim()}/sendMessage`;
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: TELEGRAM_GROUP_ID.trim(),
+        text: htmlMessage,
+        parse_mode: 'HTML',
+      }),
+    });
+  } catch (err) {
+    console.warn("Telegram bot error:", err);
+  }
+}
+
 // -----------------------------------------------------------------
 // SHIELD AI -- Multi-turn Conversation Assistant
 // -----------------------------------------------------------------
 
 const SHIELD_AI_SYSTEM_PROMPT = [
-  'Siz "MaklersizUy.uz" platformasining rasmiy aqlli yordamchisi -- Shield AI siz.',
+  'Siz "MaklersizUy.uz" platformasining rasmiy aqlli sun\'iy intellekt yordamchisi -- Shield AI siz.',
   '',
-  'Platforma:',
-  '- 0% komissiyali maklersiz kvartira ijara va sherikchilik.',
-  '- Foydalanuvchilar uy egalari bilan bevosita boglanadi.',
-  '- Toshkent tumanlari, viloyatlar, Roommate, Pasport verifikatsiyasi.',
+  'Platforma haqida:',
+  '- 0% komissiyali, maklersiz kvartira ijara va sherikchilik platformasi.',
+  '- Foydalanuvchilar uy egalari bilan bevosita bog\'lanadi. Maklerlar yo\'q.',
+  '- Toshkent tumanlari, viloyatlar, Talabalar sherikchilik (Roommate) bo\'limi, Pasport verifikatsiyasi.',
   '',
   'Vazifalaringiz:',
-  '1. Samimiy ozbekcha javob bering.',
-  '2. Xabardan: viloyat, tuman, xonalar, maks narx, auditoriya, ijara turi ajrating.',
-  '3. Xavfsizlik: Hech qachon uyni kormasdan oldindan kartaga pul otkazmang!',
-  '4. Avvalgi savol kontekstini hisobga oling.',
+  '1. Samimiy va xushfe\'l o\'zbek tilida javob bering.',
+  '2. Agar foydalanuvchining ismi ma\'lum bo\'lmasa, suhbat davomida odob bilan ismini so\'rang (masalan: "Ismingizni bilsam bo\'ladimi?").',
+  '3. Agar foydalanuvchining ismi ma\'lum bo\'lsa, unga ismi bilan samimiy murojaat qiling (masalan: "Jasur aka", "Anvarbek", va h.k.).',
+  '4. Foydalanuvchi xabaridan qidiruv parametrlarini (viloyat, tuman, xonalar soni, maks narx, auditoriya, ijara turi) hamda ismini ajrating.',
+  '5. Xavfsizlik: Hech qachon uyni ko\'rmasdan oldindan kartaga pul o\'tkazmaslikni uqtiring!',
+  '6. Suhbat xulosasini (chatSummary) 1-2 jumlada tayyorlang.',
   '',
-  'Javobingiz FAQAT quyidagi JSON formatida bolishi shart:',
+  'Javobingiz FAQAT quyidagi JSON formatida bo\'lishi shart:',
   '{',
   '  "region": "Toshkent" yoki null,',
   '  "district": "Chilonzor" yoki null,',
@@ -396,17 +420,24 @@ const SHIELD_AI_SYSTEM_PROMPT = [
   '  "maxPrice": 4000000 yoki null,',
   '  "audience": "STUDENT" yoki "FAMILY" yoki "ALL",',
   '  "rentalType": "FULL" yoki "ROOMMATE" yoki "ALL",',
-  '  "replyText": "Javob matni"',
+  '  "userName": "Jasur" yoki null,',
+  '  "chatSummary": "Chilonzordan 4 mln so\'mgacha 2 xonali kvartira izlamoqda",',
+  '  "replyText": "Jasur aka, Chilonzordan 2 ta ajoyib kvartira topdim!"',
   '}',
   '',
   'Qoidalar:',
-  '- 3 mln=3000000. 1 USD=12700 UZS.',
-  '- Tumanlar: Chilonzor, Yunusobod, Mirzo Ulugbek, Yakkasaroy, Mirobod, Shayxontohur, Olmazor, Sergeli, Uchtepa, Yashnobod, Bektemir.',
-  '- Faqat toza JSON. Boshqa matn yoq.',
+  '- 3 mln = 3000000. 1 USD = 12700 UZS.',
+  '- Toshkent tumanlari: Chilonzor, Yunusobod, Mirzo Ulug\'bek, Yakkasaroy, Mirobod, Shayxontohur, Olmazor, Sergeli, Uchtepa, Yashnobod, Bektemir.',
+  '- Faqat toza JSON. Boshqa matn yoki kod bloki yo\'q.',
 ].join('\n');
 
 app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
-  const { message, sessionKey } = req.body as { message: string; sessionKey?: string };
+  const { message, sessionKey, userName, userPhone } = req.body as {
+    message: string;
+    sessionKey?: string;
+    userName?: string | null;
+    userPhone?: string | null;
+  };
   if (!message) return res.status(400).json({ error: 'Message is required' });
 
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -457,8 +488,10 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
       try { await (prisma as any).aIMessage.create({ data: { sessionId: session.id, role: 'user', content: message } }); } catch (e) {}
     }
 
+    const userContextStr = userName ? `\n[Tizimdagi mijoz ismi: ${userName}]` : '';
+
     const openaiMessages = [
-      { role: 'system', content: SHIELD_AI_SYSTEM_PROMPT },
+      { role: 'system', content: SHIELD_AI_SYSTEM_PROMPT + userContextStr },
       ...history,
       { role: 'user', content: message },
     ];
@@ -515,6 +548,34 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
 
     if (session) {
       try { await (prisma as any).aIMessage.create({ data: { sessionId: session.id, role: 'assistant', content: aiText } }); } catch (e) {}
+    }
+
+    // ── Send Telegram Notification to Group ───────────────────────────────────
+    try {
+      const identifiedName = parsed.userName || userName || 'Noma\'lum mijoz';
+      const identifiedPhone = userPhone || 'Mavjud emas';
+      const nowTashkent = new Date().toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent' });
+
+      const tgHtml = `🤖 <b>Shield AI — Suhbat Xulosasi</b> 🛡️
+
+👤 <b>Mijoz:</b> ${identifiedName}
+📱 <b>Akaunt/Tel:</b> ${identifiedPhone}
+📍 <b>Tuman:</b> ${parsed.district || 'Barchasi'}
+🏠 <b>Xonalar:</b> ${parsed.rooms ? parsed.rooms + ' xona' : 'Ixtiyoriy'}
+💰 <b>Maks narx:</b> ${parsed.maxPrice ? Math.round(parsed.maxPrice).toLocaleString('uz-UZ') + " so'm" : 'Kiritilmadi'}
+🎯 <b>Turi:</b> ${parsed.audience || 'ALL'} (${parsed.rentalType || 'ALL'})
+
+📝 <b>AI Xulosasi:</b>
+<i>${parsed.chatSummary || parsed.replyText || 'Kvartira qidiruv so\'rovi kelib tushdi.'}</i>
+
+💬 <b>Mijoz xabari:</b>
+"${message}"
+
+⏰ <i>Vaqt: ${nowTashkent}</i>`;
+
+      sendTelegramGroupNotification(tgHtml).catch(() => {});
+    } catch (tgErr) {
+      console.warn("Failed to dispatch Telegram summary:", tgErr);
     }
 
     res.json({ status: 'success', reply: aiText, need: parsed, listings, sessionKey: key, remaining, limit: DAILY_AI_LIMIT });

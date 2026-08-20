@@ -21,7 +21,7 @@ interface ChatMsg {
 }
 
 export const ShieldMascot: React.FC = () => {
-  const { setFilters, setSearchQuery, setCurrentView } = useAppStore();
+  const { setFilters, setSearchQuery, setCurrentView, currentUser } = useAppStore();
 
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
@@ -57,7 +57,10 @@ export const ShieldMascot: React.FC = () => {
           }));
           setLog(restored);
         } else {
-          setLog([{ from: 'ai', text: WELCOME_MSG }]);
+          const welcome = currentUser?.name
+            ? `Salom, ${currentUser.name}! Men Shield AI yordamchisiman 🛡️\n\nQanday kvartira yoki xona izlayapsiz?`
+            : WELCOME_MSG;
+          setLog([{ from: 'ai', text: welcome }]);
         }
         // Quota from backend
         if (typeof data.remaining === 'number') setRemaining(data.remaining);
@@ -68,7 +71,7 @@ export const ShieldMascot: React.FC = () => {
         setLog([{ from: 'ai', text: WELCOME_MSG }]);
         setHistoryLoaded(true);
       });
-  }, [open, historyLoaded]);
+  }, [open, historyLoaded, currentUser]);
 
   // ── Auto-scroll on new messages ───────────────────────────────────────────
   useEffect(() => {
@@ -94,7 +97,12 @@ export const ShieldMascot: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/smart/assistant`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, sessionKey }),
+        body: JSON.stringify({
+          message: msg,
+          sessionKey,
+          userName: currentUser?.name || null,
+          userPhone: currentUser?.phone || null,
+        }),
       });
       const data = await response.json();
 
