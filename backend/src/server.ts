@@ -119,83 +119,259 @@ function scanListingAIFallback(title: string, description: string, price?: numbe
 
   const foundBrokerWord = !isSafe && brokerWords.find((w) => combined.includes(w));
   if (foundBrokerWord) {
-    reasons.push(`Broker belgisi topildi: "${foundBrokerWord}"`);
-    riskScore += 80;
-  }
-  if (price && price < 100000 && price > 0) {
-    reasons.push("Shubhali darajada arzon narx");
-    riskScore += 20;
-  }
-  const allowed = riskScore < 70;
-  return {
-    allowed,
-    trustScore: Math.max(10, 100 - riskScore),
-    riskScore,
-    status: allowed ? 'APPROVED' : 'REJECTED',
-    reasons: reasons.length > 0 ? reasons : ["Maklerlik belgisi topilmadi."]
-  };
-}
-
-// Routes
+    reasons.push(`Broker belgisi topildi: "${foundBrokerWord}
 
 app.get('/api/v1/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), aiSystemActive: AI_SYSTEM_ACTIVE });
 });
 
-// AUTH
-app.post('/api/v1/auth/signup', async (req, res) => {
-  const { phone, password, name, role } = req.body;
-  try {
-    const existing = await prisma.user.findUnique({ where: { phone } });
-    if (existing) {
-      return res.status(400).json({ status: 'error', detail: 'Bu raqam band' });
-    }
-    const newUser = await prisma.user.create({
-      data: { phone, name: name || 'Foydalanuvchi', role: role || 'OWNER' }
-    });
-    res.json({ status: 'success', token: `token_${phone}_${Date.now()}`, user: newUser });
-  } catch(e) {
-    res.status(500).json({ error: String(e) });
-  }
-});
+// ????????? AUTH & USER MANAGEMENT ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
-app.post('/api/v1/auth/login', async (req, res) => {
-  const { phone } = req.body;
+function parseUserIdFromToken(tokenHeader?: string): string | null {
+  if (!tokenHeader) return null;
+  const raw = tokenHeader.replace('Bearer ', '').trim();
+  if (!raw) return null;
+  const parts = raw.split('_');
+  if (parts.length >= 2) {
+    return parts[1]; // returns userId UUID or phone
+  }
+  return null;
+}
+
+function generateAuthTokens(userId: string) {
+  const ts = Date.now();
+  const accessToken = `token_${userId}_${ts}`;
+  const refreshToken = `refresh_${userId}_${ts}`;
+  return { access_token: accessToken, refresh_token: refreshToken, token: accessToken };
+}
+
+// Signup / Register Handler
+const handleRegister = async (req: any, res: any) => {
+  const { phone, password, name, role, avatar } = req.body;
+  const cleanPhone = String(phone || '').trim();
+  if (!cleanPhone) {
+    return res.status(400).json({ status: 'error', message: 'Telefon raqam kiritilmadi' });
+  }
+
   try {
-    let user = await prisma.user.findFirst({
-      where: { phone: { endsWith: phone.replace(/\D/g, '').slice(-9) } }
+    const digits = cleanPhone.replace(/\D/g, '');
+    let existing = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { phone: cleanPhone },
+          ...(digits.length >= 7 ? [{ phone: { endsWith: digits.slice(-9) } }] : [])
+        ]
+      }
     });
+
+    if (existing) {
+      const updated = await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          ...(name ? { name } : {}),
+          ...(avatar ? { avatar } : {}),
+          ...(role ? { role } : {}),
+        }
+      });
+      const tokens = generateAuthTokens(updated.id);
+      return res.json({ status: 'success', ...tokens, user: updated });
+    }
+
+    const newUser = await prisma.user.create({
+      data: {
+        phone: cleanPhone,
+        name: name || 'Foydalanuvchi',
+        role: role || 'STUDENT',
+        avatar: avatar || null,
+      }
+    });
+    const tokens = generateAuthTokens(newUser.id);
+    return res.json({ status: 'success', ...tokens, user: newUser });
+  } catch (e) {
+    console.error("Register error:", e);
+    return res.status(500).json({ status: 'error', error: String(e) });
+  }
+};
+
+app.post('/api/v1/auth/signup', handleRegister);
+app.post('/api/v1/auth/register', handleRegister);
+
+// Login Handler
+app.post('/api/v1/auth/login', async (req: any, res: any) => {
+  const { phone, password } = req.body;
+  const cleanPhone = String(phone || '').trim();
+  if (!cleanPhone) {
+    return res.status(400).json({ status: 'error', message: 'Telefon raqam kiritilmadi' });
+  }
+
+  try {
+    const digits = cleanPhone.replace(/\D/g, '');
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { phone: cleanPhone },
+          ...(digits.length >= 7 ? [{ phone: { endsWith: digits.slice(-9) } }] : [])
+        ]
+      }
+    });
+
     if (!user) {
       user = await prisma.user.create({
-        data: { phone, name: 'Foydalanuvchi', role: 'OWNER' }
+        data: {
+          phone: cleanPhone,
+          name: 'Foydalanuvchi',
+          role: 'STUDENT',
+        }
       });
     }
-    res.json({ status: 'success', token: `token_${user.phone}_${Date.now()}`, user });
-  } catch(e) {
-    res.status(500).json({ error: String(e) });
+
+    const tokens = generateAuthTokens(user.id);
+    return res.json({ status: 'success', ...tokens, user });
+  } catch (e) {
+    console.error("Login error:", e);
+    return res.status(500).json({ status: 'error', error: String(e) });
   }
 });
 
-app.get('/api/v1/auth/me', async (req, res) => {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ status: 'error' });
-  const phonePart = token.split('_')[1];
+// Google Auth Handler
+app.post('/api/v1/auth/google', async (req: any, res: any) => {
+  const { email, name, avatar, uid } = req.body;
+  const identifier = email || (uid ? `google:${uid}` : `google:${Date.now()}`);
+
   try {
-    const user = await prisma.user.findFirst({
-      where: { phone: { endsWith: phonePart.replace(/\D/g, '').slice(-9) } }
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { phone: identifier },
+          ...(uid ? [{ phone: { contains: uid } }] : [])
+        ]
+      }
     });
-    if (!user) return res.status(401).json({ status: 'error' });
-    res.json({ status: 'success', user });
-  } catch(e) {
-    res.status(500).json({ error: String(e) });
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          phone: identifier,
+          name: name || 'Google Foydalanuvchisi',
+          avatar: avatar || null,
+          role: 'STUDENT',
+        }
+      });
+    } else if (avatar || name) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          ...(avatar ? { avatar } : {}),
+          ...(name ? { name } : {}),
+        }
+      });
+    }
+
+    const tokens = generateAuthTokens(user.id);
+    return res.json({ status: 'success', ...tokens, user });
+  } catch (e) {
+    console.error("Google auth error:", e);
+    return res.status(500).json({ status: 'error', error: String(e) });
   }
 });
 
-app.post('/api/v1/traffic/track', (req, res) => {
+// /auth/me Handler
+app.get('/api/v1/auth/me', async (req: any, res: any) => {
+  const authHeader = req.headers.authorization || '';
+  const tokenRaw = authHeader.replace('Bearer ', '').trim();
+  if (!tokenRaw) return res.status(401).json({ status: 'error', message: 'Token missing' });
+
+  const userIdOrPhone = parseUserIdFromToken(authHeader);
+  try {
+    let user = null;
+    if (userIdOrPhone) {
+      user = await prisma.user.findUnique({ where: { id: userIdOrPhone } }).catch(() => null);
+      if (!user) {
+        const digits = userIdOrPhone.replace(/\D/g, '');
+        if (digits.length >= 7) {
+          user = await prisma.user.findFirst({
+            where: { phone: { endsWith: digits.slice(-9) } }
+          }).catch(() => null);
+        }
+      }
+    }
+
+    if (!user && tokenRaw.includes('_')) {
+      const parts = tokenRaw.split('_');
+      if (parts[1]) {
+        const digits = parts[1].replace(/\D/g, '');
+        if (digits.length >= 7) {
+          user = await prisma.user.findFirst({
+            where: { phone: { endsWith: digits.slice(-9) } }
+          }).catch(() => null);
+        }
+      }
+    }
+
+    if (!user) return res.status(401).json({ status: 'error', message: 'User not found' });
+    return res.json({ status: 'success', user });
+  } catch (e) {
+    console.error("Auth /me error:", e);
+    return res.status(500).json({ status: 'error', error: String(e) });
+  }
+});
+
+// Profile update Handler
+app.post('/api/v1/auth/profile', async (req: any, res: any) => {
+  const { phone, avatar, id, name, role } = req.body;
+  try {
+    let user = null;
+    if (id) {
+      user = await prisma.user.findUnique({ where: { id } }).catch(() => null);
+    }
+    if (!user && phone) {
+      const digits = String(phone).replace(/\D/g, '');
+      if (digits.length >= 7) {
+        user = await prisma.user.findFirst({ where: { phone: { endsWith: digits.slice(-9) } } }).catch(() => null);
+      }
+    }
+    if (user) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          ...(avatar ? { avatar } : {}),
+          ...(name ? { name } : {}),
+          ...(role ? { role } : {}),
+        }
+      });
+      return res.json({ status: 'success', user });
+    }
+    return res.status(404).json({ status: 'error', message: 'User not found' });
+  } catch (e) {
+    return res.status(500).json({ status: 'error', error: String(e) });
+  }
+});
+
+// Token refresh Handler
+app.post('/api/v1/auth/refresh', async (req: any, res: any) => {
+  const { refresh_token } = req.body;
+  const userId = parseUserIdFromToken(refresh_token);
+  if (!userId) return res.status(401).json({ status: 'error', message: 'Invalid refresh token' });
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(401).json({ status: 'error', message: 'User not found' });
+
+    const tokens = generateAuthTokens(user.id);
+    return res.json({ status: 'success', ...tokens, user });
+  } catch (e) {
+    return res.status(500).json({ status: 'error', error: String(e) });
+  }
+});
+
+// Logout Handler
+app.post('/api/v1/auth/logout', (_req: any, res: any) => {
   res.json({ status: 'success' });
 });
 
+app.post('/api/v1/traffic/track', (_req: any, res: any) => {
+  res.json({ status: 'success' });
+});
 // -----------------------------------------------------------------
 // SHIELD AI -- Multi-turn Conversation Assistant
 // Architecture inspired by ai-chat-copy/ai/services.py:

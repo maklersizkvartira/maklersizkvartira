@@ -90,26 +90,11 @@ export const ApiService = {
       });
       if (res?.ok) {
         const data = await res.json();
-        if (data.access_token) saveTokens(data.access_token, data.refresh_token);
+        const token = data.access_token || data.token;
+        if (token) saveTokens(token, data.refresh_token || null);
         const remoteUser = (data.user || data.data?.user || (data.id ? data : null)) as CurrentUser | null;
         if (remoteUser) {
-          const finalUser: CurrentUser & { password?: string } = {
-            ...remoteUser,
-            id: localMatched?.id || remoteUser.id,
-            role: (localMatched?.role || remoteUser.role || 'STUDENT') as CurrentUser['role'],
-            avatar: (localMatched?.avatar && !localMatched.avatar.includes('unsplash.com'))
-              ? localMatched.avatar
-              : (remoteUser.avatar || localMatched?.avatar),
-            password: password || localMatched?.password,
-          };
-          try {
-            const usersArr: CurrentUser[] = localUsersRaw ? JSON.parse(localUsersRaw) : [];
-            const filtered = usersArr.filter((u) => !matchPhone(u.phone, phone) && u.id !== finalUser.id);
-            filtered.push(finalUser);
-            localStorage.setItem('maklersiz_registered_users', JSON.stringify(filtered));
-            localStorage.setItem('maklersiz-user', JSON.stringify(finalUser));
-          } catch {}
-          return finalUser;
+          return remoteUser;
         }
       } else if (res) {
         const errJson = await res.json().catch(() => ({}));
@@ -181,14 +166,11 @@ export const ApiService = {
       });
       if (res?.ok) {
         const data = await res.json();
-        if (data.access_token) saveTokens(data.access_token, data.refresh_token);
+        const token = data.access_token || data.token;
+        if (token) saveTokens(token, data.refresh_token || null);
         const remote = (data.user || data.data?.user || (data.id ? data : null)) as CurrentUser | null;
         if (remote) {
-          registeredUser = {
-            ...remote,
-            id: localExisting?.id || remote.id,
-            avatar: chosenAvatar,
-          };
+          registeredUser = remote;
         }
       }
     } catch {
@@ -271,8 +253,9 @@ export const ApiService = {
       });
       if (res?.ok) {
         const data = await res.json();
-        if (data.access_token) {
-          saveTokens(data.access_token, data.refresh_token ?? null);
+        const token = data.access_token || data.token;
+        if (token) {
+          saveTokens(token, data.refresh_token || null);
         }
         return data;
       }
