@@ -266,7 +266,44 @@ Qoidalar:
                listings.map((l, i) => `${i + 1}) ${l.title} — ${Math.round(l.price).toLocaleString('uz-UZ')} so'm (${l.district})`).join('\n') +
                `\n\nBarcha mos kvartiralarni Qidiruv sahifasidan to'liq ko'rishingiz mumkin!`;
     } else {
-      aiText = "🤖 Shield AI: Kechirasiz, aynan siz xohlagan shartlarga mos kvartira hozircha bazada yo'q. Qidiruv bo'limidan boshqacha izlab ko'ring.";
+      // Qidiruvda topilmagan bo'lsa, bazadagi bor tumanlarni olib AI orqali taklif beramiz
+      const availableListings = await prisma.listing.findMany({
+         where: { aiCheckStatus: 'APPROVED' },
+         select: { district: true },
+         distinct: ['district'],
+         take: 10
+      });
+      const availableDistricts = availableListings.map(l => l.district).filter(Boolean);
+      
+      if (availableDistricts.length > 0 && parsed.district) {
+        const suggestionPrompt = `Foydalanuvchi "${parsed.district}" tumanidan kvartira qidirdi, lekin bazada bu tumanda kvartira yo'q.
+Bazada hozir faqat quyidagi tumanlarda kvartiralar bor: ${availableDistricts.join(', ')}.
+Iltimos, o'zbek tilida qisqa va chiroyli tarzda (do'stona yordamchi sifatida) "Kechirasiz, ${parsed.district} tumanida hozircha e'lonlar yo'q ekan, lekin manabu tumanlarda (${availableDistricts.join(', ')}) kvartiralar bor, ehtimol ularni ham ko'rib chiqarsiz" degan ma'noda javob yozing. Matnni "Shield AI: " deb boshlamang, shunchaki gapni o'zini qaytaring. Faqat matn bo'lsin.`;
+
+        try {
+          const sugRes = await fetch(url, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${OPENAI_API_KEY}`
+            },
+            body: JSON.stringify({
+              model: "gpt-4o-mini",
+              messages: [{ role: "user", content: suggestionPrompt }]
+            })
+          });
+          if (sugRes.ok) {
+            const sugData = await sugRes.json();
+            aiText = "🤖 Shield AI: " + (sugData.choices?.[0]?.message?.content || "Kechirasiz, siz xohlagan manzil bo'yicha kvartira topilmadi.");
+          } else {
+            aiText = "🤖 Shield AI: Kechirasiz, aynan siz xohlagan shartlarga mos kvartira hozircha bazada yo'q. Boshqa tumanlarni ko'rib chiqing.";
+          }
+        } catch {
+          aiText = "🤖 Shield AI: Kechirasiz, aynan siz xohlagan shartlarga mos kvartira hozircha bazada yo'q. Qidiruv bo'limidan boshqacha izlab ko'ring.";
+        }
+      } else {
+        aiText = "🤖 Shield AI: Kechirasiz, aynan siz xohlagan shartlarga mos kvartira hozircha bazada yo'q. Qidiruv bo'limidan boshqacha izlab ko'ring.";
+      }
     }
 
     res.json({
