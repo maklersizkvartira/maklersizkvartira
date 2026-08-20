@@ -74,9 +74,9 @@ export const App: React.FC = () => {
     };
   }, [fetchListings, setCurrentView, initAuth]);
 
-    if (!isAppReady) {
+  if (!isAppReady) {
     return (
-      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-zinc-950 text-white">
+      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-950 text-white">
         {/* Minimalist Logo */}
         <div className="flex items-center gap-2">
           <span className="text-3xl sm:text-4xl font-black tracking-tighter text-white">
@@ -85,7 +85,7 @@ export const App: React.FC = () => {
         </div>
 
         {/* Minimalist Thin Animated Progress Line */}
-        <div className="w-40 h-1 bg-zinc-900 rounded-full overflow-hidden mt-8 border border-zinc-800">
+        <div className="w-40 h-1 bg-slate-900 rounded-full overflow-hidden mt-8 border border-slate-800">
           <div className="h-full bg-emerald-500 rounded-full animate-pulse transition-all duration-500 w-3/4" />
         </div>
       </div>
@@ -93,7 +93,7 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-zinc-950 text-zinc-300 selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-white">
       <Header />
       <GlobalAINotification />
 
@@ -101,6 +101,14 @@ export const App: React.FC = () => {
         {currentView === 'HOME' && (
           <>
 
+
+            {isStudent && (
+              <div className="pt-4 pb-1 bg-slate-950 text-center px-4">
+                <p className="text-sm sm:text-base font-extrabold text-slate-300">
+                  Salom, <span className="text-emerald-400 font-black">{currentUser.name.split(' ')[0]}</span> 👋 Kvartirani egasidan to'g'ridan-to'g'ri, 0% komissiya bilan tanlang.
+                </p>
+              </div>
+            )}
 
             <HeroSection />
             <QuickCategories />

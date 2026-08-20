@@ -50,8 +50,8 @@ export const AIRecommended: React.FC = () => {
           <div className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold text-emerald-800 bg-emerald-100/80 px-2.5 py-0.5 rounded-full mb-1 border border-emerald-200">
             <Sparkles className="w-3 h-3 fill-emerald-600" /> Shield AI Tavsiyalari
           </div>
-          <h2 className="text-lg sm:text-2xl font-black text-zinc-100 tracking-tight">Eng Ishonchli E'lonlar</h2>
-          <p className="text-[11px] sm:text-xs text-zinc-400">Maklersiz, egasidan to'g'ridan-to'g'ri</p>
+          <h2 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight">Eng Ishonchli E'lonlar</h2>
+          <p className="text-[11px] sm:text-xs text-slate-500">Maklersiz, egasidan to'g'ridan-to'g'ri</p>
         </div>
 
         <button
@@ -64,8 +64,8 @@ export const AIRecommended: React.FC = () => {
       </div>
 
       {visible.length === 0 ? (
-        <div className="bg-zinc-900 p-8 rounded-3xl border border-zinc-800/80 text-center space-y-3">
-          <p className="text-xs sm:text-sm text-zinc-400 font-bold">Hozircha e'lonlar mavjud emas.</p>
+        <div className="bg-white p-8 rounded-3xl border border-slate-200/80 text-center space-y-3">
+          <p className="text-xs sm:text-sm text-slate-500 font-bold">Hozircha e'lonlar mavjud emas.</p>
           {(!currentUser || currentUser.role === 'OWNER') && (
             <button
               onClick={() => setCurrentView('CREATE_LISTING')}
@@ -97,7 +97,7 @@ export const AIRecommended: React.FC = () => {
               key={i}
               onClick={() => setStart(i)}
               className={`h-1.5 rounded-full transition-all ${
-                i === pageIndex ? 'w-5 bg-emerald-500' : 'w-1.5 bg-zinc-700'
+                i === pageIndex ? 'w-5 bg-emerald-600' : 'w-1.5 bg-slate-300'
               }`}
               aria-label={`Sahifa ${i + 1}`}
             />
