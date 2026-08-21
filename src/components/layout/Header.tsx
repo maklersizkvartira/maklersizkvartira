@@ -111,10 +111,10 @@ export const Header: React.FC = () => {
     <header className="fixed top-0 inset-x-0 z-50 transition-all pointer-events-none">
       <AuthModal />
 
-      <div className={`w-full transition-all pointer-events-auto px-4 sm:px-8 py-2.5 sm:py-3 flex items-center justify-between gap-3 ${
+      <div className={`w-full transition-all shadow-xl border-b backdrop-blur-xl pointer-events-auto px-4 sm:px-8 py-2.5 sm:py-3 flex items-center justify-between gap-3 ${
         themeMode === 'light'
-          ? 'bg-transparent text-slate-900'
-          : 'bg-transparent text-white'
+          ? 'bg-white/95 text-slate-900 border-slate-200/90 shadow-slate-300/40'
+          : 'bg-slate-950/90 text-white border-slate-800/90 shadow-black/80'
       }`}>
         {/* Logo */}
         <button onClick={() => setCurrentView('HOME')} className="flex items-center gap-2 shrink-0 min-w-0 group text-left">
