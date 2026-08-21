@@ -10,7 +10,7 @@ interface NavItem {
 }
 
 export const BottomNav: React.FC = () => {
-  const { currentView, setCurrentView, favorites, currentUser, setShowAuth } = useAppStore();
+  const { currentView, setCurrentView, favorites, currentUser, setShowAuth, isAiSystemActive } = useAppStore();
   const isOwner = currentUser?.role === 'OWNER';
 
   const navItems: NavItem[] = isOwner
@@ -49,7 +49,7 @@ export const BottomNav: React.FC = () => {
                 isActive ? 'text-emerald-700 font-extrabold' : 'text-slate-500 font-medium'
               }`}
             >
-              <div className={`relative flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-xl ${isActive ? 'bg-emerald-100/70 text-emerald-700' : ''}`}>
+              <div className={`relative flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-xl ${isActive ? 'bg-emerald-100/70 text-emerald-700' : ''} ${item.id === 'PROFILE' && !isAiSystemActive ? 'animate-red-green-blink' : ''}`}>
                 <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}`} />
                 {item.badge && item.badge > 0 ? (
                   <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black min-w-3.5 h-3.5 px-0.5 rounded-full flex items-center justify-center">

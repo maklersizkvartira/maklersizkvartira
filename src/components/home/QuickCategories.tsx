@@ -119,8 +119,8 @@ export const QuickCategories: React.FC = () => {
         </button>
       </div>
 
-      {/* Grid of Large Premium Interactive Category Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-5">
+      {/* Horizontal Scroll on Mobile, Grid on Desktop Large Premium Interactive Category Cards */}
+      <div className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar sm:grid sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-5 pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
         {categories.map((cat) => {
           const Icon = cat?.icon || Home;
           const isMetro = cat.id === 'metro';
@@ -131,32 +131,32 @@ export const QuickCategories: React.FC = () => {
             <button
               key={cat.id}
               onClick={cat.action}
-              className="flex flex-col items-center justify-between p-5 rounded-3xl bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 group shrink-0 text-center relative overflow-hidden"
+              className="flex flex-col items-center justify-between p-4 sm:p-5 w-[140px] sm:w-auto shrink-0 snap-start rounded-[20px] sm:rounded-3xl bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 group text-center relative overflow-hidden"
             >
               {/* Animated Top Ambient Gradient */}
               <div className={`absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r ${cat.gradientBg} opacity-0 group-hover:opacity-100 transition-opacity`} />
 
               {/* Icon Container with Micro-Animations */}
-              <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center mb-3 transition-all duration-300 shadow-sm border border-slate-100 group-hover:scale-110 group-hover:-translate-y-1 ${cat.badgeColor}`}>
-                <Icon className={`w-7 h-7 sm:w-8 sm:h-8 transition-all duration-300 ${
+              <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-[14px] sm:rounded-2xl flex items-center justify-center mb-2.5 sm:mb-3 transition-all duration-300 shadow-sm border border-slate-100 group-hover:scale-110 group-hover:-translate-y-1 ${cat.badgeColor}`}>
+                <Icon className={`w-6 h-6 sm:w-8 sm:h-8 transition-all duration-300 ${
                   isMetro ? 'group-hover:translate-x-1.5' : isStudent ? 'group-hover:-rotate-12' : isSherik ? 'group-hover:scale-125' : 'group-hover:rotate-6'
                 }`} />
               </div>
 
               {/* Content */}
-              <div className="space-y-1 w-full">
-                <h3 className="text-sm sm:text-base font-black text-slate-900 group-hover:text-emerald-600 transition-colors leading-tight">
+              <div className="space-y-0.5 sm:space-y-1 w-full">
+                <h3 className="text-[13px] sm:text-base font-black text-slate-900 group-hover:text-emerald-600 transition-colors leading-tight">
                   {cat.name}
                 </h3>
-                <p className="text-[11px] text-slate-500 font-medium line-clamp-2 leading-snug">
+                <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium line-clamp-2 leading-snug">
                   {cat.desc}
                 </p>
               </div>
 
               {/* Sub-tags */}
-              <div className="mt-3 pt-2 border-t border-slate-100 w-full flex flex-wrap justify-center gap-1">
+              <div className="mt-2.5 sm:mt-3 pt-2 border-t border-slate-100 w-full flex flex-wrap justify-center gap-1">
                 {cat.subTags.slice(0, 2).map((tag, i) => (
-                  <span key={i} className="text-[10px] font-bold text-slate-600 bg-slate-50 group-hover:bg-emerald-50 group-hover:text-emerald-700 px-2 py-0.5 rounded-md transition-colors">
+                  <span key={i} className="text-[9px] sm:text-[10px] font-bold text-slate-600 bg-slate-50 group-hover:bg-emerald-50 group-hover:text-emerald-700 px-1.5 sm:px-2 py-0.5 rounded-md transition-colors">
                     {tag}
                   </span>
                 ))}

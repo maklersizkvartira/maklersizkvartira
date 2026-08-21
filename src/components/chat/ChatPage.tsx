@@ -92,8 +92,9 @@ export const ChatPage: React.FC = () => {
     if (currentUser?.id) {
       return senderId === currentUser.id;
     }
+    if (senderId === 'tenant_current') return true;
     if (isOwner) return senderRole === 'OWNER';
-    return senderRole === 'TENANT';
+    return senderRole === 'STUDENT' || senderRole === 'TENANT';
   };
 
   const filteredConversations = conversations.filter((c) => {

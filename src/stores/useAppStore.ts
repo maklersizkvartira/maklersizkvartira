@@ -4,7 +4,7 @@ import { MOCK_LISTINGS } from '../data/mockListings';
 import { MOCK_OWNERS } from '../data/mockUsers';
 import { MOCK_REPORTS, MOCK_VERIFICATIONS, MOCK_FRAUD_SIGNALS } from '../data/mockAdminData';
 import { ApiService, matchPhone } from '../services/apiService';
-import { clearTokens, getAccessToken, initAuthFromStorage } from '../services/authService';
+import { API_BASE, clearTokens, getAccessToken, initAuthFromStorage } from '../services/authService';
 
 
 export type ViewState =
@@ -42,6 +42,9 @@ interface AppStore {
   userXp: number;
   userBadges: string[];
   addXp: (amount: number, reason: string) => void;
+
+  isAiSystemActive: boolean;
+  setAiSystemActive: (isActive: boolean) => void;
 
   currency: 'USD' | 'UZS';
   setCurrency: (c: 'USD' | 'UZS') => void;
@@ -259,6 +262,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
     return { userXp: state.userXp + amount };
   }),
 
+  isAiSystemActive: true,
+  setAiSystemActive: (isActive) => set({ isAiSystemActive: isActive }),
+
   listings: [],
   fetchListings: async () => {
     try {
@@ -334,7 +340,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     return { listings: [], aiMascotMessage: "Barcha e'lonlar tozalandi!" };
   }),
 
-  favorites: ['listing-1'],
+  favorites: [],
   toggleFavorite: (listingId) => set((state) => {
     const isFav = state.favorites.includes(listingId);
     
@@ -417,37 +423,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   activeConversationId: null,
-  conversations: [
-    {
-      id: 'mock-conv-1',
-      listingId: 'listing-1',
-      listingTitle: 'Chilonzor 3-xona, Metro yonida',
-      listingPrice: 400,
-      listingImage: 'https://images.unsplash.com/photo-1502672260266-1c1de2d96674?auto=format&fit=crop&q=80&w=600',
-      ownerId: 'owner-1',
-      ownerName: 'Vosilhoja',
-      ownerAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=300',
-      tenantId: 'tenant-999',
-      tenantName: 'Azizbek',
-      tenantAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300',
-      lastMessage: "Assalomu alaykum, uy hali bo'shmi?",
-      lastMessageTime: '14:30',
-      unreadCount: 1,
-    }
-  ],
-  messages: {
-    'mock-conv-1': [
-      {
-        id: 'mock-msg-1',
-        conversationId: 'mock-conv-1',
-        senderId: 'tenant-999',
-        senderName: 'Azizbek',
-        senderRole: 'STUDENT',
-        text: "Assalomu alaykum, uy hali bo'shmi?",
-        timestamp: '14:30',
-      }
-    ]
-  },
+  conversations: [],
+  messages: {},
 
   openChatWithListing: (listing) => set((state) => {
     if (!state.currentUser) {

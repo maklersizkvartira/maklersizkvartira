@@ -47,6 +47,15 @@ export default {
         'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
         'emerald': '0 4px 20px -2px rgba(5, 150, 105, 0.25)',
         'card': '0 2px 12px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02)',
+      },
+      keyframes: {
+        'red-green-blink': {
+          '0%, 100%': { color: '#ef4444', backgroundColor: '#fee2e2' }, // text-rose-500, bg-rose-100
+          '50%': { color: '#10b981', backgroundColor: '#d1fae5' }, // text-emerald-500, bg-emerald-100
+        }
+      },
+      animation: {
+        'red-green-blink': 'red-green-blink 2s ease-in-out infinite',
       }
     },
   },

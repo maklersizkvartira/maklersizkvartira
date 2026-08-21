@@ -1,0 +1,1077 @@
+{
+  "search_metadata": {
+    "id": "6a86af45fdfbabb75ae3d8a7",
+    "status": "Success",
+    "json_endpoint": "https://serpapi.com/searches/J3s-osA9jG3rr_EQE_ue6Q/6a86af45fdfbabb75ae3d8a7.json",
+    "markdown_endpoint": "https://serpapi.com/searches/J3s-osA9jG3rr_EQE_ue6Q/6a86af45fdfbabb75ae3d8a7.md",
+    "created_at": "2026-08-20 07:39:49 UTC",
+    "processed_at": "2026-08-20 07:39:49 UTC",
+    "google_lens_url": "https://lens.google.com/uploadbyurl?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1522708323590-d24dbb6b0267",
+    "raw_html_file": "https://serpapi.com/searches/J3s-osA9jG3rr_EQE_ue6Q/6a86af45fdfbabb75ae3d8a7.html",
+    "total_time_taken": 2.49
+  },
+  "search_parameters": {
+    "engine": "google_lens",
+    "url": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267"
+  },
+  "ai_overview": {
+    "page_token": "5UJ01XiczVZZkuI4EL3AXGP4qgbb7BVBdMgLYLOKpYz94_CGMFg24A3zN3eZmEPNaUZmh4aq6f6YGEUYyalUZioznx9__Ok63urv3_5ahOE6eC8UkiTJI99Hrp03fVzQg9QzC3PfDbbm4rvrBRr2LbsReblsHUTbuW7aDaaSC_xoS1ZEmk9sIx-tvFxk4WwnDhwvbHAAbjjkcxwwxwChtgiEipj4Mg8BAHztg_yC4Y4CQASaRGSIryVgxAGOdSJ2PD3IiamtYzW4QaVTtith1B9UF0iAYIFY0RmtBi0hUXB_2R_Tbm__gbsTWOzxKFQmqqM61F5Zqo4yAfseFnZ9PE0RFBzgScUO3-TMxI-Mlup25RFtyHR5gBV6wPeSHoalriw5aksM-7zrKGPa6WEJd2WFVlvSSl26uD_5cJWFxHLLWqzg8r5blIpdRopNbMamZx5lzM41vF6oelJseCPXwDBUZuy6W2RTg4HE90dkpjQ2cT2yyFrl6IXZWsW9fV9ngc8RO6Uwmq-0Oo5c1MulcaOYM4MGlbOdxmjzraVvO2ZP1eJtJAxXfcbHYJo7FK-hGXpgL0ltd8ugoBXIz-r3Ik9e8kHe9vJA_ojhJq1aTSHPUHQ9PyjomCiA_2RkbkZZcQVS8mx-MogQfmVHhIADQLqRIHSaLxIusyMA9qCdjc4nYR0iERfg4LvU0vZZo_KnOAafRHIbA2hl3kgMkFwPjF_e8Nk4X7l5jv1faT-RitfDbHLde21xge7fp4BtV7ICsSeBeDWOr2piZpM9nh1AYPMJWCTodY7JCQQ6CqDcl_FfFIWPEneuZ4cicQgFC5EmpQrGlkx0wTEX5mGxDbLe5SZ1ym938XCDA21eDssrYVosrmd9vULbg5qBCqZB9Fxft2xLW2jU98M7zdBlql6s1t4OoDGDC2qCW9QEPWVSH7DVvVTKd_MsfQOZc3kf7oMgfHZF4dTbwo9bPdI758PkSU65b10a-pLYkY-I7GqdfGlRLVsoZ4mdGbk2wY3mc8g8KGaQQSw83u5YBvEa2WWI19a-uSr_0Eyn_Ycbi-3zSoH3ivfHOZEV0MWBcrNzkI6RkFluitxxt8ezILn6ylLGwoeASOpYDghnpbP70zu8gQw8fGOIRk8UiR_OEVmWpCaTHVMlXso_Rfc4557Bvgu67JfAfjqEmyK-HPCMjYdWv4VIa0E1FVTs0HbHx7tthZrX-pwOwkiT4XNI-Nj4CSYx_y-gWYIDz3TOPPMCNPAr0IiQ-5xn2BueQdIRNJ2XoOHF5zxzaro7nnkAjXQLGvkznvkZ0OhfgAaeD_4IGsIzz0AzfgmaxSkrV9BIdzzDPeOZE2h-iWfYX-KZA4bs43RPOtESvSSfppuOUTKsBp7THTWNMqiJc8zOVflbDL8knzkO37FuuW-aY72zjBSm1ptGBP67beU2Oexu_QalV6bjpTp1ivKOMVNV2LGyvx6sV9XdPm7ajL-Vm0qxnc7TSdUMeU_XxrDGW-1qd8nPgimjyOV22JkBqz8qDyMf6bNgXawiMZ5WpK7YqS8HER6Vxso21L81ZaYzVqAFJkMYb2YMp7a4oebXh-1NbPVNabrxUi85xBU0ovUsnSyhZSswh7cm-ecPSgj0IZARMAGnAEhSDDmfPAl5KgAKbC4wdc0O4kbFtKtGhSrbJZ2xa7VSDqMwXTcqTC7wtg36H-7bq1A",
+    "serpapi_link": "https://serpapi.com/search.json?engine=google_ai_overview&page_token=5UJ01XiczVZZkuI4EL3AXGP4qgbb7BVBdMgLYLOKpYz94_CGMFg24A3zN3eZmEPNaUZmh4aq6f6YGEUYyalUZioznx9__Ok63urv3_5ahOE6eC8UkiTJI99Hrp03fVzQg9QzC3PfDbbm4rvrBRr2LbsReblsHUTbuW7aDaaSC_xoS1ZEmk9sIx-tvFxk4WwnDhwvbHAAbjjkcxwwxwChtgiEipj4Mg8BAHztg_yC4Y4CQASaRGSIryVgxAGOdSJ2PD3IiamtYzW4QaVTtith1B9UF0iAYIFY0RmtBi0hUXB_2R_Tbm__gbsTWOzxKFQmqqM61F5Zqo4yAfseFnZ9PE0RFBzgScUO3-TMxI-Mlup25RFtyHR5gBV6wPeSHoalriw5aksM-7zrKGPa6WEJd2WFVlvSSl26uD_5cJWFxHLLWqzg8r5blIpdRopNbMamZx5lzM41vF6oelJseCPXwDBUZuy6W2RTg4HE90dkpjQ2cT2yyFrl6IXZWsW9fV9ngc8RO6Uwmq-0Oo5c1MulcaOYM4MGlbOdxmjzraVvO2ZP1eJtJAxXfcbHYJo7FK-hGXpgL0ltd8ugoBXIz-r3Ik9e8kHe9vJA_ojhJq1aTSHPUHQ9PyjomCiA_2RkbkZZcQVS8mx-MogQfmVHhIADQLqRIHSaLxIusyMA9qCdjc4nYR0iERfg4LvU0vZZo_KnOAafRHIbA2hl3kgMkFwPjF_e8Nk4X7l5jv1faT-RitfDbHLde21xge7fp4BtV7ICsSeBeDWOr2piZpM9nh1AYPMJWCTodY7JCQQ6CqDcl_FfFIWPEneuZ4cicQgFC5EmpQrGlkx0wTEX5mGxDbLe5SZ1ym938XCDA21eDssrYVosrmd9vULbg5qBCqZB9Fxft2xLW2jU98M7zdBlql6s1t4OoDGDC2qCW9QEPWVSH7DVvVTKd_MsfQOZc3kf7oMgfHZF4dTbwo9bPdI758PkSU65b10a-pLYkY-I7GqdfGlRLVsoZ4mdGbk2wY3mc8g8KGaQQSw83u5YBvEa2WWI19a-uSr_0Eyn_Ycbi-3zSoH3ivfHOZEV0MWBcrNzkI6RkFluitxxt8ezILn6ylLGwoeASOpYDghnpbP70zu8gQw8fGOIRk8UiR_OEVmWpCaTHVMlXso_Rfc4557Bvgu67JfAfjqEmyK-HPCMjYdWv4VIa0E1FVTs0HbHx7tthZrX-pwOwkiT4XNI-Nj4CSYx_y-gWYIDz3TOPPMCNPAr0IiQ-5xn2BueQdIRNJ2XoOHF5zxzaro7nnkAjXQLGvkznvkZ0OhfgAaeD_4IGsIzz0AzfgmaxSkrV9BIdzzDPeOZE2h-iWfYX-KZA4bs43RPOtESvSSfppuOUTKsBp7THTWNMqiJc8zOVflbDL8knzkO37FuuW-aY72zjBSm1ptGBP67beU2Oexu_QalV6bjpTp1ivKOMVNV2LGyvx6sV9XdPm7ajL-Vm0qxnc7TSdUMeU_XxrDGW-1qd8nPgimjyOV22JkBqz8qDyMf6bNgXawiMZ5WpK7YqS8HER6Vxso21L81ZaYzVqAFJkMYb2YMp7a4oebXh-1NbPVNabrxUi85xBU0ovUsnSyhZSswh7cm-ecPSgj0IZARMAGnAEhSDDmfPAl5KgAKbC4wdc0O4kbFtKtGhSrbJZ2xa7VSDqMwXTcqTC7wtg36H-7bq1A"
+  },
+  "visual_matches": [
+    {
+      "position": 1,
+      "title": "My 530 Square Feet Home is Not Enough for Me to Work From ...",
+      "link": "https://medium.com/illumination/my-530-square-feet-home-is-not-enough-for-me-to-work-from-home-4e0d8399e50e",
+      "source": "Medium",
+      "source_icon": "https://serpapi.com/searches/6a86af45fdfbabb75ae3d8a7/images/YGFE6PAnaFkM6vj51Do5EEfpeGqou4yaO_XxA5ZP5Z4.png",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcS8uVGFroicaoouqrTATxxFEydaJQNH9XLHu13EGFxb1R5h9j5Z",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://miro.medium.com/v2/da:true/resize:fit:1200/0*BV03KOd7s_hGkXys",
+      "image_width": 800,
+      "image_height": 1200
+    },
+    {
+      "position": 2,
+      "title": "New York City guides",
+      "link": "https://parvizrealestate.com/blog",
+      "source": "Parviz Real Estate",
+      "source_icon": "https://serpapi.com/searches/6a86af45fdfbabb75ae3d8a7/images/e6e8lQLR-fNzPPQyJcFm98hjOvOmlZQCTt1rxa5lyCc.png",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcRiCRvlUgGBpYRDpVrRTeacVX_5ygofEKXoWcxWI3qbf1LvAPXI",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?ixid=M3w0MTQ1MnwwfDF8c2VhcmNofDN8fGFwYXJ0bWVudHxlbnwwfHx8fDE3NTk1MjE1OTB8MA&ixlib=rb-4.1.0&q=80&w=1280",
+      "image_width": 854,
+      "image_height": 1280
+    },
+    {
+      "position": 3,
+      "title": "What are corporate apartments and why are they the best ...",
+      "link": "https://cotown.com/corporate-apartments.html",
+      "source": "Cotown",
+      "source_icon": "https://serpapi.com/images/i/iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAUVBMVEUAAAAIwMAIw8MGnJwEWVkIxsYIvb0IuLgHsbEHra0DSkoHoqIEY2MHpqYEYGAGlZUDUVEGjo4GhIQDQUECPDwCKioGiooFbm4ADg4CMjIFg4NX0-Z-AAAAb0lEQVQ4jd2SQQKAIAgEQSMrM9PUsv8_ND8AXqu57nBhF-B_rM4Yt_G5J2xQ4PKdRpxmNdLCCAGxHUfEwgga1QBwKNSikEjJQi7xFAWB9whXrVkUEpGVhd4nhVe3sjzAzZfVrbs7mDY5a4wVJvdZHr2TA8WjuS-tAAAAAElFTkSuQmCC.png",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcSNFxsgBG52zJ1rJMSP558Sl80FzACV9BfY-csYiwfkzepAGw4s",
+      "thumbnail_width": 185,
+      "thumbnail_height": 272,
+      "image": "https://cotown.com/assets/img/corporate-apartments-1280.jpeg",
+      "image_width": 873,
+      "image_height": 1280
+    },
+    {
+      "position": 4,
+      "title": "Renters Insurance | Premier Group Agency - Maple Grove, MN",
+      "link": "https://www.premiergroupagency.com/insurance-products/renters-insurance/",
+      "source": "Premier Group Agency",
+      "source_icon": "https://serpapi.com/images/i/iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAATlBMVEVHcEwAap2OzuA3jrMQe6cSeKUAYpgAZ5sAU5A_jLH___8AdKIAapwAbp8AcqHS4-ygw9Xo8fVKkbVZmbrz-fu0z96Mt854qsQigaoAYJf85heUAAAACnRSTlMAJwg-_dhSnhL48xtUyQAAAcJJREFUOI2FU9uW2zAIdLZyZCmgu2T7_3-0A4p9NtuelieMYRgGtCy3bU-7ulLcap_b8qc9rEvZq-Xk7M-UL1uj9zHtte5JvGo__m-m-7YbYjEiszff128gv47sB3F4vS0wDZ_N464_mq_0-rCzIOON8WWyP_jzP-9Cdp0JtvtCRPwKpCTEO3Scrkwf1ceRehxUY08jpd45lDlwlSY2ztkru6RuGqDbxGsREFvxEm5nQAtFPsCXh3jDu215Jq_hIkOSaJno8oxPz8XmeApEl7AWZr7GOGO2i0OFziQI4QYTFvFMfkXCzkYoVSkkAUtvTyrdUlBA_epBQwnPBMfVFyRUhoMwXQjag3MmTZAWL2ozDA5xzgFvMEuLVVpSmj14z24Sxj8TWEhiTOSXGSYInhWMeiZ8YkwIZVCQdY4AGScYoUNQoSA1SKhCnfZIKkXDORxBKGyyLPAPL6_KDZ6DYG_ooMtatopzm-HqkalgKQ85O123Hgyr9g1l17GIOP192mvDyanc-y13PI_75PRoywm5m5GNqa614Os-_AcyBqSI87QJqen72QNj7R5K1PlyTt3d-vn6_vP0BOTfj1dT_vr8fwNlGisVjN1PPgAAAABJRU5ErkJggg.png",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcT5rrLAYlMmfD1c_xTb1tCRd9U905cVjs3zYqU6rudRPFnBP8h0",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://www.premiergroupagency.com/wp-content/uploads/2019/10/deborah-cortelazzi-gREquCUXQLI-unsplash1.jpg",
+      "image_width": 3517,
+      "image_height": 5274
+    },
+    {
+      "position": 5,
+      "title": "Renters Insurance — Get Quotes | Watley Insurance Group",
+      "link": "https://watleyinsurancegroup.com/personal-insurance/renters",
+      "source": "Watley Insurance Group",
+      "source_icon": "https://serpapi.com/images/i/iVBORw0KGgoAAAANSUhEUgAAACAAAAAICAMAAACvWw2dAAAAM1BMVEUPK0YqO0DWoRe8kh0NKkcyQD43QzzGmBomOUAULkXElxulhCKviiAuPT_Xoha3jx4WL0QkCuohAAAAO0lEQVQYlbXOuQEAIAgEQUSRR3z6r1YawMxJb4MDlRJEISOjBp8tC0pdiMj0CPB3IM5mtvOTSj3QyfYLv6QBc62aC-kAAAAASUVORK5CYII.png",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcRAGb4SMzrrjyHOZCpGYJycBRvhXCsYqk8XIumlIuSiVhMfcxvA",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1920&q=80",
+      "image_width": 1280,
+      "image_height": 1920
+    },
+    {
+      "position": 6,
+      "title": "Finding Student Accommodation in Australia",
+      "link": "https://oztrekk.com/news/finding-student-accommodation-in-australia/",
+      "source": "OzTREKK",
+      "source_icon": "https://serpapi.com/searches/6a86af45fdfbabb75ae3d8a7/images/6Nlh5jFJQTXGgW3YLvOmhPkci7M16ujEY532YoJgg68.png",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSx3AXoDdBLmfgBc6oyO6iAiPAX01ibmG2G5BOzP58utobjXsqT",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://oztrekk.com/wp-content/uploads/2021/03/apartment-room-scaled.jpg",
+      "image_width": 1707,
+      "image_height": 2560
+    },
+    {
+      "position": 7,
+      "title": "Rental Apartment Pictures | Download Free Images on Unsplash",
+      "link": "https://unsplash.com/s/photos/rental-apartment",
+      "source": "Unsplash",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcTxknGjNUHgxM8BnkAy03x9415qlgc8qa73-JXt7MPEtMXTAVsXdPrvOtsmtPzdBH7sTsk-vVd4ISWThvmTRFcPsdNQYScbOJWFPqT8hPp_W7Q",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ0ciZ0DSI2wkzvidXNw64tKz2l3f4e6ZYaokFIj3cYyRAMHKIl",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8cmVudGFsJTIwYXBhcnRtZW50fGVufDB8fDB8fHww",
+      "image_width": 2001,
+      "image_height": 3000
+    },
+    {
+      "position": 8,
+      "title": "Rental Listings | Jess Hein — Jess Hein Real Estate",
+      "link": "https://www.jessicaheinre.com/rent",
+      "source": "Jess Hein Real Estate",
+      "source_icon": "https://encrypted-tbn2.gstatic.com/favicon-tbn?q=tbn:ANd9GcRSHntSPHTPebsW1ZFL-d12oGsUYOzXCZoWySR2_cYIzp1iwAQogb2Wnk-ZDIoGxs6X73xtvv0ic2XEE7yACQtk0G4vSi-TWV9AjOph0pmQyEOVpowx5Scmgfk",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcRJhR4DIC9Iwu7vk7I5WxaOThZCOKDXip-Iy2e8GNQHW1I6Sanl",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://images.squarespace-cdn.com/content/v1/608b019c91bf250d0e84cfc8/1621546785697-D4MKSG7QBY78CV3RCAKE/unsplash-image-gREquCUXQLI.jpg",
+      "image_width": 1667,
+      "image_height": 2500
+    },
+    {
+      "position": 9,
+      "title": "Real Estate | DecorMatters - Design your dream home at your ...",
+      "link": "https://decormatters.com/blog/category/real-estate",
+      "source": "DecorMatters",
+      "source_icon": "https://encrypted-tbn3.gstatic.com/favicon-tbn?q=tbn:ANd9GcQGhO1jSEJL7oKO_SWJPgAw4l7kWyIK2gGHJl5_B7r1J12YPqCa90p38F-v4sYGRjumqGTmIuPiH39K8gp8qKUZP0Cw98Ysul8_qq6VGDYQbzFK3VjH",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcREzyw6e0Dnw6BBDldN6PphUOLI-g2sMrJKK81y09dfO7R8olpc",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://decormatters-blog-uploads.s3.amazonaws.com/How_to_Maintain_a_Real_Estate_Investment_Property_5435c41ed8.jpg",
+      "image_width": 3517,
+      "image_height": 5274
+    },
+    {
+      "position": 10,
+      "title": "Sell As-Is or Make Repairs in Metro Atlanta | Watkins Real ...",
+      "link": "https://watkinsrea.com/blog/sell-as-is-or-make-repairs-in-metro-atlanta-or-watkins-real-estate-associates",
+      "source": "Watkins Real Estate Associates",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcSAMm5D-jL7NX2TqJu0w5LV3tLxQl-D6UG36Cc-SLXO_7imKrU3IXPVK4Ns_FXqi2n0wLmihw8chv9PpmIZbKtHYKs-g53RdcmjKStFbfJJQqXKIw",
+      "thumbnail": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcTB1CHvBkQArZpOKCBFAnwvYQcrnY7gZb4nU0CDL6w93vrDGN6y",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?ixid=M3w0MTQ1MnwwfDF8c2VhcmNofDExfHxyb29tfGVufDB8fHx8MTc3NDEyMDQxNHww&ixlib=rb-4.1.0&q=80&w=960",
+      "image_width": 640,
+      "image_height": 960
+    },
+    {
+      "position": 11,
+      "title": "How to Get an Apartment Without 40x Rent?",
+      "link": "https://junehomes.com/blog/2023/05/08/how-to-get-apartment-without-40x-rent/",
+      "source": "June Homes",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcTBmg3_TdzilWmFh9O0A0ma7OxJmXI567sq9vSI1yX55ul2xXF2HNty7i8ui7OTZqmlR_RYu0LmMnzm41HWJBG0mbXGyd2K-FyrVGiYhD-K2Z0A",
+      "rating": 3.8,
+      "reviews": 1492,
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcSKi9tVz0UruPFmpGi82MSr_lVpv2xeQC3DQH2NZtCXKFOAGKyb",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://junehomes.com/blog/wp-content/uploads/2023/05/deborah-cortelazzi-gREquCUXQLI-unsplash-jpg.webp",
+      "image_width": 1280,
+      "image_height": 1920
+    },
+    {
+      "position": 12,
+      "title": "What we offer — Eppoliti Corporations",
+      "link": "https://www.eppoliti.com/what-we-offer",
+      "source": "Eppoliti Corporations",
+      "source_icon": "https://encrypted-tbn3.gstatic.com/favicon-tbn?q=tbn:ANd9GcTSxpZV5Ywtm-eSm3mZ4WJXpy7OgOtKJm9W4ibyxD-NfLyFyFx8eEgbMhpNCYUg_Kr9SpusLsToyALATWcFC2j0sfKwiHpFxJJe1Vm50dIrCt-lXrM2",
+      "thumbnail": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcTu97bnoPqXm68TzHjQGtN9LvWufkAhQTXPY2tDOWuka2A_73IZ",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://images.squarespace-cdn.com/content/v1/54b2c911e4b0c6ceb95bf156/1568647934366-96XL42BA8MB5EGLH7V3O/image-asset.jpeg",
+      "image_width": 1667,
+      "image_height": 2500
+    },
+    {
+      "position": 13,
+      "title": "Landing Page Eyewatch 1 - EyeWatch LIVE®",
+      "link": "https://eyewatchlive.com/landing-page-eyewatch-1/",
+      "source": "EyeWatch LIVE",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcSiJLxl1OXWewAtWAEbNWm0LQXMm63ZoKVIza1LQgs9KPdoHYkoh7lJktxWOvT3gayRzGPxQqCMhmOQZlDNvm_iZtYpXEhlwcbTwgd3c3tA2F-ou4FK",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcReooiPslYSBTjLuKjhgOuqYZhWBiC10BD_TF3LbhQFOE5KeYSH",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://eyewatchlive.com/wp-content/uploads/2023/08/photo-1522708323590-d24dbb6b0267.jpg",
+      "image_width": 720,
+      "image_height": 1080
+    },
+    {
+      "position": 14,
+      "title": "La Ringhiera",
+      "link": "https://www.ringhiera.eu/en/",
+      "source": "La Ringhiera",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcReYuskSjFHKiTm1vcX9Etdpk9xHwzlSmXrjBRzS8miQ2GvrqH3s-x2QChEuKuv2ZJPiwxwZw3oqjilk4WBsVEEsMI3AbxH9xCsCkeMZxpqfPO9kiJD",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcQOAeSe3svhT7O5uR07CEUfJLFeHYTP4Dq4h100TMOS-tOS7DzC",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://www.ringhiera.eu/wp-content/uploads/2024/03/apartment-1024x683.jpg",
+      "image_width": 683,
+      "image_height": 1024
+    },
+    {
+      "position": 15,
+      "title": "Abby Loves Design | Founder Discovered Vendors While ...",
+      "link": "https://abbylovesdesign.com/interior-design/",
+      "source": "Abby Loves Design",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcQxSpaYdtS7GnzdK3pwBDoOv2bRRivEuzGs-MUsVH_K0SdL9FddW8QnU-xiIblK26XIdHVuMTOcHFZlhz4Udyaq8lMgbFILafikYwz_QcE2IGjw9Dfxki0S",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3Vmm_Ud355u2EGpoHAQU95wgKJH_5cYLcVTyiJZzrE9clqkaU",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://abbylovesdesign.com/wp-content/uploads/2021/08/image-two.jpg",
+      "image_width": 600,
+      "image_height": 900
+    },
+    {
+      "position": 16,
+      "title": "Where Can I Donate Furniture Near Me: Explore City Thrift",
+      "link": "https://www.citythrift.org/where-can-i-donate-furniture-near-me/",
+      "source": "City Thrift",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcSIf8JsXtPQ__s1OQsiSDq85zZkqwcND7MYLSpifuOQ5q9LfWVGg0sCstVoOEG46MLlqRKbliMenuH5Cw1dUllQdsYoHHQGUwtDizWov1jSjCH4ysEBHA0",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcTKAaipoAN-TVo285HMhZ0yHhA5YiK01qsN8HPlUmjsQbC1e1SB",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://www.citythrift.org/wp-content/uploads/2023/05/grequcuxqli1684303647.jpg",
+      "image_width": 720,
+      "image_height": 1080
+    },
+    {
+      "position": 17,
+      "title": "Do You Need a Guarantor for Student Rentals? - ULodging",
+      "link": "https://ulodging.com/do-you-need-a-guarantor-for-student-rentals/",
+      "source": "ULodging",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcQm3795W0A5y16-X3QuRfO0f_jOSI8IovOPDlTV9KRFV0sREZgiTM8u5qOyIvS9hXdd87jrEMG6bCHuCRYOqKN-9WZG6U9xONayJ92mZlzKI1E",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcSwX46hCcN2ahoaKg2wnBlwB6J1ugQvLGtL-YrgEnsgJDkNslmf",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://ulodging.com/wp-content/uploads/2025/06/deborah-cortelazzi-gREquCUXQLI-unsplash-scaled.jpg",
+      "image_width": 1067,
+      "image_height": 1600
+    },
+    {
+      "position": 18,
+      "title": "Quality that is measured, proven and guaranteed ...",
+      "link": "https://hoteleria.distrihogar.com/en-co/quality",
+      "source": "hoteleria.distrihogar.com",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcSz8Ai-IJDprng4IDcaxAr73KQ9BkT7JdL8YgNdMSUJash7JMAP4XIBYv-o6--DVIiYa-Xd-YNo0nSd_aAtf7H4FKqozGVYgE7ECB3oHGAwZCGwSA72OKVyUtmNzKpB",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRh7G3_6ynwCTZTw-_8Ik4_7oHMNOffkzxytMKfnXfg1ii6wvVY",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://hoteleria.distrihogar.com/_next/image?url=https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=2000&q=85&fit=crop&w=3840&q=75",
+      "image_width": 1334,
+      "image_height": 2000
+    },
+    {
+      "position": 19,
+      "title": "SIL, SDA & Short term Accommodations - ElderlyCare X ...",
+      "link": "https://www.services4care.com.au/service/sil-sda-shortterm-accomodations",
+      "source": "Services4care",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcTZ5yV-hfWXw2FarOXERJdOonBEIGAHNVGD-9e5ubQNr89_FeqoMDim9OprbSVolQ6IQHF6rOP-dxWZx1LJ4SaSQ1hN2s1XKHC2ItvuBy0ntWPCkX7ZGyYcWyL3GB4",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQelTQbOWDFxNXTpz1bxaez8c1DYDxeF0f8GYyjBSrJHicbpexX",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://cdn.prod.website-files.com/65dff32d8d4ce33501ad81d6/6645e55c53078fa53ac1015b_deborah-cortelazzi-gREquCUXQLI-unsplash.jpg",
+      "image_width": 3517,
+      "image_height": 5274
+    },
+    {
+      "position": 20,
+      "title": "Pros and Cons of Furnished vs Unfurnished Apartments",
+      "link": "https://hub.wunderflats.com/pros-and-cons-of-furnished-vs-unfurnished-apartments/",
+      "source": "Wunderflats HUB EN",
+      "source_icon": "https://encrypted-tbn3.gstatic.com/favicon-tbn?q=tbn:ANd9GcTeQUzhYcP4YrsDl_W9OHXgmXtgZPpj1s0XGXHA3ovu1-TDlhDRBSP63svJxDujk5Rd3lNwEh3GDzEnOPonsXPmX672E-X7CXc6EvsjE4z2rQoKNUCF_mJS",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcTYqTq6euQtA5BFt_MKxxSUj2tBKalsIaQxcx-HWKPU0XSrLVcr",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://hub.wunderflats.com/wp-content/uploads/2026/02/10.jpg",
+      "image_width": 879,
+      "image_height": 1319
+    },
+    {
+      "position": 21,
+      "title": "Living Alone For The First Time? Here's How To Choose The ...",
+      "link": "https://medium.com/illumination/living-alone-for-the-first-time-heres-how-to-choose-the-right-home-5dc08d2b9704",
+      "source": "Medium",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcRWBs_yCHe46wnwYqSYMzlohZesG8HK9hN684DcXkXcUBi1m0tCn0vUhr0s3NsbdPLMxbMgCNZNvpgZjvOQC8qqAbEcExFN3d65XbVI8qr1",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQN970GQcUH_mfUKAN0jubh3OK2-eQOommkH41A3HeAvix0D5Yy",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://miro.medium.com/v2/resize:fit:1400/0*PToEDWLfUOhuNbdz",
+      "image_width": 934,
+      "image_height": 1400
+    },
+    {
+      "position": 22,
+      "title": "Our Services — Stag PM",
+      "link": "https://www.stagpm.com/our-services",
+      "source": "Stag PM",
+      "source_icon": "https://encrypted-tbn3.gstatic.com/favicon-tbn?q=tbn:ANd9GcTwMaX5xHjQMXOal94srAAxDof1xMUIt05Jke5PtfzqhGMZHFDEJkR2wy1R_g9UjpKcSqg1P9vDmx_h8VX6g1J6rvRqC0lyDn7Gd8H_QVu0x8c6wA",
+      "thumbnail": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcSKYTGXK6P78UKeK29v-jkSZ9KtDgfaafcftqb2H706T81K7SZB",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://images.squarespace-cdn.com/content/v1/643e063cf6e9f512879b52df/1682305178349-1YZBPJDBND1KYRG6S9VR/unsplash-image-gREquCUXQLI.jpg",
+      "image_width": 1667,
+      "image_height": 2500
+    },
+    {
+      "position": 23,
+      "title": "Trusted Cleaning Services in Salt Lake Valley | Alaz ...",
+      "link": "https://alazservices.com/",
+      "source": "alazservices.com",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcQZdGe6hoqcyasoC4d-o-0MtbbfwMbB30ln_YxbVCsX6wg_iEiJurtbJ2ervIdGTXQULfgKJYBRaZM5OHcf3eXObKxUoTxDV4ZLxC8l6MpqqeZZyaEH",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR_4oRJR7B6qIWPPw92sRO5xFvxEcTDggrv5StWSwPS7hhVkmOo",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1920",
+      "image_width": 1280,
+      "image_height": 1920
+    },
+    {
+      "position": 24,
+      "title": "Cairo Luxora - Comprehensive Interior Design Services",
+      "link": "https://www.cairoluxora.co.uk/services.html",
+      "source": "Cairo Luxora",
+      "source_icon": "https://encrypted-tbn2.gstatic.com/favicon-tbn?q=tbn:ANd9GcS9ZoRIBALba3c4P_0RP2ILy1Egrf1NesqE396gz3XtW7WmrG5j6kXzj6aBCWa7K-pB-uqzsCAinW_jBNM5vqnQDteHlLJMjYVz55iYLN8nJum1FlXxkDlNhls",
+      "thumbnail": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcRA1tqyP6fPTJjwf0uX_e31SQLLCMcznuuLS4LFMFWMled_cZF8",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://www.cairoluxora.co.uk/assets/livingroom6.jpeg",
+      "image_width": 3517,
+      "image_height": 5274
+    },
+    {
+      "position": 25,
+      "title": "Center Street Lending",
+      "link": "https://www.centerstreetlending.com/blog/5-tips-for-finding-a-profitable-condo-or-apartment-to-flip",
+      "source": "Center Street Lending",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcRS9jpCIHIxUTq_koEU_1agI-TUGvqCk5h8B37owDZYkcr9Q4CJM7VOr7-2Pjb8x_OASsaJv3LFqp7McwpDaByZGmS5n3OGtLMhSXAZlbTiM-cZUc3yuGqMtuc9xGFEzL8",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcTdDPIl50p_HKejkmvRWFbTafmUyTBcPej4MWiDDMFtnR8K7_ZA",
+      "thumbnail_width": 181,
+      "thumbnail_height": 278,
+      "image": "https://cdn.prod.website-files.com/6875112f42811dfb9dc4a210/694f3385b49002705753278a_Screenshot 2025-12-26 at 8.16.03 PM.webp",
+      "image_width": 1100,
+      "image_height": 1682
+    },
+    {
+      "position": 26,
+      "title": "Mieterlux — Premium apartments for commuters & business ...",
+      "link": "https://mieterlux.de/en",
+      "source": "Mieterlux",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcTXdzFDVVu74zYRVpoPXhsW-pba2QpbvNYgX9n7sRKE5ntGj88-qxwVWsagDAc4Wq12YCDd-DWjYtb1H-p2phy7VkHEWsqYEE7iNsoWWeTjp3s",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRzM5nR72ZvSJps_oFX4uqfdlDfTzsCMyjAfC3xeQJMG5JChrLU",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://mieterlux.de/_next/image?url=/hero-cinematic/modern-apartment.jpg&w=3840&q=75",
+      "image_width": 1600,
+      "image_height": 2400
+    },
+    {
+      "position": 27,
+      "title": "What Does An Apartment Maintenance Contractor Do? | M.S. ...",
+      "link": "https://msservices-inc.com/what-does-an-apartment-maintenance-contractor-do/",
+      "source": "M.S. Services",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcRW73mTXFcD07Ixkox83TVpsn3uq0vSBhPwfWOQi1LJ6iVApeBQ-sPO02i4BXEwp3G7cCM0-CVlDRmlhw4uB2Sr9qHxCkmpLkBqxtKvMGDM9kSJfrKYwTo",
+      "thumbnail": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcTVGPngGsRpXPbfM9-CdqAR4XGnqD7U2CcVmNpGjgO7yElsz7en",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://msservices-inc.com/wp-content/uploads/2024/02/deborah-cortelazzi-gREquCUXQLI-unsplash-scaled.jpg",
+      "image_width": 1707,
+      "image_height": 2560
+    },
+    {
+      "position": 28,
+      "title": "The Ultimate Airbnb Furnishing List for Hosts - Host Tools ...",
+      "link": "https://hosttools.com/blog/short-term-rental-tips/airbnb-furnishing-list/",
+      "source": "Host Tools",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcRVhLmZ2EF7TkHmf67_7nQgqqVboK0gL2dltGfacIdxCU0Qjk76S_S96H0M2JZGTYq70IsUZ76zaXX4sOy1ftkl1z4RAfa6-BLQMRkh9GzuZKQC",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcThCit3GoPksDgQRwDH720ONmt3_YMf_zf0NPPXe0Eh26Y7K7mq",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://hosttools.com/wp-content/uploads/deborah-cortelazzi-gREquCUXQLI-unsplash-1.jpg.webp",
+      "image_width": 1280,
+      "image_height": 1920
+    },
+    {
+      "position": 29,
+      "title": "Conrad Fox Estate Agents | Crystal Palace Real Estate Agency ...",
+      "link": "https://www.conradfox.co.uk/",
+      "source": "www.conradfox.co.uk",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcSdJwREVoTrwXx7eWSPnehSw-sr3Ro4KG87K3maNrg9M11wPflRyAAqwNwqs3A9rOwP9btZ6cMkYVfmn__-HyJJWkqPy-uNR4Obfa0jX5PGZ7WYJFlMCFIy",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcQPIpq_0TP_sX6QBkjjw3cliye_5o6Fqros5zTUEnRhXLyP2TYz",
+      "thumbnail_width": 185,
+      "thumbnail_height": 272,
+      "image": "https://static.wixstatic.com/media/nsplsh_6752457175435558514c49~mv2_d_5274_3517_s_4_2.jpg/v1/fill/w_640,h_436,al_c,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/nsplsh_6752457175435558514c49~mv2_d_5274_3517_s_4_2.jpg",
+      "image_width": 436,
+      "image_height": 640
+    },
+    {
+      "position": 30,
+      "title": "chipman properties",
+      "link": "https://chipmanproperties.com/",
+      "source": "chipmanproperties.com",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcS9BdO2TD1Z4MMHy2BEEtqtwpxwh-6roZDcOifg_AR7fSniwCkP--mShZTPhPCsPVr7bf-MKwGagWGHa3D5d0uwPvhoxdu1OhOF4SAbs1fI5tawtPHbnFJeo6Q",
+      "thumbnail": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcQmEvDbFiis7_E_2JZlU45BfA6sqXMDdR8qILKZBmnn_6AWW-gN",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://chipmanproperties.com/content/apartment2.jpg",
+      "image_width": 3517,
+      "image_height": 5274
+    },
+    {
+      "position": 31,
+      "title": "Rent",
+      "link": "https://envymaison.com/rent",
+      "source": "Envy Maison",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcRpPThw_GafklKWZZYw6tHx5eq2gp9wzV7w_gy6zVcz9oajn1eCSNrQiRbYW_ccifzfMxKYM6EAhzhT5ceubbujeX6ANkmYnE24Xnq4gIvnAQtlUQ",
+      "thumbnail": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcRypwB8aJAqiX8QGOCe_YyGMfjZhpu9roUQ9odJ7JVMVK1S0ch3",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://cdn.prod.website-files.com/6a0462d77d284367b9a4d39a/6a469a491cdad3d939a9f679_6a4699f3eed598884e183d24_temp-cover-studio-interior.jpeg",
+      "image_width": 1067,
+      "image_height": 1600
+    },
+    {
+      "position": 32,
+      "title": "Our Apartments — GuestFirst",
+      "link": "https://www.guestfirst.fi/our-apartments",
+      "source": "GuestFirst",
+      "source_icon": "https://encrypted-tbn2.gstatic.com/favicon-tbn?q=tbn:ANd9GcSPTT4xcT8WRvR0TcKCpE827K-P5W_C7D7H2MY881DKB2m8MawTUI7Oca3p7mJgitb0_RdPBKNosCGMeobZ9N6cjdh2hQ_ZbfGluBtkgXMK3T1tymUckQ",
+      "thumbnail": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcTZwAyUzo-RbzpoYGHI5ykKq8G2BusZMc_C8CRemdscxd-eD6VY",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://images.squarespace-cdn.com/content/v1/68a2dd07fb19bd7bababee5c/47e1b5b6-5c5b-4563-8ab3-20fcd0136b32/deborah-cortelazzi-gREquCUXQLI-unsplash.jpg",
+      "image_width": 1667,
+      "image_height": 2500
+    },
+    {
+      "position": 33,
+      "title": "About Us | Livit Florence – Student Housing & Property ...",
+      "link": "https://livit.it/en/",
+      "source": "Livit.it",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcRNK83vzgR6FaZnuV2ocgiOm5PgvGgs5YJIcGBWBqPt2iZgCEPVjAccKffEYz7krA8D4f_kyN7zHhKmbQ2DuLjRkA834F9IxadDTCaDQA",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcRPoKPJPEiq99SW-XSeIS2l1dYa0Wd7Q9U2VpYdUaGQpuqwofKS",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://livit.it/wp-content/uploads/2025/06/Slider_Apartments.jpg",
+      "image_width": 1280,
+      "image_height": 1919
+    },
+    {
+      "position": 34,
+      "title": "111w53",
+      "link": "https://www.111w53.com/availability",
+      "source": "111w53",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcQHruaDPFKEC4iaPkTDoYGBKpBX0O6KQuGtINyCj89gIWfYnMSs-7_nHYho6HH9Myrtc-TYV4MXNiS73i9nIKCEkSbU_s9T7GEBbEkCtPd5m7iOqQ",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcRwIOSOqci01fbSM33p5sL3xXT-iatbx2FgPaZacCCPJ5x_DBIk",
+      "thumbnail_width": 190,
+      "thumbnail_height": 265,
+      "image": "https://framerusercontent.com/images/nh17N9HX6ayrgXZxvYMAfRWSPs.png?width=3220&height=2312",
+      "image_width": 2312,
+      "image_height": 3220
+    },
+    {
+      "position": 35,
+      "title": "€560m portfolio sale brings Vonovia near 2023 sales target ...",
+      "link": "https://realassetinsight.com/2023/05/05/e560m-portfolio-sale-brings-vonovia-near-2023-sales-target/",
+      "source": "Real Asset Insight",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcTXzhNgjtoh9GoxKzvUjAkrgB6yGz4ruOtGQ2EU5JIf4Xo-TWFHqV6E-5qGYeNt6MGGuo547BDAD-VbrLBpK8acndI9a3B3zl8CYjLV04guRlZUE2JC9VGIbg",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcTYdRBOSRCluJLFAxssWtP5Dpaw5PNTzTfwa2qfu3HQbBYINJ0z",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://realassetinsight.com/wp-content/uploads/2023/05/deborah-cortelazzi-gREquCUXQLI-unsplash-scaled.jpg",
+      "image_width": 1707,
+      "image_height": 2560
+    },
+    {
+      "position": 36,
+      "title": "BookMyColiving - Find Coliving Spaces Worldwide",
+      "link": "https://bookmycoliving.com/",
+      "source": "bookmycoliving.com",
+      "source_icon": "https://encrypted-tbn2.gstatic.com/favicon-tbn?q=tbn:ANd9GcRqbW4e19joGmZgsb6eYamxv666hxivLT7NrhaB9HXMBDC6OTQQof0LQhSTrIv4348_thpLHzRvGBl-mzCuHFrYEHaHDjYfnPiKUFNgCDOT1QwHvUFHSD4",
+      "thumbnail": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcTGGPj1kDIdsntuG7yzw0sFO-5pQvtrP9K7QhtkEQ1G9RZK432q",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://bookmycoliving.com/_next/image?url=https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1600&q=80&w=1920&q=75",
+      "image_width": 1067,
+      "image_height": 1600
+    },
+    {
+      "position": 37,
+      "title": "Medical Tourism: Why Shared Living Apartments make sense?",
+      "link": "https://pinakicomfortstay.com/medical-tourism-why-shared-living-apartments-make-more-sense-for-patients-and-caregivers/",
+      "source": "Pinaki Comfort Stay",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcQaC4yca7HjWt08Lmhej5neTZekpe_CUbz3LnRXutZmlpu0WALqKrOlsOzlYBZES_kHeHyMev1X-tvjncyT8KogLO1lxLS3SfUVGmRIFZKan0zdEunWwbyJzT8",
+      "thumbnail": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcQBxp1zIOVU56X21TiBI7ZthnnJ2RUyU3lH5X-oHompZJp_BEew",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "http://pinakicomfortstay.com/wp-content/uploads/2025/10/deborah-cortelazzi-gREquCUXQLI-unsplash-scaled-1.webp",
+      "image_width": 1707,
+      "image_height": 2560
+    },
+    {
+      "position": 38,
+      "title": "Decluttering Tips: Simple Tips for a Clutterfree Home",
+      "link": "https://www.yahire.com/blogs/decluttering-tips/",
+      "source": "Yahire",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcTsyY0X28tayCMJ55GS5YeNWUC_6gTMnp7VUktMXF_4dg0SFQiDCcwVZ6d_rT_vczFhCL577XmOSVzdC9C1g3M8Qc1jyQPK-iucPp8sIb0fpMnHEw",
+      "thumbnail": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcQFrux10ye8lunjqMsiZT7naQoi_ommgW1ZGyHrK9v5nzkA1O_k",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://www.yahire.com/blogs/wp-content/uploads/decluttering-tips.jpg",
+      "image_width": 1067,
+      "image_height": 1600
+    },
+    {
+      "position": 39,
+      "title": "Renters Insurance Broker Florida - Renters Insurance Tampa ...",
+      "link": "https://h2hinsure.com/our-services/renters-insurance/",
+      "source": "H2H Insurance",
+      "source_icon": "https://encrypted-tbn3.gstatic.com/favicon-tbn?q=tbn:ANd9GcQEKBcHKtSI01VFnnH6WUl9FSeKz5mOfMGSjNIwJ-fx_56lj2cvkgY6fv7i3awH1iU9zNxDjUHRop_XxnY9zQVu1QOxPhsRkLqT5fgHyIl9-glK",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcSoWs_Pldjk-XGqWU_yDBcTqtA5ljO87bpU3xqKd777dkh3DDZU",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://h2hinsure.com/wp-content/uploads/2020/10/Florida-renters-insurance.jpg",
+      "image_width": 666,
+      "image_height": 1000
+    },
+    {
+      "position": 40,
+      "title": "💰 Cost of Living in Germany for International Students: A ...",
+      "link": "https://www.abroadassist.org/post/cost-of-living-in-germany-for-international-students-a-2025-guide",
+      "source": "AbroadAssist",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcSfw_VRWZvff5jNeanoSxobaZnPY_MxzrbR7tOICDEGOdN7omYpqFpCdV2N_MLJNdX9jIAQ6sx897hJyPuu2g9nLzaHJ-_xLolHqy96oxpTzd9ZejtCdTu2mw",
+      "thumbnail": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcTJLK_TaAyTWPt0RXDRTd11qAyO9dRG24qe3EhrFSDBoLzxTe8t",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://static.wixstatic.com/media/nsplsh_6752457175435558514c49~mv2_d_5274_3517_s_4_2.jpg/v1/fill/w_1000,h_667,al_c,q_85,usm_0.66_1.00_0.01/nsplsh_6752457175435558514c49~mv2_d_5274_3517_s_4_2.jpg",
+      "image_width": 667,
+      "image_height": 1000
+    },
+    {
+      "position": 41,
+      "title": "What Does Renters Insurance Actually Cover?",
+      "link": "https://www.americaneagle-insurance.com/blog/what-does-renters-insurance-actually-cover/",
+      "source": "American Eagle Insurance & Tax Insurance",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcRPYK7FsT82N-e78Wl4S975IISikZ7hp39ePvLpPGQKsnl_08WYQZDd7tCqrMkVv5wfaX-TsB4_zOkLdgxAsNlepem2adXNszBytss3hU4W1wKo6ybUby5CuVVKHLjAXO3-O53d",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTeE8URflHblMlmGutMdvRi2eed5kgeoMThMC9Ms5bO2gdIHPgN",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://www.americaneagle-insurance.com/wp-content/uploads/sites/232/2026/04/grequcuxqli.jpg",
+      "image_width": 1067,
+      "image_height": 1600
+    },
+    {
+      "position": 42,
+      "title": "Residential | Experience Cleanliness Today—Book Now ...",
+      "link": "https://sharpencleaning.com/services",
+      "source": "Sharpen Agency Cleaning Services",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcTUy8ark8it5f-qd3rmVaS1zvMm5UV3xWxS87nq5ia84pODkm0ohB2IoJEHiRIQxjUSfpO-nUyTK-LE_3JNNUCbJX5XLm_65g7Hi2ggj7YPOkncOvCPkkCU",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcT8dmSgbaj3x15Z1J3xcpWWRSWa8nLPfPKxvatyxOoXK5XPAHlm",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://images.squarespace-cdn.com/content/v1/6989ce55aec3312d043544b5/1770663235624-0M8B0VEAUZ2SHM2W64G2/unsplash-image-gREquCUXQLI.jpg",
+      "image_width": 1667,
+      "image_height": 2500
+    },
+    {
+      "position": 43,
+      "title": "Silvergate Realty",
+      "link": "https://www.silvergate-realty.com/",
+      "source": "www.silvergate-realty.com",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcT-dK1zW71a0xt0UHZ6Y5Qq0CLZA9wOAoVupkHCevLXdfjGzxd6G2owtS7ffktJFn2aiAKV9Owmgicuqo_m3WWO3qmcZSxN_BbbZjEgm27SQvktpHp87i2rehvUp-_8",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcReUysFaNR3yq0E8n10_xIeYyrmmjR7F2xKAZdfeqSBYmTiOL3Q",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://images.squarespace-cdn.com/content/v1/5b9c433f710699882b6130a4/1541876268148-JBTLI9FJSFVISG4FP364/rental_6x4.jpg",
+      "image_width": 1200,
+      "image_height": 1800
+    },
+    {
+      "position": 44,
+      "title": "Trendz Space Interiors in Nrr Puram-Borabanda,Hyderabad ...",
+      "link": "https://www.justdial.com/Hyderabad/Trendz-Space-Interiors-Nrr-Puram-Borabanda/040PXX40-XX40-200817142027-X8L6_BZDET",
+      "source": "Justdial",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcSajA6pUR1lNzBdMulFl20-IzlkumVMUxHr4mOChKWeNcPCw3ezzlZ_XRDgU-kCgzR9Jty2fX2OkIPml9c71KLE-Ee3B3ZVj7pY131QIl7zUEdsutwK",
+      "thumbnail": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcQhq2j5FWdHu5wXLjTsO9Hrvk4avvi8QuHlY1VSaHt6a-XYqnob",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://content.jdmagicbox.com/v2/comp/hyderabad/l6/040pxx40.xx40.200817142027.x8l6/catalogue/trendz-space-interiors-nrr-puram-borabanda-hyderabad-interior-designers-scv07n6dzg.jpg",
+      "image_width": 1152,
+      "image_height": 1728
+    },
+    {
+      "position": 45,
+      "title": "Contact — Overland Capital Investments",
+      "link": "https://www.overlandcapitalinvestments.com/contact-2",
+      "source": "Overland Capital Investments",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcQj6NbjgR6jrPljghM2FqxtxV40J0d6LbpmjGttoDVIIDW4JQmrG_wFFWkB3V8_74bD22hlInSo2tdOlt5q42X1CIfxXgPf11Okqh7OggzmYwiKGI-xIgXaqjy6UrDIoU_W3n7TAEzC",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRsYzlmgFFH9mf3fSDRzxZ6W4qKJolwRKSnvhhGETunZo-eWLOa",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://images.squarespace-cdn.com/content/v1/5d164c8543e16300013af3d0/1587432730526-AA9VR7J4CLSYIJ0WGXYG/image-asset.jpeg?format=1500w",
+      "image_width": 1000,
+      "image_height": 1500
+    },
+    {
+      "position": 46,
+      "title": "CoZi | Near-Campus Condo Search",
+      "link": "https://coziofficial.com/",
+      "source": "coziofficial.com",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcRYpZuIKcipc5rrfuvdLoftozCMCiF7ORyFKPRHmcRuJ9Y5yjrFtg26Kq5saIvEsz0ANrWijfT8jy7LWflh8Iq-Uc4Pe8VlgenMMPCuiuczN7qdPjwE",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcTgsdgcu8LxouWoisEieKenZgTaBJn7E_WHzXK07I0_QVsNjoYq",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1600&q=82",
+      "image_width": 1067,
+      "image_height": 1600
+    },
+    {
+      "position": 47,
+      "title": "About - Northview Heights Apartments",
+      "link": "https://northviewheightsapts.com/about/",
+      "source": "Northview Heights Apartments",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcSNQ-z495PsYTNZjh3U4iSyhrZfUsHX8l16Foql3rlJNi8I037017xF9QyjfQ0itPOoTN8tNPUWGyYQEjuXW4ODPx9rNQlmiEWT4geu26FsHXCcOBBd5Lkm0tLQR8E",
+      "thumbnail": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcS6M4lyBTUEmwUvvFCzeREvHSxJwjpr1yZIg1huAOHueE5eQYrL",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://northviewheightsapts.com/wp-content/uploads/2023/01/about-bg.jpg",
+      "image_width": 880,
+      "image_height": 1319
+    },
+    {
+      "position": 48,
+      "title": "Seasonal rental vs. long-term rental - Swikly",
+      "link": "https://www.swikly.com/en/vacation-rental/2022/12/seasonal-rental-long-term-rental/",
+      "source": "Swikly",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcRuCKf1dSGRy58p7mGVuW2HWhqcgQVyj035b3Uw-tE-fckxKUtMorVcb-xyMYPdTKs6jQca-V1BOQ1yYDQ9OfMBwcfLjCajCQLR5uBvDFkRGjygAA",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcQSQ5jqVmla7LnXn2vAtR8kQ00Sx_sBXoZQELUDr0Antn6wWjWr",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://swiklywpstorage.blob.core.windows.net/wp-media/2022/12/vacation-rental-vs-tradi.png",
+      "image_width": 1281,
+      "image_height": 1920
+    },
+    {
+      "position": 49,
+      "title": "Granny Annexe Ideas for Modest Budgets – Family Annexe",
+      "link": "https://www.familyannexe.com/advice/granny-annexe-ideas-for-modest-budgets/",
+      "source": "Family Annexe",
+      "source_icon": "https://encrypted-tbn2.gstatic.com/favicon-tbn?q=tbn:ANd9GcTEmsg8SbmSUAO554J1pwx5gMowTQQpidmeFhi190dSbweeUhTV9GLw-PWvHJQQn1paPGWMv5IiAB9-exvqeS22HUQoVcwNGvrnhhixePANaMAinN9vODH_cQ",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcRGmzF3foAzmilcfB30Ct3bqwEVTIEKzH6FX2rayKCV3CCVtREZ",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://www.familyannexe.com/wp-content/uploads/2023/05/FA-blog-image-granny-annexe-for-modest-budgets-scaled.jpg",
+      "image_width": 1707,
+      "image_height": 2560
+    },
+    {
+      "position": 50,
+      "title": "You're Paying for WiFi, Streaming and Subscriptions. Why Not ...",
+      "link": "https://www.thematthewsinsurancegroup.com/blog/youre-paying-for-wifi-streaming-and-subscriptions-why-not-renters-insurance/",
+      "source": "The Matthews Insurance Group",
+      "source_icon": "https://encrypted-tbn3.gstatic.com/favicon-tbn?q=tbn:ANd9GcTQzmrdHd5y6ujALGWyJik8nVxeDzp5WBZvy5ATlnqBjlGEy1BPJsf73kyL7Lmv2lxdKbj66eOz7J8a9z-tkTNV6UdaWZJ8vtPgliLsZ-WUqhpTOl2vDIp7k3mhZ6Fsj031saZ72ho",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ7IMocg73vUGe_XXPvh0KMXr8BtJ48bbNmBuHlkz3Hc85t92nj",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://www.thematthewsinsurancegroup.com/wp-content/uploads/sites/75/2025/12/grequcuxqli.jpg",
+      "image_width": 1067,
+      "image_height": 1600
+    },
+    {
+      "position": 51,
+      "title": "With Featured on Top – Gold Coast Real Estate",
+      "link": "https://goldcoastrealestate.net/index.php/with-featured-on-top/",
+      "source": "Gold Coast Real Estate",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcSqASSLRQNQwdDArJlUKR88RLh5DOBgIA-akYrcCcW6qB4-fe4cgJLl_JOkSU-6ziSDlI14of6ay0VoBj-GxUHR1VEZNzvkyppkOCA2ZN3H3UGAvaszTzhCPj7gnA",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcT4jX5sarGqOUatgZ_w7WtGnUqWBXq8JVIB1bDfWgT5mfGDUR4I",
+      "thumbnail_width": 194,
+      "thumbnail_height": 259,
+      "image": "https://goldcoastrealestate.net/wp-content/uploads/2022/12/deborah-cortelazzi-gREquCUXQLI-unsplash-592x444.jpg",
+      "image_width": 444,
+      "image_height": 592
+    },
+    {
+      "position": 52,
+      "title": "Properties | We Are Your Choice Property Connection",
+      "link": "https://www.choicepropertyconnection.com/properties",
+      "source": "Choice Property Connection",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcQgHhEPH9YXPsgC_nWmDAKXeSaPphdJ1VBElBr7_9blzWqZQ6OR2LDJaiKdIDLUFFhcJ1F5-gfuJIejZDAJBiwoh6iZAzl9ro-oz5t0Ik5faDWtT6hR_slEMk5atLilPpH1xbhYmg",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcQLN1AwYzmu1rsFwRUg4hTYH-VQfYcO7owDI9Vr7OCdPRBVeEVS",
+      "thumbnail_width": 205,
+      "thumbnail_height": 245,
+      "image": "https://static.wixstatic.com/media/nsplsh_6752457175435558514c49~mv2_d_5274_3517_s_4_2.jpg/v1/fill/w_640,h_536,fp_0.50_0.50,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/nsplsh_6752457175435558514c49~mv2_d_5274_3517_s_4_2.jpg",
+      "image_width": 536,
+      "image_height": 640
+    },
+    {
+      "position": 53,
+      "title": "Laminates. – Nihmath Ply",
+      "link": "https://www.nihmathply.com/products/laminates/",
+      "source": "Nihmath Ply",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcTUdmz1x9xnNP2ZAlVSWz5M1GuEfz-q_5Ovptg8w8x1pNeEoGMDkGLdrIxhpNuQRtZbJAapzNtviXIq8mE9pxAICOgtQ6qaCcY7FpxCv2chCilOYG4i_1Y",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQOK89GPL24a48S2hBZvqCIQcGsk21JtdtRhes8J9_S-YzmKjbx",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://www.nihmathply.com/wp-content/uploads/2022/07/laminates-scaled.jpg",
+      "image_width": 1707,
+      "image_height": 2560
+    },
+    {
+      "position": 54,
+      "title": "Commercial Building in Tala Bay — Deals on Properties",
+      "link": "https://www.dopinternational.com/en/jordan/building/commercial-building-in-tala-bay-207",
+      "source": "Deals on Properties",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcQhA9thbuvcddn6kUv0pIBz3KqYvCy8nvQ2las6eYGYOlfnxqVx3P1qM8kSrH1Hwan1IUuH7zlE2fpywCINbRS7hBO6ssmhdzy7AeewJV0wJCk6jbxfgrf3O9N2NMA",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcQ8t7UNnemTNSm7N92VS3m_ycCkTb5ZylxLdFgZIE61ycahzthT",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://www.dopinternational.com/storage/listings/apartment-achrafieh.jpg",
+      "image_width": 533,
+      "image_height": 800
+    },
+    {
+      "position": 55,
+      "title": "Standard Cleaning | Mymor LC",
+      "link": "https://www.mymorlc.com/service-page/standard-cleaning",
+      "source": "Mymor LC",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcRURAJt-D_gvL6S7v0BHsy8qZfrOiajKTFWyNUH5ZGbkF-JtnZs6vm1R3wd9hS51WmQwF1F2RXLTwNZYTPVjkjeSUa1BLNsLNwtIQuFSjJDeaPfyb0",
+      "thumbnail": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcRVVXjUIYhDXk1cVxX2pXBdNmRV1smi89VzHDgwWljug8afMuN8",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://static.wixstatic.com/media/nsplsh_6752457175435558514c49~mv2_d_5274_3517_s_4_2.jpg/v1/fit/w_5274,h_3517,al_c,q_90/nsplsh_6752457175435558514c49~mv2_d_5274_3517_s_4_2.jpg",
+      "image_width": 3517,
+      "image_height": 5274
+    },
+    {
+      "position": 56,
+      "title": "Professional Cleaning Services in Edmonton | KL Cleaning",
+      "link": "https://www.klcleaning.ca/",
+      "source": "www.klcleaning.ca",
+      "source_icon": "https://encrypted-tbn2.gstatic.com/favicon-tbn?q=tbn:ANd9GcQHXP3Nk83PYOfl5Q9yXuZ4kKT059_r95TlkP4oBcn4WEqdm1irPNFiJUnbWZnE3Z3CdVxIrVObDRFERd_yQ4sy4bXPJaLql_fmrZoz4TMyfW6-i6XzZg",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcQVrfz8AcGHnWsbR1ekMfD136IfIdEaHdRTfzVYDcu7LmLtYdJo",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1400&q=52",
+      "image_width": 934,
+      "image_height": 1400
+    },
+    {
+      "position": 57,
+      "title": "Investing In UK Specialist Supported Housing Is A Smart Move",
+      "link": "https://www.assistedliving-investments.co.uk/why-investing-in-assisted-living-in-the-uk-is-a-smart-move/",
+      "source": "Supported Living Investments",
+      "source_icon": "https://encrypted-tbn2.gstatic.com/favicon-tbn?q=tbn:ANd9GcSgR9stwH3xcwu5ytMGd7Y5iWN9uG7zgqGQG2xoTmCOBJsE7EiCtVe1Dh6290cU2DCeRMCL46og--KXEjvqmtnIaZj_-k48QkHKESld-sXKW6tFpkhgvdiLSiXFgdEb7h3twR6-cnW8GsQ",
+      "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcRiFCncchb0JJ00fF4MzBe-GL8fc9zDarzN0R2CUrlbxGL4rpnV",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://www.assistedliving-investments.co.uk/wp-content/uploads/2023/03/deborah-cortelazzi-gREquCUXQLI-unsplash-scaled.jpg",
+      "image_width": 1707,
+      "image_height": 2560
+    },
+    {
+      "position": 58,
+      "title": "Penthouse Duplex with Rooftop Terrace — Verdun | amanihomz",
+      "link": "https://amanihomz.com/property/verdun-penthouse-4br-amh-2026-00004",
+      "source": "amanihomz",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcQyH4b0thUkiCN5QWhHwbBFHHgJeEWBueJZVS0lFQcJUY75Bf-ZPZLeJGWiMWDfyyGDx5tmht8XZvTE0W8DPhgyLqobvLce3qnAjmExSMD8yEBo",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQPZcwNg_9jE4H0MYAeTeC9aL2Y5GxOJ28B-OIUI7SJ7VwfHcDb",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://amanihomz.com/_next/image?url=https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1600&q=80&w=3840&q=75",
+      "image_width": 1067,
+      "image_height": 1600
+    },
+    {
+      "position": 59,
+      "title": "Available Properties - TopHill Services",
+      "link": "https://www.tophillservices.com/properties.html",
+      "source": "TopHill Services",
+      "source_icon": "https://encrypted-tbn0.gstatic.com/favicon-tbn?q=tbn:ANd9GcSKG3eIs7BxxosiNV3MOcMN5lCIlc56RwsI0pEWX-O-THmnH_2HF_dhllpWiy3KReoSkxAws5kf9Znpmu_BSMaIa4Ew0mD3GEc2OszbmXLpIoxz6bWRx3DSctTOQQ",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSPuyHtgKen9lL76t8R0a4SFG1wuLuesK7Q0Ni1vpJU-bHWViyQ",
+      "thumbnail_width": 183,
+      "thumbnail_height": 275,
+      "image": "https://www.tophillservices.com/assets/images/morden2-bedroom-apartment.jpg",
+      "image_width": 400,
+      "image_height": 600
+    },
+    {
+      "position": 60,
+      "title": "MOONLIGHT Trading Company",
+      "link": "https://moonlight-sy.com/",
+      "source": "moonlight-sy.com",
+      "source_icon": "https://encrypted-tbn1.gstatic.com/favicon-tbn?q=tbn:ANd9GcRr07oLWqcOFeKwQAka-_-CuB7PM99R3_-RFppmbopGufOuuXxKoO3I2dYSzZ_cwOM97e6L1iFraIyqpA1IMfL6ceiNvCtqBntD-CYLdqTaZFSS0zYE",
+      "thumbnail": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcTxpAK-7XeM2ENb1lyFyDkkxNZzJy8UlX_ZYvsjOMd17keZDV4p",
+      "thumbnail_width": 171,
+      "thumbnail_height": 295,
+      "image": "https://moonlight-sy.com/images/hero_2.jpg",
+      "image_width": 1100,
+      "image_height": 1900
+    }
+  ],
+  "organic_results": [
+    {
+      "position": 1,
+      "title": "Moving into a Small Apartment As a Fully Formed Adult.",
+      "link": "https://medium.com/the-egowyrd-nihilvald/moving-into-a-small-apartment-as-a-fully-formed-adult-ff1369a62455",
+      "redirect_link": "https://lens.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://medium.com/the-egowyrd-nihilvald/moving-into-a-small-apartment-as-a-fully-formed-adult-ff1369a62455&ved=2ahUKEwiy14iA2q6WAxWftysGHZAuClMQFnoFCMQDEAE",
+      "displayed_link": "1 year ago",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJ8GFmOQQbzg4VzSZrOuEz4kb_liwWPx0VFzsF2XtNzQq8kOLIK19O&usqp=CAE&s",
+      "favicon": "https://serpapi.com/images/i/iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAMAAABF0y-mAAAARVBMVEVHcEwAAAAAAAAAAAAAAAAAAABwcHCoqKifn58bGxt8fHzKysr___8rKyv5-fnW1tbp6emQkJCsrKxaWlq0tLTBwcE-Pj777dpoAAAABnRSTlMAS8D5_5mXKh4CAAAA3ElEQVR4AXzRUQ6EIAwEUNRZClgFQb3_UbfQEDUbd76qL5WMGGOGccJPpnEwkg9e8pE9vGYw4zuOZnrHyeBPFC055zw0wTkKN8TMzEHHZWWOuCMJJh03QXpgrlr0IzLmB-6L4KzHZ0Ub947-EF3q4rI3zByuzSLogDOiYeCICxGZVxmsYuR8x9DaJFQkL3UoX-iTvNg2xbPVvrB37ZgfeGr7_tl0Q_2HXjEjSe0HWnlWJGz1DEXEAsla2lyXcIj2K6O6Wvr1kQXCnL7DG9l4kwneBIY3aeJN1HizAwDOfRO3mlC3PQAAAABJRU5ErkJggg.png",
+      "snippet": "Where I live, we call an apartment like that “A Two”. Meaning, two rooms to spend your time in that isn't a kitchen or a bathroom. Also known ...",
+      "snippet_highlighted_words": [
+        "two rooms to spend your time in that isn't a kitchen or a bathroom"
+      ],
+      "about_this_result": {
+        "source": {
+          "description": "Where I live, we call an apartment like that “A Two”. Meaning, two rooms to spend your time in that isn't a kitchen or a bathroom. Also known ...",
+          "source_info_link": "https://medium.com/the-egowyrd-nihilvald/moving-into-a-small-apartment-as-a-fully-formed-adult-ff1369a62455",
+          "icon": "https://serpapi.com/images/i/iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAMAAABF0y-mAAAARVBMVEVHcEwAAAAAAAAAAAAAAAAAAABwcHCoqKifn58bGxt8fHzKysr___8rKyv5-fnW1tbp6emQkJCsrKxaWlq0tLTBwcE-Pj777dpoAAAABnRSTlMAS8D5_5mXKh4CAAAA3ElEQVR4AXzRUQ6EIAwEUNRZClgFQb3_UbfQEDUbd76qL5WMGGOGccJPpnEwkg9e8pE9vGYw4zuOZnrHyeBPFC055zw0wTkKN8TMzEHHZWWOuCMJJh03QXpgrlr0IzLmB-6L4KzHZ0Ub947-EF3q4rI3zByuzSLogDOiYeCICxGZVxmsYuR8x9DaJFQkL3UoX-iTvNg2xbPVvrB37ZgfeGr7_tl0Q_2HXjEjSe0HWnlWJGz1DEXEAsla2lyXcIj2K6O6Wvr1kQXCnL7DG9l4kwneBIY3aeJN1HizAwDOfRO3mlC3PQAAAABJRU5ErkJggg.png"
+        },
+        "languages": [
+          "en"
+        ],
+        "regions": [
+          "US"
+        ]
+      },
+      "about_page_link": "https://lens.google.com/search?q=About+https://medium.com/the-egowyrd-nihilvald/moving-into-a-small-apartment-as-a-fully-formed-adult-ff1369a62455&tbm=ilp",
+      "about_page_serpapi_link": "https://serpapi.com/search.json?engine=google_about_this_result&google_domain=google.com&q=About+https%3A%2F%2Fmedium.com%2Fthe-egowyrd-nihilvald%2Fmoving-into-a-small-apartment-as-a-fully-formed-adult-ff1369a62455",
+      "source": "Medium · Pezen"
+    },
+    {
+      "position": 2,
+      "title": "Landing Page Eyewatch 1",
+      "link": "https://eyewatchlive.com/landing-page-eyewatch-1/",
+      "redirect_link": "https://lens.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://eyewatchlive.com/landing-page-eyewatch-1/&ved=2ahUKEwiy14iA2q6WAxWftysGHZAuClMQFnoFCMEDEAE",
+      "displayed_link": "https://eyewatchlive.com › landing-page-eyewatch-1",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTqlns-RaUpN1-PqaCa25-iS6eKVpIrD9vPVcntBdPOtiPwa-vDW7C9&usqp=CAE&s",
+      "favicon": "https://serpapi.com/images/i/iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd-UAAACA0lEQVR4AWJwL_ChKx44C0ctnHBxJ1_BqeMKQGwGwx0X9oqXHtrISjULK0_s5gC0W7awCQRBFPY-taSpraJt6ppgT2EwFXjAB43oybozh-2loHAVoGpwhDoSJIp6HIa-l7xNJs0MlLSy4gtcsjvfzs9eDoEzkIMZWIJNQs8V6IDLXwkRoAHewQ4cTiF552why4SNhQm0MVm0QCb4P3cOVbEyPxKqR5UCLG2pol4xuKpRGXF-UqjMKmWUez2h9HZYXN8Ni4y_jrjD_RI3fKECcXHKyisJJDXQBwuwBY9B71sSFqEwZRfJbsriAoJnsAMHUYvKphlYMq4r1L3Kede8AMzGykRmS81nHszEm3ltsVfg3pMpu5GViUXqJUtty6yXROELtcBOIcuqbFPvFpJEjFTyLuMQ9tJrj9uD19XkAdTPEL6BlyRMc_H9fvMAkbAH2nFJXXapr951YjxWLRIOQBkOTZxl7UjFBscybINPlTW6FpZFlN1oNblCnHGqWCSsSzhNvZC0q-BJvFXvMvUukk353xcKLTzwNy1OYvt60yRGZZzr4M1wSu1UYeFaUm7qU6xM3MHgUEg0Nvva8bXwT_nBzWKtYH3QNPRAqYz2WjtPmcXCuJ-lydayd5657sm0IRLGmFINlOFcgQkrMAWlMq3_2VcbB4S91fTVE3zmof6_S8kX0mrS2R_5A9MAAAAASUVORK5CYII.png",
+      "snippet": "EyeWatch LIVETM offers the only Live Virtual Nurse monitoring system in assisted living that can detect unwanted activity, notify staff, and help prevent falls.",
+      "about_this_result": {
+        "source": {
+          "description": "EyeWatch LIVETM offers the only Live Virtual Nurse monitoring system in assisted living that can detect unwanted activity, notify staff, and help prevent falls.",
+          "source_info_link": "https://eyewatchlive.com/landing-page-eyewatch-1/",
+          "icon": "https://serpapi.com/images/i/iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd-UAAACA0lEQVR4AWJwL_ChKx44C0ctnHBxJ1_BqeMKQGwGwx0X9oqXHtrISjULK0_s5gC0W7awCQRBFPY-taSpraJt6ppgT2EwFXjAB43oybozh-2loHAVoGpwhDoSJIp6HIa-l7xNJs0MlLSy4gtcsjvfzs9eDoEzkIMZWIJNQs8V6IDLXwkRoAHewQ4cTiF552why4SNhQm0MVm0QCb4P3cOVbEyPxKqR5UCLG2pol4xuKpRGXF-UqjMKmWUez2h9HZYXN8Ni4y_jrjD_RI3fKECcXHKyisJJDXQBwuwBY9B71sSFqEwZRfJbsriAoJnsAMHUYvKphlYMq4r1L3Kede8AMzGykRmS81nHszEm3ltsVfg3pMpu5GViUXqJUtty6yXROELtcBOIcuqbFPvFpJEjFTyLuMQ9tJrj9uD19XkAdTPEL6BlyRMc_H9fvMAkbAH2nFJXXapr951YjxWLRIOQBkOTZxl7UjFBscybINPlTW6FpZFlN1oNblCnHGqWCSsSzhNvZC0q-BJvFXvMvUukk353xcKLTzwNy1OYvt60yRGZZzr4M1wSu1UYeFaUm7qU6xM3MHgUEg0Nvva8bXwT_nBzWKtYH3QNPRAqYz2WjtPmcXCuJ-lydayd5657sm0IRLGmFINlOFcgQkrMAWlMq3_2VcbB4S91fTVE3zmof6_S8kX0mrS2R_5A9MAAAAASUVORK5CYII.png"
+        },
+        "languages": [
+          "en"
+        ],
+        "regions": [
+          "US"
+        ]
+      },
+      "about_page_link": "https://lens.google.com/search?q=About+https://eyewatchlive.com/landing-page-eyewatch-1/&tbm=ilp",
+      "about_page_serpapi_link": "https://serpapi.com/search.json?engine=google_about_this_result&google_domain=google.com&q=About+https%3A%2F%2Feyewatchlive.com%2Flanding-page-eyewatch-1%2F",
+      "source": "EyeWatch LIVE"
+    },
+    {
+      "position": 3,
+      "title": "How to Get an Apartment Without 40x Rent?",
+      "link": "https://junehomes.com/blog/2023/05/08/how-to-get-apartment-without-40x-rent/",
+      "redirect_link": "https://lens.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://junehomes.com/blog/2023/05/08/how-to-get-apartment-without-40x-rent/&ved=2ahUKEwiy14iA2q6WAxWftysGHZAuClMQFnoFCL0DEAE",
+      "displayed_link": "https://junehomes.com › blog › 2023/05/08",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSqPk4uaqiiluxGC8Qq999yH7tRXwqDGu9X2LGp7TI1AH9hlWykqzJy&usqp=CAE&s",
+      "favicon": "https://serpapi.com/images/i/iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8_9hAAABjElEQVR4AWKAgaDKfBBmB5RODuuhBEEUzirPkEe6trm6iG3btm17H25i27adnHTN15Ov0xNn8Q-rThcZTxl5jBnGCWeGf3vKbXRkR0KPEcFYY4B4a2eCNxx6Zt_WuY2e6ic6lzOg8tnZEvoBHjAI8lTQD_TAVxdr9X-5KkLOulwVKm9sjWEe7o-pxXmsbKwrLK6twjUpGq_ZP25HPro6PK9VBsTQf3naIzA7BSG56cisrcD23i680-JFAfJ5SgK5DMi8tTdRjF9aG8Ik1BdrW5vwTk8QBYhcEpjWCmjTuUZgmgSOL53MU7ijwLFG4LubDX57OuC9g9mdBabF01KqStDY1YYvLlYX38zC_UhALiIxLRZR-ZlcWYy5lSX89XPFKxsjKqJy8sbONhziwvBGLqLYRpo4kxAfzC4vor6zFY7x4fDNSMTo7DTaBvtYerbUHamN0iBRAd1TYtA3PkrDo9Dc3QHjEG-xuOIgaUeZIvnhbgtT1n-jYC8aa9FZHmXtMkmLJDquycv06HU-B5dkJnlVH0umAAAAAElFTkSuQmCC.png",
+      "date": "May 8, 2023",
+      "snippet": "Discover alternative ways to secure your apartment without meeting the 40x rent rule. Learn about guarantors, security deposits, ...",
+      "snippet_highlighted_words": [
+        "Learn about guarantors, security deposits"
+      ],
+      "rich_snippet": {
+        "top": {
+          "detected_extensions": {
+            "rating": 4.0,
+            "reviews": 1492
+          },
+          "extensions": [
+            "4.0(1,492)"
+          ]
+        }
+      },
+      "about_this_result": {
+        "source": {
+          "description": "Discover alternative ways to secure your apartment without meeting the 40x rent rule. Learn about guarantors, security deposits, ...",
+          "source_info_link": "https://junehomes.com/blog/2023/05/08/how-to-get-apartment-without-40x-rent/",
+          "icon": "https://serpapi.com/images/i/iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8_9hAAABjElEQVR4AWKAgaDKfBBmB5RODuuhBEEUzirPkEe6trm6iG3btm17H25i27adnHTN15Ov0xNn8Q-rThcZTxl5jBnGCWeGf3vKbXRkR0KPEcFYY4B4a2eCNxx6Zt_WuY2e6ic6lzOg8tnZEvoBHjAI8lTQD_TAVxdr9X-5KkLOulwVKm9sjWEe7o-pxXmsbKwrLK6twjUpGq_ZP25HPro6PK9VBsTQf3naIzA7BSG56cisrcD23i680-JFAfJ5SgK5DMi8tTdRjF9aG8Ik1BdrW5vwTk8QBYhcEpjWCmjTuUZgmgSOL53MU7ijwLFG4LubDX57OuC9g9mdBabF01KqStDY1YYvLlYX38zC_UhALiIxLRZR-ZlcWYy5lSX89XPFKxsjKqJy8sbONhziwvBGLqLYRpo4kxAfzC4vor6zFY7x4fDNSMTo7DTaBvtYerbUHamN0iBRAd1TYtA3PkrDo9Dc3QHjEG-xuOIgaUeZIvnhbgtT1n-jYC8aa9FZHmXtMkmLJDquycv06HU-B5dkJnlVH0umAAAAAElFTkSuQmCC.png"
+        },
+        "languages": [
+          "en"
+        ],
+        "regions": [
+          "US"
+        ]
+      },
+      "about_page_link": "https://lens.google.com/search?q=About+https://junehomes.com/blog/2023/05/08/how-to-get-apartment-without-40x-rent/&tbm=ilp",
+      "about_page_serpapi_link": "https://serpapi.com/search.json?engine=google_about_this_result&google_domain=google.com&q=About+https%3A%2F%2Fjunehomes.com%2Fblog%2F2023%2F05%2F08%2Fhow-to-get-apartment-without-40x-rent%2F",
+      "source": "June Homes"
+    },
+    {
+      "position": 4,
+      "title": "CoZi | Near-Campus Condo Search",
+      "link": "https://coziofficial.com/",
+      "redirect_link": "https://lens.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://coziofficial.com/&ved=2ahUKEwiy14iA2q6WAxWftysGHZAuClMQFnoFCL4DEAE",
+      "displayed_link": "https://coziofficial.com",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRlGAdL5eG-pMczHjUil9aV8ZSGEjtfDa1FQLTa_bgEsLuVdYm-CWGl&usqp=CAE&s",
+      "snippet": "Find a trusted condo near campus. CoZi helps students browse near-campus condo listings with clearer details, verified photos, and direct landlord contact.",
+      "snippet_highlighted_words": [
+        "CoZi helps students browse near-campus condo listings"
+      ],
+      "about_this_result": {
+        "source": {
+          "description": "Find a trusted condo near campus. CoZi helps students browse near-campus condo listings with clearer details, verified photos, and direct landlord contact.",
+          "source_info_link": "https://coziofficial.com/"
+        },
+        "languages": [
+          "en"
+        ],
+        "regions": [
+          "US"
+        ]
+      },
+      "about_page_link": "https://lens.google.com/search?q=About+https://coziofficial.com/&tbm=ilp",
+      "about_page_serpapi_link": "https://serpapi.com/search.json?engine=google_about_this_result&google_domain=google.com&q=About+https%3A%2F%2Fcoziofficial.com%2F",
+      "source": "coziofficial.com",
+      "read_more_link": "https://coziofficial.com/#:~:text=Find%20a%20trusted%20condo%20near,photos%2C%20and%20direct%20landlord%20contact."
+    },
+    {
+      "position": 5,
+      "title": "My 530 Square Feet Home is Not Enough for Me to Work ...",
+      "link": "https://medium.com/illumination/my-530-square-feet-home-is-not-enough-for-me-to-work-from-home-4e0d8399e50e",
+      "redirect_link": "https://lens.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://medium.com/illumination/my-530-square-feet-home-is-not-enough-for-me-to-work-from-home-4e0d8399e50e&ved=2ahUKEwiy14iA2q6WAxWftysGHZAuClMQFnoFCMMDEAE",
+      "displayed_link": "5 years ago",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSDc29DJhFbabdGqr2ifhAqzDNaATi77pSuRY0Ktps5esE3ESNP5vo1&usqp=CAE&s",
+      "favicon": "https://serpapi.com/images/i/iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAMAAABF0y-mAAAARVBMVEVHcEwAAAAAAAAAAAAAAAAAAABwcHCoqKifn58bGxt8fHzKysr___8rKyv5-fnW1tbp6emQkJCsrKxaWlq0tLTBwcE-Pj777dpoAAAABnRSTlMAS8D5_5mXKh4CAAAA3ElEQVR4AXzRUQ6EIAwEUNRZClgFQb3_UbfQEDUbd76qL5WMGGOGccJPpnEwkg9e8pE9vGYw4zuOZnrHyeBPFC055zw0wTkKN8TMzEHHZWWOuCMJJh03QXpgrlr0IzLmB-6L4KzHZ0Ub947-EF3q4rI3zByuzSLogDOiYeCICxGZVxmsYuR8x9DaJFQkL3UoX-iTvNg2xbPVvrB37ZgfeGr7_tl0Q_2HXjEjSe0HWnlWJGz1DEXEAsla2lyXcIj2K6O6Wvr1kQXCnL7DG9l4kwneBIY3aeJN1HizAwDOfRO3mlC3PQAAAABJRU5ErkJggg.png",
+      "snippet": "It creates a mentality shift for many from home mode to work mode. It also gives a clean physical break to really switch off our minds",
+      "snippet_highlighted_words": [
+        "It creates a mentality shift for many from home mode to work mode"
+      ],
+      "about_this_result": {
+        "source": {
+          "description": "It creates a mentality shift for many from home mode to work mode. It also gives a clean physical break to really switch off our minds",
+          "source_info_link": "https://medium.com/illumination/my-530-square-feet-home-is-not-enough-for-me-to-work-from-home-4e0d8399e50e",
+          "icon": "https://serpapi.com/images/i/iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAMAAABF0y-mAAAARVBMVEVHcEwAAAAAAAAAAAAAAAAAAABwcHCoqKifn58bGxt8fHzKysr___8rKyv5-fnW1tbp6emQkJCsrKxaWlq0tLTBwcE-Pj777dpoAAAABnRSTlMAS8D5_5mXKh4CAAAA3ElEQVR4AXzRUQ6EIAwEUNRZClgFQb3_UbfQEDUbd76qL5WMGGOGccJPpnEwkg9e8pE9vGYw4zuOZnrHyeBPFC055zw0wTkKN8TMzEHHZWWOuCMJJh03QXpgrlr0IzLmB-6L4KzHZ0Ub947-EF3q4rI3zByuzSLogDOiYeCICxGZVxmsYuR8x9DaJFQkL3UoX-iTvNg2xbPVvrB37ZgfeGr7_tl0Q_2HXjEjSe0HWnlWJGz1DEXEAsla2lyXcIj2K6O6Wvr1kQXCnL7DG9l4kwneBIY3aeJN1HizAwDOfRO3mlC3PQAAAABJRU5ErkJggg.png"
+        },
+        "languages": [
+          "en"
+        ],
+        "regions": [
+          "US"
+        ]
+      },
+      "about_page_link": "https://lens.google.com/search?q=About+https://medium.com/illumination/my-530-square-feet-home-is-not-enough-for-me-to-work-from-home-4e0d8399e50e&tbm=ilp",
+      "about_page_serpapi_link": "https://serpapi.com/search.json?engine=google_about_this_result&google_domain=google.com&q=About+https%3A%2F%2Fmedium.com%2Fillumination%2Fmy-530-square-feet-home-is-not-enough-for-me-to-work-from-home-4e0d8399e50e",
+      "source": "Medium · Midori by the sea"
+    },
+    {
+      "position": 6,
+      "title": "What Does An Apartment Maintenance Contractor Do?",
+      "link": "https://msservices-inc.com/what-does-an-apartment-maintenance-contractor-do/",
+      "redirect_link": "https://lens.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://msservices-inc.com/what-does-an-apartment-maintenance-contractor-do/&ved=2ahUKEwiy14iA2q6WAxWftysGHZAuClMQFnoFCL8DEAE",
+      "displayed_link": "https://msservices-inc.com › what-does-an-apartment-m...",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-kkAlfY4AjOnoQpT3SNmJ99BTiHYNIkYsvwz8I70NKMc_kAX5XMap&usqp=CAE&s",
+      "favicon": "https://serpapi.com/images/i/iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAMAAABF0y-mAAAAtFBMVEX1zVD1zEzw0FP7-ef7_______-___16eXcQkDdOi7dPjj1zUn3ykT6-e39__3dPDT0ykHy0Fj35uLdOTHx0V39-vDcMSz___rZKiXt02Lw3NXbPTTx1dDz1XfyzcnyzTrw2oLYHxrxxsD4xi_vvbnss6rsraCouNewwdUARJnu9vEiVp9Cnlc3mE17uIq-zdwXVZpLol5wuYQAQpjO2uJorXgGUJ1cqW3b5erp8vPo8-cxXKbGXS1WAAABEElEQVR4AX3ShRbCMAxA0RSa-XB3d3f5__-iI1029OHck05BJRJJiUGGYVq2EwWuK4QH_hNTGGiaAyGEKzJZ36BRmXOU5imFKsgUirQyylyJZwld8Apl2iwauUqeUedVy6kyLV2r2HVGPVvFcLZRyjOSCq-ZwnKghtGq5B1Gqt3BFE3LVjfPqPM6hj5e2esGmInX7-jRlBx083XwueLzjdAo46CbBnzJ4C8pY9h9xZfk6DemcPwHJ1OYvSZ5s5PpHBbxliuDUOJ6upnDNtZih2Hr_Xz-gosVr3mYzjXyXAoje8XFMbLT_BUX51R41i9kjMrKqLtM54zaZqFdaY5R2Y2NiScju2_ecabvD0PZKcIHvdM8nXg5EHAAAAAASUVORK5CYII.png",
+      "date": "Feb 15, 2024",
+      "snippet": "Our main areas of expertise are maintenance and repairs for walls, tiles, and floors. Drywall repair and installation. Bathroom, shower, and ...",
+      "snippet_highlighted_words": [
+        "maintenance and repairs for walls, tiles, and floors"
+      ],
+      "about_this_result": {
+        "source": {
+          "description": "Our main areas of expertise are maintenance and repairs for walls, tiles, and floors. Drywall repair and installation. Bathroom, shower, and ...",
+          "source_info_link": "https://msservices-inc.com/what-does-an-apartment-maintenance-contractor-do/",
+          "icon": "https://serpapi.com/images/i/iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAMAAABF0y-mAAAAtFBMVEX1zVD1zEzw0FP7-ef7_______-___16eXcQkDdOi7dPjj1zUn3ykT6-e39__3dPDT0ykHy0Fj35uLdOTHx0V39-vDcMSz___rZKiXt02Lw3NXbPTTx1dDz1XfyzcnyzTrw2oLYHxrxxsD4xi_vvbnss6rsraCouNewwdUARJnu9vEiVp9Cnlc3mE17uIq-zdwXVZpLol5wuYQAQpjO2uJorXgGUJ1cqW3b5erp8vPo8-cxXKbGXS1WAAABEElEQVR4AX3ShRbCMAxA0RSa-XB3d3f5__-iI1029OHck05BJRJJiUGGYVq2EwWuK4QH_hNTGGiaAyGEKzJZ36BRmXOU5imFKsgUirQyylyJZwld8Apl2iwauUqeUedVy6kyLV2r2HVGPVvFcLZRyjOSCq-ZwnKghtGq5B1Gqt3BFE3LVjfPqPM6hj5e2esGmInX7-jRlBx083XwueLzjdAo46CbBnzJ4C8pY9h9xZfk6DemcPwHJ1OYvSZ5s5PpHBbxliuDUOJ6upnDNtZih2Hr_Xz-gosVr3mYzjXyXAoje8XFMbLT_BUX51R41i9kjMrKqLtM54zaZqFdaY5R2Y2NiScju2_ecabvD0PZKcIHvdM8nXg5EHAAAAAASUVORK5CYII.png"
+        },
+        "languages": [
+          "en"
+        ],
+        "regions": [
+          "US"
+        ]
+      },
+      "about_page_link": "https://lens.google.com/search?q=About+https://msservices-inc.com/what-does-an-apartment-maintenance-contractor-do/&tbm=ilp",
+      "about_page_serpapi_link": "https://serpapi.com/search.json?engine=google_about_this_result&google_domain=google.com&q=About+https%3A%2F%2Fmsservices-inc.com%2Fwhat-does-an-apartment-maintenance-contractor-do%2F",
+      "source": "msservices-inc.com"
+    },
+    {
+      "position": 7,
+      "title": "Apartments - Real Estate Platform",
+      "link": "https://apt.az/",
+      "redirect_link": "https://lens.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://apt.az/&ved=2ahUKEwiy14iA2q6WAxWftysGHZAuClMQFnoFCMADEAE",
+      "displayed_link": "https://apt.az",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSM7LEqCQH-Zh-UfwO4BcN-XOqLtSz_km46jR8K8_D66j__6LAbt-_E&usqp=CAE&s",
+      "snippet": "Find your dream home with our real estate platform. Discover the perfect property that suits your lifestyle and budget For Sale For Rent",
+      "snippet_highlighted_words": [
+        "real estate platform"
+      ],
+      "about_this_result": {
+        "source": {
+          "description": "Find your dream home with our real estate platform. Discover the perfect property that suits your lifestyle and budget For Sale For Rent",
+          "source_info_link": "https://apt.az/"
+        },
+        "languages": [
+          "en"
+        ],
+        "regions": [
+          "US"
+        ]
+      },
+      "about_page_link": "https://lens.google.com/search?q=About+https://apt.az/&tbm=ilp",
+      "about_page_serpapi_link": "https://serpapi.com/search.json?engine=google_about_this_result&google_domain=google.com&q=About+https%3A%2F%2Fapt.az%2F",
+      "source": "apt.az"
+    },
+    {
+      "position": 8,
+      "title": "Residential | Experience Cleanliness Today—Book Now",
+      "link": "https://sharpencleaning.com/services",
+      "redirect_link": "https://lens.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://sharpencleaning.com/services&ved=2ahUKEwiy14iA2q6WAxWftysGHZAuClMQFnoFCMIDEAE",
+      "displayed_link": "https://sharpencleaning.com › services",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRacxAxpqaLKsUfWc69Iniin13VArtew23Y3G5elE0L9pu2rJFuXZZ7&usqp=CAE&s",
+      "favicon": "https://serpapi.com/images/i/iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAPFBMVEVHcEwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACHr_7WAAAAFHRSTlMAN3aeg1cPGa3_3Gi_jkfvJwaVzfGIce4AAAEnSURBVHgBzc1JlmMhDETRoEcSID7sf68l1zFOd9Nq7pB4AP47zocQU8Z3pRIHL6ERJ3zRqZ-rQ7l87mzzxJ3QxKvbjKviJjtLqeBZpmz7Ij9RAumeSIQnIjwAUapTiKiXXVE7fqgLC0DewNocbNq_Hz0GIzEuwQD6YvWpWFo9juqtxyIHoJGqn7dgMA62hSYESEQr1AhYcCkOzcAWZGD53Ym8u_b9-CdIA6YraWteXHsNigW7ZgsWj3r_4inggbLEJwsiNyILGCiKY3WgdhELiOgEsnE4tYmJ0kuwBQ-aQEYRTrAx6cLD4HnbyT0F7PEkV-WtzT-C0hnPJgVamjBEvPcO8HThGeviWXDkpq-7ybnGezHtNXzhqnKrtSkFK7-bSSRN_GW_AIPwDZxsv-M2AAAAAElFTkSuQmCC.png",
+      "snippet": "We provide reliable residential cleaning for homeowners and renters who want their space maintained with care, consistency, and clear standards. Standard 1 Bed ...",
+      "snippet_highlighted_words": [
+        "reliable residential cleaning"
+      ],
+      "about_this_result": {
+        "source": {
+          "description": "We provide reliable residential cleaning for homeowners and renters who want their space maintained with care, consistency, and clear standards. Standard 1 Bed ...",
+          "source_info_link": "https://sharpencleaning.com/services",
+          "icon": "https://serpapi.com/images/i/iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAPFBMVEVHcEwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACHr_7WAAAAFHRSTlMAN3aeg1cPGa3_3Gi_jkfvJwaVzfGIce4AAAEnSURBVHgBzc1JlmMhDETRoEcSID7sf68l1zFOd9Nq7pB4AP47zocQU8Z3pRIHL6ERJ3zRqZ-rQ7l87mzzxJ3QxKvbjKviJjtLqeBZpmz7Ij9RAumeSIQnIjwAUapTiKiXXVE7fqgLC0DewNocbNq_Hz0GIzEuwQD6YvWpWFo9juqtxyIHoJGqn7dgMA62hSYESEQr1AhYcCkOzcAWZGD53Ym8u_b9-CdIA6YraWteXHsNigW7ZgsWj3r_4inggbLEJwsiNyILGCiKY3WgdhELiOgEsnE4tYmJ0kuwBQ-aQEYRTrAx6cLD4HnbyT0F7PEkV-WtzT-C0hnPJgVamjBEvPcO8HThGeviWXDkpq-7ybnGezHtNXzhqnKrtSkFK7-bSSRN_GW_AIPwDZxsv-M2AAAAAElFTkSuQmCC.png"
+        },
+        "languages": [
+          "en"
+        ],
+        "regions": [
+          "US"
+        ]
+      },
+      "about_page_link": "https://lens.google.com/search?q=About+https://sharpencleaning.com/services&tbm=ilp",
+      "about_page_serpapi_link": "https://serpapi.com/search.json?engine=google_about_this_result&google_domain=google.com&q=About+https%3A%2F%2Fsharpencleaning.com%2Fservices",
+      "source": "Sharpen Agency Cleaning Services"
+    },
+    {
+      "position": 9,
+      "title": "About",
+      "link": "https://northviewheightsapts.com/about/",
+      "redirect_link": "https://lens.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://northviewheightsapts.com/about/&ved=2ahUKEwiy14iA2q6WAxWftysGHZAuClMQFnoFCLwDEAE",
+      "displayed_link": "https://northviewheightsapts.com › about",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS8HWM3ATeprMKYRTtejbqfpY6W1ladQsXXITESn0Ltc5BZv8nrT4P-&usqp=CAE&s",
+      "favicon": "https://serpapi.com/images/i/iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAA9ElEQVR4AWJwL_ABtFsGJxCDQBQtwmLsI6etIEWkFY97TRVuEbnbQCqQ3Qn8wEdWRhHjxcM7zPBHH2iIQ5kCU2C8wOf92gR3ow1IxnIedfEayex2NYLwJbyywJLkV-HknjLPs-fVOFAwa6VAqBCIlA0skGJGCxxDBcA2VADYJwUi1yA8JgAM18ApAodw3jQJILTmjiIRiP_uSbMAgj4RiCxAdBAA6DG7YFmqt8CSkUjvgENfp1gA8IZM_l9QDgT0TwgbdBMwTEbA9hKouTyuVAB5kyHWCrBEKBXI0SpgWgWUI9DBhp5YhJ17yrwn9vkqngJT4AfgK5VxHDNbMgAAAABJRU5ErkJggg.png",
+      "date": "Mar 14, 2023",
+      "snippet": "Northview Heights Apartments is a stunning apartment complex located in Erie, Pennsylvania. With its wide range of amenities and fully ...",
+      "snippet_highlighted_words": [
+        "apartment complex located in Erie, Pennsylvania"
+      ],
+      "about_this_result": {
+        "source": {
+          "description": "Northview Heights Apartments is a stunning apartment complex located in Erie, Pennsylvania. With its wide range of amenities and fully ...",
+          "source_info_link": "https://northviewheightsapts.com/about/",
+          "icon": "https://serpapi.com/images/i/iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAA9ElEQVR4AWJwL_ABtFsGJxCDQBQtwmLsI6etIEWkFY97TRVuEbnbQCqQ3Qn8wEdWRhHjxcM7zPBHH2iIQ5kCU2C8wOf92gR3ow1IxnIedfEayex2NYLwJbyywJLkV-HknjLPs-fVOFAwa6VAqBCIlA0skGJGCxxDBcA2VADYJwUi1yA8JgAM18ApAodw3jQJILTmjiIRiP_uSbMAgj4RiCxAdBAA6DG7YFmqt8CSkUjvgENfp1gA8IZM_l9QDgT0TwgbdBMwTEbA9hKouTyuVAB5kyHWCrBEKBXI0SpgWgWUI9DBhp5YhJ17yrwn9vkqngJT4AfgK5VxHDNbMgAAAABJRU5ErkJggg.png"
+        },
+        "languages": [
+          "en"
+        ],
+        "regions": [
+          "US"
+        ]
+      },
+      "about_page_link": "https://lens.google.com/search?q=About+https://northviewheightsapts.com/about/&tbm=ilp",
+      "about_page_serpapi_link": "https://serpapi.com/search.json?engine=google_about_this_result&google_domain=google.com&q=About+https%3A%2F%2Fnorthviewheightsapts.com%2Fabout%2F",
+      "source": "Northview Heights Apartments",
+      "read_more_link": "https://northviewheightsapts.com/about/#:~:text=Northview%20Heights%20Apartments%20is%20a,and%20comfortable%20living%20in%20Erie."
+    }
+  ]
+}

@@ -108,10 +108,10 @@ export const Header: React.FC = () => {
   const districts = ['Chilonzor', 'Yunusobod', "Mirzo Ulug'bek", 'Yakkasaroy', 'Shayxontohur', 'Sergeli'];
 
   return (
-    <header className="fixed top-2 sm:top-4 inset-x-0 z-50 px-2 sm:px-6 transition-all pointer-events-none">
+    <header className="fixed top-0 inset-x-0 z-50 transition-all pointer-events-none">
       <AuthModal />
 
-      <div className={`max-w-7xl mx-auto rounded-2xl sm:rounded-full transition-all shadow-2xl border backdrop-blur-xl pointer-events-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4 ${
+      <div className={`w-full transition-all shadow-xl border-b backdrop-blur-xl pointer-events-auto px-4 sm:px-8 py-2.5 sm:py-3 flex items-center justify-between gap-3 ${
         themeMode === 'light'
           ? 'bg-white/95 text-slate-900 border-slate-200/90 shadow-slate-300/40'
           : 'bg-slate-950/90 text-white border-slate-800/90 shadow-black/80'
