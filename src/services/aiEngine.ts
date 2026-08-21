@@ -328,6 +328,7 @@ export interface ChatReply {
   go?: 'SEARCH' | 'AUTH' | 'CREATE_LISTING' | 'HOME';
 }
 
+// Tuman nomlari (rasmiy)
 const DISTRICT_MAP: Record<string, string> = {
   'chilonzor': 'Chilonzor',
   'yunusobod': 'Yunusobod',
@@ -339,7 +340,66 @@ const DISTRICT_MAP: Record<string, string> = {
   'yashnobod': 'Yashnobod',
   'shayxontohur': 'Shayxontohur',
   'bektemir': 'Bektemir',
+  "mirzo ulug'bek": "Mirzo Ulug'bek",
+  'mirzo ulugbek': "Mirzo Ulug'bek",
   'mirzo': "Mirzo Ulug'bek",
+};
+
+// Mashhur joylar, mahallalar va taxalluslar → tuman
+const LANDMARK_MAP: Record<string, string> = {
+  // Shayxontohur
+  'chorsu': 'Shayxontohur',
+  'ko\'k ko\'l': 'Shayxontohur',
+  'kok kol': 'Shayxontohur',
+  'shayx antahur': 'Shayxontohur',
+  'old town': 'Shayxontohur',
+  // Yunusobod
+  'minor': 'Yunusobod',
+  'amir temur': 'Yunusobod',
+  'amir temur xiyoboni': 'Yunusobod',
+  'mustaqillik': 'Yunusobod',
+  'toshkent city': 'Yunusobod',
+  'hyatt': 'Yunusobod',
+  'riviera': 'Yunusobod',
+  // Mirobod
+  'mirabad': 'Mirobod',
+  'push\'kin': 'Mirobod',
+  'pushkin': 'Mirobod',
+  'hamza': 'Mirobod',
+  // Yakkasaroy
+  'tinchlik': 'Yakkasaroy',
+  'sobir rahimov': 'Yakkasaroy',
+  // Chilonzor
+  'bunyodkor': 'Chilonzor',
+  'qo\'yliq': 'Chilonzor',
+  'qoyliq': 'Chilonzor',
+  'ipodrom': 'Chilonzor',
+  // Olmazor
+  'navoiy': 'Olmazor',
+  'm.ulugbek': "Mirzo Ulug'bek",
+  // Sergeli
+  'keles': 'Sergeli',
+  'neftchi': 'Sergeli',
+};
+
+// Metro bekatlari → tuman
+const METRO_DISTRICT_MAP: Record<string, { district: string; metro: string }> = {
+  'chorsu': { district: 'Shayxontohur', metro: 'Chorsu' },
+  'oloy': { district: 'Shayxontohur', metro: 'Oʻzbekiston' },
+  'o\'zbekiston': { district: 'Shayxontohur', metro: 'Oʻzbekiston' },
+  'uzbekiston': { district: 'Shayxontohur', metro: 'Oʻzbekiston' },
+  'amir temur': { district: 'Yunusobod', metro: 'Amir Temur Xiyoboni' },
+  'minor': { district: 'Yunusobod', metro: 'Minor' },
+  'pushkin': { district: 'Mirobod', metro: 'Pushkin' },
+  'mirzo ulugbek': { district: "Mirzo Ulug'bek", metro: "Mirzo Ulug'bek" },
+  'navoiy': { district: 'Olmazor', metro: 'Navoiy' },
+  'paxtakor': { district: 'Mirobod', metro: 'Paxtakor' },
+  'hamza': { district: 'Mirobod', metro: 'Hamza' },
+  'tinchlik': { district: 'Yakkasaroy', metro: 'Tinchlik' },
+  'bunyodkor': { district: 'Chilonzor', metro: 'Bunyodkor' },
+  'chilonzor': { district: 'Chilonzor', metro: 'Chilonzor' },
+  'oybek': { district: 'Yunusobod', metro: 'Oybek' },
+  'mustaqillik': { district: 'Yunusobod', metro: 'Mustaqillik' },
 };
 
 export function replyAsAssistant(message: string, listings: Listing[]): ChatReply {
@@ -381,19 +441,47 @@ export function replyAsAssistant(message: string, listings: Listing[]): ChatRepl
     }
   }
 
-  // 3. District matching
-  for (const [key, name] of Object.entries(DISTRICT_MAP)) {
+  // 3. Metro bekati matching (birinchi — aniqroq)
+  for (const [key, info] of Object.entries(METRO_DISTRICT_MAP)) {
     if (t.includes(key)) {
-      need.district = name;
+      need.district = info.district;
+      need.metro = info.metro;
+      need.nearMetro = true;
       need.region = 'Toshkent shahri';
       break;
+    }
+  }
+
+  // 4. Landmark / mahalla matching
+  if (!need.district) {
+    for (const [key, district] of Object.entries(LANDMARK_MAP)) {
+      if (t.includes(key)) {
+        need.district = district;
+        need.region = 'Toshkent shahri';
+        break;
+      }
+    }
+  }
+
+  // 5. Rasmiy tuman nomlari matching
+  if (!need.district) {
+    for (const [key, name] of Object.entries(DISTRICT_MAP)) {
+      if (t.includes(key)) {
+        need.district = name;
+        need.region = 'Toshkent shahri';
+        break;
+      }
     }
   }
 
   if (/toshkent/.test(t)) need.region = 'Toshkent shahri';
   if (/metro/.test(t)) need.nearMetro = true;
 
-  const hasSearch = Boolean(need.rooms || need.maxPrice || need.district || need.region || need.audience !== 'ALL' || /kvartira|uy|ijara|qidir|chilonzor|yunusobod|mirobod|olmazor|sergeli/.test(t));
+  const hasSearch = Boolean(
+    need.rooms || need.maxPrice || need.district || need.region ||
+    need.audience !== 'ALL' ||
+    /kvartira|uy|ijara|qidir/.test(t)
+  );
   if (hasSearch) {
     const topRanked = rankListings(listings, need);
     const top = topRanked.slice(0, 3).map((r) => r.listing);
@@ -406,12 +494,16 @@ export function replyAsAssistant(message: string, listings: Listing[]): ChatRepl
       };
     }
 
-    const districtText = need.district ? `${need.district} tumanida` : "Toshkentda";
-    const priceText = need.maxPrice ? ` ${formatSom(need.maxPrice)}gacha` : "";
-    const lines = top.map((l, i) => `${i + 1}) ${l.title} — ${formatSom(l.price)} (${l.district})`).join('\n');
+    const districtText = need.district
+      ? `${need.district} tumanida (${need.metro ? need.metro + ' metro yaqini' : 'hududida'})`
+      : 'Toshkent shahri bo\'yicha';
+    const priceText = need.maxPrice ? `, ${formatSom(need.maxPrice)}gacha` : '';
+    const lines = top
+      .map((l, i) => `${i + 1}) ${l.title} — ${formatSom(l.price)} (${l.district})`)
+      .join('\n');
 
     return {
-      text: `🤖 Shield AI: ${districtText}${priceText} sizga mos ${top.length} ta eng yaxshi kvartirani topdim:\n\n${lines}\n\nQuyida har bir kvartirani ko'rishingiz mumkin:`,
+      text: `🏠 Shield AI: ${districtText}${priceText} sizga mos ${top.length} ta eng yaxshi variant topdim:\n\n${lines}\n\nQuyida batafsil ko'rishingiz mumkin:`,
       go: 'SEARCH',
       need,
       matchedListings: top,
@@ -419,7 +511,7 @@ export function replyAsAssistant(message: string, listings: Listing[]): ChatRepl
   }
 
   return {
-    text: "Men Shield AI yordamchisiman. Masalan yozing: «Chilonzordan 3ml ga kvartira kerak» yoki «Yunusobod 2 xona» deb yozing.",
+    text: "Men Shield AI yordamchisiman 🤖\nMasalan: «Chorsudan 2 xonali kvartira kerak» yoki «Yunusobod 3 mln gacha» deb yozing.\nToshkent bo'yicha istalgan hudud, metro bekati yoki mahalla nomini ayta olasiz!",
   };
 }
 
