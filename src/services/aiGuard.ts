@@ -15,7 +15,7 @@ export interface ListingScanResult {
   brokerProbability: number;
   reasons: string[];
   message: string;
-  fieldErrors?: { field: string; issue: string; fixSuggestion: string }[];
+  fieldErrors?: FieldError[];
   apiDown?: boolean;
 }
 
