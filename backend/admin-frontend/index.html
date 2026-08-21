@@ -1227,18 +1227,6 @@
                 if (!data) {
                     try {
                         const res = await fetch(`${API_BASE}/admin/guest-analytics`, { headers: getAuthHeaders() });
-                        if (res.ok) data = await res.json();
-                    } catch(e) {}
-                }
-
-                if (data) {
-                    if (document.getElementById('statGuestTotal')) document.getElementById('statGuestTotal').textContent = data.total_guest_visitors ?? 0;
-                    if (document.getElementById('statGuestToday')) document.getElementById('statGuestToday').textContent = data.today_guest_visitors ?? 0;
-                    if (document.getElementById('statGuestRatio')) document.getElementById('statGuestRatio').textContent = `${data.guest_percentage ?? 0}%`;
-                    
-                    if (document.getElementById('guestPercentLabel')) document.getElementById('guestPercentLabel').textContent = `${data.guest_percentage ?? 0}%`;
-                    if (document.getElementById('userPercentLabel')) document.getElementById('userPercentLabel').textContent = `${data.registered_percentage ?? 0}%`;
-                    
                     if (document.getElementById('guestProgressBar')) document.getElementById('guestProgressBar').style.width = `${data.guest_percentage ?? 0}%`;
                     if (document.getElementById('userProgressBar')) document.getElementById('userProgressBar').style.width = `${data.registered_percentage ?? 0}%`;
 
@@ -1456,12 +1444,16 @@
 
             // Attempt to fetch real analytics from Railway API if endpoint exists
             try {
-                const statsRes = await fetch(`${API_BASE}/admin/dashboard/stats`, { headers: getAuthHeaders() });
+                const statsRes = await fetch(`${API_BASE}/admin/stats`, { headers: getAuthHeaders() });
                 if (statsRes.ok && statsRes.headers.get('content-type')?.includes('application/json')) {
                     const statsData = await statsRes.json();
-                    if (statsData.daily_visitors !== undefined) dailyVisitors = statsData.daily_visitors;
-                    if (statsData.total_searches !== undefined) realSearches = statsData.total_searches;
-                    if (Array.isArray(statsData.traffic_history)) trafficHistory = statsData.traffic_history;
+                    if (statsData.data) {
+                        dailyVisitors = statsData.data.guests || 0;
+                        realSearches = statsData.data.aiQueries || 0;
+                        // Use actual counts from the DB instead of iterating local arrays later
+                        totalOwners = statsData.data.owners || 0;
+                        totalStudents = statsData.data.tenants || 0;
+                    }
                 }
             } catch (e) {}
 
@@ -1470,40 +1462,9 @@
             const blockedListings = listings.filter(l => getStatus(l) === 'REJECTED').length;
             const underReviewListings = listings.filter(l => getStatus(l) === 'UNDER_REVIEW').length;
 
-            // Calculate real owners & students directly from cachedUsersList
-            let totalOwners = 0;
-            let activeOwners = 0;
-            let totalStudents = 0;
-            let activeStudents = 0;
-
-            if (cachedUsersList && cachedUsersList.length > 0) {
-                cachedUsersList.forEach(u => {
-                    const uRole = (u.role || '').toUpperCase();
-                    const isActive = (u.status || 'ACTIVE').toUpperCase() === 'ACTIVE';
-                    if (uRole === 'OWNER') {
-                        totalOwners++;
-                        if (isActive) activeOwners++;
-                    } else if (uRole === 'STUDENT') {
-                        totalStudents++;
-                        if (isActive) activeStudents++;
-                    }
-                });
-            } else {
-                // Fallback to listings extraction if users list pending
-                const ownersSet = new Set();
-                listings.forEach(l => {
-                    const oName = getOwnerName(l);
-                    if (oName && oName !== 'Uy Egasi') ownersSet.add(oName);
-                });
-                totalOwners = ownersSet.size;
-                activeOwners = listings.filter(l => getStatus(l) === 'APPROVED').reduce((acc, l) => {
-                    const name = getOwnerName(l);
-                    if (name && name !== 'Uy Egasi') acc.add(name);
-                    return acc;
-                }, new Set()).size;
-                totalStudents = Math.round(totalOwners * 1.5);
-                activeStudents = Math.round(activeOwners * 1.2);
-            }
+            // Calculate active owners & students (approximate based on active listings if real status is missing)
+            activeOwners = activeOwners || totalOwners;
+            activeStudents = activeStudents || totalStudents;
 
             const aiAutoApproved = listings.filter(l => getStatus(l) === 'APPROVED' && getRiskScore(l) < 30).length;
             const aiRejectedCount = blockedListings;
@@ -1835,7 +1796,7 @@
 
                 // 1. Fetch from direct server API endpoint first (CORS error free)
                 try {
-                    const resLocal = await fetch(`${API_BASE}/users?role=${role}&search=${encodeURIComponent(search)}`, { headers: getAuthHeaders() });
+                    const resLocal = await fetch(`${API_BASE}/admin/users?role=${role}&search=${encodeURIComponent(search)}`, { headers: getAuthHeaders() });
                     if (resLocal.ok && resLocal.headers.get('content-type')?.includes('application/json')) {
                         const jsonLocal = await resLocal.json();
                         users = Array.isArray(jsonLocal) ? jsonLocal : (jsonLocal.data || jsonLocal.users || []);
@@ -1845,7 +1806,7 @@
                 // 2. Secondary fallback to Railway domain if needed
                 if (!users || users.length === 0) {
                     try {
-                        const res = await fetch(`${API_BASE}/users`, { headers: getAuthHeaders() });
+                        const res = await fetch(`${API_BASE}/admin/users`, { headers: getAuthHeaders() });
                         if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
                             const json = await res.json();
                             users = Array.isArray(json) ? json : (json.data || json.users || []);
@@ -1876,7 +1837,7 @@
                 tbody.innerHTML = users.map(u => {
                     const name = u.full_name || u.name || "Foydalanuvchi";
                     const phone = u.phone || u.phoneNumber || "—";
-                    const pwd = u.password || u.pass || "123456";
+                    const pwd = "Tizim orqali";
                     const uRole = (u.role || 'STUDENT').toUpperCase();
                     const isOwner = uRole === 'OWNER';
                     const roleTag = isOwner 
@@ -1917,8 +1878,8 @@
                         </td>
                         <td class="px-6 py-4 font-mono text-slate-300">${phone}</td>
                         <td class="px-6 py-4 font-mono">
-                            <span class="bg-slate-900 border border-slate-700/80 text-amber-300 font-bold px-2.5 py-1 rounded-lg text-xs tracking-wider inline-flex items-center gap-1.5" title="${pwd}">
-                                <i class="fa-solid fa-key text-[10px] text-amber-400"></i>
+                                <span class="bg-slate-900 border border-slate-700/80 text-emerald-400 font-bold px-2.5 py-1 rounded-lg text-xs tracking-wider inline-flex items-center gap-1.5">
+                                <i class="fa-solid fa-mobile-screen-button text-[10px] text-emerald-500"></i>
                                 <span>${pwd}</span>
                             </span>
                         </td>
