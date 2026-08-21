@@ -356,7 +356,7 @@ export const CreateListingPage: React.FC = () => {
     }
   };
 
-  const handleSubmitListing = (e?: React.FormEvent | React.MouseEvent) => {
+  const handleSubmitListing = async (e?: React.FormEvent | React.MouseEvent) => {
     if (e && typeof e.preventDefault === 'function') {
       e.preventDefault();
     }
@@ -424,12 +424,13 @@ export const CreateListingPage: React.FC = () => {
       contactCount: 0,
     };
 
-    addListing(newListing);
-    ApiService.createListing(newListing).catch((err) => {
-      console.warn("Listing sync warning:", err);
-    });
-
-    setCurrentView('HOME');
+    try {
+      const createdListing = await ApiService.createListing(newListing);
+      addListing(createdListing);
+      setCurrentView('MY_LISTINGS');
+    } catch {
+      alert("E'lonni serverga yuborib bo'lmadi. Internet yoki backend ulanishini tekshirib qayta urinib ko'ring.");
+    }
   };
 
   // USD estimated price (approx 1 USD = 12,800 UZS)

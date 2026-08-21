@@ -326,7 +326,7 @@ export const ApiService = {
         if (Array.isArray(data) && data.length > 0) return data as Listing[];
       }
     } catch { /* mock fallback */ }
-    return MOCK_LISTINGS;
+    return [];
   },
 
   /** Get listings owned by the currently logged-in user */
@@ -351,7 +351,7 @@ export const ApiService = {
         if (json.id) return json as Listing;
       }
     } catch { /* mock fallback */ }
-    return MOCK_LISTINGS.find((l) => l.id === id);
+    return undefined;
   },
 
   createListing: async (listingData: Partial<Listing>): Promise<Listing> => {
@@ -366,8 +366,21 @@ export const ApiService = {
         if (json.id) return json as Listing;
       }
     } catch { /* fallback */ }
-    // Offline fallback with local ID so it still renders
-    return { ...MOCK_LISTINGS[0], ...listingData, id: `listing-${Date.now()}` } as Listing;
+    throw new Error('Backend listing service is unavailable');
+  },
+
+  recordListingStat: async (listingId: string, stat: 'views' | 'favorites' | 'contacts', delta = 1): Promise<Listing | null> => {
+    try {
+      const res = await fetchWithAuth(`${API_BASE}/listings/${encodeURIComponent(listingId)}/stats`, {
+        method: 'POST',
+        body: JSON.stringify({ stat, delta }),
+      });
+      if (res?.ok) {
+        const json = await res.json();
+        return (json.data ?? json) as Listing;
+      }
+    } catch { /* backend error is reflected by the unchanged local count */ }
+    return null;
   },
 
   updateListing: async (id: string, listingData: Partial<Listing>): Promise<Listing | null> => {

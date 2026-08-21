@@ -304,6 +304,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const countField = stat === 'views' ? 'viewsCount' : stat === 'favorites' ? 'favoritesCount' : 'contactCount';
       return { ...l, [countField]: (l[countField] || 0) + 1 };
     });
+    ApiService.recordListingStat(listingId, stat).then((remoteListing) => {
+      if (!remoteListing) return;
+      set((current) => ({
+        listings: current.listings.map((listing) => listing.id === listingId ? { ...listing, ...remoteListing } : listing),
+      }));
+    }).catch(() => {});
     return { listings: updatedListings };
   }),
 
@@ -351,6 +357,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
         favoritesCount: Math.max(0, (l.favoritesCount || 0) + (isFav ? -1 : 1)) 
       };
     });
+
+    ApiService.recordListingStat(listingId, 'favorites', isFav ? -1 : 1).then((remoteListing) => {
+      if (!remoteListing) return;
+      set((current) => ({
+        listings: current.listings.map((listing) => listing.id === listingId ? { ...listing, ...remoteListing } : listing),
+      }));
+    }).catch(() => {});
 
     return {
       listings: updatedListings,

@@ -19,7 +19,7 @@ export const ListingsController = {
   // Get all listings with search & filtering
   getAllListings: async (req: Request, res: Response) => {
     try {
-      const { district, rooms, search } = req.query;
+      const { district, region, rooms, maxPrice, search } = req.query;
       
       const where: any = {};
       
@@ -32,6 +32,15 @@ export const ListingsController = {
         if (!isNaN(numRooms)) {
           where.rooms = numRooms;
         }
+      }
+
+      if (region && typeof region === 'string' && region !== 'Barchasi') {
+        where.region = { contains: region, mode: 'insensitive' };
+      }
+
+      if (maxPrice) {
+        const numericMaxPrice = Number(maxPrice);
+        if (Number.isFinite(numericMaxPrice)) where.price = { lte: numericMaxPrice };
       }
       
       if (search && typeof search === 'string') {
@@ -77,6 +86,32 @@ export const ListingsController = {
     } catch (error) {
       console.error('Error fetching listing by ID:', error);
       return res.status(500).json({ status: 'error', message: 'Internal server error' });
+    }
+  },
+
+  recordStat: async (req: Request, res: Response) => {
+    const statFields: Record<string, string> = {
+      views: 'viewsCount',
+      favorites: 'favoritesCount',
+      contacts: 'contactCount',
+    };
+    const field = statFields[String(req.body?.stat || '')];
+    if (!field) return res.status(400).json({ status: 'error', message: 'Noto\'g\'ri statistika turi' });
+    const requestedDelta = Number(req.body?.delta ?? 1);
+    const delta = field === 'favoritesCount' ? Math.max(-1, Math.min(1, requestedDelta)) : 1;
+
+    try {
+      await prisma.listing.updateMany({
+        where: { id: req.params.id, ...(delta < 0 ? { [field]: { gt: 0 } } : {}) },
+        data: { [field]: { increment: delta } },
+      });
+      const updated = await prisma.listing.findUniqueOrThrow({
+        where: { id: req.params.id },
+        include: { owner: true },
+      });
+      return res.json({ status: 'success', data: updated });
+    } catch (error) {
+      return res.status(404).json({ status: 'error', message: 'E\'lon topilmadi' });
     }
   },
   
@@ -141,18 +176,51 @@ export const ListingsController = {
         return res.status(401).json({ status: 'error', message: 'Egasi topilmadi. Tizimga qayta kiring.' });
       }
 
-      const { title, description, price, region, district, rooms, area, images } = req.body || {};
+      const {
+        title, description, price, depositPrice, region, district, address, latitude, longitude,
+        rooms, area, floor, totalFloors, propertyType, metroStation, metroDistanceMinutes,
+        universityName, universityDistanceMinutes, utilitiesIncluded, furnished, petsAllowed,
+        parking, internet, airConditioning, washingMachine, images, videoUrl, hasVirtualTour,
+        isRoommate, roommateGender, roommateSpotsAvailable, contactTelegram, preferredContactTime,
+      } = req.body || {};
 
       const newListing = await prisma.listing.create({
         data: {
           title: title || 'Yangi kvartira',
           description: description || '',
           price: Number(price) || 4000000,
+          depositPrice: Number.isFinite(Number(depositPrice)) ? Number(depositPrice) : null,
           rooms: Number(rooms) || 2,
+          area: Number.isFinite(Number(area)) ? Number(area) : null,
+          floor: Number.isFinite(Number(floor)) ? Number(floor) : null,
+          totalFloors: Number.isFinite(Number(totalFloors)) ? Number(totalFloors) : null,
+          propertyType: propertyType || 'APARTMENT',
+          region: region || null,
           district: district || 'Chilonzor',
+          address: address || null,
+          latitude: Number.isFinite(Number(latitude)) ? Number(latitude) : null,
+          longitude: Number.isFinite(Number(longitude)) ? Number(longitude) : null,
+          metroStation: metroStation || null,
+          metroDistanceMinutes: Number.isFinite(Number(metroDistanceMinutes)) ? Number(metroDistanceMinutes) : null,
+          universityName: universityName || null,
+          universityDistanceMinutes: Number.isFinite(Number(universityDistanceMinutes)) ? Number(universityDistanceMinutes) : null,
+          utilitiesIncluded: Boolean(utilitiesIncluded),
+          furnished: Boolean(furnished),
+          petsAllowed: Boolean(petsAllowed),
+          parking: Boolean(parking),
+          internet: Boolean(internet),
+          airConditioning: Boolean(airConditioning),
+          washingMachine: Boolean(washingMachine),
           images: Array.isArray(images) && images.length > 0 ? images : [
             'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1200'
           ],
+          videoUrl: videoUrl || null,
+          hasVirtualTour: Boolean(hasVirtualTour),
+          isRoommate: Boolean(isRoommate),
+          roommateGender: roommateGender || null,
+          roommateSpotsAvailable: Number.isFinite(Number(roommateSpotsAvailable)) ? Number(roommateSpotsAvailable) : null,
+          contactTelegram: contactTelegram || null,
+          preferredContactTime: preferredContactTime || null,
           ownerId: owner.id,
           aiCheckStatus: 'APPROVED',
           trustScore: 90,

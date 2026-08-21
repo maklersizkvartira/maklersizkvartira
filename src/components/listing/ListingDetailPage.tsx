@@ -317,7 +317,7 @@ export const ListingDetailPage: React.FC = () => {
         </div>
 
         {/* Media Display Viewer */}
-        <div className="aspect-[4/3] sm:aspect-[16/9] md:aspect-[21/9] w-full bg-slate-900 rounded-2xl sm:rounded-3xl overflow-hidden relative shadow-lg">
+        <div className="aspect-4/3 sm:aspect-video md:aspect-21/9 w-full bg-slate-900 rounded-2xl sm:rounded-3xl overflow-hidden relative shadow-lg">
           {activeMedia === 'IMAGE' && (
             <img
               src={activeImg}

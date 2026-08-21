@@ -146,6 +146,7 @@ export const ShieldMascot: React.FC = () => {
             sortBy: 'AI',
           } as any);
           if (data.need.district) setSearchQuery(data.need.district);
+          setCurrentView('SEARCH');
         }
       } else {
         setLog(prev => [...prev, { from: 'ai', text: "Xatolik yuz berdi. Iltimos qaytadan urinib ko'ring." }]);
@@ -190,11 +191,11 @@ export const ShieldMascot: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-20 right-2 left-2 sm:left-auto sm:bottom-6 sm:right-6 z-40 max-w-full sm:w-[420px] md:w-[480px] ml-auto pointer-events-auto">
+    <div className="fixed bottom-20 right-2 left-2 sm:left-auto sm:bottom-6 sm:right-6 z-40 max-w-full sm:w-105 md:w-120 ml-auto pointer-events-auto">
 
       {/* ── Close Confirmation Modal Alert ── */}
       {showCloseConfirm && (
-        <div className="fixed inset-0 z-[200] bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4" onClick={() => setShowCloseConfirm(false)}>
+        <div className="fixed inset-0 z-200 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4" onClick={() => setShowCloseConfirm(false)}>
           <div 
             className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-xs w-full shadow-2xl text-center space-y-4 animate-in fade-in zoom-in-95 duration-200"
             onClick={e => e.stopPropagation()}
@@ -229,7 +230,7 @@ export const ShieldMascot: React.FC = () => {
       )}
 
       {open ? (
-        <div className="bg-slate-950 text-white rounded-2xl sm:rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.75)] border border-emerald-500/40 flex flex-col h-[70vh] sm:h-[580px] max-h-[85vh] overflow-hidden">
+        <div className="bg-slate-950 text-white rounded-2xl sm:rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.75)] border border-emerald-500/40 flex flex-col h-[70vh] sm:h-145 max-h-[85vh] overflow-hidden">
 
           {/* ── Header ── */}
           <div className="flex items-center justify-between border-b border-slate-800/80 p-4 sm:p-5 shrink-0">
@@ -296,12 +297,12 @@ export const ShieldMascot: React.FC = () => {
                     <Shield className="w-4 h-4" />
                   </div>
                 )}
-                <div className={`max-w-[88%] p-3.5 sm:p-4 rounded-2xl text-sm sm:text-base leading-relaxed break-words ${
+                <div className={`max-w-[88%] p-3.5 sm:p-4 rounded-2xl text-sm sm:text-base leading-relaxed wrap-break-word ${
                   m.from === 'me'
                     ? 'bg-emerald-600/30 text-white border border-emerald-500/30 rounded-tr-sm font-medium'
                     : 'bg-slate-900 text-slate-100 border border-slate-800 rounded-tl-sm'
                 }`}>
-                  <div className="whitespace-pre-line break-words">{m.text}</div>
+                  <div className="whitespace-pre-line wrap-break-word">{m.text}</div>
 
                   {/* Interactive Premium Listing Cards */}
                   {m.listings && m.listings.length > 0 && (
@@ -339,7 +340,7 @@ export const ShieldMascot: React.FC = () => {
                                 alt={l.title}
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                               />
-                              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+                              <div className="absolute inset-0 bg-linear-to-t from-slate-950 via-slate-950/20 to-transparent" />
 
                               {/* Badges */}
                               <div className="absolute top-2 left-2 flex items-center gap-1.5">
@@ -387,10 +388,10 @@ export const ShieldMascot: React.FC = () => {
                               <div className="mt-3">
                                 <button
                                   type="button"
-                                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-slate-950 font-black text-xs py-2 px-3 rounded-xl transition duration-200 shadow-[0_4px_15px_rgba(16,185,129,0.3)] flex items-center justify-center gap-1.5 group-hover:scale-[1.01]"
+                                  className="w-full bg-linear-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-slate-950 font-black text-xs py-2 px-3 rounded-xl transition duration-200 shadow-[0_4px_15px_rgba(16,185,129,0.3)] flex items-center justify-center gap-1.5 group-hover:scale-[1.01]"
                                 >
                                   <span>To'liq ma'lumotni ko'rish</span>
-                                  <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
+                                  <ArrowRight className="w-3.5 h-3.5 stroke-3" />
                                 </button>
                               </div>
                             </div>

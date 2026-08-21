@@ -29,9 +29,36 @@ model Listing {
   title         String
   description   String
   price         Float
+  depositPrice  Float?
   rooms         Int
+  area          Float?
+  floor         Int?
+  totalFloors   Int?
+  propertyType  String?  @default("APARTMENT")
+  region        String?
   district      String?
+  address       String?
+  latitude      Float?
+  longitude     Float?
+  metroStation  String?
+  metroDistanceMinutes Int?
+  universityName String?
+  universityDistanceMinutes Int?
+  utilitiesIncluded Boolean @default(false)
+  furnished     Boolean @default(false)
+  petsAllowed   Boolean @default(false)
+  parking       Boolean @default(false)
+  internet      Boolean @default(false)
+  airConditioning Boolean @default(false)
+  washingMachine Boolean @default(false)
   images        String[]
+  videoUrl      String?
+  hasVirtualTour Boolean @default(false)
+  isRoommate    Boolean @default(false)
+  roommateGender String?
+  roommateSpotsAvailable Int?
+  contactTelegram String?
+  preferredContactTime String?
 
   aiCheckStatus String   @default("APPROVED")
   trustScore    Int      @default(50)

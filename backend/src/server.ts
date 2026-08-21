@@ -433,6 +433,46 @@ const SHIELD_AI_SYSTEM_PROMPT = [
   '- Faqat toza JSON formatida javob bering.',
 ].join('\n');
 
+const SEARCH_DISTRICTS = [
+  'Chilonzor', 'Yunusobod', 'Mirobod', 'Yakkasaroy', 'Sergeli', 'Uchtepa',
+  'Olmazor', 'Yashnobod', 'Shayxontohur', 'Mirzo Ulugʻbek', 'Bektemir', 'Yangihayot',
+];
+
+function parseLocalSearchNeed(message: string) {
+  const text = message.toLowerCase();
+  const district = SEARCH_DISTRICTS.find((name) => {
+    const normalized = name.toLowerCase().replace(/[ʻ'`]/g, '');
+    return text.includes(normalized) || text.includes(`${normalized}dan`) || text.includes(`${normalized}ga`);
+  }) || null;
+  const roomMatch = text.match(/(\d+)\s*\+?\s*xona/);
+  const millionMatch = text.match(/(\d+(?:[.,]\d+)?)\s*(mln|ml|m|million)/i);
+  const directPriceMatch = text.match(/(\d[\d\s.,]{4,})\s*(?:so['’`]m|sum)?/i);
+  let maxPrice: number | null = null;
+  if (millionMatch) maxPrice = Math.round(Number(millionMatch[1].replace(',', '.')) * 1_000_000 * 1.25);
+  else if (directPriceMatch) {
+    const digits = directPriceMatch[1].replace(/\D/g, '');
+    if (digits.length >= 6) maxPrice = Math.round(Number(digits) * 1.25);
+  }
+
+  return {
+    region: district ? 'Toshkent shahri' : null,
+    district,
+    rooms: roomMatch ? Number(roomMatch[1]) : null,
+    maxPrice,
+    audience: /talaba|student|yotoqxona/i.test(text) ? 'STUDENT' : /oila|oilaviy|bolali/i.test(text) ? 'FAMILY' : 'ALL',
+    rentalType: /sherik|roommate|xonadosh/i.test(text) ? 'ROOMMATE' : 'ALL',
+  };
+}
+
+function normalizeDistrict(value: unknown) {
+  if (typeof value !== 'string') return null;
+  const text = value.toLowerCase().replace(/[ʻ'`]/g, '').trim();
+  return SEARCH_DISTRICTS.find((name) => {
+    const normalized = name.toLowerCase().replace(/[ʻ'`]/g, '');
+    return text.includes(normalized);
+  }) || null;
+}
+
 app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
   const { message, sessionKey, userName, userPhone } = req.body as {
     message: string;
@@ -520,25 +560,33 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
     ];
 
     // Explicitly use OpenAI gpt-4o-mini model
-    const aiRes = await fetch(openaiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + OPENAI_API_KEY },
-      body: JSON.stringify({ model: 'gpt-4o-mini', response_format: { type: 'json_object' }, messages: openaiMessages }),
-    });
-    if (!aiRes.ok) {
-      const errText = await aiRes.text().catch(() => '');
-      throw new Error('OpenAI xatosi: ' + aiRes.status + ' ' + errText);
+    const localNeed = parseLocalSearchNeed(message);
+    let parsed: any = { ...localNeed, replyText: '' };
+    if (OPENAI_API_KEY) {
+      try {
+        const aiRes = await fetch(openaiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + OPENAI_API_KEY },
+          body: JSON.stringify({ model: 'gpt-4o-mini', response_format: { type: 'json_object' }, messages: openaiMessages }),
+        });
+        if (aiRes.ok) {
+          const aiData = await aiRes.json();
+          const rawText: string = aiData.choices?.[0]?.message?.content || '';
+          if (rawText) parsed = { ...parsed, ...JSON.parse(rawText.replace(/```json/g, '').replace(/```/g, '').trim()) };
+        }
+      } catch (providerError) {
+        console.warn('Shield AI provider unavailable, using backend parser:', providerError);
+      }
     }
-    const aiData = await aiRes.json();
-    const rawText: string = aiData.choices?.[0]?.message?.content || '';
-    if (!rawText) throw new Error('Empty response from OpenAI');
-    const cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-    const parsed = JSON.parse(cleanText);
+    parsed.district = normalizeDistrict(parsed.district) || localNeed.district;
+    parsed.rooms = localNeed.rooms || (parsed.rooms ? Number(parsed.rooms) : null);
+    parsed.maxPrice = localNeed.maxPrice || (parsed.maxPrice ? Number(parsed.maxPrice) : null);
 
     const where: any = { aiCheckStatus: 'APPROVED' };
     if (parsed.district) where.district = { contains: parsed.district, mode: 'insensitive' };
     if (parsed.rooms) where.rooms = parseInt(String(parsed.rooms));
     if (parsed.maxPrice) where.price = { lte: parseInt(String(parsed.maxPrice)) };
+    if (parsed.region && !parsed.district) where.region = { contains: parsed.region.replace(' shahri', ''), mode: 'insensitive' };
     const listings = await prisma.listing.findMany({ where, take: 5, orderBy: { createdAt: 'desc' }, include: { owner: true } });
 
     let aiText = parsed.replyText || '';
