@@ -156,6 +156,116 @@ app.get('/api/v1/health', (_req, res) => {
 
 // ─── AUTH & USER MANAGEMENT ──────────────────────────────────────────────────
 
+const otpStore = new Map<string, { code: string, expiresAt: number }>();
+
+app.post('/api/v1/auth/send-code', async (req: Request, res: Response) => {
+  const { phone } = req.body;
+  const cleanPhone = String(phone || '').replace(/\D/g, '');
+  if (!cleanPhone || cleanPhone.length < 9) {
+    return res.status(400).json({ status: 'error', message: 'Telefon raqam noto\'g\'ri' });
+  }
+
+  const code = Math.floor(1000 + Math.random() * 9000).toString();
+  const expiresAt = Date.now() + 3 * 60 * 1000;
+  
+  otpStore.set(cleanPhone, { code, expiresAt });
+  console.log(`[DEV] Generated OTP for ${cleanPhone}: ${code}`);
+
+  const login = process.env.GETSMS_LOGIN;
+  const password = process.env.GETSMS_PASSWORD;
+  
+  if (!login || !password) {
+    return res.json({ status: 'success', message: 'SMS yuborildi (simulyatsiya)', devCode: code });
+  }
+
+  try {
+    const smsData = [{ phone: cleanPhone, text: `Maklersiz.uz tasdiqlash kodi: ${code}` }];
+    const params = new URLSearchParams();
+    params.append('login', login);
+    params.append('password', password);
+    params.append('data', JSON.stringify(smsData));
+
+    const response = await fetch('http://185.8.212.184/smsgateway/', {
+      method: 'POST',
+      body: params
+    });
+
+    const resultText = await response.text();
+    console.log('GETSMS result:', resultText);
+    
+    try {
+      const resultJson = JSON.parse(resultText);
+      if (resultJson[0]?.error) {
+        return res.status(400).json({ status: 'error', message: `SMS xizmati xatosi: ${resultJson[0].error_text}` });
+      }
+    } catch(e) {}
+
+    return res.json({ status: 'success', message: 'SMS yuborildi' });
+  } catch (error) {
+    console.error('GETSMS Error:', error);
+    return res.status(500).json({ status: 'error', message: 'SMS yuborishda xatolik yuz berdi' });
+  }
+});
+
+app.post('/api/v1/auth/verify-code', async (req: Request, res: Response) => {
+  const { phone, code, name } = req.body;
+  const cleanPhone = String(phone || '').replace(/\D/g, '');
+  
+  if (!cleanPhone || !code) {
+    return res.status(400).json({ status: 'error', message: 'Telefon yoki kod kiritilmadi' });
+  }
+
+  const stored = otpStore.get(cleanPhone);
+  if (!stored) {
+    return res.status(400).json({ status: 'error', message: 'Kod yuborilmagan yoki muddati tugagan' });
+  }
+
+  if (Date.now() > stored.expiresAt) {
+    otpStore.delete(cleanPhone);
+    return res.status(400).json({ status: 'error', message: 'Kodning amal qilish muddati tugagan' });
+  }
+
+  if (stored.code !== String(code)) {
+    return res.status(400).json({ status: 'error', message: 'Noto\'g\'ri tasdiqlash kodi' });
+  }
+
+  otpStore.delete(cleanPhone);
+
+  try {
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { phone: cleanPhone },
+          { phone: { endsWith: cleanPhone.slice(-9) } }
+        ]
+      }
+    });
+
+    if (user) {
+      if (name && user.name !== name) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { name }
+        });
+      }
+    } else {
+      user = await prisma.user.create({
+        data: {
+          phone: cleanPhone,
+          name: name || 'Foydalanuvchi',
+          role: 'STUDENT',
+        }
+      });
+    }
+
+    const tokens = generateAuthTokens(user.id);
+    return res.json({ status: 'success', ...tokens, user });
+  } catch (e) {
+    console.error("Verify code error:", e);
+    return res.status(500).json({ status: 'error', error: String(e) });
+  }
+});
+
 const handleRegister = async (req: Request, res: Response) => {
   const { phone, password, name, role, avatar } = req.body;
   const cleanPhone = String(phone || '').trim();

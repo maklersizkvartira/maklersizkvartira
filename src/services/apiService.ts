@@ -31,32 +31,49 @@ export function matchPhone(p1?: string | null, p2?: string | null): boolean {
 
 export const ApiService = {
   // ── OTP ──────────────────────────────────────────────────────────────────────
-  sendOtp: async (phone: string): Promise<{ status: string; message: string; otpId: string }> => {
+  sendOtp: async (phone: string): Promise<{ status: string; message: string; otpId?: string; devCode?: string }> => {
     try {
-      const res = await fetchWithAuth(`${API_BASE}/auth/otp/send`, {
+      const res = await fetchWithAuth(`${API_BASE}/auth/send-code`, {
         method: 'POST',
         body: JSON.stringify({ phone }),
         skipAuth: true,
       });
       if (res?.ok) return await res.json();
-    } catch {
-      console.warn('sendOtp: backend unavailable, using mock');
+      else if (res) {
+         const err = await res.json().catch(() => ({}));
+         throw new Error(err.message || 'Error sending code');
+      }
+    } catch (e: any) {
+      console.warn('sendOtp error:', e);
+      throw e;
     }
-    return { status: 'success', message: `SMS OTP code 1234 sent to ${phone}`, otpId: `otp-${Date.now()}` };
+    return { status: 'error', message: `SMS jo'natish xizmati ishlamayapti` };
   },
 
-  verifyOtp: async (phone: string, code: string): Promise<{ status: string; verified: boolean }> => {
+  verifyOtp: async (phone: string, code: string, name?: string): Promise<CurrentUser> => {
     try {
-      const res = await fetchWithAuth(`${API_BASE}/auth/otp/verify`, {
+      const res = await fetchWithAuth(`${API_BASE}/auth/verify-code`, {
         method: 'POST',
-        body: JSON.stringify({ phone, code }),
+        body: JSON.stringify({ phone, code, name }),
         skipAuth: true,
       });
-      if (res?.ok) return await res.json();
-    } catch {
-      console.warn('verifyOtp: backend unavailable');
+      if (res?.ok) {
+        const data = await res.json();
+        const token = data.access_token || data.token;
+        if (token) saveTokens(token, data.refresh_token || null);
+        const remoteUser = (data.user || data.data?.user || (data.id ? data : null)) as CurrentUser | null;
+        if (remoteUser) {
+          return remoteUser;
+        }
+      } else if (res) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Kod tekshirishda xatolik');
+      }
+    } catch (e: any) {
+      console.warn('verifyOtp error:', e);
+      throw e;
     }
-    return { status: 'success', verified: true };
+    throw new Error('Server bilan ulanish yo\'q');
   },
 
   // ── Login / Register ──────────────────────────────────────────────────────────
