@@ -96,8 +96,8 @@ export const QuickCategories: React.FC = () => {
   ];
 
   return (
-    <section id="kategoriyalar" className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-14 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-slate-200/60 pb-5">
+    <section id="kategoriyalar" className="max-w-7xl mx-auto px-0 sm:px-6 py-8 sm:py-14 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 px-4 sm:px-0 pb-2">
         <div>
           <div className="inline-flex items-center gap-2 text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-3 py-1 rounded-full uppercase tracking-wider mb-2 shadow-2xs">
             <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
@@ -131,7 +131,7 @@ export const QuickCategories: React.FC = () => {
             <button
               key={cat.id}
               onClick={cat.action}
-              className="flex flex-row items-center gap-3 p-3 w-[260px] sm:w-auto shrink-0 snap-start rounded-[16px] bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300 group text-left relative overflow-hidden"
+              className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-3 w-[160px] sm:w-auto shrink-0 snap-start rounded-[16px] bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300 group text-left relative overflow-hidden"
             >
               {/* Animated Left Ambient Gradient */}
               <div className={`absolute left-0 inset-y-0 w-1 bg-gradient-to-b ${cat.gradientBg} opacity-0 group-hover:opacity-100 transition-opacity`} />
