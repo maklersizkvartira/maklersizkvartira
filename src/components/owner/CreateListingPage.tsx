@@ -65,11 +65,7 @@ export const CreateListingPage: React.FC = () => {
   const [aiResult, setAiResult] = useState<AIAnalysisResult | null>(null);
   const [isAnalyzingGemini, setIsAnalyzingGemini] = useState(false);
 
-  React.useEffect(() => {
-    if (step === 4 && !scan && !isScanningAI) {
-      runScan();
-    }
-  }, [step]);
+  // Auto-scan removed as per user request
 
   const DISTRICT_COORDINATES: Record<string, [number, number]> = {
     'Chilonzor': [41.2780, 69.2080],
@@ -300,6 +296,8 @@ export const CreateListingPage: React.FC = () => {
     const userName = currentUser?.name || 'Kvartira Egasi';
     const userId = currentUser?.id || `user-${Date.now()}`;
 
+    // Gemini orqali chuqur tekshirish (frontenddagi aiEngine.ts)
+    // local o'rniga to'liq tahlil
     const local = scanListingDeep(titleText, descText, price, rooms, {
       phone: userPhone,
       images: finalImages,
@@ -341,6 +339,7 @@ export const CreateListingPage: React.FC = () => {
     }
 
     try {
+      // Backend (API) orqali qo'shimcha tekshirish
       const result = await ApiService.scanListing(titleText, descText, price, rooms);
       if (result.apiDown) {
         setAiSystemActive(false);
@@ -1291,8 +1290,26 @@ export const CreateListingPage: React.FC = () => {
                   <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
                   <h4 className="font-extrabold text-base text-emerald-950">🤖 AI E'loningizni tekshirmoqda...</h4>
                   <p className="text-xs text-emerald-800 font-medium">
-                    Maklerlik belgilari, firibgarlik va narx mantiqi sun'iy intellekt tomonidan tahlil qilinmoqda. Biroz kutib turing...
+                    Maklerlik belgilari, firibgarlik va narx mantiqi Gemini AI tomonidan tahlil qilinmoqda. Biroz kutib turing...
                   </p>
+                </div>
+              ) : scan === null ? (
+                <div className="bg-slate-50 border border-slate-200 p-6 rounded-3xl space-y-4 text-center">
+                  <div className="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto shadow-sm">
+                    <Sparkles className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-base text-slate-900">E'lonni Gemini AI bilan tekshirish</h4>
+                    <p className="text-xs text-slate-500 mt-1">E'loningizni chiqarishdan oldin Gemini AI orqali tekshirishni unutmang</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={runScan}
+                    className="w-full sm:w-auto mx-auto bg-indigo-600 hover:bg-indigo-500 text-white font-black py-3 px-6 rounded-xl transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    Tekshirishni boshlash
+                  </button>
                 </div>
               ) : scan && !scan.allowed ? (
                 <div className="bg-rose-50 border border-rose-200 p-5 rounded-3xl space-y-3 text-left">

@@ -144,9 +144,8 @@ export const ShieldMascot: React.FC = () => {
             rentalType: data.need.rentalType || 'ALL',
             selectedMetro: 'Barchasi',
             sortBy: 'AI',
+            searchQuery: data.need.district || '',
           } as any);
-          if (data.need.district) setSearchQuery(data.need.district);
-          setCurrentView('SEARCH');
         }
       } else {
         setLog(prev => [...prev, { from: 'ai', text: "Xatolik yuz berdi. Iltimos qaytadan urinib ko'ring." }]);
