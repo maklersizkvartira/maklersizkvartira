@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 adminRouter.get('/stats', async (req, res) => {
   try {
     const tenantsCount = await prisma.user.count({ where: { role: { not: 'OWNER' } } });
-    const ownersCount = await prisma.user.count({ where: { role: 'OWNER' } });
+    const usersWithListings = await prisma.user.count({ where: { listings: { some: {} } } });
     const guestsCount = await (prisma as any).aISession.count({ where: { userId: null } });
     const aiQueriesCount = await (prisma as any).aIMessage.count({ where: { role: 'user' } });
 
@@ -15,7 +15,7 @@ adminRouter.get('/stats', async (req, res) => {
       status: 'success',
       data: {
         tenants: tenantsCount,
-        owners: ownersCount,
+        owners: usersWithListings,
         guests: guestsCount,
         aiQueries: aiQueriesCount,
       }
@@ -32,14 +32,20 @@ adminRouter.get('/users', async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
     
-    const formattedUsers = users.map((u: any) => ({
-      id: u.id,
-      name: u.name,
-      phone: u.phone,
-      role: u.role,
-      listingsCount: u._count.listings,
-      createdAt: u.createdAt,
-    }));
+    const formattedUsers = users.map((u: any) => {
+      const isGoogle = u.phone && (u.phone.startsWith('google:') || u.phone.includes('@'));
+      const authType = isGoogle ? 'Google' : 'Telefon';
+      const phoneDisplay = isGoogle ? u.phone.replace('google:', '') : u.phone;
+      return {
+        id: u.id,
+        name: u.name,
+        phone: phoneDisplay,
+        authType,
+        role: u.role,
+        listingsCount: u._count.listings,
+        createdAt: u.createdAt,
+      };
+    });
 
     res.json({ status: 'success', data: formattedUsers });
   } catch (error) {

@@ -190,7 +190,7 @@ export const ShieldMascot: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-20 right-3 left-3 sm:left-auto sm:bottom-6 sm:right-6 z-40 max-w-full sm:w-[480px] md:w-[520px] ml-auto pointer-events-auto">
+    <div className="fixed bottom-20 right-2 left-2 sm:left-auto sm:bottom-6 sm:right-6 z-40 max-w-full sm:w-[420px] md:w-[480px] ml-auto pointer-events-auto">
 
       {/* ── Close Confirmation Modal Alert ── */}
       {showCloseConfirm && (
@@ -229,7 +229,7 @@ export const ShieldMascot: React.FC = () => {
       )}
 
       {open ? (
-        <div className="bg-slate-950 text-white rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.75)] border border-emerald-500/40 flex flex-col h-[85vh] sm:h-[630px] max-h-[90vh] overflow-hidden">
+        <div className="bg-slate-950 text-white rounded-2xl sm:rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.75)] border border-emerald-500/40 flex flex-col h-[70vh] sm:h-[580px] max-h-[85vh] overflow-hidden">
 
           {/* ── Header ── */}
           <div className="flex items-center justify-between border-b border-slate-800/80 p-4 sm:p-5 shrink-0">
