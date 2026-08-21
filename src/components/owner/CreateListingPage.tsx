@@ -13,7 +13,7 @@ import { ListingScanResult } from '../../services/aiGuard';
 import { writeListingCopy, estimatePrice, analyzePhotos, scanListingDeep, formatSom } from '../../services/aiEngine';
 
 export const CreateListingPage: React.FC = () => {
-  const { addListing, setCurrentView, currentUser, setShowAuth, listings, addFraudSignal, addReport } = useAppStore();
+  const { addListing, setCurrentView, currentUser, setShowAuth, listings, addFraudSignal, addReport, setAiSystemActive } = useAppStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -272,8 +272,14 @@ export const CreateListingPage: React.FC = () => {
 
     try {
       const result = await ApiService.scanListing(titleText, descText, price, rooms);
+      if (result.apiDown) {
+        setAiSystemActive(false);
+      } else {
+        setAiSystemActive(true);
+      }
       setScan(result.allowed === false ? result : local);
     } catch {
+      setAiSystemActive(false);
       setScan(local);
     } finally {
       setIsScanningAI(false);

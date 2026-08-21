@@ -153,3 +153,11 @@ html, body {
 .listing-swap {
   animation: listing-swap 0.45s ease-out;
 }
+
+@keyframes red-green-blink {
+  0%, 100% { background-color: #fca5a5; color: #991b1b; }
+  50% { background-color: #86efac; color: #166534; }
+}
+.animate-red-green-blink {
+  animation: red-green-blink 1.5s infinite;
+}

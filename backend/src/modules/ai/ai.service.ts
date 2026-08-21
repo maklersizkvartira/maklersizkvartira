@@ -6,6 +6,7 @@ export interface AIScanResult {
   status: 'APPROVED' | 'VERIFICATION_REQUIRED' | 'UNDER_REVIEW' | 'REJECTED';
   reasons: string[];
   message: string;
+  apiDown?: boolean;
 }
 
 const BROKER_RE = /\b(maklerman|men makler|vositachi|agentlik|rieltor|komissiya ol|foiz ol|vositachilik|bir nechta kvartira|kvartiralarim bor)\b/i;
@@ -37,6 +38,8 @@ export class AIService {
       riskScore = Math.max(riskScore, 75);
     }
 
+    let isApiDown = false;
+
     // Google Lens Image Search using SerpApi
     if (images && images.length > 0 && images[0].startsWith('http') && !images[0].includes('unsplash.com')) {
       try {
@@ -45,7 +48,10 @@ export class AIService {
         const response = await fetch(url);
         const data = await response.json();
         
-        if (data.visual_matches && Array.isArray(data.visual_matches)) {
+        if (data.error) {
+          console.error("SerpAPI returned error:", data.error);
+          isApiDown = true;
+        } else if (data.visual_matches && Array.isArray(data.visual_matches)) {
           const badDomains = ['olx', 'uybor', 'krisha', 'avito', 'domik', 'pinterest', 'shutterstock', 'stock'];
           let foundDomains: string[] = [];
           for (const match of data.visual_matches) {
@@ -65,6 +71,7 @@ export class AIService {
         }
       } catch (err) {
         console.error("SerpAPI error:", err);
+        isApiDown = true;
       }
     }
 
@@ -82,6 +89,7 @@ export class AIService {
         message: isStolen
           ? `${stolenReason} E'loningiz ko'chirilgan, elonni tahrirlashni yoki ochirishni xohlaysizmi?`
           : "Bu e'lon makler yoki firibgar e'loniga o'xshaydi. Joylashtirish taqiqlanadi.",
+        apiDown: isApiDown,
       };
     }
     
@@ -93,6 +101,7 @@ export class AIService {
       status: 'APPROVED',
       reasons: reasons.length > 0 ? reasons : ['Maklerlik belgisi topilmadi'],
       message: "E'lon tekshiruvdan o'tdi.",
+      apiDown: isApiDown,
     };
   }
 }

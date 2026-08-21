@@ -307,11 +307,12 @@ export const ApiService = {
             brokerProbability: a.brokerProbability,
             reasons: a.reasons || [],
             message: a.message || (allowed ? "E'lon tekshiruvdan o'tdi." : "Bu e'lon makler yoki firibgar e'loniga o'xshaydi."),
+            apiDown: a.apiDown,
           };
         }
       }
     } catch { /* fallback */ }
-    return scanListingDeep(title, description, price, rooms);
+    return { ...scanListingDeep(title, description, price, rooms), apiDown: true };
   },
 
   // ─── Listings ─────────────────────────────────────────────────────────────────

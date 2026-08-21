@@ -9,13 +9,14 @@ export interface FieldError {
 
 export interface ListingScanResult {
   allowed: boolean;
-  status: ListingScanStatus;
+  status: 'APPROVED' | 'VERIFICATION_REQUIRED' | 'UNDER_REVIEW' | 'REJECTED' | 'WARNING';
   trustScore: number;
   riskScore: number;
   brokerProbability: number;
   reasons: string[];
-  fieldErrors?: FieldError[];
   message: string;
+  fieldErrors?: { field: string; issue: string; fixSuggestion: string }[];
+  apiDown?: boolean;
 }
 
 const BROKER_RE = /\b(maklerman|men makler|vositachi|agentlik|rieltor|komissiya 50%|usluga 50%|15% komissiya|vositachilik|bir nechta kvartira|kvartiralarim bor|10 ta kvartira)\b/i;
