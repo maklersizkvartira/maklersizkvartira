@@ -406,14 +406,13 @@ const SHIELD_AI_SYSTEM_PROMPT = [
   '- 0% komissiyali, maklersiz kvartira ijara va sherikchilik platformasi.',
   '- Foydalanuvchilar uy egalari bilan bevosita bog\'lanadi. Maklerlar umuman yo\'q.',
   '',
+  'MUHIM TEXNIK QOIDA: Mijoz qaysi tuman yoki hududdan uy kerakligini aytishi bilanoq, tizimimiz orqada avtomatik ravishda BAZADAN uylarni qidiradi va mijozga ko\'rsatadi. Shuning uchun, mijoz tumanni aytganda "Qidiryapman..." yoki "Hozir qidirib beraman" deb yozing.',
+  '',
   'VAZIFALAR VA PRO-LEVEL QOIDALAR:',
-  '1. SALOMLASHUV QOIDASI: FAQAT eng birinchi xabarda salom bering ("Assalomu alaykum, [Ism]." yoki "Assalomu alaykum."). Agar suhbat davom etayotgan bo\'lsa (history mavjud bo\'lsa), QAYTA SALOMLASHMANG! Qayta "Assalomu alaykum" deb yozish QAT\'IYAN TAQIQLANADI!',
-  '2. ISMDAN SO\'NG UNDOV ( ! ) QO\'YMANG: Mijoz ismidan keyin hech qachon undov belgisi (!) qo\'ymang! Masalan: "Zayniddin, siz uchun..." deb yozing (hech qachon "Zayniddin!" deb emas).',
-  '3. QISQA VA ANIQ BEVOSITA JAVOB: Mijoz bergan savoliga avval 1-2 ta aniq, londa va foydali jumlada BEVOSITA javob bering. Uzun robotcha shablon matnlar yozmang!',
-  '4. KUCHLI VA SAMIMIY TAKLIF: Javobingiz ENG OXIRIDA quruq va robotcha shablon yozmasdan, samimiy va professional tarzda ko\'maklashishni taklif eting (Masalan: "Sizga har tomonlama eng ma\'qul va qulay kvartirani topishda bajonidil yordam beraman! Quyidagi takliflarni birgalikda ko\'rib chiqamiz:" yoki "Sizga har jihatdan mos keladigan shinam uyni tanlashda ko\'maklashaman!").',
-  '5. MUKAMMAL IMLO: FAQAT to\'g\'ri o\'zbek grammatikasi va imlosida yozing (masalan: "hoziq" emas, "hozir" deb yozing).',
-  '6. ISMNI SO\'RASH: Agar mijoz ismi noma\'lum bo\'lsa, odob bilan ismini so\'rang.',
-  '7. XAVFSIZLIK: Uyni ko\'rmasdan turib kartaga oldindan pul o\'tkazmaslikni uqtiring.',
+  '1. SALOMLASHUV QOIDASI: FAQAT eng birinchi xabarda salom bering ("Assalomu alaykum, [Ism]." yoki "Assalomu alaykum.").',
+  '2. ISMDAN SO\'NG UNDOV ( ! ) QO\'YMANG: Mijoz ismidan keyin hech qachon undov belgisi (!) qo\'ymang!',
+  '3. Mijoz savol berganida (xonalar soni, narxi) darhol bevosita javob qaytaring.',
+  '4. MUKAMMAL IMLO: FAQAT to\'g\'ri o\'zbek grammatikasi va imlosida yozing.',
   '',
   'Javobingiz FAQAT quyidagi JSON formatida bo\'lishi shart:',
   '{',
@@ -424,8 +423,8 @@ const SHIELD_AI_SYSTEM_PROMPT = [
   '  "audience": "STUDENT" yoki "FAMILY" yoki "ALL",',
   '  "rentalType": "FULL" yoki "ROOMMATE" yoki "ALL",',
   '  "userName": "Zayniddin" yoki null,',
-  '  "chatSummary": "Chilonzordan 2 va 3 xonali kvartiralar farqi haqida so\'radi",',
-  '  "replyText": "Agar 1-2 kishi bo\'lsangiz 2 xonali tejamkorroq, agar oilangiz bo\'lsa yoki kengroq joy kerak bo\'lsa 3 xonali ma\'qulroq. Sizga har tomonlama eng qulay kvartirani topishda bajonidil yordam beraman! Quyidagi takliflarni birgalikda ko\'rib chiqamiz:"',
+  '  "chatSummary": "Chilonzordan ijara uy kerak deb yozdi",',
+  '  "replyText": "Chilonzor tumani bo\'yicha bazamizdagi e\'lonlarni qidiryapman. Quyidagi variantlarni ko\'rib chiqing:"',
   '}',
   '',
   'Qoidalar:',
@@ -597,15 +596,15 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
       aiText = aiText.replace(/^Assalomu alaykum[!,.\s]*/i, '').replace(/^Salom[!,.\s]*/i, '').trim();
     }
 
-    if (!aiText) {
+    if (listings.length > 0) {
+      const targetName = parsed.userName || authUser?.name || userName || '';
+      const nameSalute = isFirstTurn && targetName ? `Assalomu alaykum, ${targetName}. ` : (isFirstTurn ? "Assalomu alaykum. " : "");
+      aiText = `${nameSalute}Siz so'ragan shartlar bo'yicha bazamizdan ${listings.length} ta mos e'lon topdim. Ular bilan tanishib chiqing:`;
+    } else if (!aiText) {
       const targetName = parsed.userName || authUser?.name || userName || '';
       const nameStr = targetName ? `${targetName}, ` : '';
       const nameSalute = isFirstTurn ? `Assalomu alaykum${targetName ? `, ${targetName}` : ''}. ` : nameStr;
-      if (listings.length > 0) {
-        aiText = `${nameSalute}Siz so'ragan bo'lim bo'yicha mos variantlarni topdim. Sizga har tomonlama eng qulay kvartirani topishda bajonidil yordam beraman!`;
-      } else {
-        aiText = `${nameSalute}Siz so'ragan parametrlar bo'yicha uylar qidirildi. Qidiruv bo'limidan boshqa tumanlarni ham ko'rib chiqishingiz mumkin.`;
-      }
+      aiText = `${nameSalute}Siz so'ragan parametrlar bo'yicha bazadan uylar qidirildi, biroq hozircha mos e'lon topilmadi. Yana qanday variantlarni qidirib ko'raylik?`;
     }
 
     let remaining = DAILY_AI_LIMIT - 1;
