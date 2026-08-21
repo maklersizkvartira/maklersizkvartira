@@ -696,6 +696,9 @@ ${searchBlock}📝 <b>Toliq AI Xulosasi:</b>
   }
 });
 
+import { adminRouter } from './admin.routes';
+app.use('/api/v1/admin', adminRouter);
+
 app.listen(PORT, () => {
   console.log(`🚀 Maklersiz PostgreSQL Backend running on port ${PORT}`);
 });
