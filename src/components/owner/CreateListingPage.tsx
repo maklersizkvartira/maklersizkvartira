@@ -96,7 +96,7 @@ export const CreateListingPage: React.FC = () => {
 
   const fetchAddressFromCoords = async (detectedLat: number, detectedLng: number) => {
     let matchedRegion = 'Toshkent shahri';
-    let matchedDistrict = 'Chilonzor';
+    let matchedDistrict = '';
     let fullStreet = '';
 
     try {
@@ -107,10 +107,12 @@ export const CreateListingPage: React.FC = () => {
 
         // Match Region
         const stateOrCity = addr.state || addr.city || addr.region || '';
+        let foundRegion = false;
         for (const reg of UZBEKISTAN_REGIONS) {
           const coreName = reg.name.toLowerCase().replace(" viloyati", "").replace(" shahri", "");
           if (stateOrCity.toLowerCase().includes(coreName)) {
             matchedRegion = reg.name;
+            foundRegion = true;
             break;
           }
         }
@@ -129,15 +131,17 @@ export const CreateListingPage: React.FC = () => {
           }
         }
 
-        const road = addr.road || addr.street || addr.neighbourhood || addr.suburb || `${matchedDistrict} tumani`;
+        const road = addr.road || addr.street || addr.neighbourhood || addr.suburb || '';
         const houseNumber = addr.house_number ? `, ${addr.house_number}-uy` : '';
-        fullStreet = `${road}${houseNumber}`;
+        if (road) {
+          fullStreet = `${road}${houseNumber}`;
+        }
       }
     } catch {
       // Fallback ok
     }
 
-    if (!fullStreet || matchedDistrict === 'Chilonzor') {
+    if (!matchedDistrict) {
       let closestDist = Infinity;
       for (const [dName, [dLat, dLng]] of Object.entries(DISTRICT_COORDINATES)) {
         const dist = Math.hypot(detectedLat - dLat, detectedLng - dLng);
@@ -146,7 +150,12 @@ export const CreateListingPage: React.FC = () => {
           matchedDistrict = dName;
         }
       }
-      if (!fullStreet) fullStreet = `${matchedDistrict} tumani, 12-uy`;
+    }
+
+    if (!fullStreet) {
+      fullStreet = `${matchedDistrict} tumani, aniq manzilni yozing`;
+    } else if (!fullStreet.toLowerCase().includes('tuman')) {
+      fullStreet = `${matchedDistrict} tumani, ${fullStreet}`;
     }
 
     return { region: matchedRegion, district: matchedDistrict, address: fullStreet };
