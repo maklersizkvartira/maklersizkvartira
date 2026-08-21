@@ -93,7 +93,7 @@ export const App: React.FC = () => {
       <Header />
       <GlobalAINotification />
 
-      <main className="flex-1 min-w-0 w-full pt-14 sm:pt-[5.5rem] pb-0">
+      <main className="flex-1 min-w-0 w-full pt-[52px] sm:pt-[64px] pb-0">
         {currentView === 'HOME' && (
           <>
 
