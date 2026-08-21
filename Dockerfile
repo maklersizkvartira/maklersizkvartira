@@ -16,3 +16,7 @@ EXPOSE 5000
 
 # Start compiled Node.js TypeScript server
 CMD ["npm", "--prefix", "backend", "run", "start"]
+
+
+
+
