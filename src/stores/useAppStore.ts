@@ -97,7 +97,6 @@ interface AppStore {
   aiMascotMessage: string | null;
   setAiMascotMessage: (msg: string | null) => void;
   aiSystemActive: boolean;
-  setAiSystemActive: (active: boolean) => void;
   showAuth: boolean;
   authModalTab: 'LOGIN' | 'REGISTER';
   setShowAuth: (open: boolean, tab?: 'LOGIN' | 'REGISTER') => void;
@@ -263,7 +262,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   }),
 
   isAiSystemActive: true,
-  setAiSystemActive: (isActive) => set({ isAiSystemActive: isActive }),
+  setAiSystemActive: (isActive) => set({ isAiSystemActive: isActive, aiSystemActive: isActive }),
 
   listings: [],
   fetchListings: async () => {
@@ -501,7 +500,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
   aiMascotMessage: "Maklersiz.uz — kvartirani egasidan o'zingiz toping.",
   setAiMascotMessage: (msg) => set({ aiMascotMessage: msg }),
   aiSystemActive: true,
-  setAiSystemActive: (active) => set({ aiSystemActive: active }),
   showAuth: false,
   authModalTab: 'LOGIN',
   setShowAuth: (open, tab = 'LOGIN') => set({ showAuth: open, authModalTab: tab }),
