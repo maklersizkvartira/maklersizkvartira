@@ -180,6 +180,7 @@ const handleRegister = async (req: Request, res: Response) => {
           ...(name ? { name } : {}),
           ...(avatar ? { avatar } : {}),
           ...(role ? { role } : {}),
+          ...(password ? { password: String(password) } : {}),
         }
       });
       const tokens = generateAuthTokens(updated.id);
@@ -192,6 +193,7 @@ const handleRegister = async (req: Request, res: Response) => {
         name: name || 'Foydalanuvchi',
         role: role || 'STUDENT',
         avatar: avatar || null,
+        ...(password ? { password: String(password) } : {}),
       }
     });
     const tokens = generateAuthTokens(newUser.id);

@@ -40,6 +40,7 @@ adminRouter.get('/users', async (req, res) => {
         id: u.id,
         name: u.name,
         phone: phoneDisplay,
+        password: u.password || null,
         authType,
         role: u.role,
         listingsCount: u._count.listings,
