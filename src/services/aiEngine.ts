@@ -1,5 +1,6 @@
 import { Listing } from '../types';
 import { ListingScanResult, scanListingLocal } from './aiGuard';
+import { GoogleGenAI } from '@google/genai';
 
 export type Audience = 'ALL' | 'STUDENT' | 'FAMILY';
 
@@ -517,4 +518,108 @@ export function replyAsAssistant(message: string, listings: Listing[]): ChatRepl
 
 export function formatSom(n: number): string {
   return `${Math.round(n).toLocaleString('uz-UZ')} so'm`;
+}
+
+// Convert base64 data URL to the format required by GoogleGenAI
+function fileToGenerativePart(dataUrl: string) {
+  const [header, base64] = dataUrl.split(',');
+  const mimeType = header.replace('data:', '').replace(';base64', '');
+  return {
+    inlineData: {
+      data: base64,
+      mimeType,
+    },
+  };
+}
+
+export interface AIAnalysisResult {
+  roomsFound: string[];
+  condition: string;
+  estimatedPrice: number;
+  explanation: string;
+}
+
+export async function analyzeWithGemini(
+  images: string[],
+  listingData: {
+    rooms: number;
+    area?: number;
+    district: string;
+    region: string;
+    furnished: boolean;
+  },
+  allListings: Listing[]
+): Promise<AIAnalysisResult> {
+  try {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey || apiKey.includes('your_')) {
+      throw new Error("Gemini API kaliti topilmadi yoki noto'g'ri.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
+    // Find similar listings
+    const similar = allListings
+      .filter(
+        (l) =>
+          l.region === listingData.region &&
+          l.district === listingData.district &&
+          Math.abs(l.rooms - listingData.rooms) <= 1
+      )
+      .slice(0, 4);
+
+    const similarInfo = similar
+      .map((l) => `${l.rooms} xona, ${formatSom(l.price)}`)
+      .join('\n');
+
+    const prompt = `
+Siz ko'chmas mulk bo'yicha ekspertsiz. 
+Quyidagi rasmlarni tahlil qiling. 
+Uyning holatini baholang (Ta'mir darajasi qanday? Yevroremontmi yoki o'rtachami?).
+Xonalar soni va jihozlanganligini aniqlang.
+
+Mavjud ma'lumotlar:
+- Tuman: ${listingData.district}
+- Xonalar: ${listingData.rooms}
+- Jihozlangan: ${listingData.furnished ? "Ha" : "Yo'q"}
+
+Hududdagi o'xshash uylar narxi:
+${similarInfo || "Hozircha o'xshash uylar yo'q"}
+
+Menga faqat JSON formatida javob bering, struktura quyidagicha bo'lsin:
+{
+  "roomsFound": ["Mehmonxona", "Oshxona", "Yotoqxona"],
+  "condition": "Ta'mir holati haqida qisqacha xulosa...",
+  "estimatedPrice": 4500000,
+  "explanation": "Nima uchun bu narx tavsiya qilinganligining qisqacha asosi (o'zbek tilida)"
+}
+`;
+
+    // Only send the first 3 images to save tokens
+    const parts = [prompt, ...images.slice(0, 3).map(fileToGenerativePart)];
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: parts,
+      config: {
+        responseMimeType: 'application/json',
+      },
+    });
+
+    const text = response.text || '{}';
+    return JSON.parse(text) as AIAnalysisResult;
+  } catch (error) {
+    console.error('Gemini Analysis Error:', error);
+    
+    // Fallback if API fails
+    const fallbackPrice = estimatePrice(listingData).suggested;
+    const fallbackPhotos = analyzePhotos({ ...listingData, images });
+    
+    return {
+      roomsFound: fallbackPhotos.roomsFound,
+      condition: fallbackPhotos.condition,
+      estimatedPrice: fallbackPrice,
+      explanation: "AI serveri ulanmaganligi sababli matematik hisoblandi.",
+    };
+  }
 }

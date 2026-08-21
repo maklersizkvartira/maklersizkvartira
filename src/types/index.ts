@@ -82,6 +82,8 @@ export interface Listing {
   videoUrl?: string;
   hasVirtualTour: boolean;
   owner: OwnerProfile;
+  contactTelegram?: string;
+  preferredContactTime?: string;
   trustScore: number;
   riskScore: number;
   aiCheckStatus: AICheckStatus;

@@ -10,7 +10,7 @@ import { MOCK_OWNERS } from '../../data/mockUsers';
 import { UZBEKISTAN_REGIONS, TASHKENT_METRO_LINES } from '../../data/mockLocations';
 import { ApiService } from '../../services/apiService';
 import { ListingScanResult } from '../../services/aiGuard';
-import { writeListingCopy, estimatePrice, analyzePhotos, scanListingDeep, formatSom } from '../../services/aiEngine';
+import { writeListingCopy, estimatePrice, analyzePhotos, scanListingDeep, formatSom, analyzeWithGemini, AIAnalysisResult } from '../../services/aiEngine';
 
 export const CreateListingPage: React.FC = () => {
   const { addListing, setCurrentView, currentUser, setShowAuth, listings, addFraudSignal, addReport, setAiSystemActive } = useAppStore();
@@ -60,6 +60,10 @@ export const CreateListingPage: React.FC = () => {
   const [gpsSuccessMsg, setGpsSuccessMsg] = useState('');
   const [isScanningAI, setIsScanningAI] = useState(false);
   const [scan, setScan] = useState<ListingScanResult | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const [aiResult, setAiResult] = useState<AIAnalysisResult | null>(null);
+  const [isAnalyzingGemini, setIsAnalyzingGemini] = useState(false);
 
   React.useEffect(() => {
     if (step === 4 && !scan && !isScanningAI) {
@@ -215,10 +219,76 @@ export const CreateListingPage: React.FC = () => {
     e.target.value = '';
   };
 
-  const finalImages = images.length > 0 ? images : [
-    'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=1200',
-    'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=1200'
-  ];
+  const finalImages = images;
+
+  const validateStep = (stepToValidate: number) => {
+    const nextErrors: Record<string, string> = {};
+
+    if (stepToValidate === 1) {
+      if (!address.trim()) nextErrors.address = "Ko'cha va aniq manzilni kiriting.";
+      if (metro !== "Yo'q" && (!Number.isFinite(metroDist) || metroDist < 1 || metroDist > 60)) {
+        nextErrors.metroDist = "Metro masofasi 1 dan 60 daqiqagacha bo'lishi kerak.";
+      }
+    }
+
+    if (stepToValidate === 2) {
+      if (title.trim().length < 8) nextErrors.title = "Sarlavha kamida 8 ta belgidan iborat bo'lsin.";
+      if (description.trim().length < 20) nextErrors.description = "Tavsif kamida 20 ta belgidan iborat bo'lsin.";
+      if (!Number.isFinite(price) || price <= 0) nextErrors.price = "Oylik narxni to'g'ri kiriting.";
+      if (!Number.isFinite(deposit) || deposit < 0) nextErrors.deposit = "Depozit 0 yoki undan katta bo'lishi kerak.";
+      if (!Number.isFinite(area) || area <= 0) nextErrors.area = "Maydonni to'g'ri kiriting.";
+      if (!Number.isFinite(floor) || !Number.isFinite(totalFloors) || floor < 1 || totalFloors < 1 || floor > totalFloors) {
+        nextErrors.floor = "Qavat 1 dan jami qavatgacha bo'lishi kerak.";
+      }
+    }
+
+    if (stepToValidate === 3 && images.length < 3) {
+      nextErrors.images = "Nashr qilish uchun kamida 3 ta haqiqiy rasm yuklang.";
+    }
+
+    if (stepToValidate === 4 && contactPhone.replace(/\D/g, '').length < 9) {
+      nextErrors.contactPhone = "Ishlaydigan telefon raqamini kiriting.";
+    }
+
+    setFormErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const firstInvalidStep = () => {
+    for (const stepToValidate of [1, 2, 3, 4]) {
+      if (!validateStep(stepToValidate)) return stepToValidate;
+    }
+    return null;
+  };
+
+  const getListingCoordinates = () => {
+    if (lat !== null && lng !== null) return { latitude: lat, longitude: lng };
+    const fallback = DISTRICT_COORDINATES[district] || [41.3110, 69.2790];
+    return { latitude: fallback[0], longitude: fallback[1] };
+  };
+
+  const handleRunAiAnalysis = async () => {
+    if (images.length === 0) return;
+    setIsAnalyzingGemini(true);
+    try {
+      const res = await analyzeWithGemini(
+        images,
+        {
+          rooms,
+          area,
+          district,
+          region,
+          furnished
+        },
+        listings
+      );
+      setAiResult(res);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAnalyzingGemini(false);
+    }
+  };
 
   const runScan = async () => {
     setStep(4);
@@ -291,10 +361,13 @@ export const CreateListingPage: React.FC = () => {
       e.preventDefault();
     }
 
-    if (!lat || !lng) {
-      alert("Iltimos, e'lon joylashdan avval 'GPS Lokatsiyani Aniqlash' tugmasini bosib manzilni aniqlang. Bu xaritada e'loningizni aniq ko'rsatish uchun majburiydir.");
+    const invalidStep = firstInvalidStep();
+    if (invalidStep) {
+      setStep(invalidStep);
       return;
     }
+
+    const coordinates = getListingCoordinates();
 
     const owner = {
       ...MOCK_OWNERS.owner_jasur,
@@ -321,8 +394,8 @@ export const CreateListingPage: React.FC = () => {
       region,
       district,
       address: address.trim() || `${district} tumani, 12-uy`,
-      latitude: lat || (DISTRICT_COORDINATES[district] ? DISTRICT_COORDINATES[district][0] : 41.3110),
-      longitude: lng || (DISTRICT_COORDINATES[district] ? DISTRICT_COORDINATES[district][1] : 69.2790),
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
       metroStation: metro !== "Yo'q" ? metro : undefined,
       metroDistanceMinutes: metroDist,
       furnished,
@@ -333,6 +406,8 @@ export const CreateListingPage: React.FC = () => {
       washingMachine,
       images: finalImages,
       videoUrl: videoUrl.trim() || undefined,
+      contactTelegram: telegramHandle.trim() || undefined,
+      preferredContactTime: preferredTime.trim() || undefined,
       hasVirtualTour: false,
       isRoommate,
       roommateGender: isRoommate ? roommateGender : undefined,
@@ -420,7 +495,7 @@ export const CreateListingPage: React.FC = () => {
                 <span className={`w-6 h-6 rounded-full text-xs font-black flex items-center justify-center ${
                   isActive ? 'bg-white text-emerald-700' : isDone ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400'
                 }`}>
-                  {isDone ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : s.num}
+                  {isDone ? <Check className="w-3.5 h-3.5 stroke-3" /> : s.num}
                 </span>
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
                   isActive ? 'bg-emerald-500/40 text-white' : 'text-slate-400'
@@ -442,6 +517,17 @@ export const CreateListingPage: React.FC = () => {
         
         {/* Left Main Form Card (2 cols) */}
         <div className="lg:col-span-2 bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm space-y-6">
+          {Object.keys(formErrors).length > 0 && (
+            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-sm text-rose-800" role="alert">
+              <div className="font-black flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                Iltimos, quyidagi maydonlarni to'g'rilang:
+              </div>
+              <ul className="mt-2 space-y-1 text-xs font-semibold list-disc list-inside">
+                {Object.values(formErrors).map((error) => <li key={error}>{error}</li>)}
+              </ul>
+            </div>
+          )}
           
           {/* STEP 1: MANZIL */}
           {step === 1 && (
@@ -542,17 +628,22 @@ export const CreateListingPage: React.FC = () => {
                     className={`${gpsErrorPulse ? 'scale-110 shadow-emerald-500/50 bg-emerald-500' : ''} ${lat && lng ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-emerald-500 hover:bg-emerald-600'} text-white font-extrabold text-[11px] px-3 py-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1 active:scale-95 cursor-pointer`}
                   >
                     <MapPin className={`${gpsErrorPulse ? 'animate-bounce' : ''} w-3.5 h-3.5 text-white`} />
-                    <span className={gpsErrorPulse ? 'animate-pulse' : ''}>{isDetectingGps ? "Aniqlanmoqda..." : lat && lng ? "✅ GPS Aniqlangan" : "GPS Lokatsiyani Aniqlash (Majburiy)"}</span>
+                    <span className={gpsErrorPulse ? 'animate-pulse' : ''}>{isDetectingGps ? "Aniqlanmoqda..." : lat !== null && lng !== null ? "✅ GPS Aniqlangan" : "GPS orqali aniqlash (ixtiyoriy)"}</span>
                   </button>
                 </div>
 
                 <input
                   type="text"
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  onChange={(e) => {
+                    setAddress(e.target.value);
+                    if (e.target.value.trim()) setFormErrors((current) => ({ ...current, address: '' }));
+                  }}
                   placeholder="Masalan: Mustaqillik shoh ko'chasi, 14-uy (Mo'ljal: Mirzo Ulug'bek metrosi yaqinida)"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-medium text-sm focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
                 />
+
+                {formErrors.address && <p className="mt-1.5 text-xs font-bold text-rose-600">{formErrors.address}</p>}
 
                 {gpsSuccessMsg && (
                   <div className="mt-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-bold flex items-center gap-1.5">
@@ -603,13 +694,7 @@ export const CreateListingPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    if (!lat || !lng) {
-                      setGpsErrorPulse(true);
-                      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-                      setTimeout(() => setGpsErrorPulse(false), 1500);
-                      return;
-                    }
-                    setStep(2);
+                    if (validateStep(1)) setStep(2);
                   }}
                   className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-md text-sm active:scale-[0.99] cursor-pointer"
                 >
@@ -888,7 +973,9 @@ export const CreateListingPage: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStep(3)}
+                  onClick={() => {
+                    if (validateStep(2)) setStep(3);
+                  }}
                   className="w-2/3 bg-slate-900 hover:bg-slate-800 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-md text-sm active:scale-[0.99] cursor-pointer"
                 >
                   <span>Keyingi (Rasmlar)</span>
@@ -953,7 +1040,7 @@ export const CreateListingPage: React.FC = () => {
                   <span className="text-xs font-extrabold text-slate-700">Yuklangan rasmlaringiz:</span>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {images.map((img, idx) => (
-                      <div key={idx} className="relative aspect-[4/3] rounded-2xl overflow-hidden border border-slate-200 group shadow-xs">
+                      <div key={idx} className="relative aspect-4/3 rounded-2xl overflow-hidden border border-slate-200 group shadow-xs">
                         <img src={img} alt={`preview-${idx}`} className="w-full h-full object-cover" />
                         {idx === 0 && (
                           <span className="absolute top-2 left-2 bg-emerald-600 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-md shadow-md">
@@ -1041,18 +1128,76 @@ export const CreateListingPage: React.FC = () => {
               </div>
 
               {/* AI Photo Analysis Card */}
-              {(() => {
-                const photo = analyzePhotos({ rooms, furnished, images: finalImages, washingMachine: true, airConditioning: true });
-                return (
-                  <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-left text-xs space-y-1">
-                    <div className="font-black text-slate-900 flex items-center gap-1.5 text-xs">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600" /> AI Rasm Tahlili Natijasi:
-                    </div>
-                    <div className="text-slate-700 font-medium">Xonalar: {photo.roomsFound.join(', ')}</div>
-                    <div className="text-slate-700 font-medium">{photo.furnishedText}. {photo.condition}</div>
+              <div className="bg-emerald-50/50 border border-emerald-200 rounded-2xl p-4 sm:p-5 text-left text-sm space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="font-black text-slate-900 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-emerald-600" /> AI Rasm Tahlili va Narx Tavsiyasi
                   </div>
-                );
-              })()}
+                </div>
+
+                {!aiResult && !isAnalyzingGemini && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                      Kvartirangiz rasmlarini AI (sun'iy intellekt) orqali tahlil qiling. U rasmlardan kvartira holati, xonalar soni va hududdagi boshqa e'lonlarga asoslanib optimal narxni tavsiya qiladi.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={images.length === 0}
+                      onClick={handleRunAiAnalysis}
+                      className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-all w-full sm:w-auto"
+                    >
+                      {images.length === 0 ? "Avval rasm yuklang" : "AI tahlilni boshlash"}
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                {isAnalyzingGemini && (
+                  <div className="flex flex-col items-center justify-center py-4 space-y-3">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                    <span className="text-xs font-bold text-slate-600 animate-pulse">AI rasmlarni va bozorni tahlil qilmoqda...</span>
+                  </div>
+                )}
+
+                {aiResult && !isAnalyzingGemini && (
+                  <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="bg-white p-3 rounded-xl border border-slate-200">
+                        <div className="text-[10px] font-bold text-slate-500 uppercase">Xonalar</div>
+                        <div className="font-semibold text-slate-800 text-sm mt-0.5">{aiResult.roomsFound.join(', ')}</div>
+                      </div>
+                      <div className="bg-white p-3 rounded-xl border border-slate-200">
+                        <div className="text-[10px] font-bold text-slate-500 uppercase">Holati</div>
+                        <div className="font-semibold text-slate-800 text-sm mt-0.5">{aiResult.condition}</div>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-emerald-100/50 p-4 rounded-xl border border-emerald-200">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <div className="text-[10px] font-bold text-emerald-800 uppercase">AI Tavsiya Qilgan Narx</div>
+                          <div className="font-black text-emerald-700 text-lg sm:text-xl">
+                            {formatSom(aiResult.estimatedPrice)} <span className="text-xs font-medium text-emerald-600">/oy</span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPrice(aiResult.estimatedPrice);
+                            alert("Narx muvaffaqiyatli o'zgartirildi!");
+                          }}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-all"
+                        >
+                          Qabul qilish
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-600 font-medium leading-relaxed mt-2 pt-2 border-t border-emerald-200/60">
+                        <span className="font-bold text-slate-700">Asos:</span> {aiResult.explanation}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Step 3 Back & Next Buttons */}
               <div className="flex gap-3 pt-4">
@@ -1066,7 +1211,9 @@ export const CreateListingPage: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={runScan}
+                  onClick={() => {
+                    if (validateStep(3)) runScan();
+                  }}
                   className="w-2/3 bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-md text-sm active:scale-[0.99] cursor-pointer"
                 >
                   <span>Keyingi (Aloqa va Tekshiruv)</span>
