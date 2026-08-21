@@ -120,7 +120,7 @@ export const QuickCategories: React.FC = () => {
       </div>
 
       {/* Horizontal Scroll on Mobile, Grid on Desktop Large Premium Interactive Category Cards */}
-      <div className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar sm:grid sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-5 pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
+      <div className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
         {categories.map((cat) => {
           const Icon = cat?.icon || Home;
           const isMetro = cat.id === 'metro';
@@ -131,35 +131,33 @@ export const QuickCategories: React.FC = () => {
             <button
               key={cat.id}
               onClick={cat.action}
-              className="flex flex-col items-center justify-between p-4 sm:p-5 w-[140px] sm:w-auto shrink-0 snap-start rounded-[20px] sm:rounded-3xl bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 group text-center relative overflow-hidden"
+              className="flex flex-row items-center gap-3 p-3 w-[260px] sm:w-auto shrink-0 snap-start rounded-[16px] bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300 group text-left relative overflow-hidden"
             >
-              {/* Animated Top Ambient Gradient */}
-              <div className={`absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r ${cat.gradientBg} opacity-0 group-hover:opacity-100 transition-opacity`} />
+              {/* Animated Left Ambient Gradient */}
+              <div className={`absolute left-0 inset-y-0 w-1 bg-gradient-to-b ${cat.gradientBg} opacity-0 group-hover:opacity-100 transition-opacity`} />
 
               {/* Icon Container with Micro-Animations */}
-              <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-[14px] sm:rounded-2xl flex items-center justify-center mb-2.5 sm:mb-3 transition-all duration-300 shadow-sm border border-slate-100 group-hover:scale-110 group-hover:-translate-y-1 ${cat.badgeColor}`}>
-                <Icon className={`w-6 h-6 sm:w-8 sm:h-8 transition-all duration-300 ${
-                  isMetro ? 'group-hover:translate-x-1.5' : isStudent ? 'group-hover:-rotate-12' : isSherik ? 'group-hover:scale-125' : 'group-hover:rotate-6'
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 border border-slate-100 group-hover:scale-105 ${cat.badgeColor}`}>
+                <Icon className={`w-6 h-6 transition-all duration-300 ${
+                  isMetro ? 'group-hover:translate-x-1' : isStudent ? 'group-hover:-rotate-12' : isSherik ? 'group-hover:scale-110' : 'group-hover:rotate-6'
                 }`} />
               </div>
 
               {/* Content */}
-              <div className="space-y-0.5 sm:space-y-1 w-full">
-                <h3 className="text-[13px] sm:text-base font-black text-slate-900 group-hover:text-emerald-600 transition-colors leading-tight">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-black text-slate-900 group-hover:text-emerald-600 transition-colors truncate">
                   {cat.name}
                 </h3>
-                <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium line-clamp-2 leading-snug">
+                <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
                   {cat.desc}
                 </p>
-              </div>
-
-              {/* Sub-tags */}
-              <div className="mt-2.5 sm:mt-3 pt-2 border-t border-slate-100 w-full flex flex-wrap justify-center gap-1">
-                {cat.subTags.slice(0, 2).map((tag, i) => (
-                  <span key={i} className="text-[9px] sm:text-[10px] font-bold text-slate-600 bg-slate-50 group-hover:bg-emerald-50 group-hover:text-emerald-700 px-1.5 sm:px-2 py-0.5 rounded-md transition-colors">
-                    {tag}
-                  </span>
-                ))}
+                <div className="mt-1.5 flex gap-1 overflow-hidden">
+                  {cat.subTags.slice(0, 2).map((tag, i) => (
+                    <span key={i} className="text-[9px] font-bold text-slate-600 bg-slate-50 group-hover:bg-emerald-50 group-hover:text-emerald-700 px-1.5 py-0.5 rounded transition-colors whitespace-nowrap">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
             </button>
           );
