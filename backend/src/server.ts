@@ -600,7 +600,7 @@ app.post('/api/v1/smart/assistant', async (req: Request, res: Response) => {
       const targetName = parsed.userName || authUser?.name || userName || '';
       const nameSalute = isFirstTurn && targetName ? `Assalomu alaykum, ${targetName}. ` : (isFirstTurn ? "Assalomu alaykum. " : "");
       aiText = `${nameSalute}Siz so'ragan shartlar bo'yicha bazamizdan ${listings.length} ta mos e'lon topdim. Ular bilan tanishib chiqing:`;
-    } else if (!aiText) {
+    } else {
       const targetName = parsed.userName || authUser?.name || userName || '';
       const nameStr = targetName ? `${targetName}, ` : '';
       const nameSalute = isFirstTurn ? `Assalomu alaykum${targetName ? `, ${targetName}` : ''}. ` : nameStr;
