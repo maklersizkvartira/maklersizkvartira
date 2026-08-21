@@ -171,38 +171,34 @@ app.post('/api/v1/auth/send-code', async (req: Request, res: Response) => {
   otpStore.set(cleanPhone, { code, expiresAt });
   console.log(`[DEV] Generated OTP for ${cleanPhone}: ${code}`);
 
-  const login = process.env.GETSMS_LOGIN;
-  const password = process.env.GETSMS_PASSWORD;
+  const apiToken = process.env.DEVSMS_API_TOKEN || "6aba549ebc2184cfe3d0adf5352bd15dd66a3ab41b6e7559ef0c52d7491ba66b";
   
-  if (!login || !password) {
-    return res.json({ status: 'success', message: 'SMS yuborildi (simulyatsiya)', devCode: code });
-  }
-
   try {
-    const smsData = [{ phone: cleanPhone, text: `Maklersiz.uz tasdiqlash kodi: ${code}` }];
-    const params = new URLSearchParams();
-    params.append('login', login);
-    params.append('password', password);
-    params.append('data', JSON.stringify(smsData));
+    const payload = {
+      phone: cleanPhone,
+      message: `Maklersiz.uz tasdiqlash kodi: ${code}`,
+      from: "4546"
+    };
 
-    const response = await fetch('http://185.8.212.184/smsgateway/', {
+    const response = await fetch('https://devsms.uz/api', {
       method: 'POST',
-      body: params
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiToken}`
+      },
+      body: JSON.stringify(payload)
     });
 
-    const resultText = await response.text();
-    console.log('GETSMS result:', resultText);
+    const resultJson = await response.json();
+    console.log('DEVSMS result:', resultJson);
     
-    try {
-      const resultJson = JSON.parse(resultText);
-      if (resultJson[0]?.error) {
-        return res.status(400).json({ status: 'error', message: `SMS xizmati xatosi: ${resultJson[0].error_text}` });
-      }
-    } catch(e) {}
+    if (resultJson.success === false) {
+      return res.status(400).json({ status: 'error', message: `SMS xizmati xatosi: ${resultJson.message}` });
+    }
 
     return res.json({ status: 'success', message: 'SMS yuborildi' });
   } catch (error) {
-    console.error('GETSMS Error:', error);
+    console.error('DEVSMS Error:', error);
     return res.status(500).json({ status: 'error', message: 'SMS yuborishda xatolik yuz berdi' });
   }
 });
