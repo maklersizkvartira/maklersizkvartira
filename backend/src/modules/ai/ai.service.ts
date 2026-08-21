@@ -47,15 +47,18 @@ export class AIService {
         
         if (data.visual_matches && Array.isArray(data.visual_matches)) {
           const badDomains = ['olx', 'uybor', 'krisha', 'avito', 'domik', 'pinterest', 'shutterstock', 'stock'];
-          let stolenCount = 0;
+          let foundDomains: string[] = [];
           for (const match of data.visual_matches) {
             const link = match.link ? match.link.toLowerCase() : '';
-            if (badDomains.some(domain => link.includes(domain))) {
-              stolenCount++;
+            for (const domain of badDomains) {
+              if (link.includes(domain)) {
+                foundDomains.push(domain);
+              }
             }
           }
-          if (stolenCount > 0) {
-            reasons.push("Rasm internetdan o'g'irlangan (boshqa saytlarda topildi).");
+          if (foundDomains.length > 0) {
+            const uniqueDomains = [...new Set(foundDomains)];
+            reasons.push(`Bu rasm ${uniqueDomains.join(', ')} saytlaridan o'g'irlangan.`);
             riskScore = Math.max(riskScore, 95);
             brokerProbability = Math.max(brokerProbability, 80);
           }
@@ -66,6 +69,9 @@ export class AIService {
     }
 
     if (riskScore >= 70 || brokerProbability >= 70) {
+      const stolenReason = reasons.find(r => r.includes("o'g'irlangan"));
+      const isStolen = !!stolenReason;
+      
       return {
         allowed: false,
         trustScore: 20,
@@ -73,7 +79,9 @@ export class AIService {
         brokerProbability,
         status: 'REJECTED',
         reasons,
-        message: "Bu e'lon makler yoki firibgar e'loniga o'xshaydi. Joylashtirish taqiqlanadi.",
+        message: isStolen
+          ? `${stolenReason} E'loningiz ko'chirilgan, elonni tahrirlashni yoki ochirishni xohlaysizmi?`
+          : "Bu e'lon makler yoki firibgar e'loniga o'xshaydi. Joylashtirish taqiqlanadi.",
       };
     }
     

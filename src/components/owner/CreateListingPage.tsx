@@ -1164,29 +1164,55 @@ export const CreateListingPage: React.FC = () => {
                   )}
 
                   <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        let cleanedTitle = title.replace(/\b(makler|zaklad|vositachi|agentlik)\b/gi, '').trim();
-                        let cleanedDesc = description.replace(/\b(makler|zaklad|vositachi|agentlik|kartaga|oldindan pul)\b/gi, '').trim();
-                        if (!cleanedDesc.includes("Maklersiz")) {
-                          cleanedDesc += " Egasidan to'g'ridan-to'g'ri, 0% komissiya.";
-                        }
-                        setTitle(cleanedTitle || `${region}, ${district} tumanida 2 xonali kvartira`);
-                        setDescription(cleanedDesc);
-                        setStep(2);
-                      }}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 px-4 rounded-xl text-xs transition-colors shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      ✨ AI Matnni Tuzatish
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSubmitListing}
-                      className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-black py-3 px-4 rounded-xl text-xs transition-colors shadow-md cursor-pointer"
-                    >
-                      Baribir Nashr Qilish
-                    </button>
+                    {scan.message.includes("o'g'irlangan") || scan.message.includes("ko'chirilgan") ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setStep(3)}
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 px-4 rounded-xl text-xs transition-colors shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          Tahrirlash
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTitle('');
+                            setDescription('');
+                            setImages([]);
+                            setCurrentView('HOME');
+                          }}
+                          className="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-black py-3 px-4 rounded-xl text-xs transition-colors shadow-md cursor-pointer"
+                        >
+                          O'chirish
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            let cleanedTitle = title.replace(/\b(makler|zaklad|vositachi|agentlik)\b/gi, '').trim();
+                            let cleanedDesc = description.replace(/\b(makler|zaklad|vositachi|agentlik|kartaga|oldindan pul)\b/gi, '').trim();
+                            if (!cleanedDesc.includes("Maklersiz")) {
+                              cleanedDesc += " Egasidan to'g'ridan-to'g'ri, 0% komissiya.";
+                            }
+                            setTitle(cleanedTitle || `${region}, ${district} tumanida 2 xonali kvartira`);
+                            setDescription(cleanedDesc);
+                            setStep(2);
+                          }}
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 px-4 rounded-xl text-xs transition-colors shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          ✨ AI Matnni Tuzatish
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSubmitListing}
+                          className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-black py-3 px-4 rounded-xl text-xs transition-colors shadow-md cursor-pointer"
+                        >
+                          Baribir Nashr Qilish
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               ) : (
