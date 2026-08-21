@@ -40,16 +40,16 @@ export class AIService {
 
     let isApiDown = false;
 
-    // Google Lens Image Search using SerpApi
+    // Google Lens Image Search using SearchApi
     if (images && images.length > 0 && images[0].startsWith('http') && !images[0].includes('unsplash.com')) {
       try {
-        const serpKey = process.env.SERPAPI_KEY || "58d6c5e2e669e083122ff7e97f69cb10deb8bc155549be892aa58cf6045205f9";
-        const url = `https://serpapi.com/search.json?engine=google_lens&url=${encodeURIComponent(images[0])}&api_key=${serpKey}`;
+        const apiKey = process.env.SEARCHAPI_KEY || "Hso7jn1oXGAPiqfuzMP5zZAy";
+        const url = `https://www.searchapi.io/api/v1/search?engine=google_lens&search_type=all&url=${encodeURIComponent(images[0])}&api_key=${apiKey}`;
         const response = await fetch(url);
         const data = await response.json();
         
         if (data.error) {
-          console.error("SerpAPI returned error:", data.error);
+          console.error("SearchAPI returned error:", data.error);
           isApiDown = true;
         } else if (data.visual_matches && Array.isArray(data.visual_matches)) {
           const badDomains = ['olx', 'uybor', 'krisha', 'avito', 'domik', 'pinterest', 'shutterstock', 'stock'];
@@ -70,7 +70,7 @@ export class AIService {
           }
         }
       } catch (err) {
-        console.error("SerpAPI error:", err);
+        console.error("SearchAPI error:", err);
         isApiDown = true;
       }
     }
