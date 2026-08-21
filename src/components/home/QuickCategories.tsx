@@ -120,7 +120,7 @@ export const QuickCategories: React.FC = () => {
       </div>
 
       {/* Horizontal Scroll on Mobile, Grid on Desktop Large Premium Interactive Category Cards */}
-      <div className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
+      <div className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 pb-4 px-4 sm:px-0">
         {categories.map((cat) => {
           const Icon = cat?.icon || Home;
           const isMetro = cat.id === 'metro';
@@ -131,7 +131,7 @@ export const QuickCategories: React.FC = () => {
             <button
               key={cat.id}
               onClick={cat.action}
-              className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-3 w-[160px] sm:w-auto shrink-0 snap-start rounded-[16px] bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300 group text-left relative overflow-hidden"
+              className="flex flex-row items-center gap-3 p-3 w-[210px] sm:w-auto shrink-0 snap-start rounded-[16px] bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300 group text-left relative overflow-hidden"
             >
               {/* Animated Left Ambient Gradient */}
               <div className={`absolute left-0 inset-y-0 w-1 bg-gradient-to-b ${cat.gradientBg} opacity-0 group-hover:opacity-100 transition-opacity`} />
