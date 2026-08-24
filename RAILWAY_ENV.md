@@ -57,9 +57,13 @@ WEB_CONCURRENCY=2
 DB_POOL_SIZE=5
 DB_MAX_OVERFLOW=5
 
-# ── Secrets (generated for you, already validated) ───────────────────────
-JWT_SECRET=yjoDWO6RZTaxjmIdNgfOUXdz_wBng7cYXLfvrXlnigJATA587QGRS1vFezj-ERbn
-PASSWORD_REVEAL_KEY=t3ekbO7cfLUHS56fvkRGS0PqUwq3y0dbVvGkHmx8WrY=
+# ── Secrets — generate these yourself, never commit them ─────────────────
+# JWT_SECRET:
+#   python -c "import secrets; print(secrets.token_urlsafe(48))"
+# PASSWORD_REVEAL_KEY:
+#   python -c "import base64,secrets; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())"
+JWT_SECRET=PASTE_GENERATED_JWT_SECRET
+PASSWORD_REVEAL_KEY=PASTE_GENERATED_REVEAL_KEY
 PASSWORD_REVEAL_ENABLED=true
 
 # ── CORS — exact origins only, never "*" ─────────────────────────────────
