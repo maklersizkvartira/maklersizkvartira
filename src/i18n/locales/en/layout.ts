@@ -18,7 +18,7 @@ export const layout = {
   },
 
   header: {
-    createListingCta: '+ Post a listing',
+    createListingCta: 'Post a listing',
     savedCount: 'Saved ({count})',
     loginCta: 'Sign in',
     registerCta: 'Sign up',

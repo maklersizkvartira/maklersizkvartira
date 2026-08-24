@@ -18,7 +18,7 @@ export const layout = {
   },
 
   header: {
-    createListingCta: '+ Разместить объявление',
+    createListingCta: 'Разместить объявление',
     savedCount: 'Избранное ({count})',
     loginCta: 'Войти',
     registerCta: 'Регистрация',

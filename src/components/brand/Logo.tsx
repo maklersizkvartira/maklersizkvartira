@@ -42,24 +42,14 @@ export const LogoMark: React.FC<{ size?: LogoSize; className?: string }> = ({
 }) => {
   const s = SIZES[size];
   return (
-    <span
-      className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden
-        bg-gradient-to-br from-brand to-brand-deep shadow-brand ${s.tile} ${s.radius} ${className}`}
-    >
-      {/* A soft top highlight keeps the tile from reading as a flat rectangle. */}
-      <span
-        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/25 to-transparent"
-        aria-hidden="true"
-      />
-      <img
-        src="/brand/mark-128.png"
-        alt=""
-        width={128}
-        height={128}
-        className={`relative object-contain ${s.mark}`}
-        draggable={false}
-      />
-    </span>
+    <img
+      src="/brand/mark-128.png"
+      alt=""
+      width={128}
+      height={128}
+      className={`shrink-0 object-contain ${s.tile} ${className}`}
+      draggable={false}
+    />
   );
 };
 
@@ -85,12 +75,8 @@ export const Logo: React.FC<LogoProps> = ({
           className={`inline-flex items-center gap-1 font-black tracking-tight ${s.word}`}
           aria-hidden="true"
         >
-          <span className="text-brand-text">Maklersiz</span>
-          <span
-            className={`rounded-md bg-brand font-black text-on-brand ${s.chip}`}
-          >
-            Uy
-          </span>
+          <span className="text-brand font-black">Maklersiz</span>
+          <span className="text-content font-black">Uy</span>
         </span>
         {tagline && (
           <span className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-subtle">

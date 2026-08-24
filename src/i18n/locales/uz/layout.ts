@@ -18,7 +18,7 @@ export const layout = {
   },
 
   header: {
-    createListingCta: '+ E’lon berish',
+    createListingCta: 'E’lon berish',
     savedCount: 'Saqlanganlar ({count})',
     loginCta: 'Kirish',
     registerCta: 'Ro‘yxatdan o‘tish',

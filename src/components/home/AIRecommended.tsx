@@ -8,7 +8,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowRight, RefreshCw, Sparkles } from 'lucide-react';
+import { ArrowRight, RefreshCw } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { ListingsApi } from '../../services/listingsApi';
@@ -84,10 +84,6 @@ export const AIRecommended: React.FC = () => {
     >
       <div className="mb-4 flex flex-row items-center justify-between gap-2">
         <div>
-          <p className="mb-1 inline-flex items-center gap-1 rounded-full border border-line bg-brand-soft px-2.5 py-0.5 text-[10px] font-bold text-brand-text sm:text-xs">
-            <Sparkles className="h-3 w-3" aria-hidden="true" />
-            {t('home.recommended.badge')}
-          </p>
           <h2
             id="home-recommended-title"
             className="text-lg font-black tracking-tight text-content sm:text-2xl"

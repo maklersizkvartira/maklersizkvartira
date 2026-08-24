@@ -125,10 +125,6 @@ export const QuickCategories: React.FC = () => {
     >
       <div className="flex flex-col justify-between gap-3 px-4 pb-2 sm:flex-row sm:items-end sm:px-0">
         <div>
-          <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-line bg-brand-soft px-3 py-1 text-xs font-black uppercase tracking-wider text-brand-text">
-            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>{t('home.categories.eyebrow')}</span>
-          </p>
           <h2
             id="home-categories-title"
             className="text-2xl font-black tracking-tight text-content sm:text-4xl"
