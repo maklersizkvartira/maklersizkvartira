@@ -35,6 +35,7 @@ import { useAuthErrors } from '../auth/useAuthErrors';
 import { LanguageSwitcher } from '../layout/LanguageSwitcher';
 import { ThemeToggle } from '../layout/ThemeToggle';
 import { Button, Field, FormError, PasswordInput, TextInput } from '../ui/Field';
+import { canPublishListings } from '../../types/roles';
 
 const MAX_AVATAR_MB = 2;
 const MIN_PASSWORD_LENGTH = 8;
@@ -182,7 +183,7 @@ export const ProfilePage: React.FC = () => {
     );
   }
 
-  const isOwner = currentUser.role === 'OWNER';
+  const isOwner = canPublishListings(currentUser.role);
   const nameChanged = name.trim() !== currentUser.name && name.trim().length > 0;
 
   // -- Handlers -------------------------------------------------------------

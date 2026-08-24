@@ -16,6 +16,7 @@ import { useAppStore } from '../../stores/useAppStore';
 import type { Listing } from '../../types';
 import { Button } from '../ui/Field';
 import { ListingCard, ListingCardSkeleton } from '../listings/ListingCard';
+import { canPublishListings } from '../../types/roles';
 
 /** Fetch a few more than fit, so the rail has something to rotate through. */
 const POOL_SIZE = 6;
@@ -75,7 +76,7 @@ export const AIRecommended: React.FC = () => {
     return Array.from({ length: VISIBLE }, (_, offset) => pool[(start + offset) % pool.length]);
   }, [pool, start]);
 
-  const canPost = !currentUser || currentUser.role === 'OWNER';
+  const canPost = !currentUser || canPublishListings(currentUser.role);
 
   return (
     <section

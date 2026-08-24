@@ -26,6 +26,7 @@ import {
 import { useTranslation } from '../../i18n';
 import { useAppStore } from '../../stores/useAppStore';
 import { Button } from '../ui/Field';
+import { canPublishListings } from '../../types/roles';
 
 const QUICK_QUESTION_KEYS = [
   'chat.composer.quick.viewing',
@@ -75,7 +76,7 @@ export const ChatPage: React.FC = () => {
       setShowAuth(true, 'REGISTER');
       return;
     }
-    if (currentUser.role !== 'OWNER') {
+    if (!canPublishListings(currentUser.role)) {
       pushToast('chat.toast.ownerOnly', 'warning');
       return;
     }

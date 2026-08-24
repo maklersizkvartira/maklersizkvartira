@@ -113,7 +113,10 @@ OptionalUser = Annotated[User | None, Depends(get_optional_user)]
 
 
 def require_roles(*roles: UserRole):
-    allowed = {r.value for r in roles}
+    # DEVELOPER passes every user-side gate by definition, so it never has to
+    # be repeated at each call site — and adding a new gated route cannot
+    # accidentally lock the developer account out of it.
+    allowed = {r.value for r in roles} | {UserRole.DEVELOPER.value}
 
     async def _dependency(user: CurrentUser) -> User:
         if user.role not in allowed:

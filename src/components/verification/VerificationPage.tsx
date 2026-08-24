@@ -40,6 +40,7 @@ import { AuthApi } from '../../services/authApi';
 import { ApiError } from '../../services/http';
 import { useAppStore } from '../../stores/useAppStore';
 import { Button, TextInput } from '../ui/Field';
+import { canPublishListings } from '../../types/roles';
 
 type LadderLevel = 1 | 2 | 3 | 4 | 5;
 type StepState = 'approved' | 'pending' | 'rejected' | 'locked' | 'todo';
@@ -1137,7 +1138,7 @@ export const VerificationPage: React.FC = () => {
               <p className="mx-auto max-w-md text-xs leading-relaxed text-muted">
                 {currentLevel >= 5 ? t('verification.vip.body') : t('verification.vip.locked')}
               </p>
-              {currentUser?.role === 'OWNER' && (
+              {canPublishListings(currentUser?.role) && (
                 <Button
                   type="button"
                   variant="secondary"

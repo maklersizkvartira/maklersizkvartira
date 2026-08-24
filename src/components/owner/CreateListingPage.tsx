@@ -41,6 +41,7 @@ import { UZBEKISTAN_REGIONS, TASHKENT_METRO_LINES } from '../../data/mockLocatio
 import { ListingsApi, type ModerationResult } from '../../services/listingsApi';
 import { useAppStore } from '../../stores/useAppStore';
 import { Button, Field, FormError, TextInput } from '../ui/Field';
+import { canPublishListings } from '../../types/roles';
 
 /** Stored value for "no metro nearby"; the label is translated at render time. */
 const METRO_NONE = 'NONE';
@@ -275,7 +276,7 @@ export const CreateListingPage: React.FC = () => {
     );
   }
 
-  if (currentUser.role !== 'OWNER') {
+  if (!canPublishListings(currentUser.role)) {
     return (
       <div className="mx-auto max-w-md space-y-4 px-4 py-16 text-center">
         <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-warning-soft text-warning">

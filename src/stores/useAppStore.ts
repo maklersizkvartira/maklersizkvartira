@@ -20,6 +20,7 @@ import { AuthApi, type ApiUser } from '../services/authApi';
 import { ApiError, clearTokens, getAccessToken, purgeLegacyStorage } from '../services/http';
 import { ListingsApi, type ListingQuery } from '../services/listingsApi';
 import type { Listing } from '../types';
+import { canPublishListings } from '../types/roles';
 
 export type ViewState =
   | 'HOME'
@@ -195,7 +196,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Without this the hearts are empty after every reload, and clicking one
       // "adds" a listing that was already saved.
       await get().fetchFavorites();
-      if (user.role === 'OWNER') void get().fetchMyListings();
+      if (canPublishListings(user.role)) void get().fetchMyListings();
     } catch (error) {
       if (error instanceof ApiError && error.isAuth) clearTokens();
       set({ currentUser: null, authReady: true });
@@ -213,7 +214,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       'success',
     );
     void get().fetchFavorites();
-    if (user.role === 'OWNER') void get().fetchMyListings();
+    if (canPublishListings(user.role)) void get().fetchMyListings();
   },
 
   logout: async () => {

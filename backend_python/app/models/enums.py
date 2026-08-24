@@ -15,12 +15,27 @@ class UserRole(StrEnum):
     OWNER = "OWNER"
     MODERATOR = "MODERATOR"
     ADMIN = "ADMIN"
+    #: Full access to every user-side capability at once. Exists so the people
+    #: building the platform can exercise owner flows, staff views and
+    #: moderation paths from one account instead of juggling several.
+    DEVELOPER = "DEVELOPER"
 
 
-#: Roles a self-service signup may request. Everything else is admin-granted.
+#: Roles a self-service signup may request. Everything else is admin-granted —
+#: DEVELOPER deliberately among them, so nobody can register into it.
 SIGNUP_ROLES = {UserRole.STUDENT, UserRole.OWNER}
-#: Roles that may reach the admin API.
-STAFF_ROLES = {UserRole.MODERATOR, UserRole.ADMIN}
+#: Roles that see staff-only material: listings that are pending, rejected or
+#: otherwise not public yet.
+STAFF_ROLES = {UserRole.MODERATOR, UserRole.ADMIN, UserRole.DEVELOPER}
+#: Roles that bypass ownership checks — they may edit or remove any listing.
+FULL_ACCESS_ROLES = {UserRole.ADMIN, UserRole.DEVELOPER}
+#: Roles allowed to publish listings.
+PUBLISHER_ROLES = {UserRole.OWNER, UserRole.DEVELOPER}
+
+#: Column values, not enum members: ``User.role`` stores the raw string.
+STAFF_ROLE_VALUES = frozenset(r.value for r in STAFF_ROLES)
+FULL_ACCESS_ROLE_VALUES = frozenset(r.value for r in FULL_ACCESS_ROLES)
+PUBLISHER_ROLE_VALUES = frozenset(r.value for r in PUBLISHER_ROLES)
 
 
 class UserStatus(StrEnum):

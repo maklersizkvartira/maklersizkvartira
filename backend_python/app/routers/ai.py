@@ -18,7 +18,7 @@ from app.core.security import generate_token
 from app.models.ai import AIMessage, AISession
 from app.models.enums import AuditAction
 from app.schemas.common import CamelModel
-from app.schemas.listing import ListingFilters, ListingOut
+from app.schemas.listing import ListingOut
 from app.services import listings as listing_service
 from app.services import shield_ai
 from app.services.telegram import send_chat_summary
@@ -188,8 +188,10 @@ async def assistant(
     session.message_count += 1
     await db.flush()
 
+    # Two passes with the search in between: the model cannot describe rows it
+    # has not seen, and the rows depend on what the first pass understood.
     parsed = shield_ai.parse_intent(payload.message)
-    llm = await shield_ai.generate_reply(
+    llm = await shield_ai.understand(
         message=payload.message,
         history=history,
         language=language,
@@ -197,28 +199,41 @@ async def assistant(
         is_first_turn=is_first_turn,
     )
     intent = shield_ai.merge_intents(parsed, llm)
+    display_name = intent.user_name or (viewer.name if viewer else payload.user_name)
 
-    filters = ListingFilters(
-        district=intent.district,
-        region=intent.region,
-        rooms=intent.rooms,
-        max_price=intent.max_price,
-        audience=intent.audience if intent.audience in {"ALL", "STUDENT", "FAMILY"} else "ALL",
-        rental_type=intent.rental_type
-        if intent.rental_type in {"ALL", "FULL", "ROOMMATE"}
-        else "ALL",
-        sort_by="RECOMMENDED",
-    )
-    rows, total = await listing_service.list_public(db, filters, offset=0, limit=5)
+    # Only turns that are actually about finding somewhere to live touch the
+    # catalogue. A company question or an off-topic message gets an answer, not
+    # a wall of apartments it never asked for.
+    if intent.kind in {"SEARCH", "DOMAIN"}:
+        rows, relaxation, searched_district, total = await shield_ai.search_for_intent(
+            db, intent, limit=5
+        )
+    else:
+        rows, relaxation, searched_district, total = [], "NONE", None, 0
 
     # The reply always reflects what the database actually returned, so the
     # assistant can never promise listings that do not exist.
-    reply = shield_ai.build_fallback_reply(
-        count=len(rows),
+    reply = await shield_ai.compose_reply(
+        message=payload.message,
+        history=history,
         language=language,
-        user_name=intent.user_name or (viewer.name if viewer else payload.user_name),
+        user_name=display_name,
         is_first_turn=is_first_turn,
+        intent=intent,
+        rows=rows,
+        relaxation=relaxation,
+        searched_district=searched_district,
     )
+    if not reply:
+        reply = shield_ai.build_fallback_reply(
+            intent=intent,
+            count=len(rows),
+            language=language,
+            user_name=display_name,
+            is_first_turn=is_first_turn,
+            relaxation=relaxation,
+            searched_district=searched_district,
+        )
 
     favorite_ids = await listing_service.favorite_ids_for(db, viewer)
     serialised = []
@@ -252,6 +267,10 @@ async def assistant(
             "results": len(rows),
             "total_matches": total,
             "language": language,
+            # How far the search had to loosen to find these rows. Reviewing
+            # the feed later, this is what explains a surprising suggestion.
+            "relaxation": relaxation,
+            "searched_district": searched_district,
         },
     )
 
@@ -259,6 +278,9 @@ async def assistant(
         "status": "success",
         "reply": reply,
         "need": intent.as_dict(),
+        # The client shows the result rail only when the rows really answer
+        # the question; "NONE" means the turn was conversational.
+        "matchQuality": relaxation,
         "listings": serialised,
         "sessionKey": session.session_key,
         "used": used + 1,

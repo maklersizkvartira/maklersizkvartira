@@ -19,7 +19,14 @@ from sqlalchemy.orm import selectinload
 from app.core import audit as audit_log
 from app.core.config import settings
 from app.core.errors import BadRequest, Forbidden, NotFound
-from app.models.enums import AuditAction, ListingStatus, UserRole
+from app.models.enums import (
+    FULL_ACCESS_ROLE_VALUES,
+    PUBLISHER_ROLE_VALUES,
+    STAFF_ROLE_VALUES,
+    AuditAction,
+    ListingStatus,
+    UserRole,
+)
 from app.models.listing import Favorite, Listing
 from app.models.user import User
 from app.schemas.listing import ListingFilters
@@ -179,7 +186,7 @@ async def get_owned_listing(
     ).unique().scalar_one_or_none()
     if listing is None or listing.deleted_at is not None:
         raise NotFound("listing_not_found")
-    if listing.owner_id != user.id and user.role != UserRole.ADMIN.value:
+    if listing.owner_id != user.id and user.role not in FULL_ACCESS_ROLE_VALUES:
         # Same error either way, so probing ids cannot map out who owns what.
         raise Forbidden("listing_forbidden")
     return listing
@@ -197,7 +204,7 @@ async def list_for_owner(db: AsyncSession, user: User) -> list[Listing]:
 async def create_listing(
     db: AsyncSession, *, user: User, payload: dict[str, Any]
 ) -> tuple[Listing, Any]:
-    if user.role != UserRole.OWNER.value:
+    if user.role not in PUBLISHER_ROLE_VALUES:
         raise Forbidden("owner_role_required")
 
     images = payload.get("images") or []
@@ -310,10 +317,7 @@ async def record_stat(
     # a way to read a rejected listing by id.
     if not listing.is_public:
         is_owner = user is not None and listing.owner_id == user.id
-        is_staff = user is not None and user.role in (
-            UserRole.ADMIN.value,
-            UserRole.MODERATOR.value,
-        )
+        is_staff = user is not None and user.role in STAFF_ROLE_VALUES
         if not (is_owner or is_staff):
             raise NotFound("listing_not_found")
 

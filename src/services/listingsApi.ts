@@ -174,6 +174,13 @@ export const AssistantApi = {
       reply: string;
       listings: Listing[];
       need: Record<string, unknown>;
+      /**
+       * How far the search had to loosen to find these rows:
+       * EXACT / PARTIAL / NEARBY / ANY, or NONE for a conversational turn.
+       * The reply text already explains it; this is here for the UI to badge
+       * a widened result without re-parsing prose.
+       */
+      matchQuality?: 'NONE' | 'EXACT' | 'PARTIAL' | 'NEARBY' | 'ANY';
       sessionKey: string;
       used: number;
       limit: number;

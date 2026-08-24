@@ -55,7 +55,13 @@ async def main() -> int:
     parser.add_argument(
         "--role",
         default=UserRole.OWNER.value,
-        choices=[UserRole.OWNER.value, UserRole.STUDENT.value],
+        # DEVELOPER is offered here and nowhere else: it cannot be reached by
+        # signing up, so seeding is the only way to create one.
+        choices=[
+            UserRole.OWNER.value,
+            UserRole.STUDENT.value,
+            UserRole.DEVELOPER.value,
+        ],
     )
     parser.add_argument("--language", default="uz", choices=["uz", "ru", "en"])
     args = parser.parse_args()

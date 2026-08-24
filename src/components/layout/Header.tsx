@@ -24,6 +24,7 @@ import { useAppStore, type ViewState } from '../../stores/useAppStore';
 import { Logo } from '../brand/Logo';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ThemeToggle } from './ThemeToggle';
+import { canPublishListings } from '../../types/roles';
 
 interface NavItem {
   view: ViewState;
@@ -71,7 +72,7 @@ export const Header: React.FC = () => {
   };
 
   const visible = (item: NavItem) => {
-    if (item.ownerOnly) return currentUser?.role === 'OWNER';
+    if (item.ownerOnly) return canPublishListings(currentUser?.role);
     if (item.authOnly) return Boolean(currentUser);
     return true;
   };
@@ -121,7 +122,7 @@ export const Header: React.FC = () => {
                       {currentUser.name}
                     </p>
                     <p className="text-xs text-muted">
-                      {currentUser.role === 'OWNER'
+                      {canPublishListings(currentUser.role)
                         ? t('common.role.owner')
                         : t('common.role.student')}
                     </p>

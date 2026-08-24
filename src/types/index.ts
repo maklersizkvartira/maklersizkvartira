@@ -1,4 +1,11 @@
-export type UserRole = 'TENANT' | 'STUDENT' | 'OWNER' | 'MODERATOR' | 'ADMIN';
+export type UserRole =
+  | 'TENANT'
+  | 'STUDENT'
+  | 'OWNER'
+  | 'MODERATOR'
+  | 'ADMIN'
+  /** Full access to every user-side capability. Granted, never signed up for. */
+  | 'DEVELOPER';
 
 export type SignupRole = 'STUDENT' | 'OWNER';
 

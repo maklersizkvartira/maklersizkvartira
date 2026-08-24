@@ -15,12 +15,15 @@ export const assistant = {
 
   chat: {
     welcome:
-      'Salom! Men Shield AI yordamchisiman 🛡️\n\nMasalan yozing:\n'
+      'Assalomu alaykum! Men Shield AI — MaklersizUy kompaniyasining AI yordamchisiman 🛡️\n\n'
+      + 'Uy-joy bo‘yicha savolingizga javob beraman va bazadan mos e’lonlarni tanlab beraman.\n\n'
+      + 'Masalan:\n'
       + '• «Chilonzordan 3 mlnga kvartira kerak»\n'
       + '• «Yunusobod 2 xona talaba uchun»\n'
-      + '• «Sheriklikka xona izlayapman»',
+      + '• «Qishda 2 xonali yaxshimi yoki 3 xonali?»',
     welcomeNamed:
-      'Salom, {name}! Men Shield AI yordamchisiman 🛡️\n\nQanday kvartira yoki xona izlayapsiz?',
+      'Assalomu alaykum, {name}. Men Shield AI — MaklersizUy kompaniyasining AI yordamchisiman 🛡️\n\n'
+      + 'Uy-joy bo‘yicha savolingizni bering yoki qanday uy kerakligini ayting — tuman, xona soni, byudjet.',
     log: 'Suhbat tarixi',
     you: 'Siz',
     inputLabel: 'Shield AI ga xabar',

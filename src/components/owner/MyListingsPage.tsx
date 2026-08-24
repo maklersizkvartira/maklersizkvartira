@@ -30,6 +30,7 @@ import { useAppStore } from '../../stores/useAppStore';
 import type { AICheckStatus, Listing } from '../../types';
 import { Button } from '../ui/Field';
 import { EditListingModal } from './EditListingModal';
+import { canPublishListings } from '../../types/roles';
 
 /** Maps the server's moderation verdict onto a shared status label and tone. */
 function moderationTone(status: AICheckStatus): { key: string; className: string } {
@@ -105,7 +106,7 @@ export const MyListingsPage: React.FC = () => {
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState<Listing | null>(null);
 
-  const isOwner = currentUser?.role === 'OWNER';
+  const isOwner = canPublishListings(currentUser?.role);
 
   useEffect(() => {
     if (!isOwner) {

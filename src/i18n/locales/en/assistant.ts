@@ -11,12 +11,15 @@ export const assistant = {
 
   chat: {
     welcome:
-      'Hello! I am the Shield AI assistant 🛡️\n\nFor example, try:\n'
+      'Hello! I am Shield AI, the AI assistant of the MaklersizUy company 🛡️\n\n'
+      + 'I answer housing questions and pick matching listings out of our database.\n\n'
+      + 'For example:\n'
       + '• "I need an apartment in Chilonzor for up to 3 million"\n'
       + '• "Yunusobod, 2 rooms, for a student"\n'
-      + '• "Looking for a room to share"',
+      + '• "Which is better in winter, 2 or 3 rooms?"',
     welcomeNamed:
-      'Hello, {name}! I am the Shield AI assistant 🛡️\n\nWhat kind of apartment or room are you looking for?',
+      'Hello, {name}. I am Shield AI, the AI assistant of the MaklersizUy company 🛡️\n\n'
+      + 'Ask me a housing question, or tell me what you need — district, room count, budget.',
     log: 'Conversation history',
     you: 'You',
     inputLabel: 'Message to Shield AI',

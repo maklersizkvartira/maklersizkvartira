@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.core.deps import CurrentUser, DbSession, Lang, OptionalUser, RequestCtx
 from app.core.errors import BadRequest, TooManyRequests
 from app.core.rate_limit import enforce
-from app.models.enums import UserRole
+from app.models.enums import STAFF_ROLE_VALUES, UserRole
 from app.schemas.common import MessageResponse, PaginationParams, build_page_meta
 from app.schemas.listing import (
     ListingCreate,
@@ -37,10 +37,7 @@ def _serialise(listing, *, viewer, favorite_ids: set[uuid.UUID] | None = None) -
     """
     payload = ListingOut.model_validate(listing)
     is_owner = viewer is not None and listing.owner_id == viewer.id
-    is_staff = viewer is not None and viewer.role in {
-        UserRole.ADMIN.value,
-        UserRole.MODERATOR.value,
-    }
+    is_staff = viewer is not None and viewer.role in STAFF_ROLE_VALUES
     if not (is_owner or is_staff):
         payload.owner.phone = None
     if favorite_ids is not None:
@@ -110,10 +107,7 @@ async def favorites(db: DbSession, user: CurrentUser) -> dict:
 async def get_listing(listing_id: uuid.UUID, db: DbSession, viewer: OptionalUser) -> dict:
     listing = await listing_service.get_public_listing(db, listing_id)
     is_owner = viewer is not None and listing.owner_id == viewer.id
-    is_staff = viewer is not None and viewer.role in {
-        UserRole.ADMIN.value,
-        UserRole.MODERATOR.value,
-    }
+    is_staff = viewer is not None and viewer.role in STAFF_ROLE_VALUES
     # A listing removed by moderation stays visible to its owner and to staff,
     # so the owner can see why it was rejected and fix it.
     if not listing.is_public and not (is_owner or is_staff):

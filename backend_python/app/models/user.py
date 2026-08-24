@@ -12,6 +12,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.enums import (
+    STAFF_ROLE_VALUES,
     AdminRole,
     Language,
     ThemePreference,
@@ -121,7 +122,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
 
     @property
     def is_staff(self) -> bool:
-        return self.role in (UserRole.MODERATOR.value, UserRole.ADMIN.value)
+        return self.role in STAFF_ROLE_VALUES
 
     def __repr__(self) -> str:  # pragma: no cover - debugging aid
         return f"<User {self.phone} {self.role} {self.status}>"
