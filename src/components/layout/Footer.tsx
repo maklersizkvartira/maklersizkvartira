@@ -1,7 +1,7 @@
 /** Site footer. */
 
 import React from 'react';
-import { Mail, Phone, Send, ShieldCheck } from 'lucide-react';
+import { Mail, Phone, Send } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { useAppStore, type ViewState } from '../../stores/useAppStore';
@@ -70,32 +70,32 @@ export const Footer: React.FC = () => {
               {t('layout.footer.aboutText')}
             </p>
 
-            <div className="space-y-2 rounded-xl border border-line bg-surface-2/60 p-3">
-              <p className="text-[11px] font-black uppercase tracking-wide text-content">
-                {t('layout.footer.support')}
-              </p>
-              <div className="flex flex-col gap-1.5 text-xs font-semibold text-muted">
+            <div className="space-y-2 rounded-2xl border border-line bg-surface-2/60 p-3.5 backdrop-blur-xs transition-colors hover:border-brand/40">
+              <div className="flex items-center gap-2">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-soft text-brand-text">
+                  <Phone className="h-3 w-3" aria-hidden="true" />
+                </span>
+                <p className="text-[11px] font-black uppercase tracking-wider text-content">
+                  {t('layout.footer.support')}
+                </p>
+              </div>
+              <div className="flex flex-col gap-1.5 pt-1 text-xs font-semibold text-muted">
                 <a
                   href="tel:+998700797237"
-                  className="inline-flex items-center gap-2 transition-colors hover:text-brand-text"
+                  className="group flex cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-surface hover:text-brand-text"
                 >
-                  <Phone className="h-3.5 w-3.5 text-brand shrink-0" aria-hidden="true" />
-                  <span>+998 70 079 72 37</span>
+                  <span className="font-semibold text-content">+998 70 079 72 37</span>
+                  <span className="text-[10px] font-bold text-brand group-hover:underline">Qo‘ng‘iroq</span>
                 </a>
                 <a
                   href="tel:+998777850737"
-                  className="inline-flex items-center gap-2 transition-colors hover:text-brand-text"
+                  className="group flex cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-surface hover:text-brand-text"
                 >
-                  <Phone className="h-3.5 w-3.5 text-brand shrink-0" aria-hidden="true" />
-                  <span>+998 77 785 07 37</span>
+                  <span className="font-semibold text-content">+998 77 785 07 37</span>
+                  <span className="text-[10px] font-bold text-brand group-hover:underline">Qo‘ng‘iroq</span>
                 </a>
               </div>
             </div>
-
-            <p className="inline-flex items-center gap-1.5 rounded-lg bg-brand-soft px-2.5 py-1.5 text-[11px] font-black text-brand-text">
-              <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-              {t('common.badge.noCommission')}
-            </p>
           </div>
 
           {columns.map((column) => (
@@ -109,7 +109,7 @@ export const Footer: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => link.view && setCurrentView(link.view)}
-                      className="text-xs text-muted transition-colors hover:text-brand-text"
+                      className="cursor-pointer text-xs text-muted transition-colors hover:text-brand-text"
                     >
                       {t(link.labelKey as never)}
                     </button>
@@ -120,38 +120,45 @@ export const Footer: React.FC = () => {
           ))}
         </div>
 
-        <div className="mt-8 flex flex-col items-center gap-4 border-t border-line pt-6 sm:flex-row sm:justify-between">
+        <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-line pt-6 sm:flex-row">
           <p className="text-[11px] text-subtle">
             {t('layout.footer.rights', { year: new Date().getFullYear() })}
           </p>
-          <div className="flex items-center gap-2.5">
-            <a
-              href="https://www.instagram.com/maklersizuy.uz/"
-              target="_blank"
-              rel="noreferrer noopener"
-              aria-label="Instagram"
-              className="rounded-lg border border-line p-2 text-muted transition-colors hover:border-brand hover:text-brand-text"
-            >
-              <InstagramIcon className="h-4 w-4" />
-            </a>
-            <a
-              href="https://t.me/maklersizuy"
-              target="_blank"
-              rel="noreferrer noopener"
-              aria-label="Telegram"
-              className="rounded-lg border border-line p-2 text-muted transition-colors hover:border-brand hover:text-brand-text"
-            >
-              <Send className="h-4 w-4" aria-hidden="true" />
-            </a>
-            <a
-              href="mailto:support@maklersizuy.uz"
-              aria-label={t('layout.footer.contact')}
-              className="rounded-lg border border-line p-2 text-muted transition-colors hover:border-brand hover:text-brand-text"
-            >
-              <Mail className="h-4 w-4" aria-hidden="true" />
-            </a>
-            <LanguageSwitcher />
-            <ThemeToggle />
+          <div className="flex flex-wrap items-center gap-3 sm:pr-48">
+            <div className="flex items-center gap-2">
+              <a
+                href="https://www.instagram.com/maklersizuy.uz/"
+                target="_blank"
+                rel="noreferrer noopener"
+                aria-label="Instagram"
+                className="group flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface-2/80 text-muted transition-all duration-200 hover:scale-105 hover:border-transparent hover:bg-gradient-to-tr hover:from-[#f09433] hover:via-[#dc2743] hover:to-[#bc1888] hover:text-white hover:shadow-md hover:shadow-pink-500/25 active:scale-95"
+              >
+                <InstagramIcon className="h-4 w-4 transition-transform group-hover:scale-110" />
+              </a>
+              <a
+                href="https://t.me/maklersizuy"
+                target="_blank"
+                rel="noreferrer noopener"
+                aria-label="Telegram"
+                className="group flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface-2/80 text-muted transition-all duration-200 hover:scale-105 hover:border-transparent hover:bg-[#229ED9] hover:text-white hover:shadow-md hover:shadow-sky-500/25 active:scale-95"
+              >
+                <Send className="h-4 w-4 transition-transform group-hover:scale-110" aria-hidden="true" />
+              </a>
+              <a
+                href="mailto:support@maklersizuy.uz"
+                aria-label={t('layout.footer.contact')}
+                className="group flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface-2/80 text-muted transition-all duration-200 hover:scale-105 hover:border-transparent hover:bg-brand hover:text-white hover:shadow-md hover:shadow-brand/25 active:scale-95"
+              >
+                <Mail className="h-4 w-4 transition-transform group-hover:scale-110" aria-hidden="true" />
+              </a>
+            </div>
+
+            <div className="h-4 w-px bg-line" aria-hidden="true" />
+
+            <div className="flex items-center gap-2">
+              <LanguageSwitcher />
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </div>
