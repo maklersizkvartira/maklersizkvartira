@@ -18,6 +18,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 Environment = Literal["development", "staging", "production", "test"]
 
 
+#: Values that are obviously a copied instruction rather than a credential.
+#: Left in place they make the app believe a provider is configured, and every
+#: call to it then fails.
+#: "XXX" is deliberately NOT here: a real base64 or hex secret can start with
+#: those characters, and silently discarding a valid key is far worse than
+#: leaving a placeholder in place.
+PLACEHOLDER_PREFIXES = ("PASTE_", "YOUR_", "CHANGE_ME", "<")
+
+
 def _pad_b64(value: str) -> str:
     return value + "=" * (-len(value) % 4)
 
@@ -189,15 +198,28 @@ class Settings(BaseSettings):
     @model_validator(mode="before")
     @classmethod
     def _blank_means_unset(cls, data):
-        """Treat an empty variable as absent.
+        """Treat an empty or placeholder variable as absent.
 
-        A dashboard variable that exists with an empty value is the most
-        common misconfiguration, and letting "" reach a Literal or an int
-        field produces a validation traceback instead of a usable message.
+        Two things reach here as strings that look set but are not: a
+        dashboard variable that exists with an empty value, and a template
+        placeholder left unreplaced (PASTE_ROTATED_OPENAI_KEY). The first
+        produces a validation traceback against a Literal or int field; the
+        second is worse, because the app believes a provider is configured and
+        fails on every call to it.
         """
-        if isinstance(data, dict):
-            return {k: v for k, v in data.items() if not (isinstance(v, str) and not v.strip())}
-        return data
+        if not isinstance(data, dict):
+            return data
+
+        def unusable(value: object) -> bool:
+            if not isinstance(value, str):
+                return False
+            stripped = value.strip()
+            if not stripped:
+                return True
+            upper = stripped.upper()
+            return any(upper.startswith(p) for p in PLACEHOLDER_PREFIXES)
+
+        return {k: v for k, v in data.items() if not unusable(v)}
 
     @field_validator("DATABASE_URL")
     @classmethod

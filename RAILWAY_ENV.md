@@ -1,7 +1,33 @@
 # Railway environment setup
 
+## Which service? (read this first)
+
+A Railway project has **two services**, and they are not interchangeable:
+
+| Service | What it is | What you put there |
+|---|---|---|
+| **Postgres** | the database Railway manages for you | **nothing.** Leave every variable exactly as Railway generated it |
+| **API** (this repo) | the container built from the `Dockerfile` | the whole block below |
+
+Pasting the block onto **Postgres** is the mistake that looks like a broken
+deploy: the API service still has no variables, so it exits with
+`Refusing to start in production without: …`, while Postgres itself gets a
+`DATABASE_URL=${{Postgres.DATABASE_URL}}` line that **points at itself**. That
+circular reference is why the Variables list shows `DATABASE_URL` blank while
+the edit box shows raw `${{...}}` text.
+
+If that has already happened: open the **Postgres** service → Variables,
+delete every variable you added by hand (Railway's own `PG*`,
+`POSTGRES_*`, `RAILWAY_*` and `DATABASE_URL` entries stay), then paste the
+block into the **API** service instead.
+
+---
+
 Paste the block below into your API service → **Variables** → **Raw Editor**,
-replace the four `PASTE_...` placeholders, then Deploy.
+replace the `PASTE_...` placeholders, then Deploy.
+
+A `PASTE_...` value left in place is now **ignored** rather than used, so the
+app still starts — it just reports that feature as off in the startup log.
 
 The app **refuses to start** without `ENVIRONMENT`, `DATABASE_URL`,
 `JWT_SECRET` and `PASSWORD_REVEAL_KEY`, or if `OTP_DEBUG_RETURN_CODE` is true,
