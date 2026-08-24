@@ -1,21 +1,242 @@
 @import "tailwindcss";
 
-@theme {
-  --breakpoint-xs: 25rem;
+/* ===========================================================================
+   Dark mode
+   ---------------------------------------------------------------------------
+   Tailwind v4 defaults the `dark:` variant to `prefers-color-scheme`. The app
+   needs an explicit user choice that also honours the system setting, so the
+   variant is redefined to key off a `.dark` class on <html>, which the theme
+   store sets. `:where()` keeps specificity at zero so `dark:` still layers the
+   same way every other variant does.
+   ======================================================================== */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ===========================================================================
+   Semantic design tokens
+   ---------------------------------------------------------------------------
+   Components address roles ("surface", "content", "line"), not raw greys, so
+   a single palette swap re-themes the whole app. This is why there is no long
+   tail of `bg-white dark:bg-slate-900` pairs scattered across 40 files.
+   ======================================================================== */
+:root {
+  /* Surfaces, back to front */
+  --color-canvas: #f6f8fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1f5f9;
+  --color-surface-3: #e2e8f0;
+  --color-surface-inverse: #0f172a;
+
+  /* Text */
+  --color-content: #0f172a;
+  --color-muted: #475569;
+  --color-subtle: #94a3b8;
+  --color-content-inverse: #f8fafc;
+
+  /* Lines */
+  --color-line: #e5e9f0;
+  --color-line-2: #cbd5e1;
+
+  /* Brand — taken from the logo mark (#0050f0 family) so the UI and the
+     wordmark are the same blue instead of a green UI beside a blue logo. */
+  --color-brand: #1447e6;
+  --color-brand-hover: #0f37c4;
+  --color-brand-deep: #0a2aa8;
+  --color-brand-soft: #eef3ff;
+  --color-brand-soft-2: #dbe5ff;
+  --color-brand-text: #1039c9;
+  --color-on-brand: #ffffff;
+
+  /* Hero / feature bands. Deliberately NOT derived from surface-inverse:
+     inverting that turns the hero into a glaring white slab in dark mode,
+     which is the light-only-island bug in reverse. A band is a deep brand
+     surface in both themes. */
+  --color-band: #0e2a86;
+  --color-band-2: #071a5c;
+  --color-on-band: #eef3ff;
+
+  /* Status */
+  --color-success: #059669;
+  --color-success-soft: #ecfdf5;
+  --color-warning: #d97706;
+  --color-warning-soft: #fffbeb;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fef2f2;
+  /* Info moves off blue now that the brand owns it. */
+  --color-info: #7c3aed;
+  --color-info-soft: #f5f3ff;
+
+  /* Effects */
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px -12px rgb(15 23 42 / 0.12);
+  --shadow-raised: 0 4px 12px -2px rgb(15 23 42 / 0.08), 0 16px 40px -20px rgb(15 23 42 / 0.18);
+  --shadow-brand: 0 8px 22px -8px rgb(20 71 230 / 0.45);
+  --overlay: rgb(15 23 42 / 0.55);
+  --skeleton-from: #eef2f7;
+  --skeleton-via: #e2e8f0;
+
+  color-scheme: light;
 }
 
-*, *::before, *::after {
+.dark {
+  --color-canvas: #080d18;
+  --color-surface: #111827;
+  --color-surface-2: #172033;
+  --color-surface-3: #1f2b41;
+  --color-surface-inverse: #f8fafc;
+
+  --color-content: #e8eef9;
+  --color-muted: #9fb0c9;
+  --color-subtle: #6b7d99;
+  --color-content-inverse: #0f172a;
+
+  --color-line: #253248;
+  --color-line-2: #33445f;
+
+  --color-brand: #4a7dff;
+  --color-brand-hover: #7098ff;
+  --color-brand-deep: #2a52d8;
+  /* Tints become translucent in dark so they sit on any surface without
+     turning into pale rectangles. */
+  --color-brand-soft: rgb(74 125 255 / 0.14);
+  --color-brand-soft-2: rgb(74 125 255 / 0.22);
+  --color-brand-text: #a9c4ff;
+  --color-on-brand: #04102e;
+
+  --color-band: #0a1d52;
+  --color-band-2: #050f33;
+  --color-on-band: #dfe8ff;
+
+  --color-success: #34d399;
+  --color-success-soft: rgb(52 211 153 / 0.12);
+  --color-warning: #fbbf24;
+  --color-warning-soft: rgb(251 191 36 / 0.12);
+  --color-danger: #f87171;
+  --color-danger-soft: rgb(248 113 113 / 0.12);
+  --color-info: #a78bfa;
+  --color-info-soft: rgb(167 139 250 / 0.14);
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+  --shadow-raised: 0 4px 12px -2px rgb(0 0 0 / 0.5), 0 16px 40px -20px rgb(0 0 0 / 0.7);
+  --shadow-brand: 0 8px 22px -8px rgb(74 125 255 / 0.4);
+  --overlay: rgb(2 6 16 / 0.72);
+  --skeleton-from: #172033;
+  --skeleton-via: #1f2b41;
+
+  color-scheme: dark;
+}
+
+/* Expose the tokens to Tailwind so `bg-surface`, `text-muted`,
+   `border-line`, `shadow-card` etc. exist as real utilities. */
+@theme inline {
+  --breakpoint-xs: 25rem;
+
+  --color-canvas: var(--color-canvas);
+  --color-surface: var(--color-surface);
+  --color-surface-2: var(--color-surface-2);
+  --color-surface-3: var(--color-surface-3);
+  --color-surface-inverse: var(--color-surface-inverse);
+
+  --color-content: var(--color-content);
+  --color-muted: var(--color-muted);
+  --color-subtle: var(--color-subtle);
+  --color-content-inverse: var(--color-content-inverse);
+
+  --color-line: var(--color-line);
+  --color-line-2: var(--color-line-2);
+
+  --color-brand: var(--color-brand);
+  --color-brand-hover: var(--color-brand-hover);
+  --color-brand-deep: var(--color-brand-deep);
+  --color-brand-soft: var(--color-brand-soft);
+  --color-brand-soft-2: var(--color-brand-soft-2);
+  --color-brand-text: var(--color-brand-text);
+  --color-on-brand: var(--color-on-brand);
+  --color-band: var(--color-band);
+  --color-band-2: var(--color-band-2);
+  --color-on-band: var(--color-on-band);
+
+  --color-success: var(--color-success);
+  --color-success-soft: var(--color-success-soft);
+  --color-warning: var(--color-warning);
+  --color-warning-soft: var(--color-warning-soft);
+  --color-danger: var(--color-danger);
+  --color-danger-soft: var(--color-danger-soft);
+  --color-info: var(--color-info);
+  --color-info-soft: var(--color-info-soft);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-raised: var(--shadow-raised);
+  --shadow-brand: var(--shadow-brand);
+
+  --font-sans: "Plus Jakarta Sans", "Inter", system-ui, -apple-system, sans-serif;
+}
+
+/* ===========================================================================
+   Base
+   ======================================================================== */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden !important;
+  overflow-x: hidden;
   margin: 0;
   padding: 0;
   -webkit-text-size-adjust: 100%;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Painted on <html> as well as <body> so the browser chrome (overscroll,
+   address bar blend) matches the theme instead of flashing white. */
+html {
+  background-color: var(--color-canvas);
+}
+
+@layer base {
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-content);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  img,
+  video,
+  iframe {
+    max-width: 100%;
+    height: auto;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    max-width: 100%;
+    font: inherit;
+  }
+
+  /* A visible, consistent focus ring everywhere — the previous build removed
+     outlines on inputs without replacing them, which broke keyboard use. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background-color: var(--color-brand);
+    color: var(--color-on-brand);
+  }
+
+  ::placeholder {
+    color: var(--color-subtle);
+  }
 }
 
 #root {
@@ -28,64 +249,26 @@ html, body {
   flex-direction: column;
 }
 
-@layer base {
-  body {
-    background-color: #f8fafc;
-    color: #0f172a;
-    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
-  }
-  
-  img, video, iframe {
-    max-width: 100%;
-    height: auto;
-  }
-
-  button, input, select, textarea {
-    max-width: 100%;
-  }
-}
-
-/* Custom scrollbar */
+/* ===========================================================================
+   Scrollbars
+   ======================================================================== */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
+  background: var(--color-line-2);
+  border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--color-subtle);
 }
-
-.glass-panel {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  max-width: 100%;
-}
-
-.glass-dark {
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  max-width: 100%;
-}
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-.animate-shimmer {
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-2) transparent;
 }
 
 .hide-scrollbar {
@@ -96,46 +279,89 @@ html, body {
   display: none;
 }
 
+/* ===========================================================================
+   Utilities
+   ======================================================================== */
+.glass-panel {
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border: 1px solid var(--color-line);
+}
+
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-
-@media (max-width: 480px) {
-  .hero-title {
-    font-size: 1.65rem !important;
-    line-height: 1.2 !important;
-  }
-
-  .mobile-p-small {
-    padding-left: 0.75rem !important;
-    padding-right: 0.75rem !important;
-  }
-
-  .mobile-text-shrink {
-    font-size: 0.75rem !important;
-  }
-
-  .mobile-stack {
-    flex-direction: column !important;
-    align-items: stretch !important;
-  }
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
+.text-balance {
+  text-wrap: balance;
+}
+
+/* ===========================================================================
+   Animation
+   ======================================================================== */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-from) 25%,
+    var(--skeleton-via) 50%,
+    var(--skeleton-from) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
 
 @keyframes sheet-up {
-  from { transform: translateY(110%); }
-  to { transform: translateY(0); }
+  from {
+    transform: translateY(110%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 @keyframes modal-pop {
-  from { transform: scale(0.96) translateY(12px); opacity: 0; }
-  to { transform: scale(1) translateY(0); opacity: 1; }
+  from {
+    transform: scale(0.96) translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
 }
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .auth-overlay {
   animation: fade-in 0.2s ease-out;
+  background: var(--overlay);
 }
 .auth-sheet {
   animation: sheet-up 0.38s cubic-bezier(0.32, 0.72, 0, 1);
@@ -145,19 +371,39 @@ html, body {
     animation: modal-pop 0.28s ease-out;
   }
 }
-
-@keyframes listing-swap {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.listing-swap {
-  animation: listing-swap 0.45s ease-out;
+.rise-in {
+  animation: rise-in 0.4s ease-out both;
 }
 
-@keyframes red-green-blink {
-  0%, 100% { background-color: #fca5a5; color: #991b1b; }
-  50% { background-color: #86efac; color: #166534; }
+/* Respect the user's motion preference — animations here are decorative. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
-.animate-red-green-blink {
-  animation: red-green-blink 1.5s infinite;
+
+/* ===========================================================================
+   Mobile refinements
+   ======================================================================== */
+@media (max-width: 480px) {
+  .hero-title {
+    font-size: 1.7rem !important;
+    line-height: 1.2 !important;
+  }
+  .mobile-p-small {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+  .mobile-text-shrink {
+    font-size: 0.75rem !important;
+  }
+  .mobile-stack {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
 }

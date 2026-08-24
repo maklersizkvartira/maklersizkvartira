@@ -1,644 +1,1160 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  ShieldCheck, MapPin, Train, GraduationCap, Phone, MessageSquare, 
-  Heart, Share2, Flag, ArrowLeft, CheckCircle2, AlertTriangle, Eye, Sparkles, 
-  Video, Compass, Info, Check, ShieldAlert, Edit, Trash2
+/**
+ * Listing detail.
+ *
+ * The listing is fetched by id instead of being dug out of whatever happens to
+ * sit in the store: a deep link (`/?listing=…`) has no result list behind it,
+ * and the previous fuzzy id matching ("does one id end with the other") could
+ * open the wrong flat.
+ *
+ * The owner's phone number is not part of the public payload. When the server
+ * withholds it the UI still shows the contact block, but as a prompt to sign
+ * in — a revealed number is what `recordContact` counts, so it must only fire
+ * when a real number reaches the screen.
+ */
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  BedDouble,
+  Building2,
+  Check,
+  CheckCircle2,
+  Eye,
+  Flag,
+  GraduationCap,
+  Heart,
+  Image as ImageIcon,
+  Layers,
+  MapPin,
+  Maximize2,
+  MessageSquare,
+  Pencil,
+  Phone,
+  Send,
+  Share2,
+  ShieldCheck,
+  Train,
+  Trash2,
+  Users,
+  Video,
+  X,
 } from 'lucide-react';
-import { useAppStore } from '../../stores/useAppStore';
-import { ApiService } from '../../services/apiService';
-import { Listing } from '../../types';
-import { TrustScoreBadge } from '../common/TrustScoreBadge';
+
 import { VerificationBadge } from '../common/VerificationBadge';
-import { ListingCard } from '../common/ListingCard';
-import { EditListingModal } from '../owner/EditListingModal';
+import { useTranslation } from '../../i18n';
+import { ApiError } from '../../services/http';
+import { ListingsApi } from '../../services/listingsApi';
+import { useAppStore } from '../../stores/useAppStore';
+import type { Listing } from '../../types';
+import { Button } from '../ui/Field';
+
+type LoadStatus = 'loading' | 'ready' | 'notFound' | 'error';
+
+/** Same thresholds as ListingCard, so one listing reads the same everywhere. */
+function trustToneClass(score: number): string {
+  if (score >= 80) return 'bg-brand-soft text-brand-text';
+  if (score >= 60) return 'bg-info-soft text-info';
+  if (score >= 40) return 'bg-warning-soft text-warning';
+  return 'bg-danger-soft text-danger';
+}
+
+const AMENITY_FIELDS = [
+  ['furnished', 'listings.amenities.furnished'],
+  ['parking', 'listings.amenities.parking'],
+  ['internet', 'listings.amenities.internet'],
+  ['airConditioning', 'listings.amenities.airConditioning'],
+  ['washingMachine', 'listings.amenities.washingMachine'],
+  ['petsAllowed', 'listings.amenities.petsAllowed'],
+] as const;
+
+/** Server-side reason codes paired with their labels. */
+const REPORT_REASONS = [
+  ['SCAM', 'listings.report.reasons.scam'],
+  ['BROKER', 'listings.report.reasons.broker'],
+  ['FAKE_LISTING', 'listings.report.reasons.fakeListing'],
+  ['FAKE_PHOTOS', 'listings.report.reasons.fakePhotos'],
+  ['WRONG_PRICE', 'listings.report.reasons.wrongPrice'],
+  ['SPAM', 'listings.report.reasons.spam'],
+  ['HARASSMENT', 'listings.report.reasons.harassment'],
+  ['OTHER', 'listings.report.reasons.other'],
+] as const;
+
+const PROPERTY_TYPE_KEYS = {
+  APARTMENT: 'listings.propertyType.apartment',
+  HOUSE: 'listings.propertyType.house',
+  ROOM: 'listings.propertyType.room',
+  STUDIO: 'listings.propertyType.studio',
+  DORMITORY: 'listings.propertyType.dormitory',
+} as const;
+
+const SAFETY_TIPS = ['tip1', 'tip2', 'tip3', 'tip4'] as const;
+
+const cardClass = 'rounded-2xl border border-line bg-surface shadow-card';
+
+// ---------------------------------------------------------------------------
+const DetailSkeleton: React.FC<{ label: string }> = ({ label }) => (
+  <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6" aria-busy="true" aria-label={label}>
+    <div className="h-9 w-32 animate-shimmer rounded-xl" />
+    <div className="space-y-2.5">
+      <div className="h-6 w-2/3 animate-shimmer rounded-md" />
+      <div className="h-4 w-1/3 animate-shimmer rounded-md" />
+    </div>
+    <div className="aspect-[4/3] w-full animate-shimmer rounded-2xl sm:aspect-video" />
+    <div className="grid gap-8 lg:grid-cols-3">
+      <div className="space-y-4 lg:col-span-2">
+        <div className="h-24 w-full animate-shimmer rounded-2xl" />
+        <div className="h-40 w-full animate-shimmer rounded-2xl" />
+        <div className="h-32 w-full animate-shimmer rounded-2xl" />
+      </div>
+      <div className="h-72 w-full animate-shimmer rounded-2xl" />
+    </div>
+  </div>
+);
+
+// ---------------------------------------------------------------------------
+/**
+ * Builds a YouTube embed URL, or returns null.
+ *
+ * Substring-matching "youtube.com" anywhere in the string let an owner point
+ * the iframe at any site they liked (`https://evil.example/?x=youtube.com`),
+ * so the host is parsed and compared exactly.
+ */
+function youTubeEmbedUrl(raw: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:') return null;
+
+  const host = url.hostname.replace(/^www\./, '');
+  let videoId: string | null = null;
+
+  if (host === 'youtu.be') {
+    videoId = url.pathname.slice(1);
+  } else if (host === 'youtube.com' || host === 'm.youtube.com') {
+    videoId = url.pathname.startsWith('/embed/')
+      ? url.pathname.slice('/embed/'.length)
+      : url.searchParams.get('v');
+  } else {
+    return null;
+  }
+
+  return videoId && /^[A-Za-z0-9_-]{6,20}$/.test(videoId)
+    ? `https://www.youtube.com/embed/${videoId}`
+    : null;
+}
 
 export const ListingDetailPage: React.FC = () => {
-  const { 
-    selectedListingId, listings, favorites, toggleFavorite, 
-    openChatWithListing, setCurrentView, resolveReport,
-    currentUser, setShowAuth, setEditingListing, removeListing,
-    currency, incrementListingStat
-  } = useAppStore();
+  const { t, formatDate, formatNumber, formatPrice } = useTranslation();
 
-  const [activeMedia, setActiveMedia] = useState<'IMAGE' | 'VIDEO' | 'TOUR360'>('IMAGE');
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [showPhone, setShowPhone] = useState(false);
-  const [showReportModal, setShowReportModal] = useState(false);
-  const [reportReason, setReportReason] = useState<string>('SCAM');
+  const selectedListingId = useAppStore((state) => state.selectedListingId);
+  const currentUser = useAppStore((state) => state.currentUser);
+  const currency = useAppStore((state) => state.currency);
+  const fxRate = useAppStore((state) => state.fxRate);
+  const favoriteIds = useAppStore((state) => state.favoriteIds);
+  const toggleFavorite = useAppStore((state) => state.toggleFavorite);
+  const setCurrentView = useAppStore((state) => state.setCurrentView);
+  const setShowAuth = useAppStore((state) => state.setShowAuth);
+  const removeListing = useAppStore((state) => state.removeListing);
+  const recordView = useAppStore((state) => state.recordView);
+  const recordContact = useAppStore((state) => state.recordContact);
+  const pushToast = useAppStore((state) => state.pushToast);
+
+  const [listing, setListing] = useState<Listing | null>(null);
+  const [status, setStatus] = useState<LoadStatus>('loading');
+  const [reloadToken, setReloadToken] = useState(0);
+
+  const [activeMedia, setActiveMedia] = useState<'IMAGE' | 'VIDEO'>('IMAGE');
+  const [imageIndex, setImageIndex] = useState(0);
+  const [phoneVisible, setPhoneVisible] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState<string>(REPORT_REASONS[0][0]);
   const [reportText, setReportText] = useState('');
-  const [reportSubmitted, setReportSubmitted] = useState(false);
-  const [shareSuccessMsg, setShareSuccessMsg] = useState('');
+  const [reportSending, setReportSending] = useState(false);
+  const [reportSent, setReportSent] = useState(false);
 
-  const [directListing, setDirectListing] = useState<Listing | null>(null);
-  const [isLoadingDirect, setIsLoadingDirect] = useState(false);
+  const viewedIdRef = useRef<string | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // -- Load ----------------------------------------------------------------
   useEffect(() => {
-    if (!selectedListingId) return;
-    const foundInStore = listings.find(
-      (l) =>
-        l.id === selectedListingId ||
-        l.id === `listing-${selectedListingId}` ||
-        selectedListingId.endsWith(l.id) ||
-        l.id.endsWith(selectedListingId)
-    );
-    if (foundInStore) {
-      setDirectListing(foundInStore);
+    if (!selectedListingId) {
+      setListing(null);
+      setStatus('notFound');
       return;
     }
 
-    let isMounted = true;
-    setIsLoadingDirect(true);
-    ApiService.getListingById(selectedListingId)
-      .then((item) => {
-        if (isMounted && item) {
-          setDirectListing(item);
-        }
+    let cancelled = false;
+    setStatus('loading');
+    setPhoneVisible(false);
+    setImageIndex(0);
+    setActiveMedia('IMAGE');
+
+    ListingsApi.byId(selectedListingId)
+      .then((data) => {
+        if (cancelled) return;
+        setListing(data);
+        setStatus('ready');
       })
-      .catch(() => {})
-      .finally(() => {
-        if (isMounted) setIsLoadingDirect(false);
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setListing(null);
+        setStatus(error instanceof ApiError && error.status === 404 ? 'notFound' : 'error');
       });
 
     return () => {
-      isMounted = false;
+      cancelled = true;
     };
-  }, [selectedListingId, listings]);
+  }, [selectedListingId, reloadToken]);
 
-  const listing = listings.find((l) =>
-    selectedListingId && (
-      l.id === selectedListingId ||
-      l.id === `listing-${selectedListingId}` ||
-      selectedListingId.endsWith(l.id) ||
-      l.id.endsWith(selectedListingId)
-    )
-  ) || directListing || (selectedListingId ? undefined : listings[0]);
-
+  // One view per listing: the ref survives StrictMode's double-invoked effects.
   useEffect(() => {
-    if (listing?.id) {
-      incrementListingStat(listing.id, 'views');
-    }
-  }, [listing?.id, incrementListingStat]);
+    if (status !== 'ready' || !listing) return;
+    if (viewedIdRef.current === listing.id) return;
+    viewedIdRef.current = listing.id;
+    recordView(listing.id);
+  }, [status, listing, recordView]);
 
+  useEffect(
+    () => () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    },
+    [],
+  );
 
-  if (!listing) {
-    if (isLoadingDirect || (selectedListingId && listings.length === 0)) {
-      return (
-        <div className="max-w-md mx-auto px-4 py-24 text-center space-y-4">
-          <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <h2 className="text-base font-extrabold text-slate-800">E'lon yuklanmoqda...</h2>
-          <p className="text-xs text-slate-500 font-medium">Biroz kuting, e'lon ma'lumotlari yuklanmoqda.</p>
-        </div>
-      );
+  // Escape closes the report dialog, as a dialog is expected to.
+  useEffect(() => {
+    if (!reportOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setReportOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [reportOpen]);
+
+  // -- Derived -------------------------------------------------------------
+  const images = useMemo(
+    () => Array.from(new Set((listing?.images ?? []).filter(Boolean))),
+    [listing],
+  );
+
+  const displayAddress = useMemo(() => {
+    if (!listing) return '';
+    const address = (listing.address ?? '').trim();
+    const district = (listing.district ?? '').trim();
+    const region = (listing.region ?? '').trim();
+    const parts: string[] = [];
+
+    if (address) parts.push(address);
+    // Skip a part the free-text address already names, so the line does not
+    // read "Chilonzor 12 , Chilonzor tumani".
+    if (district && !address.toLowerCase().includes(district.toLowerCase())) {
+      parts.push(t('listings.detail.districtNamed', { name: district }));
     }
+    if (
+      region &&
+      !address.toLowerCase().includes(region.toLowerCase()) &&
+      !district.toLowerCase().includes(region.toLowerCase())
+    ) {
+      parts.push(region);
+    }
+    return parts.join(', ');
+  }, [listing, t]);
+
+  const ownerPhone = (listing?.owner?.phone ?? '').trim();
+  const isOwnListing = Boolean(currentUser && listing && currentUser.id === listing.owner?.id);
+  const isFavorite = listing ? favoriteIds.has(listing.id) : false;
+
+  // Everything is stored in UZS; a USD listing is normalised once, here.
+  const priceUzs = listing
+    ? listing.currency === 'USD'
+      ? listing.price * fxRate
+      : listing.price
+    : 0;
+  const depositUzs = listing?.depositPrice
+    ? listing.currency === 'USD'
+      ? listing.depositPrice * fxRate
+      : listing.depositPrice
+    : 0;
+  const priceLabel =
+    currency === 'USD' ? formatPrice(priceUzs / fxRate, 'USD') : formatPrice(priceUzs);
+  const depositLabel =
+    currency === 'USD' ? formatPrice(depositUzs / fxRate, 'USD') : formatPrice(depositUzs);
+
+  // -- Actions -------------------------------------------------------------
+  const handleShare = useCallback(async () => {
+    if (!listing) return;
+    const url = `${window.location.origin}/?listing=${encodeURIComponent(listing.id)}`;
+    const text = t('listings.card.shareText', { title: listing.title, price: priceLabel });
+
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: listing.title, text, url });
+        return;
+      } catch (error: unknown) {
+        // A dismissed share sheet is a choice, not a failure.
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      pushToast('layout.toast.copiedLink', 'success');
+    } catch {
+      pushToast('common.error.generic', 'error');
+    }
+  }, [listing, priceLabel, pushToast, t]);
+
+  const handleRevealPhone = useCallback(() => {
+    if (!listing) return;
+    // The number is missing from the payload for viewers the server does not
+    // trust yet; signing in is what usually unlocks it.
+    if (!currentUser) {
+      setShowAuth(true, 'LOGIN');
+      return;
+    }
+    if (!ownerPhone) return;
+    setPhoneVisible(true);
+    recordContact(listing.id);
+  }, [currentUser, listing, ownerPhone, recordContact, setShowAuth]);
+
+  const handleDelete = useCallback(async () => {
+    if (!listing) return;
+    setDeleting(true);
+    try {
+      await removeListing(listing.id);
+      setCurrentView('MY_LISTINGS');
+    } finally {
+      setDeleting(false);
+      setConfirmingDelete(false);
+    }
+  }, [listing, removeListing, setCurrentView]);
+
+  const handleReportSubmit = useCallback(
+    async (event: React.FormEvent) => {
+      event.preventDefault();
+      if (!listing || reportSending) return;
+      setReportSending(true);
+      try {
+        await ListingsApi.report(listing.id, reportReason, reportText.trim());
+        setReportSent(true);
+        setReportText('');
+        closeTimerRef.current = setTimeout(() => {
+          setReportOpen(false);
+          setReportSent(false);
+        }, 2200);
+      } catch (error: unknown) {
+        pushToast(
+          error instanceof ApiError && error.isNetwork
+            ? 'common.error.network'
+            : 'common.error.generic',
+          'error',
+        );
+      } finally {
+        setReportSending(false);
+      }
+    },
+    [listing, pushToast, reportReason, reportSending, reportText],
+  );
+
+  // -- Non-content states --------------------------------------------------
+  if (status === 'loading') {
+    return <DetailSkeleton label={t('common.a11y.loading')} />;
+  }
+
+  if (status !== 'ready' || !listing) {
+    const isMissing = status === 'notFound';
     return (
-      <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
-        <h2 className="text-xl font-black text-slate-900">E'lon topilmadi</h2>
-        <p className="text-xs text-slate-500 font-medium">Ushbu e'lon mavjud emas yoki o'chirilgan bo'lishi mumkin.</p>
-        <button
-          onClick={() => setCurrentView('HOME')}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition shadow-md"
-        >
-          Bosh sahifaga qaytish
-        </button>
+      <div className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col items-center justify-center gap-4 px-4 py-16 text-center">
+        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-2 text-subtle">
+          {isMissing ? (
+            <MapPin className="h-7 w-7" aria-hidden="true" />
+          ) : (
+            <AlertTriangle className="h-7 w-7" aria-hidden="true" />
+          )}
+        </span>
+        <h1 className="text-xl font-black text-content">
+          {isMissing ? t('listings.detail.notFoundTitle') : t('common.state.error')}
+        </h1>
+        <p className="text-sm text-muted">
+          {isMissing ? t('listings.detail.notFoundBody') : t('common.error.generic')}
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {!isMissing && (
+            <Button variant="secondary" onClick={() => setReloadToken((token) => token + 1)}>
+              {t('common.error.tryAgain')}
+            </Button>
+          )}
+          <Button onClick={() => setCurrentView('LISTINGS')}>
+            {t('listings.detail.backToList')}
+          </Button>
+        </div>
       </div>
     );
   }
 
-  const isFav = favorites.includes(listing.id);
-  const displayImages = listing ? Array.from(new Set(listing.images || [])) : [];
-  const activeImg = displayImages[activeImageIndex] || displayImages[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1200';
-
-  const USD_RATE = 12800;
-  const priceInUsd = listing.price > 10000 ? Math.round(listing.price / USD_RATE) : listing.price;
-  const priceInUzs = listing.price > 10000 ? listing.price : listing.price * USD_RATE;
-
-  const formatPrice = (amount: number) => new Intl.NumberFormat('uz-UZ').format(amount);
-
-  const handleShare = async () => {
-    if (!listing) return;
-    const shareUrl = `${window.location.origin}/?listing=${listing.id}`;
-    const shareTitle = `${listing.title} — Maklersiz.uz`;
-    const shareText = `🏠 ${listing.title} — ${formatPrice(listing.price)} so'm (${listing.district} tumani). Maklersiz, 0% komissiya!`;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: shareTitle,
-          text: shareText,
-          url: shareUrl,
-        });
-        return;
-      } catch (e) {}
-    }
-
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setShareSuccessMsg("🔗 E'lon havolasi nusxalandi! Endi Telegram yoki istalgan tarmoqqa yuborishingiz mumkin.");
-      setTimeout(() => setShareSuccessMsg(''), 4000);
-    } catch {
-      alert(`E'lon havolasi: ${shareUrl}`);
-    }
-  };
-
-  const getDisplayAddress = (l: typeof listing) => {
-    if (!l) return '';
-    const parts: string[] = [];
-    const addr = (l.address || '').trim();
-    const dist = (l.district || '').trim();
-    const reg = (l.region || '').trim();
-
-    if (addr) parts.push(addr);
-
-    if (dist && !addr.toLowerCase().includes(dist.toLowerCase())) {
-      parts.push(`${dist} tumani`);
-    }
-
-    if (reg && !addr.toLowerCase().includes(reg.toLowerCase()) && !dist.toLowerCase().includes(reg.toLowerCase())) {
-      parts.push(reg);
-    }
-
-    return parts.join(', ');
-  };
-
-  const handleReportSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setReportSubmitted(true);
-    setTimeout(() => {
-      setShowReportModal(false);
-      setReportSubmitted(false);
-    }, 2000);
-  };
+  const propertyTypeKey = PROPERTY_TYPE_KEYS[listing.propertyType];
+  const joinedDate = listing.owner?.joinedDate;
+  const joinedLabel =
+    joinedDate && !Number.isNaN(new Date(joinedDate).getTime()) ? formatDate(joinedDate) : null;
+  const activeImage = images[imageIndex] ?? images[0];
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-5 sm:py-6 space-y-6 sm:space-y-8 min-h-[85vh] w-full overflow-x-hidden">
-      {/* Toast Share Alert */}
-      {shareSuccessMsg && (
-        <div className="bg-emerald-600 text-white px-4 py-3 rounded-2xl shadow-xl font-bold text-xs flex items-center justify-between gap-2 animate-in fade-in-50">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-200 shrink-0" />
-            <span>{shareSuccessMsg}</span>
-          </div>
-          <button onClick={() => setShareSuccessMsg('')} className="text-white hover:text-emerald-200 text-xs font-black">✕</button>
-        </div>
-      )}
-
-      {/* Back Button & Top Actions */}
-      <div className="flex items-center justify-between gap-2 min-w-0">
+    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-5 sm:px-6 sm:py-6">
+      {/* ------------------------------------------------------------------ */}
+      {/* Toolbar                                                             */}
+      {/* ------------------------------------------------------------------ */}
+      <div className="flex items-center justify-between gap-2">
         <button
-          onClick={() => setCurrentView('SEARCH')}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-emerald-700 bg-white border border-slate-200 px-2.5 sm:px-3 py-1.5 rounded-xl shadow-sm transition-colors shrink-0"
+          type="button"
+          onClick={() => setCurrentView('LISTINGS')}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-2 text-xs font-bold text-muted shadow-card transition-colors hover:text-content"
         >
-          <ArrowLeft className="w-4 h-4" /> <span className="hidden xs:inline">Orqaga</span>
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          <span className="hidden xs:inline">{t('common.action.back')}</span>
         </button>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
           <button
-            onClick={() => toggleFavorite(listing.id)}
-            className={`flex items-center gap-1.5 text-xs font-bold px-2.5 sm:px-3 py-1.5 rounded-xl border transition-all ${
-              isFav ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+            type="button"
+            onClick={() => void toggleFavorite(listing.id)}
+            aria-pressed={isFavorite}
+            aria-label={
+              isFavorite ? t('common.action.unfavorite') : t('common.action.favorite')
+            }
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
+              isFavorite
+                ? 'border-danger/30 bg-danger-soft text-danger'
+                : 'border-line bg-surface text-muted hover:text-content'
             }`}
           >
-            <Heart className={`w-4 h-4 ${isFav ? 'fill-current' : ''}`} />
-            <span className="hidden sm:inline">{isFav ? 'Saralangan' : 'Saqlash'}</span>
+            <Heart
+              className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`}
+              aria-hidden="true"
+            />
+            <span className="hidden sm:inline">
+              {isFavorite ? t('listings.card.savedListing') : t('listings.card.saveListing')}
+            </span>
           </button>
 
           <button
-            onClick={handleShare}
-            className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 sm:px-3.5 py-1.5 rounded-xl hover:bg-emerald-100 transition-all shadow-xs active:scale-95"
+            type="button"
+            onClick={() => void handleShare()}
+            aria-label={t('listings.card.shareListing')}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-brand-soft px-3 py-2 text-xs font-bold text-brand-text transition-colors hover:bg-brand-soft-2"
           >
-            <Share2 className="w-4 h-4 text-emerald-600" /> <span className="inline">Ulashish</span>
+            <Share2 className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden sm:inline">{t('common.action.share')}</span>
           </button>
 
           <button
-            onClick={() => setShowReportModal(true)}
-            className="flex items-center gap-1 text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2.5 sm:px-3 py-1.5 rounded-xl hover:bg-rose-100 transition-colors"
+            type="button"
+            onClick={() => setReportOpen(true)}
+            aria-label={t('common.action.report')}
+            aria-haspopup="dialog"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-danger/30 bg-danger-soft px-3 py-2 text-xs font-bold text-danger transition-opacity hover:opacity-80"
           >
-            <Flag className="w-4 h-4" /> <span className="hidden sm:inline">Shikoyat</span>
+            <Flag className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden sm:inline">{t('common.action.report')}</span>
           </button>
         </div>
       </div>
 
-      {/* Main Title & Trust Status */}
-      <div className="space-y-2">
+      {/* ------------------------------------------------------------------ */}
+      {/* Heading                                                             */}
+      {/* ------------------------------------------------------------------ */}
+      <div className="space-y-2.5">
         <div className="flex flex-wrap items-center gap-2">
-          <TrustScoreBadge score={listing.trustScore} size="md" />
-          <VerificationBadge level={listing.owner.verificationLevel} size="md" />
-          {listing.isRoommate && (
-            <span className="bg-amber-500 text-slate-900 text-xs font-black px-3 py-1 rounded-md flex items-center gap-1 shadow-sm">
-              🤝 Sherikchilikka ({listing.roommateSpotsAvailable || 1} ta sherik o'rni bor)
+          <span
+            className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-black ${trustToneClass(
+              listing.trustScore ?? 0,
+            )}`}
+          >
+            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('common.badge.trustScore', { score: listing.trustScore ?? 0 })}
+          </span>
+
+          {listing.owner?.verificationLevel ? (
+            <VerificationBadge level={listing.owner.verificationLevel} size="sm" />
+          ) : null}
+
+          {listing.isRoommate ? (
+            <span className="inline-flex items-center gap-1 rounded-lg bg-warning-soft px-2.5 py-1 text-[11px] font-black text-warning">
+              <Users className="h-3.5 w-3.5" aria-hidden="true" />
+              {t('common.rentalType.roommate')}
+              {' · '}
+              {t('listings.card.roommateSpots', {
+                count: listing.roommateSpotsAvailable ?? 1,
+              })}
             </span>
-          )}
-          <span className="bg-slate-100 text-slate-700 text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1">
-            <Eye className="w-3.5 h-3.5" /> {listing.viewsCount} ko'rishlar
+          ) : null}
+
+          <span className="inline-flex items-center gap-1 rounded-lg bg-surface-2 px-2.5 py-1 text-[11px] font-bold text-muted">
+            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('listings.card.viewsCount', { count: formatNumber(listing.viewsCount ?? 0) })}
           </span>
         </div>
 
-        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 leading-tight">
+        <h1 className="text-2xl font-black leading-tight text-content sm:text-3xl">
           {listing.title}
         </h1>
 
-        {currentUser?.id === listing.owner.id && (
-          <div className="bg-slate-900 border border-slate-800 p-3 rounded-2xl flex items-center justify-between gap-3 shadow-lg my-2">
-            <div className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-              <span>🏠 Siz ushbu e'lon egasisiz</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setEditingListing(listing)}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1 shadow-md active:scale-95"
-              >
-                <Edit className="w-3.5 h-3.5" />
-                <span>Tahrirlash</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm("Haqiqatan ham ushbu e'lonni o'chirasizmi?")) {
-                    removeListing(listing.id);
-                    setCurrentView('MY_LISTINGS');
-                  }
-                }}
-                className="bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30 font-extrabold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1 active:scale-95"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>O'chirish</span>
-              </button>
-            </div>
+        {isOwnListing && (
+          <div className={`${cardClass} flex flex-wrap items-center justify-between gap-3 p-3.5`}>
+            <p className="text-xs font-bold text-muted">{t('listings.detail.ownerToolbar')}</p>
+
+            {confirmingDelete ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-bold text-danger">
+                  {t('listings.detail.confirmDelete')}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void handleDelete()}
+                  disabled={deleting}
+                  aria-busy={deleting || undefined}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-danger px-3 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {deleting && (
+                    <span
+                      className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
+                      aria-hidden="true"
+                    />
+                  )}
+                  {t('common.action.confirm')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(false)}
+                  className="rounded-xl px-3 py-2 text-xs font-bold text-muted transition-colors hover:bg-surface-2 hover:text-content"
+                >
+                  {t('common.action.cancel')}
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                {/* Editing lives on the owner's listings screen, which owns the form. */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('MY_LISTINGS')}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-3.5 py-2 text-xs font-bold text-on-brand shadow-brand transition-all active:scale-[0.98]"
+                >
+                  <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                  {t('common.action.edit')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-danger/30 bg-danger-soft px-3.5 py-2 text-xs font-bold text-danger transition-opacity hover:opacity-80"
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  {t('common.action.delete')}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
-          <div className="flex items-center gap-1">
-            <MapPin className="w-4 h-4 text-emerald-600" />
-            <span className="font-semibold text-slate-800">{getDisplayAddress(listing)}</span>
-          </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted">
+          {displayAddress && (
+            <span className="inline-flex items-center gap-1 font-semibold text-content">
+              <MapPin className="h-4 w-4 text-brand" aria-hidden="true" />
+              {displayAddress}
+            </span>
+          )}
 
           {listing.metroStation && (
-            <div className="flex items-center gap-1 text-blue-700 font-medium">
-              <Train className="w-4 h-4" />
-              <span>{listing.metroStation} metrosi ({listing.metroDistanceMinutes} daqiqa piyoda)</span>
-            </div>
+            <span className="inline-flex items-center gap-1 font-semibold text-info">
+              <Train className="h-4 w-4" aria-hidden="true" />
+              {listing.metroDistanceMinutes
+                ? t('listings.card.metro', {
+                    station: listing.metroStation,
+                    minutes: listing.metroDistanceMinutes,
+                  })
+                : listing.metroStation}
+            </span>
           )}
 
           {listing.universityName && (
-            <div className="flex items-center gap-1 text-amber-700 font-medium">
-              <GraduationCap className="w-4 h-4" />
-              <span>{listing.universityName} ({listing.universityDistanceMinutes} min)</span>
-            </div>
+            <span className="inline-flex items-center gap-1 font-semibold text-warning">
+              <GraduationCap className="h-4 w-4" aria-hidden="true" />
+              {listing.universityDistanceMinutes
+                ? t('listings.card.university', {
+                    name: listing.universityName,
+                    minutes: listing.universityDistanceMinutes,
+                  })
+                : listing.universityName}
+            </span>
           )}
         </div>
       </div>
 
-      {/* Media Gallery Section */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Media                                                               */}
+      {/* ------------------------------------------------------------------ */}
       <div className="space-y-3">
-        {/* Media Switcher Tabs */}
-        <div className="flex items-center gap-2 border-b border-slate-200 pb-2 text-xs font-bold overflow-x-auto hide-scrollbar">
-          <button
-            onClick={() => setActiveMedia('IMAGE')}
-            className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all font-extrabold ${activeMedia === 'IMAGE' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+        {listing.videoUrl && (
+          <div
+            className="hide-scrollbar flex items-center gap-2 overflow-x-auto border-b border-line pb-2"
+            role="group"
+            aria-label={t('listings.detail.mediaTabsLabel')}
           >
-            Rasmlar ({displayImages.length})
-          </button>
-          
-          {listing.videoUrl && (
             <button
-              onClick={() => setActiveMedia('VIDEO')}
-              className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all font-black text-xs shadow-xs shrink-0 ${
-                activeMedia === 'VIDEO'
-                  ? 'bg-rose-600 text-white ring-2 ring-rose-500 shadow-md'
-                  : 'bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100'
+              type="button"
+              onClick={() => setActiveMedia('IMAGE')}
+              aria-pressed={activeMedia === 'IMAGE'}
+              className={`shrink-0 rounded-xl px-3.5 py-2 text-xs font-black transition-colors ${
+                activeMedia === 'IMAGE'
+                  ? 'bg-brand text-on-brand'
+                  : 'bg-surface-2 text-muted hover:text-content'
               }`}
             >
-              <Video className="w-4 h-4 fill-current shrink-0" />
-              <span>Video Sharh 🎥</span>
+              {t('listings.detail.photosTab', { count: images.length })}
             </button>
-          )}
-        </div>
+            <button
+              type="button"
+              onClick={() => setActiveMedia('VIDEO')}
+              aria-pressed={activeMedia === 'VIDEO'}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-black transition-colors ${
+                activeMedia === 'VIDEO'
+                  ? 'bg-brand text-on-brand'
+                  : 'bg-surface-2 text-muted hover:text-content'
+              }`}
+            >
+              <Video className="h-4 w-4" aria-hidden="true" />
+              {t('listings.detail.videoTab')}
+            </button>
+          </div>
+        )}
 
-        {/* Media Display Viewer */}
-        <div className="aspect-4/3 sm:aspect-video md:aspect-21/9 w-full bg-slate-900 rounded-2xl sm:rounded-3xl overflow-hidden relative shadow-lg">
-          {activeMedia === 'IMAGE' && (
-            <img
-              src={activeImg}
-              alt={listing.title}
-              className="w-full h-full object-cover"
-            />
-          )}
-
-          {activeMedia === 'VIDEO' && listing.videoUrl && (
-            <div className="w-full h-full bg-slate-950 flex items-center justify-center relative">
-              {listing.videoUrl.includes('youtube.com') || listing.videoUrl.includes('youtu.be') ? (
-                <iframe
-                  src={
-                    listing.videoUrl.includes('embed')
-                      ? listing.videoUrl
-                      : listing.videoUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')
-                  }
-                  title="Video sharh"
-                  className="w-full h-full border-0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              ) : (
-                <video
-                  controls
-                  autoPlay
-                  src={listing.videoUrl}
-                  className="w-full h-full object-contain bg-black"
-                >
-                  Sizning brauzeringiz videoni qo'llab-quvvatlamaydi.
-                </video>
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-surface-2 shadow-card sm:aspect-video">
+          {activeMedia === 'VIDEO' && listing.videoUrl ? (
+            youTubeEmbedUrl(listing.videoUrl) ? (
+              <iframe
+                src={youTubeEmbedUrl(listing.videoUrl) as string}
+                title={t('listings.detail.videoTitle')}
+                className="h-full w-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : (
+              <video controls src={listing.videoUrl} className="h-full w-full object-contain">
+                {t('listings.detail.videoUnsupported')}
+              </video>
+            )
+          ) : activeImage ? (
+            <>
+              <img
+                src={activeImage}
+                alt={listing.title}
+                className="h-full w-full object-cover"
+                decoding="async"
+              />
+              {images.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setImageIndex((index) => (index - 1 + images.length) % images.length)
+                    }
+                    aria-label={t('common.a11y.prevImage')}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-surface/90 p-2 text-content shadow-card backdrop-blur transition-transform hover:scale-110"
+                  >
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImageIndex((index) => (index + 1) % images.length)}
+                    aria-label={t('common.a11y.nextImage')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-surface/90 p-2 text-content shadow-card backdrop-blur transition-transform hover:scale-110"
+                  >
+                    <ArrowLeft className="h-4 w-4 rotate-180" aria-hidden="true" />
+                  </button>
+                  <span
+                    className="absolute bottom-2 right-2 rounded-md bg-surface/90 px-2 py-1 text-[11px] font-bold text-content backdrop-blur"
+                    aria-live="polite"
+                  >
+                    {t('listings.detail.imageOf', {
+                      current: imageIndex + 1,
+                      total: images.length,
+                    })}
+                  </span>
+                </>
               )}
+            </>
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-subtle">
+              <ImageIcon className="h-10 w-10" aria-hidden="true" />
             </div>
           )}
         </div>
 
-        {/* Thumbnail Selector */}
-        {activeMedia === 'IMAGE' && displayImages.length > 1 && (
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {displayImages.map((img, idx) => (
+        {activeMedia === 'IMAGE' && images.length > 1 && (
+          <div className="hide-scrollbar flex gap-2 overflow-x-auto pb-1">
+            {images.map((image, index) => (
               <button
-                key={idx}
-                onClick={() => setActiveImageIndex(idx)}
-                className={`w-20 h-14 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${
-                  activeImageIndex === idx ? 'border-emerald-600 scale-95' : 'border-transparent opacity-70 hover:opacity-100'
+                key={image}
+                type="button"
+                onClick={() => setImageIndex(index)}
+                aria-label={t('listings.detail.showImage', { index: index + 1 })}
+                aria-current={imageIndex === index}
+                className={`h-14 w-20 shrink-0 overflow-hidden rounded-xl border-2 transition-all ${
+                  imageIndex === index
+                    ? 'border-brand'
+                    : 'border-transparent opacity-70 hover:opacity-100'
                 }`}
               >
-                <img src={img} alt="thumb" className="w-full h-full object-cover" />
+                <img src={image} alt="" className="h-full w-full object-cover" loading="lazy" />
               </button>
             ))}
           </div>
         )}
       </div>
 
-      {/* Grid Details & Sidebar */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Details, Description, Features, Trust Report */}
-        <div className="lg:col-span-2 space-y-8">
-          {/* Key Specs Bar */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-card grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-            <div className="space-y-0.5">
-              <span className="text-xs text-slate-500 font-medium">Xonalar</span>
-              <div className="text-base font-extrabold text-slate-900">{listing.rooms} xona</div>
+      {/* ------------------------------------------------------------------ */}
+      {/* Body                                                                */}
+      {/* ------------------------------------------------------------------ */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
+        <div className="space-y-6 lg:col-span-2">
+          {/* Key specs */}
+          <dl className={`${cardClass} grid grid-cols-2 gap-4 p-5 text-center sm:grid-cols-4`}>
+            <div className="space-y-1">
+              <dt className="flex items-center justify-center gap-1 text-xs font-medium text-subtle">
+                <BedDouble className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('common.filters.rooms')}
+              </dt>
+              <dd className="text-base font-extrabold text-content">
+                {t('common.filters.roomsValue', { count: listing.rooms })}
+              </dd>
             </div>
-            <div className="space-y-0.5 border-l border-slate-100">
-              <span className="text-xs text-slate-500 font-medium">Maydon</span>
-              <div className="text-base font-extrabold text-slate-900">{listing.area} m²</div>
+            <div className="space-y-1 border-line sm:border-l">
+              <dt className="flex items-center justify-center gap-1 text-xs font-medium text-subtle">
+                <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('common.filters.area')}
+              </dt>
+              <dd className="text-base font-extrabold text-content">
+                {formatNumber(listing.area)} {t('common.units.sqm')}
+              </dd>
             </div>
-            <div className="space-y-0.5 border-l border-slate-100">
-              <span className="text-xs text-slate-500 font-medium">Qavat</span>
-              <div className="text-base font-extrabold text-slate-900">{listing.floor}/{listing.totalFloors}</div>
+            <div className="space-y-1 border-line sm:border-l">
+              <dt className="flex items-center justify-center gap-1 text-xs font-medium text-subtle">
+                <Layers className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('listings.detail.floorLabel')}
+              </dt>
+              <dd className="text-base font-extrabold text-content">
+                {t('common.units.floor', { floor: listing.floor, total: listing.totalFloors })}
+              </dd>
             </div>
-            <div className="space-y-0.5 border-l border-slate-100">
-              <span className="text-xs text-slate-500 font-medium">Mulk Turi</span>
-              <div className="text-base font-extrabold text-slate-900">{listing.propertyType}</div>
+            <div className="space-y-1 border-line sm:border-l">
+              <dt className="flex items-center justify-center gap-1 text-xs font-medium text-subtle">
+                <Building2 className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('common.filters.propertyType')}
+              </dt>
+              <dd className="text-base font-extrabold text-content">
+                {propertyTypeKey ? t(propertyTypeKey) : '—'}
+              </dd>
             </div>
-          </div>
+          </dl>
 
           {/* Description */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-card space-y-3">
-            <h3 className="font-extrabold text-lg text-slate-900">E'lon Haida Ma'lumot</h3>
-            <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-line">
+          <section className={`${cardClass} space-y-3 p-5 sm:p-6`}>
+            <h2 className="text-lg font-extrabold text-content">
+              {t('listings.detail.aboutTitle')}
+            </h2>
+            <p className="whitespace-pre-line text-sm leading-relaxed text-muted">
               {listing.description}
             </p>
-          </div>
+          </section>
 
-          {/* Aniq Manzil Card */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-card space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="font-extrabold text-lg text-slate-900 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-emerald-600" />
-                <span>Kvartiraning Aniq Manzili</span>
-              </h3>
+          {/* Location */}
+          <section className={`${cardClass} space-y-3 p-5 sm:p-6`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 text-lg font-extrabold text-content">
+                <MapPin className="h-5 w-5 text-brand" aria-hidden="true" />
+                {t('listings.detail.locationTitle')}
+              </h2>
               <button
-                onClick={() => setCurrentView('MAP')}
-                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs px-3.5 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1 transition-colors"
+                type="button"
+                onClick={() => setCurrentView('MAP', listing.id)}
+                className="rounded-xl border border-line bg-brand-soft px-3.5 py-1.5 text-xs font-bold text-brand-text transition-colors hover:bg-brand-soft-2"
               >
-                <span>Xaritada ko'rish 🗺</span>
+                {t('listings.detail.viewOnMap')}
               </button>
             </div>
-            
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
-              <div className="text-sm font-bold text-slate-900">
-                📍 {listing.address || `${listing.district} tumani, ${listing.region}`}
-              </div>
-              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
-                <span>Shahar/Viloyat: <strong>{listing.region}</strong></span>
-                <span>Tuman: <strong>{listing.district}</strong></span>
+
+            <div className="space-y-2 rounded-xl border border-line bg-surface-2 p-4">
+              <p className="text-sm font-bold text-content">{displayAddress}</p>
+              <dl className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+                <div className="inline-flex items-center gap-1">
+                  <dt>{t('common.filters.region')}:</dt>
+                  <dd className="font-bold text-content">{listing.region}</dd>
+                </div>
+                <div className="inline-flex items-center gap-1">
+                  <dt>{t('common.filters.district')}:</dt>
+                  <dd className="font-bold text-content">{listing.district}</dd>
+                </div>
                 {listing.metroStation && (
-                  <span className="text-emerald-700 font-bold">🚇 Metro: {listing.metroStation} ({listing.metroDistanceMinutes || 5} min)</span>
+                  <div className="inline-flex items-center gap-1">
+                    <dt>{t('common.filters.metro')}:</dt>
+                    <dd className="font-bold text-brand-text">
+                      {listing.metroDistanceMinutes
+                        ? t('listings.card.metro', {
+                            station: listing.metroStation,
+                            minutes: listing.metroDistanceMinutes,
+                          })
+                        : listing.metroStation}
+                    </dd>
+                  </div>
                 )}
-              </div>
+              </dl>
             </div>
-          </div>
+          </section>
 
-          {/* Amenities & Features */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-card space-y-4">
-            <h3 className="font-extrabold text-lg text-slate-900">Qulayliklar va Sharoitlar</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs font-semibold text-slate-700">
-              <div className={`p-3 rounded-xl border flex items-center gap-2 ${listing.furnished ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-50 border-slate-200 opacity-50'}`}>
-                <Check className="w-4 h-4 text-emerald-600" /> Barcha Mebel Mavjud
-              </div>
-              <div className={`p-3 rounded-xl border flex items-center gap-2 ${listing.internet ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-50 border-slate-200 opacity-50'}`}>
-                <Check className="w-4 h-4 text-emerald-600" /> Yuqori Tezlikdagi Wi-Fi
-              </div>
-              <div className={`p-3 rounded-xl border flex items-center gap-2 ${listing.airConditioning ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-50 border-slate-200 opacity-50'}`}>
-                <Check className="w-4 h-4 text-emerald-600" /> Кондиционер (Konditsioner)
-              </div>
-              <div className={`p-3 rounded-xl border flex items-center gap-2 ${listing.washingMachine ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-50 border-slate-200 opacity-50'}`}>
-                <Check className="w-4 h-4 text-emerald-600" /> Kir yuvish mashinasi
-              </div>
-              <div className={`p-3 rounded-xl border flex items-center gap-2 ${listing.parking ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-50 border-slate-200 opacity-50'}`}>
-                <Check className="w-4 h-4 text-emerald-600" /> Avto-Parking
-              </div>
-              <div className={`p-3 rounded-xl border flex items-center gap-2 ${listing.petsAllowed ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-50 border-slate-200 opacity-50'}`}>
-                <Check className="w-4 h-4 text-emerald-600" /> Uy hayvonlari ruxsat etilgan
-              </div>
-            </div>
-          </div>
+          {/* Amenities */}
+          <section className={`${cardClass} space-y-4 p-5 sm:p-6`}>
+            <h2 className="text-lg font-extrabold text-content">
+              {t('listings.detail.amenitiesTitle')}
+            </h2>
+            <ul className="grid grid-cols-2 gap-3 text-xs font-semibold sm:grid-cols-3">
+              {AMENITY_FIELDS.map(([field, labelKey]) => {
+                const available = Boolean(listing[field]);
+                return (
+                  <li
+                    key={field}
+                    className={`flex items-center gap-2 rounded-xl border p-3 ${
+                      available
+                        ? 'border-brand/30 bg-brand-soft text-brand-text'
+                        : 'border-line bg-surface-2 text-subtle'
+                    }`}
+                  >
+                    {available ? (
+                      <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    ) : (
+                      <X className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    )}
+                    <span>{t(labelKey)}</span>
+                    <span className="sr-only">
+                      {available
+                        ? t('listings.detail.amenityAvailable')
+                        : t('listings.detail.amenityUnavailable')}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
 
-          {/* AI Risk & Trust Breakdown Box */}
-          <div className="bg-slate-900 text-white p-6 rounded-2xl border border-emerald-500/40 shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          {/* Moderation verdict */}
+          <section className={`${cardClass} space-y-4 p-5 sm:p-6`}>
+            <div className="flex items-center justify-between gap-3 border-b border-line pb-3">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-6 h-6 text-emerald-400" />
+                <ShieldCheck className="h-6 w-6 text-brand" aria-hidden="true" />
                 <div>
-                  <h3 className="font-bold text-base text-white">Shield AI Risk & Trust Tahlili</h3>
-                  <p className="text-[11px] text-emerald-400">Xavfsizlik skanerlash natijasi</p>
+                  <h2 className="text-base font-extrabold text-content">
+                    {t('listings.detail.aiTitle')}
+                  </h2>
+                  <p className="text-[11px] text-subtle">{t('listings.detail.aiSubtitle')}</p>
                 </div>
               </div>
-              <TrustScoreBadge score={listing.trustScore} size="md" />
+              <span
+                className={`inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-black ${trustToneClass(
+                  listing.trustScore ?? 0,
+                )}`}
+              >
+                {t('common.badge.trustScore', { score: listing.trustScore ?? 0 })}
+              </span>
             </div>
 
-            <div className="space-y-2 text-xs">
-              <span className="font-bold text-slate-300">AI Tekshiruv Natijalari:</span>
-              <ul className="space-y-1.5 text-slate-300">
-                {listing.aiRiskReasons.map((reason, idx) => (
-                  <li key={idx} className="flex items-start gap-2 bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                    <span>{reason}</span>
-                  </li>
-                ))}
-              </ul>
+            <div className="space-y-2">
+              <h3 className="text-xs font-bold text-muted">
+                {t('listings.detail.aiReasonsTitle')}
+              </h3>
+              {listing.aiRiskReasons?.length ? (
+                <ul className="space-y-1.5">
+                  {listing.aiRiskReasons.map((reason) => (
+                    <li
+                      key={reason}
+                      className="flex items-start gap-2 rounded-xl border border-line bg-surface-2 p-2.5 text-xs text-muted"
+                    >
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+                      <span>{reason}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-subtle">{t('listings.detail.aiNoReasons')}</p>
+              )}
             </div>
-          </div>
+          </section>
         </div>
 
-        {/* Right Column: Pricing & Owner Contact Box */}
-        <div className="space-y-6">
-          {/* Price & Direct Contact Card */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xl space-y-6 sticky top-24">
-            <div className="space-y-1">
-              <span className="text-xs text-slate-500 font-semibold">Oylik Ijara Narxi</span>
-              <div className="text-3xl font-black text-slate-900">
-                {currency === 'USD' ? (
-                  <span>${priceInUsd} <span className="text-sm font-normal text-slate-500">{listing.isRoommate ? '/ kishi boshiga' : '/ oy'}</span></span>
-                ) : (
-                  <span>{new Intl.NumberFormat('uz-UZ').format(priceInUzs)} <span className="text-sm font-normal text-slate-500">{listing.isRoommate ? 'so\'m / kishi boshiga' : 'so\'m/oy'}</span></span>
-                )}
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-600 pt-1">
-                <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
-                  0% Komissiya
+        {/* ---------------------------------------------------------------- */}
+        {/* Sidebar                                                           */}
+        {/* ---------------------------------------------------------------- */}
+        <div className="space-y-5">
+          <section className={`${cardClass} space-y-5 p-5 sm:p-6 lg:sticky lg:top-24`}>
+            <div className="space-y-1.5">
+              <h2 className="text-xs font-semibold text-subtle">
+                {t('listings.detail.priceTitle')}
+              </h2>
+              <p className="text-3xl font-black text-content">
+                {priceLabel}
+                <span className="ml-1 text-sm font-medium text-subtle">
+                  {listing.isRoommate
+                    ? t('common.units.perPerson')
+                    : t('common.units.perMonth')}
                 </span>
-                {listing.utilitiesIncluded ? (
-                  <span className="text-emerald-700 font-medium">Kommunal kiritilgan</span>
-                ) : (
-                  <span className="text-slate-500">Kommunal alohida</span>
-                )}
+              </p>
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                <span className="rounded-md bg-brand-soft px-2 py-0.5 font-black text-brand-text">
+                  {t('common.badge.noCommission')}
+                </span>
+                <span className={listing.utilitiesIncluded ? 'text-brand-text' : 'text-subtle'}>
+                  {listing.utilitiesIncluded
+                    ? t('listings.card.utilitiesIncluded')
+                    : t('listings.detail.utilitiesExcluded')}
+                </span>
+                <span className="text-muted">
+                  {depositUzs > 0
+                    ? t('listings.card.deposit', { amount: depositLabel })
+                    : t('listings.card.noDeposit')}
+                </span>
               </div>
             </div>
 
-            {/* Owner Profile Card */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+            {/* Owner */}
+            <div className="space-y-3 rounded-xl border border-line bg-surface-2 p-4">
+              <h3 className="sr-only">{t('listings.detail.ownerTitle')}</h3>
               <div className="flex items-center gap-3">
-                <img
-                  src={listing.owner?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300'}
-                  alt={listing.owner?.name || 'Uy Egasi'}
-                  className="w-12 h-12 rounded-full object-cover border-2 border-emerald-500"
-                />
-                <div>
-                  <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1">
-                    {listing.owner?.name || 'Uy Egasi'}
-                  </h4>
-                  <p className="text-[11px] text-slate-500">
-                    A'zo bo'lgan: {listing.owner?.joinedDate || '2024'} • {listing.owner?.successfulRentals || 0} muvaffaqiyatli ijara
+                {listing.owner?.avatar ? (
+                  <img
+                    src={listing.owner.avatar}
+                    alt=""
+                    className="h-12 w-12 shrink-0 rounded-full border-2 border-brand object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface-3 text-subtle">
+                    <Users className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-content">
+                    {listing.owner?.name || t('common.role.owner')}
+                  </p>
+                  {joinedLabel && (
+                    <p className="text-[11px] text-subtle">
+                      {t('listings.detail.memberSince', { date: joinedLabel })}
+                    </p>
+                  )}
+                  <p className="text-[11px] text-subtle">
+                    {t('listings.detail.ownerRentals', {
+                      count: listing.owner?.successfulRentals ?? 0,
+                    })}
                   </p>
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                <TrustScoreBadge score={listing.owner?.trustScore || 90} size="sm" />
-                <VerificationBadge level={listing.owner?.verificationLevel || 4} size="sm" />
-              </div>
-            </div>
-
-            {/* Direct Contact Buttons */}
-            <div className="space-y-3 pt-2">
-              <button
-                onClick={() => openChatWithListing(listing)}
-                className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3.5 px-4 rounded-xl shadow-md shadow-emerald-700/20 flex items-center justify-center gap-2 text-sm transition-all hover:scale-[1.02]"
-              >
-                <MessageSquare className="w-4 h-4" />
-                <span>Egasiga Xabar Yozish (Chat)</span>
-              </button>
-
-              {showPhone ? (
-                <div className="w-full bg-slate-900 text-emerald-400 font-mono text-center py-3 rounded-xl font-bold text-base border border-slate-700 animate-in fade-in-50">
-                  {listing.owner.phone}
-                </div>
-              ) : (
-                <button
-                  onClick={() => {
-                    if (!currentUser) {
-                      setShowAuth(true);
-                    } else {
-                      setShowPhone(true);
-                      incrementListingStat(listing.id, 'contacts');
-                    }
-                  }}
-                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-4 rounded-xl shadow-md flex items-center justify-center gap-2 text-sm transition-all hover:scale-[1.02]"
+              <div className="flex flex-wrap gap-1.5">
+                <span
+                  className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-black ${trustToneClass(
+                    listing.owner?.trustScore ?? 0,
+                  )}`}
                 >
-                  <Phone className="w-4 h-4 text-emerald-600" />
-                  <span>Telefon Raqamni Ko'rish</span>
-                </button>
+                  <ShieldCheck className="h-3 w-3" aria-hidden="true" />
+                  {t('common.badge.trustScore', { score: listing.owner?.trustScore ?? 0 })}
+                </span>
+                {listing.owner?.verificationLevel ? (
+                  <VerificationBadge level={listing.owner.verificationLevel} size="sm" />
+                ) : null}
+              </div>
+
+              {listing.preferredContactTime && (
+                <p className="text-[11px] text-subtle">
+                  {t('listings.detail.contactHours', { time: listing.preferredContactTime })}
+                </p>
               )}
             </div>
 
-            {/* Anti Scam Warning Notice */}
-            <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl space-y-1.5 text-xs text-amber-900">
-              <div className="font-bold flex items-center gap-1 text-amber-800">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>Firibgarlikdan Himoyalanish Qoidasi</span>
-              </div>
-              <p className="text-[11px] text-amber-800 leading-tight">
-                Hech qachon uyni va kadastr hujjatlarini shaxsan ko'rmasdan oldindan plastik kartaga pul o'tkazmang!
+            {/* Contact */}
+            <div className="space-y-3">
+              {/* In-app messaging has no endpoint yet: the control stays, visibly
+                  disabled, instead of vanishing between releases. */}
+              <Button
+                variant="secondary"
+                fullWidth
+                disabled
+                title={t('listings.detail.chatUnavailable')}
+              >
+                <MessageSquare className="h-4 w-4" aria-hidden="true" />
+                {t('listings.card.contactOwner')}
+              </Button>
+              <p className="text-[11px] leading-tight text-subtle">
+                {t('listings.detail.chatUnavailable')}
               </p>
+
+              {phoneVisible && ownerPhone ? (
+                <a
+                  href={`tel:${ownerPhone.replace(/[^\d+]/g, '')}`}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface-2 py-3.5 text-base font-black tracking-wide text-brand-text"
+                  aria-live="polite"
+                >
+                  <Phone className="h-4 w-4" aria-hidden="true" />
+                  {ownerPhone}
+                </a>
+              ) : (
+                <Button
+                  fullWidth
+                  onClick={handleRevealPhone}
+                  disabled={Boolean(currentUser) && !ownerPhone}
+                >
+                  <Phone className="h-4 w-4" aria-hidden="true" />
+                  {currentUser ? t('listings.card.showPhone') : t('listings.card.phoneHidden')}
+                </Button>
+              )}
+
+              {currentUser && !ownerPhone && (
+                <p className="text-[11px] leading-tight text-warning">
+                  {t('listings.detail.phoneUnavailable')}
+                </p>
+              )}
+
+              {listing.contactTelegram && (
+                <a
+                  href={`https://t.me/${listing.contactTelegram.replace(/^@/, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface-2 py-3 text-xs font-bold text-content transition-colors hover:bg-surface-3"
+                >
+                  <Send className="h-4 w-4" aria-hidden="true" />
+                  {t('listings.detail.telegramContact')}
+                </a>
+              )}
             </div>
-          </div>
+
+            {/* Safety */}
+            <div className="space-y-2 rounded-xl border border-warning/30 bg-warning-soft p-3.5">
+              <h3 className="flex items-center gap-1.5 text-xs font-bold text-warning">
+                <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                {t('listings.safety.title')}
+              </h3>
+              <ul className="space-y-1">
+                {SAFETY_TIPS.map((tip) => (
+                  <li key={tip} className="flex items-start gap-1.5 text-[11px] leading-tight text-muted">
+                    <span
+                      className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-warning"
+                      aria-hidden="true"
+                    />
+                    {t(`listings.safety.${tip}`)}
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={() => setReportOpen(true)}
+                aria-haspopup="dialog"
+                className="text-[11px] font-bold text-danger underline-offset-2 hover:underline"
+              >
+                {t('listings.safety.reportCta')}
+              </button>
+            </div>
+          </section>
         </div>
       </div>
 
-      {/* Complaint Modal */}
-      {showReportModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-in zoom-in-95">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-bold text-lg text-slate-900 flex items-center gap-1.5">
-                <Flag className="w-5 h-5 text-rose-600" /> E'lon Ustidan Shikoyat
-              </h3>
-              <button onClick={() => setShowReportModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+      {/* ------------------------------------------------------------------ */}
+      {/* Report dialog                                                       */}
+      {/* ------------------------------------------------------------------ */}
+      {reportOpen && (
+        <div
+          className="auth-overlay fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="report-dialog-title"
+        >
+          <div className="auth-sheet w-full max-w-md space-y-4 rounded-2xl border border-line bg-surface p-5 shadow-raised sm:p-6">
+            <div className="flex items-center justify-between gap-3 border-b border-line pb-3">
+              <h2
+                id="report-dialog-title"
+                className="flex items-center gap-1.5 text-lg font-extrabold text-content"
+              >
+                <Flag className="h-5 w-5 text-danger" aria-hidden="true" />
+                {t('listings.report.title')}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setReportOpen(false)}
+                aria-label={t('common.a11y.closeDialog')}
+                className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-surface-2 hover:text-content"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
             </div>
 
-            {reportSubmitted ? (
-              <div className="py-8 text-center space-y-2">
-                <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto animate-bounce" />
-                <h4 className="font-bold text-slate-900">Shikoyatingiz Qabul Qilindi</h4>
-                <p className="text-xs text-slate-500">Moderatorlar va AI 15 daqiqa ichida tekshirib chiqadi.</p>
+            {reportSent ? (
+              <div className="space-y-2 py-8 text-center" role="status">
+                <CheckCircle2 className="mx-auto h-12 w-12 text-brand" aria-hidden="true" />
+                <p className="text-sm font-bold text-content">{t('listings.report.success')}</p>
               </div>
             ) : (
-              <form onSubmit={handleReportSubmit} className="space-y-4 text-xs">
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700">Shikoyat Sababi</label>
-                  <select
-                    value={reportReason}
-                    onChange={(e) => setReportReason(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-medium"
+              <form onSubmit={(event) => void handleReportSubmit(event)} className="space-y-4">
+                <p className="text-xs text-muted">{t('listings.report.subtitle')}</p>
+
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="report-reason"
+                    className="block text-xs font-bold text-muted"
                   >
-                    <option value="SCAM">Firibgarlik (Oldindan pul so'radi)</option>
-                    <option value="BROKER">Makler (O'zini egi deb yolg'on gapirdi)</option>
-                    <option value="FAKE_LISTING">Soxta E'lon yoki rasm</option>
-                    <option value="WRONG_PRICE">Noto'g'ri Narx</option>
-                    <option value="SPAM">Spam / Keraksiz xabar</option>
+                    {t('listings.report.reasonLabel')}
+                  </label>
+                  <select
+                    id="report-reason"
+                    value={reportReason}
+                    onChange={(event) => setReportReason(event.target.value)}
+                    className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm font-medium text-content focus:border-brand focus:outline-none"
+                  >
+                    {REPORT_REASONS.map(([value, labelKey]) => (
+                      <option key={value} value={value}>
+                        {t(labelKey)}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700">Tafsilotlar</label>
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="report-details"
+                    className="block text-xs font-bold text-muted"
+                  >
+                    {t('listings.report.detailsLabel')}
+                  </label>
                   <textarea
+                    id="report-details"
                     rows={3}
-                    value={reportText}
-                    onChange={(e) => setReportText(e.target.value)}
-                    placeholder="Qo'shimcha ma'lumot qoldiring..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-medium"
                     required
+                    value={reportText}
+                    onChange={(event) => setReportText(event.target.value)}
+                    placeholder={t('listings.report.detailsPlaceholder')}
+                    className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm font-medium text-content placeholder:text-subtle focus:border-brand focus:outline-none"
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl shadow-md transition-colors"
-                >
-                  Shikoyatni Yuborish
-                </button>
+                <Button type="submit" variant="danger" fullWidth loading={reportSending}>
+                  {t('listings.report.submit')}
+                </Button>
               </form>
             )}
           </div>
         </div>
       )}
-      {/* Global Edit Listing Modal */}
-      <EditListingModal />
     </div>
   );
 };
+
+export default ListingDetailPage;

@@ -1,69 +1,91 @@
-import React from 'react';
-import { Home, Search, Heart, MessageSquare, PlusCircle, User, List, MapPin } from 'lucide-react';
-import { useAppStore, ViewState } from '../../stores/useAppStore';
+/** Mobile tab bar. */
 
-interface NavItem {
-  id: ViewState;
-  label: string;
+import React from 'react';
+import { Heart, Home, Map, Plus, Search, User as UserIcon } from 'lucide-react';
+
+import { useTranslation } from '../../i18n';
+import { useAppStore, type ViewState } from '../../stores/useAppStore';
+
+interface Tab {
+  view: ViewState;
+  labelKey: string;
   icon: React.ComponentType<{ className?: string }>;
-  badge?: number;
+  primary?: boolean;
 }
 
-export const BottomNav: React.FC = () => {
-  const { currentView, setCurrentView, favorites, currentUser, setShowAuth, isAiSystemActive } = useAppStore();
-  const isOwner = currentUser?.role === 'OWNER';
+const TABS: Tab[] = [
+  { view: 'HOME', labelKey: 'layout.nav.home', icon: Home },
+  { view: 'LISTINGS', labelKey: 'layout.nav.listings', icon: Search },
+  { view: 'CREATE_LISTING', labelKey: 'layout.nav.createListing', icon: Plus, primary: true },
+  { view: 'FAVORITES', labelKey: 'layout.nav.favorites', icon: Heart },
+  { view: 'PROFILE', labelKey: 'layout.nav.profile', icon: UserIcon },
+];
 
-  const navItems: NavItem[] = isOwner
-    ? [
-        { id: 'HOME', label: 'Bosh', icon: Home },
-        { id: 'MAP', label: 'Xarita', icon: MapPin },
-        { id: 'CREATE_LISTING', label: "E'lon", icon: PlusCircle },
-        { id: 'MY_LISTINGS', label: "E'lonlarim", icon: List },
-        { id: 'CHAT', label: 'Chat', icon: MessageSquare },
-        { id: 'PROFILE', label: 'Profil', icon: User },
-      ]
-    : [
-        { id: 'HOME', label: 'Bosh', icon: Home },
-        { id: 'SEARCH', label: 'Qidiruv', icon: Search },
-        { id: 'MAP', label: 'Xarita', icon: MapPin },
-        { id: 'FAVORITES', label: 'Sevimli', icon: Heart, badge: favorites.length },
-        { id: 'CHAT', label: 'Chat', icon: MessageSquare },
-        { id: currentUser ? 'PROFILE' : 'HOME', label: currentUser ? 'Profil' : 'Kirish', icon: User },
-      ];
+export const BottomNav: React.FC = () => {
+  const { t } = useTranslation();
+  const currentView = useAppStore((state) => state.currentView);
+  const setCurrentView = useAppStore((state) => state.setCurrentView);
+  const currentUser = useAppStore((state) => state.currentUser);
+  const setShowAuth = useAppStore((state) => state.setShowAuth);
+  const favorites = useAppStore((state) => state.favoriteIds);
+
+  const open = (tab: Tab) => {
+    const needsAuth = tab.view === 'CREATE_LISTING' || tab.view === 'FAVORITES' || tab.view === 'PROFILE';
+    if (needsAuth && !currentUser) {
+      setShowAuth(true, tab.view === 'CREATE_LISTING' ? 'REGISTER' : 'LOGIN');
+      return;
+    }
+    setCurrentView(tab.view);
+  };
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] pb-safe">
-      <div className="flex items-stretch justify-around px-1 pt-1.5 pb-1">
-        {navItems.map((item, idx) => {
-          const Icon = item?.icon || Home;
-          const isAuthShortcut = !currentUser && !isOwner && item.label === 'Kirish';
-          const isActive = !isAuthShortcut && currentView === item.id;
+    <nav
+      aria-label={t('common.a11y.menu')}
+      className="pb-safe fixed inset-x-0 bottom-0 z-[80] border-t border-line bg-surface/95 backdrop-blur lg:hidden"
+    >
+      <ul className="mx-auto flex max-w-lg items-stretch justify-around">
+        {TABS.map((tab) => {
+          const active = currentView === tab.view;
+          if (tab.primary) {
+            return (
+              <li key={tab.view} className="flex items-center px-1">
+                <button
+                  type="button"
+                  onClick={() => open(tab)}
+                  aria-label={t(tab.labelKey as never)}
+                  className="-mt-5 flex h-13 w-13 items-center justify-center rounded-2xl bg-brand text-on-brand shadow-brand transition-transform active:scale-95"
+                >
+                  <tab.icon className="h-6 w-6" aria-hidden="true" />
+                </button>
+              </li>
+            );
+          }
           return (
-            <button
-              key={`${item.id}-${idx}`}
-              onClick={() => {
-                if (isAuthShortcut) setShowAuth(true);
-                else setCurrentView(item.id);
-              }}
-              className={`flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1 px-0.5 rounded-xl transition-all ${
-                isActive ? 'text-emerald-700 font-extrabold' : 'text-slate-500 font-medium'
-              }`}
-            >
-              <div className={`relative flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-xl ${isActive ? 'bg-emerald-100/70 text-emerald-700' : ''} ${item.id === 'PROFILE' && !isAiSystemActive ? 'animate-red-green-blink' : ''}`}>
-                <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}`} />
-                {item.badge && item.badge > 0 ? (
-                  <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black min-w-3.5 h-3.5 px-0.5 rounded-full flex items-center justify-center">
-                    {item.badge}
-                  </span>
-                ) : null}
-              </div>
-              <span className={`text-[9px] sm:text-[10px] leading-none truncate w-full text-center tracking-tight ${isActive ? 'font-black text-emerald-800' : 'font-semibold'}`}>
-                {item.label}
-              </span>
-            </button>
+            <li key={tab.view} className="flex-1">
+              <button
+                type="button"
+                onClick={() => open(tab)}
+                aria-current={active ? 'page' : undefined}
+                className={`relative flex w-full flex-col items-center gap-0.5 py-2.5 text-[10px] font-bold transition-colors ${
+                  active ? 'text-brand-text' : 'text-subtle hover:text-content'
+                }`}
+              >
+                <span className="relative">
+                  <tab.icon className="h-5 w-5" aria-hidden="true" />
+                  {tab.view === 'FAVORITES' && favorites.size > 0 && (
+                    <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-black text-white">
+                      {favorites.size}
+                    </span>
+                  )}
+                </span>
+                {t(tab.labelKey as never)}
+              </button>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </nav>
   );
 };
+
+export default BottomNav;

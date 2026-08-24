@@ -1,482 +1,575 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Shield, Sparkles, X, MessageSquare, Send, RotateCcw, ChevronRight, ShieldCheck, ArrowRight, MapPin } from 'lucide-react';
-import { useAppStore } from '../../stores/useAppStore';
-import { API_BASE_URL } from '../../services/apiService';
-import { getAccessToken } from '../../services/authService';
+/**
+ * Shield AI — the floating search assistant.
+ *
+ * The session key is issued by the server and kept in sessionStorage. The
+ * previous build minted its own key (`sk-<random>-<timestamp>`) and stored it
+ * in localStorage, which was both guessable and shared across tabs, so one
+ * visitor could read another's conversation. The server now owns the key, the
+ * transcript and the daily quota; this component only renders them.
+ */
 
-// ─── Session key: only a tiny ID in localStorage. All DATA is in backend DB ──
-const SESSION_KEY_STORAGE = 'shield-ai-sk';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ChevronRight, MessageSquare, RotateCcw, Send, Shield, Sparkles, X } from 'lucide-react';
 
-function getOrCreateSessionKey(): string {
-  let key = localStorage.getItem(SESSION_KEY_STORAGE);
-  if (!key) {
-    key = 'sk-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now();
-    localStorage.setItem(SESSION_KEY_STORAGE, key);
-  }
-  return key;
-}
+import { useTranslation } from '../../i18n';
+import { AssistantApi } from '../../services/listingsApi';
+import { ApiError } from '../../services/http';
+import { useAppStore, type Filters } from '../../stores/useAppStore';
+import type { Listing } from '../../types';
+import { ListingCard } from '../listings/ListingCard';
+import { Button } from '../ui/Field';
 
-interface ChatMsg {
+const SESSION_STORAGE_KEY = 'maklersiz.assistant.session';
+
+const AUDIENCES = ['ALL', 'STUDENT', 'FAMILY'] as const;
+const RENTAL_TYPES = ['ALL', 'FULL', 'ROOMMATE'] as const;
+
+interface ChatMessage {
+  id: number;
   from: 'ai' | 'me';
   text: string;
-  listings?: any[];
+  listings?: Listing[];
+}
+
+type Phase = 'idle' | 'loading' | 'ready' | 'error';
+
+let messageSequence = 0;
+
+// The key is per-tab on purpose: a conversation is not something to restore in
+// a browser the visitor has since handed to someone else.
+function readStoredSession(): string | null {
+  try {
+    return sessionStorage.getItem(SESSION_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredSession(key: string | null): void {
+  try {
+    if (key === null) sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    else sessionStorage.setItem(SESSION_STORAGE_KEY, key);
+  } catch {
+    /* private mode — the conversation lives for this page view only */
+  }
+}
+
+function asText(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function asCount(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function asOneOf<T extends string>(value: unknown, allowed: readonly T[]): T | undefined {
+  return typeof value === 'string' && (allowed as readonly string[]).includes(value)
+    ? (value as T)
+    : undefined;
+}
+
+/**
+ * The assistant returns only what it managed to extract from the sentence, so
+ * a missing field leaves the user's existing filter alone instead of resetting
+ * it to 'ALL' the way the previous version did.
+ */
+function toFilterPatch(need: Record<string, unknown>): Partial<Filters> {
+  const patch: Partial<Filters> = {};
+
+  const region = asText(need.region);
+  if (region) patch.region = region;
+
+  const district = asText(need.district);
+  if (district) {
+    patch.district = district;
+    // The free-text box mirrors the district so the listings page shows the
+    // same intent the assistant just acted on.
+    patch.search = district;
+  }
+
+  const metroStation = asText(need.metroStation);
+  if (metroStation) patch.metroStation = metroStation;
+
+  const rooms = asCount(need.rooms);
+  if (rooms !== undefined) patch.rooms = rooms;
+
+  const maxPrice = asCount(need.maxPrice);
+  if (maxPrice !== undefined) patch.maxPrice = maxPrice;
+
+  const audience = asOneOf(need.audience, AUDIENCES);
+  if (audience) patch.audience = audience;
+
+  const rentalType = asOneOf(need.rentalType, RENTAL_TYPES);
+  if (rentalType) patch.rentalType = rentalType;
+
+  return patch;
 }
 
 export const ShieldMascot: React.FC = () => {
-  const { setFilters, setSearchQuery, setCurrentView, currentUser } = useAppStore();
+  const { t } = useTranslation();
+
+  const currentUser = useAppStore((state) => state.currentUser);
+  const setFilters = useAppStore((state) => state.setFilters);
+  const setCurrentView = useAppStore((state) => state.setCurrentView);
 
   const [open, setOpen] = useState(false);
+  const [phase, setPhase] = useState<Phase>('idle');
+  const [log, setLog] = useState<ChatMessage[]>([]);
   const [text, setText] = useState('');
-  const [log, setLog] = useState<ChatMsg[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
-
-  // Quota from backend — no localStorage
-  const [remaining, setRemaining] = useState<number | null>(null);
-  const [dailyLimit, setDailyLimit] = useState(10);
+  const [sending, setSending] = useState(false);
+  const [quota, setQuota] = useState<{ limit: number; remaining: number } | null>(null);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
   const logEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const isLimitReached = remaining !== null && remaining <= 0;
+  const limitReached = quota !== null && quota.remaining <= 0;
 
-  const WELCOME_MSG =
-    'Salom! Men Shield AI yordamchisiman 🛡️\n\nMasalan yozing:\n• «Chilonzordan 3 mlnga kvartira kerak»\n• «Yunusobod 2 xona talaba uchun»\n• «Sherikchilik bilan xona izlayapman»';
+  const append = useCallback((message: Omit<ChatMessage, 'id'>) => {
+    setLog((previous) => [...previous, { ...message, id: ++messageSequence }]);
+  }, []);
 
-  // ── Load history + quota from backend on first open ────────────────────────
-  useEffect(() => {
-    if (!open || historyLoaded) return;
+  const welcome = useCallback(
+    (): ChatMessage => ({
+      id: ++messageSequence,
+      from: 'ai',
+      text: currentUser?.name
+        ? t('assistant.chat.welcomeNamed', { name: currentUser.name })
+        : t('assistant.chat.welcome'),
+    }),
+    [currentUser?.name, t],
+  );
 
-    const sessionKey = getOrCreateSessionKey();
-    fetch(`${API_BASE_URL}/smart/assistant/history?sessionKey=${encodeURIComponent(sessionKey)}`)
-      .then(r => r.json())
-      .then(data => {
-        // Restore messages from DB
-        if (data.messages && data.messages.length > 0) {
-          const restored: ChatMsg[] = data.messages.map((m: any) => ({
-            from: m.role === 'user' ? 'me' : 'ai',
-            text: m.content,
-          }));
-          setLog(restored);
-        } else {
-          const welcome = currentUser?.name
-            ? `Salom, ${currentUser.name}! Men Shield AI yordamchisiman 🛡️\n\nQanday kvartira yoki xona izlayapsiz?`
-            : WELCOME_MSG;
-          setLog([{ from: 'ai', text: welcome }]);
+  const startSession = useCallback(async () => {
+    setPhase('loading');
+    try {
+      const existing = readStoredSession();
+      if (existing) {
+        try {
+          const history = await AssistantApi.history(existing);
+          setQuota({ limit: history.limit, remaining: history.remaining });
+          setLog(
+            history.messages.length > 0
+              ? history.messages.map((entry) => ({
+                  id: ++messageSequence,
+                  from: entry.role === 'user' ? ('me' as const) : ('ai' as const),
+                  text: entry.content,
+                }))
+              : [welcome()],
+          );
+          setPhase('ready');
+          return;
+        } catch {
+          // Expired or unknown key: drop it and ask the server for a fresh one.
+          writeStoredSession(null);
         }
-        // Quota from backend
-        if (typeof data.remaining === 'number') setRemaining(data.remaining);
-        if (typeof data.limit === 'number') setDailyLimit(data.limit);
-        setHistoryLoaded(true);
-      })
-      .catch(() => {
-        setLog([{ from: 'ai', text: WELCOME_MSG }]);
-        setHistoryLoaded(true);
-      });
-  }, [open, historyLoaded, currentUser]);
+      }
 
-  // ── Auto-scroll on new messages ───────────────────────────────────────────
+      const created = await AssistantApi.createSession();
+      writeStoredSession(created.sessionKey);
+      setQuota({ limit: created.limit, remaining: created.remaining });
+      setLog([welcome()]);
+      setPhase('ready');
+    } catch {
+      setPhase('error');
+    }
+  }, [welcome]);
+
+  useEffect(() => {
+    if (open && phase === 'idle') void startSession();
+  }, [open, phase, startSession]);
+
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [log, loading]);
+  }, [log, sending]);
 
-  // ── Focus input on open ───────────────────────────────────────────────────
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 150);
-  }, [open]);
+    if (open && phase === 'ready') inputRef.current?.focus();
+  }, [open, phase]);
 
-  // ─── Send message (backend handles rate limiting) ────────────────────────
+  // Escape closes the confirmation first, then the panel — the usual layering.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (showCloseConfirm) setShowCloseConfirm(false);
+      else setOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, showCloseConfirm]);
+
   const send = async () => {
-    const msg = text.trim();
-    if (!msg || loading) return;
+    const message = text.trim();
+    if (!message || sending || limitReached) return;
 
-    setLog(prev => [...prev, { from: 'me', text: msg }]);
+    const sessionKey = readStoredSession();
+    if (!sessionKey) {
+      setPhase('error');
+      return;
+    }
+
+    append({ from: 'me', text: message });
     setText('');
-    setLoading(true);
+    setSending(true);
 
     try {
-      const sessionKey = getOrCreateSessionKey();
-      const token = getAccessToken();
-      const response = await fetch(`${API_BASE_URL}/smart/assistant`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          message: msg,
-          sessionKey,
-          userName: currentUser?.name || null,
-          userPhone: currentUser?.phone || null,
-        }),
-      });
-      const data = await response.json();
+      const response = await AssistantApi.send(sessionKey, message, currentUser?.name ?? undefined);
+      setQuota({ limit: response.limit, remaining: response.remaining });
 
-      // Update quota from backend response (single source of truth)
-      if (typeof data.remaining === 'number') setRemaining(data.remaining);
-      if (typeof data.limit === 'number') setDailyLimit(data.limit);
-
-      if (data.status === 'limit_reached') {
-        setLog(prev => [...prev, { from: 'ai', text: data.reply }]);
+      if (response.status === 'limit_reached') {
+        append({ from: 'ai', text: t('assistant.chat.limitReached') });
+        return;
+      }
+      if (response.status !== 'success') {
+        append({ from: 'ai', text: t('assistant.chat.replyFailed') });
         return;
       }
 
-      if (data.status === 'success') {
-        const rem = typeof data.remaining === 'number' ? data.remaining : null;
-        const note = rem !== null && rem <= 2 && rem > 0
-          ? `\n\n(⚠️ ${rem} ta so'rov qoldi)`
-          : rem === 0 ? '\n\n(⚠️ Bugungi limit tugadi)' : '';
+      append({
+        from: 'ai',
+        text: response.reply,
+        listings: response.listings?.length ? response.listings : undefined,
+      });
 
-        // Apply search filters from AI & store listings in chat message
-        setLog(prev => [...prev, {
-          from: 'ai',
-          text: data.reply + note,
-          listings: Array.isArray(data.listings) && data.listings.length > 0 ? data.listings : undefined,
-        }]);
-
-        if (data.need) {
-          setFilters({
-            selectedRegion: data.need.region || 'Barchasi',
-            selectedDistrict: data.need.district || 'Barchasi',
-            roomsCount: data.need.rooms ?? null,
-            maxPrice: data.need.maxPrice || 100000000,
-            audience: data.need.audience || 'ALL',
-            rentalType: data.need.rentalType || 'ALL',
-            selectedMetro: 'Barchasi',
-            sortBy: 'AI',
-            searchQuery: data.need.district || '',
-          } as any);
-        }
-      } else {
-        setLog(prev => [...prev, { from: 'ai', text: "Xatolik yuz berdi. Iltimos qaytadan urinib ko'ring." }]);
+      if (response.need) {
+        const patch = toFilterPatch(response.need);
+        if (Object.keys(patch).length > 0) setFilters(patch);
       }
-    } catch {
-      setLog(prev => [...prev, { from: 'ai', text: 'Tarmoq xatosi. Internet aloqangizni tekshiring.' }]);
+    } catch (error) {
+      append({
+        from: 'ai',
+        text:
+          error instanceof ApiError && error.isNetwork
+            ? t('assistant.chat.networkFailed')
+            : t('assistant.chat.replyFailed'),
+      });
     } finally {
-      setLoading(false);
+      setSending(false);
     }
   };
 
-  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
-
-  const confirmCloseAndSendSummary = async () => {
+  const endConversation = async () => {
     setShowCloseConfirm(false);
     setOpen(false);
 
-    if (log.some(m => m.from === 'me')) {
-      const sessionKey = getOrCreateSessionKey();
-      const token = getAccessToken();
+    const sessionKey = readStoredSession();
+    // Only a conversation the visitor actually took part in is worth summarising.
+    if (sessionKey && log.some((message) => message.from === 'me')) {
       try {
-        await fetch(`${API_BASE_URL}/smart/assistant/close`, {
-          method: 'POST',
-          keepalive: true,
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({
-            sessionKey,
-            userName: currentUser?.name || null,
-            userPhone: currentUser?.phone || null,
-          }),
-        }).catch(() => {});
-      } catch { /* ignore */ }
+        await AssistantApi.close(sessionKey);
+      } catch {
+        /* the summary is best-effort; the visitor is already gone */
+      }
     }
 
-    localStorage.removeItem(SESSION_KEY_STORAGE);
-    setHistoryLoaded(false);
-    setRemaining(null);
-    setLog([{ from: 'ai', text: WELCOME_MSG }]);
+    writeStoredSession(null);
+    setLog([]);
+    setQuota(null);
+    setPhase('idle');
   };
 
-  return (
-    <div className="fixed bottom-20 right-2 left-2 sm:left-auto sm:bottom-6 sm:right-6 z-40 max-w-full sm:w-105 md:w-120 ml-auto pointer-events-auto">
+  const openListing = (listing: Listing) => {
+    // The detail view reads from the store, so a listing that so far exists
+    // only inside this conversation has to be seeded before we navigate.
+    if (!useAppStore.getState().listings.some((item) => item.id === listing.id)) {
+      useAppStore.setState((state) => ({ listings: [listing, ...state.listings] }));
+    }
+    setCurrentView('LISTING_DETAIL', listing.id);
+    setOpen(false);
+  };
 
-      {/* ── Close Confirmation Modal Alert ── */}
+  const typingDots = (
+    <>
+      <span className="h-2 w-2 animate-bounce rounded-full bg-brand [animation-delay:0ms]" />
+      <span className="h-2 w-2 animate-bounce rounded-full bg-brand [animation-delay:150ms]" />
+      <span className="h-2 w-2 animate-bounce rounded-full bg-brand [animation-delay:300ms]" />
+    </>
+  );
+
+  return (
+    <div className={`pointer-events-auto fixed z-40 ml-auto max-w-full sm:bottom-6 sm:left-auto sm:right-6 sm:w-105 md:w-120 ${open ? "bottom-20 left-2 right-2" : "bottom-24 right-4"}`}>
       {showCloseConfirm && (
-        <div className="fixed inset-0 z-200 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4" onClick={() => setShowCloseConfirm(false)}>
-          <div 
-            className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-xs w-full shadow-2xl text-center space-y-4 animate-in fade-in zoom-in-95 duration-200"
-            onClick={e => e.stopPropagation()}
+        <div
+          className="fixed inset-0 z-200 flex items-center justify-center bg-[var(--overlay)] p-4 backdrop-blur-xs"
+          onClick={() => setShowCloseConfirm(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="assistant-close-title"
+            className="w-full max-w-xs space-y-4 rounded-3xl border border-line bg-surface p-6 text-center shadow-raised"
+            onClick={(event) => event.stopPropagation()}
           >
-            <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/30">
-              <Shield className="w-6 h-6" />
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-brand/30 bg-brand-soft text-brand-text">
+              <Shield className="h-6 w-6" aria-hidden="true" />
             </div>
             <div>
-              <h3 className="text-base font-black text-white">Suhbatni yakunlaysizmi?</h3>
-              <p className="text-xs text-slate-400 mt-1 font-medium leading-relaxed">
-                Suhbat yakunlangach, to'liq xulosa guruhga yuboriladi va chat tarixi tozalanadi.
+              <h3 id="assistant-close-title" className="text-base font-black text-content">
+                {t('assistant.closeDialog.title')}
+              </h3>
+              <p className="mt-1 text-xs font-medium leading-relaxed text-muted">
+                {t('assistant.closeDialog.description')}
               </p>
             </div>
             <div className="flex gap-2.5 pt-1">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                fullWidth
+                className="py-3 text-xs"
                 onClick={() => setShowCloseConfirm(false)}
-                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-extrabold text-xs py-3 rounded-2xl transition cursor-pointer"
               >
-                Yo'q, davom etish
-              </button>
-              <button
-                type="button"
-                onClick={confirmCloseAndSendSummary}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs py-3 rounded-2xl transition shadow-lg shadow-emerald-600/30 cursor-pointer"
+                {t('assistant.closeDialog.cancel')}
+              </Button>
+              <Button
+                fullWidth
+                className="py-3 text-xs"
+                onClick={() => {
+                  void endConversation();
+                }}
               >
-                Ha, yakunlash
-              </button>
+                {t('assistant.closeDialog.confirm')}
+              </Button>
             </div>
           </div>
         </div>
       )}
 
       {open ? (
-        <div className="bg-slate-950 text-white rounded-2xl sm:rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.75)] border border-emerald-500/40 flex flex-col h-[70vh] sm:h-145 max-h-[85vh] overflow-hidden">
-
-          {/* ── Header ── */}
-          <div className="flex items-center justify-between border-b border-slate-800/80 p-4 sm:p-5 shrink-0">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
-                <Shield className="w-5 h-5 animate-pulse" />
+        <div
+          role="dialog"
+          aria-label={t('assistant.mascot.panelLabel')}
+          className="flex h-[70vh] max-h-[85vh] flex-col overflow-hidden rounded-2xl border border-brand/40 bg-surface text-content shadow-raised sm:h-145 sm:rounded-3xl"
+        >
+          {/* Header */}
+          <div className="flex shrink-0 items-center justify-between border-b border-line p-4 sm:p-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-brand/30 bg-brand-soft text-brand-text">
+                <Shield className="h-5 w-5" aria-hidden="true" />
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="font-extrabold text-base text-white flex items-center gap-1">
-                    Shield AI <Sparkles className="w-4 h-4 text-amber-400 fill-amber-400" />
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="flex items-center gap-1 text-base font-extrabold text-content">
+                    {t('assistant.mascot.name')}
+                    <Sparkles className="h-4 w-4 text-warning" aria-hidden="true" />
                   </h4>
-                  {remaining !== null && (
-                    <span className={`text-[11px] font-mono font-black px-2.5 py-0.5 rounded-full border ${
-                      remaining <= 2
-                        ? 'bg-red-950 text-red-400 border-red-500/30'
-                        : 'bg-emerald-950 text-emerald-400 border-emerald-500/30'
-                    }`}>
-                      {remaining}/{dailyLimit} qoldi
+                  {quota && (
+                    <span
+                      title={t('assistant.chat.quotaLabel', {
+                        remaining: quota.remaining,
+                        limit: quota.limit,
+                      })}
+                      className={`rounded-full border px-2.5 py-0.5 font-mono text-[11px] font-black ${
+                        quota.remaining <= 2
+                          ? 'border-danger/30 bg-danger-soft text-danger'
+                          : 'border-brand/30 bg-brand-soft text-brand-text'
+                      }`}
+                    >
+                      {t('assistant.chat.quota', {
+                        remaining: quota.remaining,
+                        limit: quota.limit,
+                      })}
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-400 truncate">Aqlli uy qidiruv yordamchisi</p>
+                <p className="truncate text-xs text-muted">{t('assistant.mascot.tagline')}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex shrink-0 items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => setShowCloseConfirm(true)}
-                className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition cursor-pointer"
-                title="Suhbatni tozalash"
+                aria-label={t('assistant.chat.reset')}
+                title={t('assistant.chat.reset')}
+                className="rounded-xl p-2 text-subtle transition-colors hover:bg-surface-2 hover:text-content"
               >
-                <RotateCcw className="w-4 h-4" />
+                <RotateCcw className="h-4 w-4" aria-hidden="true" />
               </button>
               <button
                 type="button"
                 onClick={() => setShowCloseConfirm(true)}
-                className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition cursor-pointer"
-                title="Suhbatni yopish"
+                aria-label={t('assistant.chat.close')}
+                title={t('assistant.chat.close')}
+                className="rounded-xl p-2 text-subtle transition-colors hover:bg-surface-2 hover:text-content"
               >
-                <X className="w-5 h-5" />
+                <X className="h-5 w-5" aria-hidden="true" />
               </button>
             </div>
           </div>
 
-          {/* ── Messages ── */}
-          <div className="flex-1 overflow-y-auto space-y-3.5 p-4 sm:p-5 min-h-0 scrollbar-thin scrollbar-thumb-slate-800">
-            {/* Loading history indicator */}
-            {!historyLoaded && (
+          {/* Transcript */}
+          <div
+            role="log"
+            aria-live="polite"
+            aria-label={t('assistant.chat.log')}
+            className="min-h-0 flex-1 space-y-3.5 overflow-y-auto p-4 sm:p-5"
+          >
+            {phase === 'loading' && (
               <div className="flex justify-center py-8">
-                <div className="flex gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:0ms]" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:150ms]" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:300ms]" />
+                <div className="flex gap-2" aria-hidden="true">
+                  {typingDots}
                 </div>
+                <span className="sr-only">{t('assistant.chat.loadingHistory')}</span>
               </div>
             )}
 
-            {log.map((m, i) => (
-              <div key={i} className={`flex ${m.from === 'me' ? 'justify-end' : 'justify-start'}`}>
-                {m.from === 'ai' && (
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 mr-2.5 mt-1">
-                    <Shield className="w-4 h-4" />
+            {phase === 'error' && (
+              <div className="space-y-3 rounded-2xl border border-danger/30 bg-danger-soft p-4 text-center">
+                <p className="text-xs font-semibold text-danger">
+                  {t('assistant.chat.startFailed')}
+                </p>
+                <Button
+                  variant="secondary"
+                  className="py-2.5 text-xs"
+                  onClick={() => {
+                    void startSession();
+                  }}
+                >
+                  {t('common.action.retry')}
+                </Button>
+              </div>
+            )}
+
+            {log.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${message.from === 'me' ? 'justify-end' : 'justify-start'}`}
+              >
+                {message.from === 'ai' && (
+                  <div className="mr-2.5 mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-brand/30 bg-brand-soft text-brand-text sm:h-8 sm:w-8">
+                    <Shield className="h-4 w-4" aria-hidden="true" />
                   </div>
                 )}
-                <div className={`max-w-[88%] p-3.5 sm:p-4 rounded-2xl text-sm sm:text-base leading-relaxed wrap-break-word ${
-                  m.from === 'me'
-                    ? 'bg-emerald-600/30 text-white border border-emerald-500/30 rounded-tr-sm font-medium'
-                    : 'bg-slate-900 text-slate-100 border border-slate-800 rounded-tl-sm'
-                }`}>
-                  <div className="whitespace-pre-line wrap-break-word">{m.text}</div>
+                <div
+                  className={`max-w-[88%] rounded-2xl p-3.5 text-sm leading-relaxed wrap-break-word sm:p-4 sm:text-base ${
+                    message.from === 'me'
+                      ? 'rounded-tr-sm bg-brand font-medium text-on-brand'
+                      : 'rounded-tl-sm border border-line bg-surface-2 text-content'
+                  }`}
+                >
+                  <span className="sr-only">
+                    {message.from === 'me' ? t('assistant.chat.you') : t('assistant.mascot.name')}
+                  </span>
+                  <div className="whitespace-pre-line wrap-break-word">{message.text}</div>
 
-                  {/* Interactive Premium Listing Cards */}
-                  {m.listings && m.listings.length > 0 && (
+                  {message.listings && message.listings.length > 0 && (
                     <div className="mt-3 space-y-3">
-                      {m.listings.map((l: any) => {
-                        const img = Array.isArray(l.images) && l.images.length > 0
-                          ? l.images[0]
-                          : 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80';
-                        const formattedPrice = Math.round(l.price || 0).toLocaleString('uz-UZ');
-
-                        const handleCardClick = (e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          // 1. Ensure listing exists in store so detail page renders instantly
-                          const existingInStore = useAppStore.getState().listings.find(item => item.id === l.id);
-                          if (!existingInStore) {
-                            useAppStore.setState(state => ({
-                              listings: [l, ...state.listings]
-                            }));
-                          }
-                          // 2. Open listing detail page directly
-                          setCurrentView('LISTING_DETAIL', l.id);
-                          setOpen(false);
-                        };
-
-                        return (
-                          <div
-                            key={l.id}
-                            onClick={handleCardClick}
-                            className="group relative bg-slate-950/90 hover:bg-slate-900 border border-emerald-500/40 hover:border-emerald-400 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5"
-                          >
-                            {/* Card Banner Image */}
-                            <div className="h-28 w-full relative overflow-hidden bg-slate-900">
-                              <img
-                                src={img}
-                                alt={l.title}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                              />
-                              <div className="absolute inset-0 bg-linear-to-t from-slate-950 via-slate-950/20 to-transparent" />
-
-                              {/* Badges */}
-                              <div className="absolute top-2 left-2 flex items-center gap-1.5">
-                                <span className="bg-emerald-500 text-slate-950 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-md">
-                                  0% Komissiya
-                                </span>
-                              </div>
-
-                              <div className="absolute top-2 right-2">
-                                <span className="bg-slate-950/80 backdrop-blur-md text-emerald-400 border border-emerald-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md">
-                                  <ShieldCheck className="w-3 h-3 text-emerald-400" />
-                                  Uy egasi
-                                </span>
-                              </div>
-
-                              {/* Price Badge */}
-                              <div className="absolute bottom-2 left-2">
-                                <div className="bg-slate-950/90 backdrop-blur-md border border-emerald-500/50 text-emerald-400 px-2.5 py-1 rounded-xl text-xs font-black shadow-lg">
-                                  {formattedPrice} <span className="text-[10px] font-normal text-slate-300">so'm/oy</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Card Info */}
-                            <div className="p-3">
-                              <h5 className="text-xs font-extrabold text-white group-hover:text-emerald-400 transition line-clamp-1">
-                                {l.title}
-                              </h5>
-                              <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5 truncate">
-                                <span className="flex items-center gap-0.5 text-slate-300">
-                                  <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
-                                  {l.district || 'Toshkent'}
-                                </span>
-                                <span>•</span>
-                                <span className="text-slate-300">🏠 {l.rooms} xona</span>
-                                {l.area && (
-                                  <>
-                                    <span>•</span>
-                                    <span className="text-slate-300">📐 {l.area} m²</span>
-                                  </>
-                                )}
-                              </p>
-
-                              {/* View Action Button */}
-                              <div className="mt-3">
-                                <button
-                                  type="button"
-                                  className="w-full bg-linear-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-slate-950 font-black text-xs py-2 px-3 rounded-xl transition duration-200 shadow-[0_4px_15px_rgba(16,185,129,0.3)] flex items-center justify-center gap-1.5 group-hover:scale-[1.01]"
-                                >
-                                  <span>To'liq ma'lumotni ko'rish</span>
-                                  <ArrowRight className="w-3.5 h-3.5 stroke-3" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
+                      <p className="text-xs font-bold text-muted">
+                        {t('assistant.chat.resultsTitle')}
+                      </p>
+                      {message.listings.map((listing) => (
+                        <ListingCard key={listing.id} listing={listing} onOpen={openListing} />
+                      ))}
                     </div>
                   )}
                 </div>
               </div>
             ))}
 
-            {/* AI thinking animation */}
-            {loading && (
+            {sending && (
               <div className="flex justify-start">
-                <div className="w-6 h-6 rounded-full bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 mr-2 mt-0.5">
-                  <Shield className="w-3 h-3 animate-pulse" />
+                <div className="mr-2 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-brand/30 bg-brand-soft text-brand-text">
+                  <Shield className="h-3 w-3" aria-hidden="true" />
                 </div>
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-sm p-3 flex gap-1.5 items-center">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce [animation-delay:0ms]" />
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce [animation-delay:150ms]" />
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce [animation-delay:300ms]" />
+                <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-sm border border-line bg-surface-2 p-3">
+                  <span aria-hidden="true" className="flex gap-1.5">
+                    {typingDots}
+                  </span>
+                  <span className="sr-only">{t('assistant.chat.thinking')}</span>
                 </div>
               </div>
             )}
 
-            {/* Go to search button after results */}
-            {log.length > 1 && !loading && (
+            {log.length > 1 && !sending && (
               <button
-                onClick={() => { setCurrentView('SEARCH'); setOpen(false); }}
-                className="w-full text-xs bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 py-2.5 px-4 rounded-2xl transition flex items-center justify-center gap-1.5 font-medium"
+                type="button"
+                onClick={() => {
+                  setCurrentView('LISTINGS');
+                  setOpen(false);
+                }}
+                className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-brand/30 bg-brand-soft px-4 py-2.5 text-xs font-medium text-brand-text transition-colors hover:bg-brand-soft-2"
               >
-                Barcha kvartiralarni ko'rish
-                <ChevronRight className="w-3.5 h-3.5" />
+                {t('assistant.chat.viewAllResults')}
+                <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             )}
 
             <div ref={logEndRef} />
           </div>
 
-          {/* ── Input ── */}
+          {/* Composer */}
+          {limitReached && (
+            <p className="shrink-0 border-t border-line bg-warning-soft px-4 py-2 text-[11px] font-semibold text-warning">
+              {t('assistant.chat.limitReached')}
+            </p>
+          )}
+          {!limitReached && quota && quota.remaining <= 2 && (
+            <p className="shrink-0 border-t border-line bg-warning-soft px-4 py-2 text-[11px] font-semibold text-warning">
+              {t('assistant.chat.quotaWarning', { count: quota.remaining })}
+            </p>
+          )}
+
           <form
-            onSubmit={e => { e.preventDefault(); send(); }}
-            className="flex items-center gap-2 p-3 shrink-0 border-t border-slate-800/80"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void send();
+            }}
+            className="flex shrink-0 items-center gap-2 border-t border-line p-3"
           >
+            {/* A plain input rather than <TextInput>: this one needs a ref for
+                focus-on-open, and the shared control does not forward one. */}
             <input
               ref={inputRef}
               value={text}
-              onChange={e => setText(e.target.value)}
-              disabled={isLimitReached || loading}
+              onChange={(event) => setText(event.target.value)}
+              disabled={limitReached || sending || phase !== 'ready'}
+              aria-label={t('assistant.chat.inputLabel')}
               placeholder={
-                isLimitReached ? 'Bugungi limit tugadi'
-                : loading ? "Shield AI o'ylamoqda..."
-                : 'Chilonzordan 3 mlnga...'
+                limitReached
+                  ? t('assistant.chat.inputDisabled')
+                  : sending
+                    ? t('assistant.chat.inputThinking')
+                    : t('assistant.chat.inputPlaceholder')
               }
-              className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-w-0 flex-1 rounded-2xl border border-line bg-surface-2 px-3.5 py-2.5 text-xs font-medium text-content transition-colors placeholder:text-subtle focus:border-brand focus:bg-surface focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
             />
-            <button
+            <Button
               type="submit"
-              disabled={isLimitReached || !text.trim() || loading}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl p-2.5 shadow-lg shadow-emerald-600/30 transition-all active:scale-95 shrink-0 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
+              disabled={limitReached || sending || phase !== 'ready' || !text.trim()}
+              aria-label={t('assistant.chat.send')}
+              className="shrink-0 px-3.5 py-3"
             >
-              <Send className="w-4 h-4" />
-            </button>
+              <Send className="h-4 w-4" aria-hidden="true" />
+            </Button>
           </form>
         </div>
       ) : (
-        /* ── Floating trigger ── */
         <button
+          type="button"
           onClick={() => setOpen(true)}
-          className="group flex items-center gap-3 bg-slate-950/95 backdrop-blur-md text-white px-4 py-2.5 rounded-full shadow-2xl border border-emerald-500/40 hover:border-emerald-400 hover:shadow-emerald-500/20 transition-all duration-300 active:scale-95 ml-auto"
+          aria-label={t('assistant.mascot.open')}
+          className="group ml-auto flex items-center gap-3 rounded-full border border-brand/40 bg-surface p-2 text-content shadow-raised transition-all duration-300 hover:border-brand active:scale-95 sm:px-4 sm:py-2.5"
         >
-          <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-xs group-hover:scale-110 transition-transform">
-            <Shield className="w-4 h-4" />
-          </div>
-          <div className="flex flex-col text-left">
-            <span className="text-xs font-black text-white flex items-center gap-1">
-              Shield AI <Sparkles className="w-3 h-3 text-emerald-400" />
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-brand/30 bg-brand-soft text-brand-text transition-transform group-hover:scale-110 sm:h-8 sm:w-8">
+            <Shield className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />
+          </span>
+          <span className="hidden flex-col text-left sm:flex">
+            <span className="flex items-center gap-1 text-xs font-black text-content">
+              {t('assistant.mascot.name')}
+              <Sparkles className="h-3 w-3 text-brand-text" aria-hidden="true" />
             </span>
-            <span className="text-[10px] text-slate-300 font-bold">Aqlli Yordamchi</span>
-          </div>
-          <div className="w-7 h-7 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center font-bold text-xs ml-1 shadow-sm group-hover:bg-emerald-400 transition-colors">
-            <MessageSquare className="w-3.5 h-3.5 stroke-[2.5]" />
-          </div>
+            <span className="text-[10px] font-bold text-muted">
+              {t('assistant.mascot.shortTagline')}
+            </span>
+          </span>
+          <span className="ml-1 hidden h-7 w-7 items-center justify-center rounded-full bg-brand text-on-brand sm:flex">
+            <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+          </span>
         </button>
       )}
     </div>
   );
 };
+
+export default ShieldMascot;

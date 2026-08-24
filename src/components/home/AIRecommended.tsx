@@ -1,109 +1,183 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Sparkles, ArrowRight } from 'lucide-react';
-import { useAppStore } from '../../stores/useAppStore';
-import { ListingCard } from '../common/ListingCard';
-import { rankListings } from '../../services/aiEngine';
+/**
+ * The recommended rail.
+ *
+ * Ranking used to run in the browser through the deleted `aiEngine`, which
+ * shipped a live Gemini key to every visitor. The server owns it now:
+ * `sortBy: 'RECOMMENDED'` returns the same intent, and the audience the
+ * shopper is browsing as is passed along so students still see student homes.
+ */
 
-const PAGE_SIZE = 4;
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, RefreshCw, Sparkles } from 'lucide-react';
+
+import { useTranslation } from '../../i18n';
+import { ListingsApi } from '../../services/listingsApi';
+import { useAppStore } from '../../stores/useAppStore';
+import type { Listing } from '../../types';
+import { Button } from '../ui/Field';
+import { ListingCard, ListingCardSkeleton } from '../listings/ListingCard';
+
+/** Fetch a few more than fit, so the rail has something to rotate through. */
+const POOL_SIZE = 6;
+const VISIBLE = 4;
+const ROTATE_MS = 10_000;
 
 export const AIRecommended: React.FC = () => {
-  const { listings, setCurrentView, audience, currentUser } = useAppStore();
+  const { t } = useTranslation();
+
+  const setCurrentView = useAppStore((state) => state.setCurrentView);
+  const currentUser = useAppStore((state) => state.currentUser);
+  const audienceFilter = useAppStore((state) => state.filters.audience);
+  const pushToast = useAppStore((state) => state.pushToast);
+
+  const [pool, setPool] = useState<Listing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
   const [start, setStart] = useState(0);
   const [paused, setPaused] = useState(false);
 
-  const pool = useMemo(() => {
-    const who = currentUser?.role === 'STUDENT' ? 'STUDENT' : audience;
-    const ranked = rankListings(listings, { audience: who }).map((r) => r.listing);
-    const map = new Map<string, typeof ranked[0]>();
-    ranked.forEach((l) => { if (l && l.id) map.set(l.id, l); });
-    return Array.from(map.values());
-  }, [listings, audience, currentUser]);
+  const audience = currentUser?.role === 'STUDENT' ? 'STUDENT' : audienceFilter;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setFailed(false);
+    try {
+      const result = await ListingsApi.list({
+        sortBy: 'RECOMMENDED',
+        pageSize: POOL_SIZE,
+        audience,
+      });
+      setPool(result.data);
+      setStart(0);
+    } catch {
+      setPool([]);
+      setFailed(true);
+      pushToast('home.recommended.error', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [audience, pushToast]);
 
   useEffect(() => {
-    if (pool.length <= 1 || paused) return;
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    if (pool.length <= VISIBLE || paused) return;
     const id = window.setInterval(() => {
-      setStart((s) => (s + 1) % pool.length);
-    }, 10000);
+      setStart((current) => (current + 1) % pool.length);
+    }, ROTATE_MS);
     return () => window.clearInterval(id);
   }, [pool.length, paused]);
 
   const visible = useMemo(() => {
-    if (pool.length === 0) return [];
-    if (pool.length <= PAGE_SIZE) {
-      return pool;
-    }
-    const map = new Map<string, typeof pool[0]>();
-    for (let i = 0; i < pool.length && map.size < PAGE_SIZE; i++) {
-      const item = pool[(start + i) % pool.length];
-      if (item && item.id) map.set(item.id, item);
-    }
-    return Array.from(map.values());
+    if (pool.length <= VISIBLE) return pool;
+    return Array.from({ length: VISIBLE }, (_, offset) => pool[(start + offset) % pool.length]);
   }, [pool, start]);
 
-  const pageCount = Math.max(1, pool.length);
-  const pageIndex = start % pageCount;
+  const canPost = !currentUser || currentUser.role === 'OWNER';
 
   return (
-    <section className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-10 w-full overflow-x-hidden">
-      <div className="flex flex-row items-center justify-between mb-4 gap-2">
+    <section
+      aria-labelledby="home-recommended-title"
+      className="mx-auto w-full max-w-7xl overflow-x-hidden px-3 py-6 sm:px-6 sm:py-10"
+    >
+      <div className="mb-4 flex flex-row items-center justify-between gap-2">
         <div>
-          <div className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold text-emerald-800 bg-emerald-100/80 px-2.5 py-0.5 rounded-full mb-1 border border-emerald-200">
-            <Sparkles className="w-3 h-3 fill-emerald-600" /> Shield AI Tavsiyalari
-          </div>
-          <h2 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight">Eng Ishonchli E'lonlar</h2>
-          <p className="text-[11px] sm:text-xs text-slate-500">Maklersiz, egasidan to'g'ridan-to'g'ri</p>
+          <p className="mb-1 inline-flex items-center gap-1 rounded-full border border-line bg-brand-soft px-2.5 py-0.5 text-[10px] font-bold text-brand-text sm:text-xs">
+            <Sparkles className="h-3 w-3" aria-hidden="true" />
+            {t('home.recommended.badge')}
+          </p>
+          <h2
+            id="home-recommended-title"
+            className="text-lg font-black tracking-tight text-content sm:text-2xl"
+          >
+            {t('home.recommended.title')}
+          </h2>
+          <p className="text-[11px] text-subtle sm:text-xs">{t('home.recommended.subtitle')}</p>
         </div>
 
         <button
-          onClick={() => setCurrentView('SEARCH')}
-          className="text-xs font-extrabold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 group shrink-0 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 transition-colors"
+          type="button"
+          onClick={() => setCurrentView('LISTINGS')}
+          className="group flex shrink-0 items-center gap-1 rounded-xl border border-line bg-brand-soft px-3 py-1.5 text-xs font-extrabold text-brand-text transition-colors hover:bg-brand-soft-2"
         >
-          <span>Barchasi</span>
-          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+          <span>{t('home.recommended.viewAll')}</span>
+          <ArrowRight
+            className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1"
+            aria-hidden="true"
+          />
         </button>
       </div>
 
-      {visible.length === 0 ? (
-        <div className="bg-white p-8 rounded-3xl border border-slate-200/80 text-center space-y-3">
-          <p className="text-xs sm:text-sm text-slate-500 font-bold">Hozircha e'lonlar mavjud emas.</p>
-          {(!currentUser || currentUser.role === 'OWNER') && (
-            <button
-              onClick={() => setCurrentView('CREATE_LISTING')}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl transition shadow-md"
-            >
-              + Birinchi bo'lib e'lon joylash
-            </button>
+      {loading ? (
+        <div
+          className="grid w-full grid-cols-2 gap-2.5 sm:gap-6 lg:grid-cols-4"
+          aria-label={t('common.a11y.loading')}
+          aria-busy="true"
+        >
+          {Array.from({ length: VISIBLE }, (_, slot) => (
+            <ListingCardSkeleton key={slot} />
+          ))}
+        </div>
+      ) : failed ? (
+        <div className="space-y-3 rounded-3xl border border-line bg-surface p-8 text-center">
+          <p className="text-xs font-bold text-muted sm:text-sm">
+            {t('home.recommended.error')}
+          </p>
+          <Button type="button" variant="secondary" onClick={() => void load()}>
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            {t('common.action.retry')}
+          </Button>
+        </div>
+      ) : pool.length === 0 ? (
+        <div className="space-y-3 rounded-3xl border border-line bg-surface p-8 text-center">
+          <p className="text-xs font-bold text-muted sm:text-sm">{t('home.recommended.empty')}</p>
+          {canPost && (
+            <Button type="button" onClick={() => setCurrentView('CREATE_LISTING')}>
+              {t('home.recommended.emptyCta')}
+            </Button>
           )}
         </div>
       ) : (
-        <div
-          className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-6 w-full"
-          onMouseEnter={() => setPaused(true)}
-          onMouseLeave={() => setPaused(false)}
-          onTouchStart={() => setPaused(true)}
-        >
-          {visible.map((listing) => (
-            <div key={listing.id} className="min-w-0">
-              <ListingCard listing={listing} />
-            </div>
-          ))}
-        </div>
-      )}
+        <>
+          <ul
+            aria-label={t('home.recommended.listLabel')}
+            className="grid w-full grid-cols-2 gap-2.5 sm:gap-6 lg:grid-cols-4"
+            // Rotation stops while the visitor is reading or tabbing through.
+            onMouseEnter={() => setPaused(true)}
+            onMouseLeave={() => setPaused(false)}
+            onFocus={() => setPaused(true)}
+            onBlur={() => setPaused(false)}
+            onTouchStart={() => setPaused(true)}
+          >
+            {visible.map((listing, index) => (
+              <li key={listing.id} className="min-w-0">
+                <ListingCard listing={listing} priority={index < 2} />
+              </li>
+            ))}
+          </ul>
 
-      {pageCount > 1 && (
-        <div className="flex items-center justify-center gap-1.5 mt-4">
-          {Array.from({ length: pageCount }).map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setStart(i)}
-              className={`h-1.5 rounded-full transition-all ${
-                i === pageIndex ? 'w-5 bg-emerald-600' : 'w-1.5 bg-slate-300'
-              }`}
-              aria-label={`Sahifa ${i + 1}`}
-            />
-          ))}
-        </div>
+          {pool.length > VISIBLE && (
+            <div className="mt-4 flex items-center justify-center gap-1.5">
+              {pool.map((listing, index) => (
+                <button
+                  key={listing.id}
+                  type="button"
+                  onClick={() => setStart(index)}
+                  aria-label={t('common.a11y.goToPage', { page: index + 1 })}
+                  aria-current={index === start % pool.length}
+                  className={`h-1.5 rounded-full transition-all ${
+                    index === start % pool.length ? 'w-5 bg-brand' : 'w-1.5 bg-surface-3'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </section>
   );
 };
+
+export default AIRecommended;

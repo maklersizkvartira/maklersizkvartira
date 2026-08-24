@@ -1,0 +1,33 @@
+"""SQLAlchemy models.
+
+Importing this package registers every table on ``Base.metadata``, which is
+what Alembic autogenerate reflects against.
+"""
+
+from app.models.ai import AIMessage, AISession
+from app.models.analytics import SmsLog, TrafficEvent
+from app.models.audit import AuditLog
+from app.models.auth import LoginAttempt, OtpCode, PendingRegistration, RefreshToken
+from app.models.base import Base
+from app.models.listing import Favorite, Listing
+from app.models.moderation import Report, VerificationRequest
+from app.models.user import AdminUser, User
+
+__all__ = [
+    "AIMessage",
+    "AISession",
+    "AdminUser",
+    "AuditLog",
+    "Base",
+    "Favorite",
+    "Listing",
+    "LoginAttempt",
+    "OtpCode",
+    "PendingRegistration",
+    "RefreshToken",
+    "Report",
+    "SmsLog",
+    "TrafficEvent",
+    "User",
+    "VerificationRequest",
+]

@@ -1,559 +1,313 @@
-// Maklersiz.uz Production Header Component - Vercel Deploy Trigger
-import React, { useState, useEffect } from 'react';
-import { 
-  ShieldCheck, LogIn, User, MapPin, Menu, X, Home, Search, MessageSquare, 
-  PlusCircle, List, GraduationCap, LogOut, ChevronDown, Sparkles, Award, Phone,
-  Heart, Layers, Handshake, Users, TrainFront, TrendingDown, Building2, Sun, Moon
+/**
+ * Top bar and mobile drawer.
+ *
+ * The previous header set `pointer-events-none` on its root and re-enabled it
+ * only on the top bar, which left the entire mobile drawer — navigation and
+ * sign-out included — unclickable. The drawer is now rendered in a portal,
+ * outside the header's stacking context, so that class of bug cannot recur.
+ */
+
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import {
+  Heart,
+  LogOut,
+  Menu,
+  Plus,
+  ShieldCheck,
+  User as UserIcon,
+  X,
 } from 'lucide-react';
-import { useAppStore, ViewState } from '../../stores/useAppStore';
-import { AuthModal } from '../auth/AuthModal';
+
+import { useTranslation } from '../../i18n';
+import { useAppStore, type ViewState } from '../../stores/useAppStore';
+import { Logo } from '../brand/Logo';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { ThemeToggle } from './ThemeToggle';
+
+interface NavItem {
+  view: ViewState;
+  labelKey: string;
+  ownerOnly?: boolean;
+  authOnly?: boolean;
+}
+
+const PRIMARY_NAV: NavItem[] = [
+  { view: 'HOME', labelKey: 'layout.nav.home' },
+  { view: 'LISTINGS', labelKey: 'layout.nav.listings' },
+  { view: 'MAP', labelKey: 'layout.nav.map' },
+  { view: 'STUDENT_PROGRAM', labelKey: 'layout.nav.studentProgram' },
+];
+
+const ACCOUNT_NAV: NavItem[] = [
+  { view: 'PROFILE', labelKey: 'layout.nav.profile', authOnly: true },
+  { view: 'MY_LISTINGS', labelKey: 'layout.nav.myListings', ownerOnly: true },
+  { view: 'FAVORITES', labelKey: 'layout.nav.favorites', authOnly: true },
+  { view: 'VERIFICATION', labelKey: 'layout.nav.verification', authOnly: true },
+  { view: 'REFERRAL', labelKey: 'layout.nav.referral', authOnly: true },
+];
 
 export const Header: React.FC = () => {
-  const { 
-    setCurrentView, currentView, currentUser, setShowAuth, logout, userXp,
-    favorites, setFilters, currency, setCurrency, themeMode, toggleThemeMode
-  } = useAppStore();
-  const [showSidebar, setShowSidebar] = useState(false);
-  const [showCatMenu, setShowCatMenu] = useState(false);
-  const [showAvatarToggle, setShowAvatarToggle] = useState(true);
+  const { t } = useTranslation();
+  const currentUser = useAppStore((state) => state.currentUser);
+  const currentView = useAppStore((state) => state.currentView);
+  const setCurrentView = useAppStore((state) => state.setCurrentView);
+  const setShowAuth = useAppStore((state) => state.setShowAuth);
+  const logout = useAppStore((state) => state.logout);
+  const favorites = useAppStore((state) => state.favoriteIds);
 
-  const isTenantOrStudent = currentUser && (currentUser.role as string) !== 'OWNER';
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setShowAvatarToggle((prev) => !prev);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
+    document.body.style.overflow = drawerOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [drawerOpen]);
 
-  const xpVal = userXp || 120;
-  const level = Math.floor(xpVal / 100) + 1;
-  const xpInLevel = xpVal % 100;
-
-  const navTo = (view: ViewState) => {
+  const go = (view: ViewState) => {
     setCurrentView(view);
-    setShowSidebar(false);
-    setShowCatMenu(false);
+    setDrawerOpen(false);
   };
 
-  const handleLogout = () => {
-    logout();
-    setShowSidebar(false);
-    setCurrentView('HOME');
+  const visible = (item: NavItem) => {
+    if (item.ownerOnly) return currentUser?.role === 'OWNER';
+    if (item.authOnly) return Boolean(currentUser);
+    return true;
   };
 
-  const categoryItems = [
-    {
-      name: 'Sheriklikka',
-      desc: 'Talaba va ijarachiga sherik',
-      icon: Handshake,
-      color: 'text-amber-500 bg-amber-50',
-      action: () => {
-        setFilters({ rentalType: 'ROOMMATE' });
-        navTo('SEARCH');
-      }
-    },
-    {
-      name: 'Talabalar uchun',
-      desc: 'OTMlar va OOTV yaqinida',
-      icon: GraduationCap,
-      color: 'text-blue-500 bg-blue-50',
-      action: () => {
-        setFilters({ audience: 'STUDENT' });
-        navTo('SEARCH');
-      }
-    },
-    {
-      name: 'Oilalar uchun',
-      desc: '2-3 xonali shinam uylar',
-      icon: Users,
-      color: 'text-emerald-500 bg-emerald-50',
-      action: () => {
-        setFilters({ roomsCount: 2 });
-        navTo('SEARCH');
-      }
-    },
-    {
-      name: 'Metro yaqinida',
-      desc: "1-5 daqiqa piyoda yo'l",
-      icon: TrainFront,
-      color: 'text-indigo-500 bg-indigo-50',
-      action: () => {
-        setFilters({ selectedMetro: 'Yunusobod' });
-        navTo('SEARCH');
-      }
-    },
-    {
-      name: 'Arzon uylar',
-      desc: 'Hamyonbop ijara narxlari',
-      icon: TrendingDown,
-      color: 'text-rose-500 bg-rose-50',
-      action: () => {
-        setFilters({ maxPrice: 4000000 });
-        navTo('SEARCH');
-      }
-    },
-    {
-      name: 'Premium uylar',
-      desc: 'Evroremont, jihozlangan',
-      icon: Sparkles,
-      color: 'text-purple-500 bg-purple-50',
-      action: () => {
-        setFilters({ minTrustScore: 90 });
-        navTo('SEARCH');
-      }
-    },
-  ];
+  const drawer = drawerOpen
+    ? createPortal(
+        <div className="fixed inset-0 z-[110] lg:hidden">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setDrawerOpen(false)}
+            aria-hidden="true"
+          />
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('common.a11y.menu')}
+            className="absolute right-0 top-0 flex h-full w-[86%] max-w-sm flex-col overflow-y-auto border-l border-line bg-surface shadow-raised"
+          >
+            <div className="flex items-center justify-between border-b border-line px-4 py-4">
+              <Logo size="sm" />
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(false)}
+                aria-label={t('layout.header.closeMenu')}
+                className="rounded-full p-2 text-muted transition-colors hover:bg-surface-2 hover:text-content"
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </div>
 
-  const districts = ['Chilonzor', 'Yunusobod', "Mirzo Ulug'bek", 'Yakkasaroy', 'Shayxontohur', 'Sergeli'];
+            {currentUser ? (
+              <div className="border-b border-line px-4 py-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-soft-2 text-brand-text">
+                    {currentUser.avatar ? (
+                      <img
+                        src={currentUser.avatar}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <UserIcon className="h-6 w-6" aria-hidden="true" />
+                    )}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black text-content">
+                      {currentUser.name}
+                    </p>
+                    <p className="text-xs text-muted">
+                      {currentUser.role === 'OWNER'
+                        ? t('common.role.owner')
+                        : t('common.role.student')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="border-b border-line px-4 py-4">
+                <p className="text-sm font-black text-content">
+                  {t('layout.sidebar.guestTitle')}
+                </p>
+                <p className="mt-1 text-xs text-muted">{t('layout.sidebar.guestSubtitle')}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAuth(true, 'LOGIN');
+                    setDrawerOpen(false);
+                  }}
+                  className="mt-3 w-full rounded-xl bg-brand px-4 py-3 text-sm font-bold text-on-brand shadow-brand"
+                >
+                  {t('layout.header.loginOrRegister')}
+                </button>
+              </div>
+            )}
+
+            <nav className="flex-1 px-2 py-3">
+              {[...PRIMARY_NAV, ...ACCOUNT_NAV].filter(visible).map((item) => (
+                <button
+                  key={item.view}
+                  type="button"
+                  onClick={() => go(item.view)}
+                  aria-current={currentView === item.view ? 'page' : undefined}
+                  className={`w-full rounded-xl px-3 py-3 text-left text-sm font-bold transition-colors ${
+                    currentView === item.view
+                      ? 'bg-brand-soft text-brand-text'
+                      : 'text-muted hover:bg-surface-2 hover:text-content'
+                  }`}
+                >
+                  {t(item.labelKey as never)}
+                </button>
+              ))}
+            </nav>
+
+            <div className="space-y-3 border-t border-line px-4 py-4">
+              <ThemeToggle compact={false} />
+              <LanguageSwitcher />
+              {currentUser && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void logout();
+                    setDrawerOpen(false);
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-danger/30 px-4 py-3 text-sm font-bold text-danger transition-colors hover:bg-danger-soft"
+                >
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
+                  {t('common.action.signOut')}
+                </button>
+              )}
+            </div>
+          </aside>
+        </div>,
+        document.body,
+      )
+    : null;
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 transition-all pointer-events-none">
-      <AuthModal />
-
-      <div className={`w-full transition-all border-b backdrop-blur-xl pointer-events-auto px-4 sm:px-8 py-2.5 sm:py-3 flex items-center justify-between gap-3 ${
-        themeMode === 'light'
-          ? 'bg-white/95 text-slate-900 border-slate-200/90'
-          : 'bg-slate-950/90 text-white border-slate-800/90'
-      }`}>
-        {/* Logo */}
-        <button onClick={() => setCurrentView('HOME')} className="flex items-center gap-2 shrink-0 min-w-0 group text-left">
-          <span className={`text-base sm:text-xl font-black tracking-tighter ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
-            MAKLERSIZ<span className="text-emerald-500">UY</span>
-          </span>
-        </button>
-
-        {/* Desktop Navigation Links */}
-        <nav className={`hidden lg:flex items-center gap-6 text-xs sm:text-sm font-bold relative ${
-          themeMode === 'light' ? 'text-slate-700' : 'text-slate-300'
-        }`}>
+    <>
+      <header className="fixed inset-x-0 top-0 z-[90] border-b border-line bg-surface/95 backdrop-blur">
+        <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:h-16 sm:px-6">
           <button
-            onClick={() => setCurrentView('HOME')}
-            className={`hover:text-emerald-500 transition-colors ${currentView === 'HOME' ? 'text-emerald-500 font-black' : ''}`}
+            type="button"
+            onClick={() => go('HOME')}
+            className="flex shrink-0 items-center gap-2"
+            aria-label={t('common.brand.name')}
           >
-            Bosh sahifa
-          </button>
-          <button
-            onClick={() => setCurrentView('SEARCH')}
-            className={`hover:text-emerald-500 transition-colors ${currentView === 'SEARCH' ? 'text-emerald-500 font-black' : ''}`}
-          >
-            Ijaraga olish
+            {/* Mark only below sm so the bar keeps room for the actions.
+                The wrappers own the display utility; passing `hidden` into
+                Logo would collide with its own `inline-flex`. */}
+            <span className="hidden sm:block">
+              <Logo size="md" />
+            </span>
+            <span className="sm:hidden">
+              <Logo size="sm" markOnly />
+            </span>
           </button>
 
-          {/* Interactive Categories Dropdown Trigger */}
-          <div
-            className="relative"
-            onMouseEnter={() => setShowCatMenu(true)}
-            onMouseLeave={() => setShowCatMenu(false)}
-          >
+          <nav className="ml-2 hidden items-center gap-1 lg:flex">
+            {PRIMARY_NAV.map((item) => (
+              <button
+                key={item.view}
+                type="button"
+                onClick={() => go(item.view)}
+                aria-current={currentView === item.view ? 'page' : undefined}
+                className={`rounded-xl px-3 py-2 text-sm font-bold transition-colors ${
+                  currentView === item.view
+                    ? 'bg-brand-soft text-brand-text'
+                    : 'text-muted hover:bg-surface-2 hover:text-content'
+                }`}
+              >
+                {t(item.labelKey as never)}
+              </button>
+            ))}
+          </nav>
+
+          <div className="ml-auto flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setShowCatMenu((v) => !v)}
-              className="flex items-center gap-1 hover:text-emerald-400 transition-colors py-2"
+              onClick={() => go('FAVORITES')}
+              aria-label={t('layout.nav.favorites')}
+              className="relative hidden rounded-xl border border-line bg-surface p-2 text-muted transition-colors hover:border-brand hover:text-content sm:block"
             >
-              <span>Kategoriyalar</span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${showCatMenu ? 'rotate-180 text-emerald-400' : ''}`} />
-            </button>
-
-            {/* Categories Dropdown Popover */}
-            {showCatMenu && (
-              <div className="absolute top-full left-0 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 text-slate-900 p-3 space-y-2 z-50 animate-in fade-in zoom-in-95 duration-150">
-                <div className="text-[10px] font-black text-slate-400 uppercase px-2 tracking-wider">
-                  Bo'limni tanlang
-                </div>
-                <div className="grid grid-cols-1 gap-1">
-                  {categoryItems.map((cat, idx) => {
-                    const Icon = cat.icon;
-                    return (
-                      <button
-                        key={idx}
-                        onClick={cat.action}
-                        className="w-full text-left p-2 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-3 group"
-                      >
-                        <div className={`w-8 h-8 rounded-lg ${cat.color} flex items-center justify-center shrink-0`}>
-                          <Icon className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-extrabold text-slate-800 group-hover:text-emerald-600 transition-colors">
-                            {cat.name}
-                          </div>
-                          <div className="text-[10px] text-slate-400 truncate font-medium">
-                            {cat.desc}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="border-t border-slate-100 pt-2 px-2">
-                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">
-                    Mashhur tumanlar
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {districts.map((d) => (
-                      <button
-                        key={d}
-                        onClick={() => {
-                          setFilters({ selectedDistrict: d });
-                          navTo('SEARCH');
-                        }}
-                        className="text-[10px] font-bold bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 px-2 py-1 rounded-md transition-colors"
-                      >
-                        {d}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={() => setCurrentView('MAP')}
-            className={`hover:text-emerald-400 transition-colors ${currentView === 'MAP' ? 'text-emerald-400 font-black' : ''}`}
-          >
-            Xarita
-          </button>
-          <button
-            onClick={() => setCurrentView('STUDENT_PROGRAM')}
-            className={`hover:text-emerald-400 transition-colors ${currentView === 'STUDENT_PROGRAM' ? 'text-emerald-400 font-black' : ''}`}
-          >
-            Talabalar uchun
-          </button>
-        </nav>
-
-        {/* Right Header Controls Group */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-
-          {/* Dark / Light Theme Toggle */}
-          <button
-            type="button"
-            onClick={toggleThemeMode}
-            className="w-8 h-8 rounded-full bg-slate-900 border border-slate-700/80 hover:bg-slate-800 transition-colors shrink-0 flex items-center justify-center text-amber-400 cursor-pointer"
-            title={themeMode === 'dark' ? "Kunduzi (Light) rejimiga o'tish" : "Tungi (Dark) rejimiga o'tish"}
-          >
-            {themeMode === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-300" />}
-          </button>
-
-          {/* Currency Toggle */}
-          <button
-            onClick={() => setCurrency(currency === 'USD' ? 'UZS' : 'USD')}
-            className="flex items-center bg-slate-900 border border-slate-700/80 rounded-full p-0.5 shadow-inner transition-colors shrink-0"
-            title="Valyutani o'zgartirish"
-          >
-            <span className={`text-[10px] sm:text-[11px] font-black px-2 py-1 rounded-full transition-all ${currency === 'UZS' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
-              UZS
-            </span>
-            <span className={`text-[10px] sm:text-[11px] font-black px-2 py-1 rounded-full transition-all ${currency === 'USD' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
-              Y.e
-            </span>
-          </button>
-
-          {/* Role Provider Enforcement Action Button */}
-          {isTenantOrStudent ? (
-            /* Student / Tenant Role: Show Favorites / Saved Listings Button (NO Create Listing) */
-            <button
-              onClick={() => setCurrentView('FAVORITES')}
-              className="flex items-center gap-1.5 rounded-full bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 font-extrabold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 shadow-xs transition-all active:scale-95 shrink-0 whitespace-nowrap"
-            >
-              <Heart className="w-3.5 h-3.5 fill-emerald-400 text-emerald-400" />
-              <span className="hidden sm:inline">Saqlanganlar ({favorites.length})</span>
-              <span className="sm:hidden">({favorites.length})</span>
-            </button>
-          ) : (
-            /* Owner Role or Guest: Show + E'lon berish Button */
-            <button
-              onClick={() => {
-                if (!currentUser) {
-                  setShowAuth(true, 'REGISTER');
-                } else {
-                  setCurrentView('CREATE_LISTING');
-                }
-              }}
-              className="rounded-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 shrink-0 whitespace-nowrap"
-            >
-              <span className="hidden sm:inline">+ E'lon berish</span>
-              <span className="sm:hidden">+ E'lon</span>
-            </button>
-          )}
-
-          {/* User Profile / Auth Button (PLACED AT THE VERY END / OXIRIDA) */}
-          {currentUser ? (
-            <div className="hidden sm:flex items-center gap-1 sm:gap-2 shrink-0">
-              <button
-                onClick={() => setShowSidebar(true)}
-                className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700/90 text-white font-bold text-xs sm:text-sm p-1 sm:pl-1.5 sm:pr-3 rounded-full transition-all shadow-md shrink-0 cursor-pointer"
-                title={currentUser.name}
-              >
-                <img
-                  src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'}
-                  alt={currentUser.name}
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-emerald-400 shrink-0"
-                />
-                <div className="text-left min-w-0 sm:max-w-[130px]">
-                  <div className="font-extrabold text-xs text-white truncate leading-tight">{currentUser.name}</div>
-                  <div className="text-[10px] text-emerald-400 font-bold uppercase">{currentUser.role === 'OWNER' ? 'Uy Egasi' : 'Talaba'}</div>
-                </div>
-              </button>
-
-              {/* Desktop Direct Logout Button */}
-              <button
-                onClick={handleLogout}
-                title="Tizimdan chiqish"
-                className="flex items-center justify-center p-2 rounded-full bg-slate-900 hover:bg-rose-950/80 border border-slate-700 hover:border-rose-500 text-slate-300 hover:text-rose-400 transition-all shadow-xs shrink-0 cursor-pointer"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowAuth(true, 'LOGIN')}
-              className="hidden sm:flex items-center gap-2 rounded-full bg-slate-900 hover:bg-slate-800 border border-slate-700/80 px-3.5 py-1.5 sm:px-4 sm:py-2 text-white font-bold text-xs sm:text-sm shadow-md transition-all shrink-0 cursor-pointer"
-            >
-              <User className="w-4 h-4 text-emerald-400" />
-              <span>Kirish / Ro'yxatdan o'tish</span>
-            </button>
-          )}
-
-          {/* Sidebar Menu Drawer Toggle Button (Mobile/Tablet Only) */}
-          <button
-            type="button"
-            onClick={() => setShowSidebar((v) => !v)}
-            className="lg:hidden relative w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-900 border border-slate-700/80 hover:bg-slate-800 transition-colors shrink-0 flex items-center justify-center overflow-hidden"
-            aria-label="Menyu"
-          >
-            {currentUser ? (
-              <>
-                <div className={`absolute inset-0 flex items-center justify-center transition-all duration-700 ${showAvatarToggle ? 'opacity-100 scale-100 rotate-0' : 'opacity-0 scale-50 rotate-180'}`}>
-                  <img
-                    src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'}
-                    alt={currentUser.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className={`absolute inset-0 flex items-center justify-center text-white transition-all duration-700 ${!showAvatarToggle ? 'opacity-100 scale-100 rotate-0' : 'opacity-0 scale-50 -rotate-180'}`}>
-                  <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
-                </div>
-              </>
-            ) : (
-              <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Slide-over Sidebar Drawer */}
-      {showSidebar && (
-        <div className="fixed inset-0 z-[120] bg-slate-950/60 backdrop-blur-sm flex justify-end" onClick={() => setShowSidebar(false)}>
-          <div 
-            className="w-full max-w-xs sm:max-w-sm bg-white h-full shadow-2xl flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-300" 
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div>
-              {/* Sidebar Header */}
-              <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl font-black tracking-tighter text-slate-900">
-                    MAKLERSIZ<span className="text-emerald-600">UY</span>
-                  </span>
-                </div>
-                <button 
-                  onClick={() => setShowSidebar(false)} 
-                  className="p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* User Profile Card inside Sidebar */}
-              {currentUser ? (
-                <div className="p-5 border-b border-slate-100 bg-gradient-to-b from-emerald-50/50 to-white space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="relative shrink-0">
-                      <img
-                        src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'}
-                        alt=""
-                        className="w-14 h-14 rounded-full object-cover border-2 border-emerald-500 shadow-sm"
-                      />
-                      <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-black text-slate-900 text-base truncate">{currentUser.name}</h3>
-                      <div className="text-xs text-slate-500 font-semibold flex items-center gap-1 truncate mt-0.5">
-                        <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
-                        <span>{currentUser.phone}</span>
-                      </div>
-                      <div className="mt-1.5 inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">
-                        <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                        <span>{currentUser.role === 'OWNER' ? 'Uy Egasi Profil' : 'Talaba Profil'}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Level & XP Progress Card */}
-                  <div className="bg-white border border-emerald-200/80 rounded-2xl p-3 space-y-1.5 shadow-xs">
-                    <div className="flex items-center justify-between text-xs font-black text-slate-800">
-                      <span className="flex items-center gap-1 text-emerald-700">
-                        <Award className="w-4 h-4 text-emerald-600" />
-                        Daraja: {level}-seviya
-                      </span>
-                      <span className="text-[11px] font-extrabold text-slate-500">{xpVal} XP</span>
-                    </div>
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                      <div 
-                        className="bg-emerald-600 h-full rounded-full transition-all duration-500" 
-                        style={{ width: `${Math.min(100, (xpInLevel / 100) * 100)}%` }} 
-                      />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-5 border-b border-slate-100 bg-slate-50 text-center space-y-3">
-                  <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-                    <User className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="font-extrabold text-slate-900 text-sm">Tizimga Kiring</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">E'lon joylash va uy egalari bilan bevosita bog'lanish uchun</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <button
-                      onClick={() => { setShowSidebar(false); setShowAuth(true, 'LOGIN'); }}
-                      className="bg-white border border-slate-200 text-slate-800 font-bold text-xs py-2.5 rounded-xl shadow-xs"
-                    >
-                      Kirish
-                    </button>
-                    <button
-                      onClick={() => { setShowSidebar(false); setShowAuth(true, 'REGISTER'); }}
-                      className="bg-emerald-600 text-white font-bold text-xs py-2.5 rounded-xl shadow-xs"
-                    >
-                      Ro'yxatdan o'tish
-                    </button>
-                  </div>
-                </div>
+              <Heart className="h-4 w-4" aria-hidden="true" />
+              {favorites.size > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-black text-white">
+                  {favorites.size}
+                </span>
               )}
+            </button>
 
-              {/* Navigation Items inside Sidebar */}
-              <div className="p-3 space-y-1">
-                <button
-                  onClick={() => navTo('HOME')}
-                  className={`w-full text-left px-3.5 py-3 rounded-2xl font-extrabold text-xs flex items-center gap-3 transition-colors ${
-                    currentView === 'HOME' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <Home className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Bosh sahifa</span>
-                </button>
-
-                <button
-                  onClick={() => navTo('SEARCH')}
-                  className={`w-full text-left px-3.5 py-3 rounded-2xl font-extrabold text-xs flex items-center gap-3 transition-colors ${
-                    currentView === 'SEARCH' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <Search className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Kvartiralar Izlash</span>
-                </button>
-
-                <button
-                  onClick={() => navTo('FAVORITES')}
-                  className={`w-full text-left px-3.5 py-3 rounded-2xl font-extrabold text-xs flex items-center justify-between transition-colors ${
-                    currentView === 'FAVORITES' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Heart className="w-4 h-4 text-rose-500 shrink-0" />
-                    <span>Saralangan E'lonlar</span>
-                  </div>
-                  {favorites.length > 0 && (
-                    <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
-                      {favorites.length}
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  onClick={() => navTo('MAP')}
-                  className={`w-full text-left px-3.5 py-3 rounded-2xl font-extrabold text-xs flex items-center gap-3 transition-colors ${
-                    currentView === 'MAP' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Interaktiv Xarita</span>
-                </button>
-
-                <button
-                  onClick={() => navTo('CHAT')}
-                  className={`w-full text-left px-3.5 py-3 rounded-2xl font-extrabold text-xs flex items-center gap-3 transition-colors ${
-                    currentView === 'CHAT' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <MessageSquare className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Xabarlar va Muloqot</span>
-                </button>
-
-                {currentUser?.role === 'OWNER' && (
-                  <>
-                    <button
-                      onClick={() => navTo('MY_LISTINGS')}
-                      className={`w-full text-left px-3.5 py-3 rounded-2xl font-extrabold text-xs flex items-center gap-3 transition-colors ${
-                        currentView === 'MY_LISTINGS' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      <List className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>Mening E'lonlarim</span>
-                    </button>
-
-                    <button
-                      onClick={() => navTo('CREATE_LISTING')}
-                      className="w-full text-left px-3.5 py-3 rounded-2xl font-extrabold text-xs flex items-center gap-3 bg-emerald-600 text-white shadow-sm"
-                    >
-                      <PlusCircle className="w-4 h-4 shrink-0" />
-                      <span>+ Yangi E'lon Joylash</span>
-                    </button>
-                  </>
-                )}
-
-                <button
-                  onClick={() => navTo('STUDENT_PROGRAM')}
-                  className={`w-full text-left px-3.5 py-3 rounded-2xl font-extrabold text-xs flex items-center gap-3 transition-colors ${
-                    currentView === 'STUDENT_PROGRAM' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <GraduationCap className="w-4 h-4 text-blue-600 shrink-0" />
-                  <span>Talabalar Dasturi</span>
-                </button>
-
-                {currentUser && (
-                  <button
-                    onClick={() => navTo('PROFILE')}
-                    className={`w-full text-left px-3.5 py-3 rounded-2xl font-extrabold text-xs flex items-center gap-3 transition-colors ${
-                      currentView === 'PROFILE' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    <User className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Profil Sozlamalari</span>
-                  </button>
-                )}
-              </div>
+            <div className="hidden sm:block">
+              <ThemeToggle />
+            </div>
+            <div className="hidden sm:block">
+              <LanguageSwitcher />
             </div>
 
-            {/* Sidebar Footer Logout */}
-            {currentUser && (
-              <div className="p-4 border-t border-slate-100 bg-slate-50">
-                <button
-                  onClick={handleLogout}
-                  className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-xs py-3 rounded-2xl flex items-center justify-center gap-2 transition-colors"
-                >
-                  <LogOut className="w-4 h-4 text-rose-600" />
-                  <span>Tizimdan Chiqish</span>
-                </button>
-              </div>
+            <button
+              type="button"
+              onClick={() =>
+                currentUser ? go('CREATE_LISTING') : setShowAuth(true, 'REGISTER')
+              }
+              className="hidden items-center gap-1.5 rounded-xl bg-brand px-3.5 py-2 text-xs font-bold text-on-brand shadow-brand transition-colors hover:bg-brand-hover sm:inline-flex"
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              {t('layout.header.createListingCta')}
+            </button>
+
+            {currentUser ? (
+              <button
+                type="button"
+                onClick={() => go('PROFILE')}
+                className="hidden items-center gap-2 rounded-xl border border-line bg-surface px-2.5 py-1.5 lg:inline-flex"
+              >
+                <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-brand-soft-2 text-brand-text">
+                  {currentUser.avatar ? (
+                    <img src={currentUser.avatar} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <UserIcon className="h-4 w-4" aria-hidden="true" />
+                  )}
+                </span>
+                <span className="max-w-24 truncate text-xs font-bold text-content">
+                  {currentUser.name.split(' ')[0]}
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowAuth(true, 'LOGIN')}
+                className="hidden rounded-xl border border-line bg-surface px-3.5 py-2 text-xs font-bold text-content transition-colors hover:border-brand lg:inline-block"
+              >
+                {t('common.action.signIn')}
+              </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              aria-label={t('layout.header.openMenu')}
+              aria-expanded={drawerOpen}
+              className="rounded-xl border border-line bg-surface p-2 text-muted transition-colors hover:text-content lg:hidden"
+            >
+              <Menu className="h-5 w-5" aria-hidden="true" />
+            </button>
           </div>
         </div>
-      )}
-    </header>
+
+        <div className="flex items-center justify-center gap-1.5 border-t border-line bg-brand-soft py-1.5 text-[11px] font-bold text-brand-text">
+          <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+          {t('common.brand.shortTagline')}
+        </div>
+      </header>
+
+      {drawer}
+    </>
   );
 };
+
+export default Header;

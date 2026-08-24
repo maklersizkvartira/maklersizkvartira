@@ -1,0 +1,37 @@
+# CRITICAL: the build context is the repository root, so without this file the
+# developer's .env — with live database and API credentials — is copied into
+# the production image and readable by anyone who can pull it.
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+.git/
+.gitignore
+node_modules/
+dist/
+ui-verification/
+verify_*.mjs
+
+# Python
+**/.venv/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+# The API image does not serve the SPA.
+src/
+public/
+index.html
+vite.config.ts
+tsconfig.json
+package*.json
+postcss.config.js
+
+backend_python/tests/
+*.md
+!README.md

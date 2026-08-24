@@ -3,24 +3,45 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
+    alias: { '@': path.resolve(__dirname, './src') },
   },
   server: {
     port: 3000,
-    open: false,
+    // Proxying keeps the dev origin identical to production, so the API can be
+    // addressed as a same-origin /api/v1 path and CORS never enters the picture.
     proxy: {
-      '/api': {
-        target: 'http://localhost:5050',
-        changeOrigin: true,
+      '/api': { target: 'http://127.0.0.1:5000', changeOrigin: true },
+      '/admin': { target: 'http://127.0.0.1:5000', changeOrigin: true },
+    },
+  },
+  // `vite preview` serves the production bundle; it needs the same proxy as dev
+  // so the built app can be exercised against a local API before deploying.
+  preview: {
+    port: 4173,
+    proxy: {
+      '/api': { target: 'http://127.0.0.1:5060', changeOrigin: true },
+      '/admin': { target: 'http://127.0.0.1:5060', changeOrigin: true },
+    },
+  },
+  build: {
+    target: 'es2022',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        // Split the heaviest third-party code so a change to app code does not
+        // invalidate the whole vendor bundle in users' caches. Vite 8 bundles
+        // with rolldown, which takes the function form only.
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('firebase') || id.includes('@firebase')) return 'firebase';
+          if (id.includes('react-dom') || id.includes('/react/')) return 'react';
+          return 'vendor';
+        },
       },
     },
   },

@@ -1,497 +1,232 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  MessageSquare, Send, ArrowLeft, ShieldCheck, AlertTriangle, PlusCircle, 
-  Home, ExternalLink, PhoneCall, Share2, X, Sparkles, Search, Building2, Phone, CheckCheck 
+/**
+ * Messages screen.
+ *
+ * There is no messaging backend. The previous version kept conversations in
+ * a zustand slice, so every "sent" message lived in one browser tab and was
+ * never delivered to the other person — the inbox looked functional and was
+ * not. Rather than reproduce that, this screen states the situation and
+ * routes the user to the contact channels that do work (phone, Telegram),
+ * while keeping the composer as a local draft pad they can copy from.
+ */
+
+import React, { useState } from 'react';
+import {
+  Building2,
+  Check,
+  Copy,
+  ExternalLink,
+  Info,
+  MessageSquare,
+  PhoneCall,
+  PlusCircle,
+  Send,
+  ShieldCheck,
 } from 'lucide-react';
+
+import { useTranslation } from '../../i18n';
 import { useAppStore } from '../../stores/useAppStore';
-import { Listing } from '../../types';
+import { Button } from '../ui/Field';
+
+const QUICK_QUESTION_KEYS = [
+  'chat.composer.quick.viewing',
+  'chat.composer.quick.address',
+  'chat.composer.quick.contract',
+  'chat.composer.quick.phone',
+] as const;
+
+const CONTACT_STEPS = [
+  { icon: Building2, titleKey: 'chat.contact.step1Title', bodyKey: 'chat.contact.step1Body' },
+  { icon: PhoneCall, titleKey: 'chat.contact.step2Title', bodyKey: 'chat.contact.step2Body' },
+  { icon: ExternalLink, titleKey: 'chat.contact.step3Title', bodyKey: 'chat.contact.step3Body' },
+] as const;
 
 export const ChatPage: React.FC = () => {
-  const {
-    activeConversationId, conversations, messages, listings,
-    sendMessage, setCurrentView, currentUser, setActiveConversation, setShowAuth
-  } = useAppStore();
+  const { t, formatNumber } = useTranslation();
 
-  const [inputMsg, setInputMsg] = useState('');
-  const [mobileThread, setMobileThread] = useState(Boolean(activeConversationId));
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [showPhoneModal, setShowPhoneModal] = useState(false);
-  const [filterQuery, setFilterQuery] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const currentUser = useAppStore((state) => state.currentUser);
+  const setCurrentView = useAppStore((state) => state.setCurrentView);
+  const setShowAuth = useAppStore((state) => state.setShowAuth);
+  const pushToast = useAppStore((state) => state.pushToast);
 
-  const isOwner = currentUser?.role === 'OWNER';
-  const currentConv = conversations.find((c) => c.id === activeConversationId) || conversations[0] || null;
-  const currentMsgs = currentConv ? (messages[currentConv.id] || []) : [];
-  const currentListing = listings.find((l) => l.id === currentConv?.listingId);
+  // Draft state is deliberately component-local: nothing here is persisted or
+  // transmitted, and pretending otherwise in the store is what caused the
+  // phantom inbox in the first place.
+  const [draft, setDraft] = useState('');
+  const [copied, setCopied] = useState(false);
 
-  const peerName = (conv: typeof conversations[0]) => (isOwner ? conv.tenantName : conv.ownerName);
-  const peerAvatar = (conv: typeof conversations[0]) => (isOwner ? conv.tenantAvatar : conv.ownerAvatar);
+  const appendQuestion = (text: string) => {
+    setCopied(false);
+    setDraft((current) => (current.trim() ? `${current.trimEnd()}\n${text}` : text));
+  };
 
-  useEffect(() => {
-    if (activeConversationId) {
-      setMobileThread(true);
+  const handleCopy = async () => {
+    if (!draft.trim()) return;
+    try {
+      await navigator.clipboard.writeText(draft.trim());
+      setCopied(true);
+      pushToast('common.action.copied', 'success');
+    } catch {
+      pushToast('common.error.generic', 'error');
     }
-  }, [activeConversationId]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [currentMsgs.length, mobileThread]);
-
-  const openConv = (id: string) => {
-    setActiveConversation(id);
-    setMobileThread(true);
   };
 
-  const handleSend = (textToSend?: string | React.FormEvent) => {
-    if (typeof textToSend === 'object' && textToSend.preventDefault) {
-      textToSend.preventDefault();
-    }
-    const msgText = typeof textToSend === 'string' ? textToSend : inputMsg;
-    if (!msgText.trim() || !currentConv) return;
-    sendMessage(currentConv.id, msgText.trim());
-    if (typeof textToSend !== 'string') setInputMsg('');
-  };
-
-  const sendQuickReply = (text: string) => {
-    if (!currentConv) return;
-    sendMessage(currentConv.id, text);
-  };
-
-  const handleShareListing = (listing: Listing) => {
-    if (!currentConv) return;
-    sendMessage(
-      currentConv.id,
-      `🏠 E'lon ulashildi: ${listing.title} (${listing.price.toLocaleString()} so'm/oy)`,
-      {
-        listingData: {
-          id: listing.id,
-          title: listing.title,
-          price: listing.price,
-          image: listing.images[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=300',
-          district: listing.district,
-          rooms: listing.rooms,
-        }
-      }
-    );
-    setShowShareModal(false);
-  };
-
-  const handleOpenCreateListing = () => {
+  const handleCreateListing = () => {
     if (!currentUser) {
-      setShowAuth(true);
+      setShowAuth(true, 'REGISTER');
       return;
     }
     if (currentUser.role !== 'OWNER') {
-      alert("E'lon joylash uchun profil sozlamalarida 'Uy Egasi' roliga ega bo'lishingiz kerak.");
+      pushToast('chat.toast.ownerOnly', 'warning');
       return;
     }
     setCurrentView('CREATE_LISTING');
   };
 
-  const isMe = (senderId: string, senderRole: string) => {
-    if (currentUser?.id) {
-      return senderId === currentUser.id;
-    }
-    if (senderId === 'tenant_current') return true;
-    if (isOwner) return senderRole === 'OWNER';
-    return senderRole === 'STUDENT' || senderRole === 'TENANT';
-  };
-
-  const filteredConversations = conversations.filter((c) => {
-    if (!filterQuery.trim()) return true;
-    const q = filterQuery.toLowerCase();
-    return (
-      peerName(c).toLowerCase().includes(q) ||
-      c.listingTitle.toLowerCase().includes(q) ||
-      c.lastMessage.toLowerCase().includes(q)
-    );
-  });
-
-  const QuickChips = [
-    "📅 Bugun uyni ko'rsam bo'ladimi?",
-    "📍 Aniq manzil va mo'ljalni yuboring",
-    "📜 Shartnoma rasmiylashtiriladimi?",
-    "📞 Telefon raqamingizni bering"
-  ];
-
-  const List = (
-    <div className="bg-white md:rounded-3xl md:border md:border-slate-200/80 shadow-card flex flex-col h-full min-h-0 overflow-hidden">
-      {/* Header */}
-      <div className="p-3.5 sm:p-4 border-b border-slate-100 bg-slate-50/50 shrink-0 space-y-2.5">
-        <div className="flex items-center justify-between">
-          <h2 className="font-black text-slate-900 text-base flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-600/10 text-emerald-600 flex items-center justify-center">
-              <MessageSquare className="w-4 h-4" />
-            </div>
-            <span>Xabarlar</span>
-          </h2>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">
-              {conversations.length} suhbat
-            </span>
-            <button
-              type="button"
-              onClick={handleOpenCreateListing}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-sm transition-all active:scale-95 shrink-0"
-            >
-              <PlusCircle className="w-3.5 h-3.5" />
-              <span>E'lon Joylash</span>
-            </button>
-          </div>
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-6 sm:py-8">
+      <header className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-text">
+          <MessageSquare className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <h1 className="text-xl font-black text-content sm:text-2xl">{t('layout.nav.chat')}</h1>
+          <p className="mt-0.5 text-sm text-muted">{t('chat.page.subtitle')}</p>
         </div>
+      </header>
 
-        {/* Filter Input */}
-        <div className="relative">
-          <input
-            type="text"
-            value={filterQuery}
-            onChange={(e) => setFilterQuery(e.target.value)}
-            placeholder="Ism yoki e'lon bo'yicha izlash..."
-            className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
-          />
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-3" />
-        </div>
-      </div>
+      {/* The honest status of the feature, announced rather than buried. */}
+      <section
+        role="status"
+        className="mt-5 rounded-2xl border border-info/30 bg-info-soft p-4 sm:p-5"
+      >
+        <h2 className="flex items-center gap-2 text-sm font-black text-info">
+          <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
+          {t('chat.notice.title')}
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-content">{t('chat.notice.body')}</p>
+        <p className="mt-1.5 text-xs leading-relaxed text-muted">{t('chat.notice.legacyNote')}</p>
 
-      {/* Conversation Cards */}
-      <div className="overflow-y-auto flex-1 min-h-0 divide-y divide-slate-100">
-        {filteredConversations.length > 0 ? (
-          filteredConversations.map((conv) => {
-            const isSelected = conv.id === currentConv?.id;
-            return (
-              <button
-                key={conv.id}
-                onClick={() => openConv(conv.id)}
-                className={`w-full text-left p-3.5 flex items-start gap-3 transition-all ${
-                  isSelected ? 'bg-emerald-50/80 border-l-4 border-l-emerald-600' : 'hover:bg-slate-50'
-                }`}
-              >
-                <div className="relative shrink-0 mt-0.5">
-                  <img src={peerAvatar(conv)} alt="" className="w-11 h-11 rounded-full object-cover border border-slate-200 shadow-sm" />
-                  <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
-                  {conv.unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-sm">
-                      {conv.unreadCount}
-                    </span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="font-extrabold text-slate-900 text-xs truncate">{peerName(conv)}</span>
-                    <span className="text-[10px] font-bold text-slate-400 shrink-0">{conv.lastMessageTime}</span>
-                  </div>
-                  <div className="text-[11px] font-bold text-emerald-700 truncate mt-0.5 flex items-center gap-1">
-                    <Building2 className="w-3 h-3 shrink-0" />
-                    <span className="truncate">{conv.listingTitle}</span>
-                  </div>
-                  <p className="text-xs text-slate-500 truncate mt-1 leading-snug">{conv.lastMessage}</p>
-                </div>
-              </button>
-            );
-          })
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50 m-4 rounded-3xl border border-slate-100">
-            <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
-              <MessageSquare className="w-8 h-8 text-slate-300" />
-            </div>
-            <p className="text-sm font-bold text-slate-500">Suhbatlar topilmadi</p>
-            <p className="text-xs text-slate-400 mt-1">Sizda hozircha hech qanday xabarlar yo'q.</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const Thread = currentConv ? (
-    <div className="bg-slate-50 md:bg-white md:rounded-3xl md:border md:border-slate-200/80 md:shadow-card flex flex-col h-full min-h-0 overflow-hidden relative">
-      {/* Top Peer Info Header */}
-      <div className="px-3 sm:px-4 py-2.5 border-b border-slate-200/80 bg-white flex items-center justify-between gap-2.5 shrink-0 shadow-xs z-10">
-        <div className="flex items-center gap-2 min-w-0">
-          <button
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button
             type="button"
-            onClick={() => setMobileThread(false)}
-            className="md:hidden p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition active:scale-95 shrink-0"
-            aria-label="Orqaga"
+            onClick={() => setCurrentView('LISTINGS')}
+            className="px-4 py-2.5 text-xs"
           >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div className="relative shrink-0">
-            <img src={peerAvatar(currentConv)} alt="" className="w-10 h-10 rounded-full object-cover border border-slate-200" />
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="font-extrabold text-slate-900 text-xs sm:text-sm truncate leading-tight">
-              {peerName(currentConv)}
-            </h3>
-            <p className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-              <span>Onlayn • Maklersiz bevosita muloqot</span>
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
+            <Building2 className="h-4 w-4" aria-hidden="true" />
+            {t('chat.actions.browse')}
+          </Button>
+          <Button
             type="button"
-            onClick={() => setShowPhoneModal(true)}
-            className="bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 hover:bg-emerald-100 transition-colors"
+            variant="secondary"
+            onClick={handleCreateListing}
+            className="px-4 py-2.5 text-xs"
           >
-            <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="hidden sm:inline">Qo'ng'iroq</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setCurrentView('LISTING_DETAIL', currentConv.listingId)}
-            className="bg-slate-900 text-white font-bold text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 hover:bg-slate-800 transition-colors"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">E'lonni Ochish</span>
-          </button>
+            <PlusCircle className="h-4 w-4" aria-hidden="true" />
+            {t('chat.actions.create')}
+          </Button>
         </div>
-      </div>
+      </section>
 
-      {/* Mini Listing Banner inside Chat Thread */}
-      {currentListing && (
-        <div className="bg-slate-900 text-white p-3 flex items-center justify-between gap-3 shrink-0 shadow-md">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <img
-              src={currentListing.images[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=200'}
-              alt=""
-              className="w-11 h-11 rounded-xl object-cover shrink-0 border border-slate-700"
-            />
-            <div className="min-w-0 flex-1">
-              <h4 className="font-extrabold text-xs text-white truncate">{currentListing.title}</h4>
-              <p className="text-[11px] text-emerald-400 font-black mt-0.5">
-                {currentListing.price.toLocaleString()} so'm/oy
-                {currentListing.district ? ` • ${currentListing.district}` : ''}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
-              onClick={() => handleShareListing(currentListing)}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-all"
-              title="Kvartira kartasini chatga ulashish"
-            >
-              <Share2 className="w-3 h-3" />
-              <span className="hidden sm:inline">Karta Yuborish</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-2.5 sm:p-4 space-y-3 bg-[#e8edea]/40 md:bg-slate-100/60 min-h-0">
-        <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl text-xs text-emerald-900 flex gap-2.5 shadow-sm">
-          <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-          <div className="space-y-0.5">
-            <span className="font-extrabold text-emerald-950 block">Xavfsiz muloqot qoidasi:</span>
-            <p className="text-emerald-800 leading-relaxed text-[11px]">
-              Kvartirani shaxsan ko'rib, kalit va hujjatlarni olmaguningizcha oldindan karta (plastik)ga pul o'tkazmang!
-            </p>
-          </div>
-        </div>
-
-        {currentMsgs.map((msg) => {
-          const mine = isMe(msg.senderId, msg.senderRole);
-          return (
-            <div key={msg.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] sm:max-w-[75%] p-2.5 sm:p-3.5 rounded-[20px] text-[13px] sm:text-sm shadow-sm ${
-                mine 
-                  ? 'bg-[#00a884] text-white rounded-br-sm' 
-                  : 'bg-white text-slate-900 border border-slate-200/50 rounded-bl-sm'
-              }`}>
-                {!mine && <div className="text-[10px] font-extrabold text-emerald-700 mb-1">{msg.senderName}</div>}
-
-                {/* Listing Attachment Card in Chat Message */}
-                {msg.listingData && (
-                  <div className="mb-2.5 bg-slate-900 text-white rounded-xl p-2.5 border border-slate-700 space-y-2">
-                    <div className="flex items-center gap-2.5">
-                      <img src={msg.listingData.image} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <div className="font-extrabold text-xs truncate text-white">{msg.listingData.title}</div>
-                        <div className="text-emerald-400 font-black text-xs mt-0.5">
-                          {msg.listingData.price.toLocaleString()} so'm/oy
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setCurrentView('LISTING_DETAIL', msg.listingData?.id || null)}
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] py-1.5 rounded-lg flex items-center justify-center gap-1 transition-colors"
-                    >
-                      <span>E'lonni batafsil ko'rish</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
-
-                <p className="leading-relaxed whitespace-pre-wrap font-medium">{msg.text}</p>
-                
-                <div className={`text-[9px] font-bold mt-1 text-right flex items-center justify-end gap-1 ${
-                  mine ? 'text-emerald-100' : 'text-slate-400'
-                }`}>
-                  <span>{msg.timestamp}</span>
-                  {mine && <CheckCheck className="w-3 h-3 text-emerald-200" />}
-                </div>
-
-                {msg.isSafetyWarning && (
-                  <div className="mt-2 p-2 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-[11px] flex gap-1.5 font-semibold">
-                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>{msg.warningText}</span>
-                  </div>
-                )}
+      <section className="mt-5 rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5">
+        <h2 className="text-sm font-black text-content">{t('chat.contact.title')}</h2>
+        <ol className="mt-3 space-y-3">
+          {CONTACT_STEPS.map(({ icon: Icon, titleKey, bodyKey }, index) => (
+            <li key={titleKey} className="flex gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-muted">
+                <Icon className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-content">
+                  {formatNumber(index + 1)}. {t(titleKey)}
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted">{t(bodyKey)}</p>
               </div>
-            </div>
-          );
-        })}
-        <div ref={messagesEndRef} />
-      </div>
+            </li>
+          ))}
+        </ol>
+      </section>
 
-      {/* Quick Preset Reply Chips */}
-      <div className="px-2 py-2 bg-white border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto hide-scrollbar shrink-0">
-        {QuickChips.map((chip) => (
-          <button
-            key={chip}
-            type="button"
-            onClick={() => sendQuickReply(chip)}
-            className="bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-700 text-[11px] font-bold px-3 py-1.5 rounded-full shrink-0 border border-slate-200 transition-colors whitespace-nowrap"
-          >
-            {chip}
-          </button>
-        ))}
-      </div>
+      <section className="mt-5 flex gap-2.5 rounded-2xl border border-brand/30 bg-brand-soft p-4">
+        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
+        <div className="min-w-0">
+          <h2 className="text-sm font-black text-brand-text">{t('chat.safety.title')}</h2>
+          <p className="mt-1 text-xs leading-relaxed text-content">{t('chat.safety.body')}</p>
+        </div>
+      </section>
 
-      {/* Message Input Form */}
-      <form onSubmit={(e) => handleSend(e)} className="p-2.5 sm:p-3 bg-white border-t border-slate-200/80 flex items-center gap-2 shrink-0">
-        <button
-          type="button"
-          onClick={() => setShowShareModal(true)}
-          className="p-2.5 rounded-full bg-slate-100 hover:bg-emerald-100 text-slate-600 hover:text-emerald-700 transition-colors shrink-0"
-          title="Kvartira e'lonini ulashish"
-        >
-          <Home className="w-5 h-5" />
-        </button>
+      {/* The composer survives as a draft pad: typing and the quick questions
+          still work, only delivery does not — so the button is disabled and
+          says why, instead of quietly vanishing. */}
+      <section className="mt-5 rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5">
+        <h2 className="text-sm font-black text-content">{t('chat.composer.title')}</h2>
 
-        <input
-          type="text"
-          value={inputMsg}
-          onChange={(e) => setInputMsg(e.target.value)}
-          placeholder="Xabar yozing..."
-          className="flex-1 min-w-0 bg-slate-100 focus:bg-white focus:ring-2 focus:ring-emerald-500 border border-slate-200 rounded-full px-4 py-2.5 sm:py-3 text-[13px] sm:text-sm font-semibold outline-none transition-all"
+        <p className="mt-3 text-xs font-bold text-muted">{t('chat.composer.quickTitle')}</p>
+        <p className="mt-0.5 text-xs text-subtle">{t('chat.composer.quickHint')}</p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {QUICK_QUESTION_KEYS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => appendQuestion(t(key))}
+              className="rounded-full border border-line bg-surface-2 px-3 py-1.5 text-[11px] font-bold text-muted transition-colors hover:bg-brand-soft hover:text-brand-text"
+            >
+              {t(key)}
+            </button>
+          ))}
+        </div>
+
+        {/* The section heading is the visible label; this one names the field
+            for assistive tech without repeating the text on screen. */}
+        <label htmlFor="chat-draft" className="sr-only">
+          {t('chat.composer.title')}
+        </label>
+        <textarea
+          id="chat-draft"
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            setCopied(false);
+          }}
+          rows={4}
+          placeholder={t('chat.composer.placeholder')}
+          aria-describedby="chat-draft-hint"
+          className="mt-4 w-full resize-y rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm font-medium text-content transition-colors placeholder:text-subtle focus:border-brand focus:bg-surface focus:outline-none"
         />
 
-        <button
-          type="submit"
-          className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/30 transition-all active:scale-95"
-        >
-          <Send className="w-4 h-4 sm:w-5 sm:h-5" />
-        </button>
-      </form>
+        <p id="chat-draft-hint" className="mt-2 text-xs leading-relaxed text-warning">
+          {t('chat.composer.disabledHint')}
+        </p>
 
-      {/* Share Listing Modal inside Chat */}
-      {showShareModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowShareModal(false)}>
-          <div className="bg-white rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
-                <Share2 className="w-5 h-5 text-emerald-600" /> E'lonni Chatga Yuborish
-              </h3>
-              <button onClick={() => setShowShareModal(false)} className="p-1 rounded-full text-slate-400 hover:text-slate-700">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void handleCopy()}
+            disabled={!draft.trim()}
+            className="px-4 py-2.5 text-xs"
+          >
+            {copied ? (
+              <Check className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Copy className="h-4 w-4" aria-hidden="true" />
+            )}
+            {copied ? t('common.action.copied') : t('common.action.copy')}
+          </Button>
 
-            <p className="text-xs text-slate-500">Qaysi kvartira e'lonini suhbatga yubormoqchisiz?</p>
-
-            <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-              {listings.map((l) => (
-                <div
-                  key={l.id}
-                  onClick={() => handleShareListing(l)}
-                  className="p-3 rounded-2xl border border-slate-200 hover:border-emerald-600 hover:bg-emerald-50 cursor-pointer flex items-center gap-3 transition-all"
-                >
-                  <img src={l.images[0]} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <div className="font-bold text-xs text-slate-900 truncate">{l.title}</div>
-                    <div className="text-emerald-700 font-black text-xs mt-0.5">{l.price.toLocaleString()} so'm/oy</div>
-                    <div className="text-[10px] text-slate-500">{l.region}, {l.district}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={handleOpenCreateListing}
-              className="w-full bg-emerald-600 text-white font-extrabold py-3 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>Yangi E'lon Joylash</span>
-            </button>
-          </div>
+          <Button
+            type="button"
+            disabled
+            aria-describedby="chat-draft-hint"
+            title={t('chat.composer.disabledHint')}
+            className="px-4 py-2.5 text-xs"
+          >
+            <Send className="h-4 w-4" aria-hidden="true" />
+            {t('common.action.send')}
+          </Button>
         </div>
-      )}
-
-      {/* Direct Phone Contact Modal */}
-      {showPhoneModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowPhoneModal(false)}>
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setShowPhoneModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700">
-              <X className="w-5 h-5" />
-            </button>
-            <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-              <PhoneCall className="w-7 h-7" />
-            </div>
-            <div>
-              <h3 className="font-extrabold text-slate-900 text-base">{peerName(currentConv)}</h3>
-              <p className="text-xs text-slate-500 mt-1">Maklersiz to'g'ridan-to'g'ri bog'lanish uchun telefon raqami:</p>
-            </div>
-
-            <div className="bg-slate-100 p-4 rounded-2xl font-mono font-black text-xl text-slate-900 tracking-wider">
-              {currentListing?.owner.phone || "+998 90 123 45 67"}
-            </div>
-
-            <a
-              href={`tel:${currentListing?.owner.phone || "+998901234567"}`}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
-            >
-              <PhoneCall className="w-4 h-4" />
-              <span>Qo'ng'iroq Qilish</span>
-            </a>
-          </div>
-        </div>
-      )}
-    </div>
-  ) : (
-    <div className="flex flex-1 flex-col items-center justify-center text-slate-400 text-sm space-y-3 bg-slate-50 md:bg-white md:rounded-3xl md:border md:border-slate-200/80 md:shadow-card p-6 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
-        <MessageSquare className="w-8 h-8" />
-      </div>
-      <p className="font-bold text-slate-600">Suhbatni tanlang yoki yangi e'lon joylang</p>
-      <button
-        type="button"
-        onClick={handleOpenCreateListing}
-        className="bg-emerald-600 text-white font-extrabold text-xs px-5 py-3 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition-all mt-4"
-      >
-        <PlusCircle className="w-4 h-4" />
-        <span>Yangi E'lon Joylash</span>
-      </button>
-    </div>
-  );
-
-  return (
-    <div className="md:max-w-6xl md:mx-auto md:px-6 md:py-6">
-      <div className="h-[calc(100dvh-3.5rem-4.25rem)] md:h-[calc(100dvh-6rem)] md:min-h-[580px] flex md:gap-4">
-        <div className={`${mobileThread ? 'hidden' : 'flex'} md:flex w-full md:w-80 flex-col min-h-0 bg-white md:bg-transparent min-w-0`}>
-          {List}
-        </div>
-        <div className={`${mobileThread ? 'flex' : 'hidden'} md:flex flex-1 flex-col min-h-0 bg-slate-50 md:bg-transparent w-full max-w-full overflow-hidden min-w-0`}>
-          {Thread}
-        </div>
-      </div>
+      </section>
     </div>
   );
 };
+
+export default ChatPage;

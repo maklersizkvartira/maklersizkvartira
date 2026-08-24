@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+pydantic-settings
+email-validator
+sqlalchemy[asyncio]
+psycopg[binary,pool]
+alembic
+greenlet
+argon2-cffi
+pyjwt
+cryptography
+itsdangerous
+httpx
+structlog

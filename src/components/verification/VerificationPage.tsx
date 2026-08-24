@@ -1,845 +1,1282 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  ShieldCheck, Award, Upload, CheckCircle2, AlertCircle, FileText, 
-  Camera, Lock, ChevronRight, Sparkles, Building, PhoneCall, Check,
-  Search, ShieldAlert, Zap, Star, Eye, Image as ImageIcon, Trash2, RefreshCw,
-  Video, VideoOff
-} from 'lucide-react';
-import { useAppStore } from '../../stores/useAppStore';
-import { ApiService } from '../../services/apiService';
-import { VerificationLevel } from '../../types';
-import { VerificationBadge } from '../common/VerificationBadge';
+/**
+ * Verification centre.
+ *
+ * The five-level ladder is explained here and driven by two endpoints:
+ * `AuthApi.submitVerification` queues a document for a moderator, and
+ * `AuthApi.myVerifications` reports what happened to it. Nothing on this page
+ * grants a level by itself — the level shown always comes from the server
+ * (`currentUser.verificationLevel`), so a refused document cannot be papered
+ * over by optimistic local state.
+ */
 
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AlertCircle,
+  Award,
+  Building2,
+  Camera,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  Eye,
+  FileText,
+  Lock,
+  PhoneCall,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  Trash2,
+  Upload,
+  Video,
+  XCircle,
+  Zap,
+} from 'lucide-react';
+
+import { useTranslation } from '../../i18n';
+import { AuthApi } from '../../services/authApi';
+import { ApiError } from '../../services/http';
+import { useAppStore } from '../../stores/useAppStore';
+import { Button, TextInput } from '../ui/Field';
+
+type LadderLevel = 1 | 2 | 3 | 4 | 5;
+type StepState = 'approved' | 'pending' | 'rejected' | 'locked' | 'todo';
+type DocumentType = 'PASSPORT' | 'ID_CARD' | 'CADASTRE' | 'SELFIE_LIVENESS';
+
+const LADDER: LadderLevel[] = [1, 2, 3, 4, 5];
+
+interface VerificationRequestRow {
+  id: string;
+  targetLevel: number;
+  documentType: string;
+  status: string;
+  rejectionReason?: string;
+  createdAt: string;
+}
+
+/** An uploaded document, already encoded as the data URL the API expects. */
+interface UploadedFile {
+  dataUrl: string;
+  isImage: boolean;
+}
+
+/** The example listing in the before/after comparison — illustration only. */
+const EXAMPLE_PRICE = 4_500_000;
+const EXAMPLE_TRUST_BEFORE = 70;
+const EXAMPLE_TRUST_AFTER = 98;
+
+/** Per-level copy, kept as a table so `t()` still sees literal key paths. */
+const STEP_KEYS = {
+  1: {
+    short: 'verification.steps.l1.short',
+    reward: 'verification.steps.l1.reward',
+    title: 'verification.steps.l1.title',
+    description: 'verification.steps.l1.description',
+  },
+  2: {
+    short: 'verification.steps.l2.short',
+    reward: 'verification.steps.l2.reward',
+    title: 'verification.steps.l2.title',
+    description: 'verification.steps.l2.description',
+  },
+  3: {
+    short: 'verification.steps.l3.short',
+    reward: 'verification.steps.l3.reward',
+    title: 'verification.steps.l3.title',
+    description: 'verification.steps.l3.description',
+  },
+  4: {
+    short: 'verification.steps.l4.short',
+    reward: 'verification.steps.l4.reward',
+    title: 'verification.steps.l4.title',
+    description: 'verification.steps.l4.description',
+  },
+  5: {
+    short: 'verification.steps.l5.short',
+    reward: 'verification.steps.l5.reward',
+    title: 'verification.steps.l5.title',
+    description: 'verification.steps.l5.description',
+  },
+} as const;
+
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+const MAX_IMAGE_EDGE = 1600;
+
+// ---------------------------------------------------------------------------
+// File handling
+// ---------------------------------------------------------------------------
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read-failed'));
+    reader.onload = () =>
+      typeof reader.result === 'string'
+        ? resolve(reader.result)
+        : reject(new Error('read-failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Phone cameras produce 8+ MP files, and the base64 of one of those routinely
+ * blows past the request timeout. A moderator only needs a legible copy, so the
+ * long edge is capped before the document ever leaves the browser.
+ */
+function downscaleImage(dataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(image.width, image.height));
+      if (scale === 1 && dataUrl.length <= MAX_UPLOAD_BYTES) {
+        resolve(dataUrl);
+        return;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      const context = canvas.getContext('2d');
+      if (!context) {
+        resolve(dataUrl);
+        return;
+      }
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    image.onerror = () => resolve(dataUrl);
+    image.src = dataUrl;
+  });
+}
+
+async function prepareUpload(file: File): Promise<UploadedFile> {
+  const isImage = file.type.startsWith('image/');
+  const raw = await readAsDataUrl(file);
+  const dataUrl = isImage ? await downscaleImage(raw) : raw;
+  if (dataUrl.length > MAX_UPLOAD_BYTES) throw new Error('too-large');
+  return { dataUrl, isImage };
+}
+
+// ---------------------------------------------------------------------------
 export const VerificationPage: React.FC = () => {
-  const { userXp, addXp, setAiMascotMessage, setCurrentView } = useAppStore();
+  const { t, formatNumber, formatPrice, formatDate } = useTranslation();
+
+  const currentUser = useAppStore((state) => state.currentUser);
+  const setCurrentView = useAppStore((state) => state.setCurrentView);
+  const setShowAuth = useAppStore((state) => state.setShowAuth);
+  const pushToast = useAppStore((state) => state.pushToast);
 
   const passportInputRef = useRef<HTMLInputElement>(null);
   const selfieInputRef = useRef<HTMLInputElement>(null);
   const cadastreInputRef = useRef<HTMLInputElement>(null);
-
-  // Live Camera Video & Stream Refs
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const [activeStep, setActiveStep] = useState<VerificationLevel>(2);
-  const [phoneVerified, setPhoneVerified] = useState(true);
+  const [activeStep, setActiveStep] = useState<LadderLevel>(2);
+  const [requests, setRequests] = useState<VerificationRequestRow[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [requestsError, setRequestsError] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  // File Upload States
-  const [passportDone, setPassportDone] = useState(false);
-  const [passportImage, setPassportImage] = useState<string | null>(null);
+  const [documentType, setDocumentType] = useState<'PASSPORT' | 'ID_CARD'>('PASSPORT');
+  const [passportFile, setPassportFile] = useState<UploadedFile | null>(null);
+  const [selfieFile, setSelfieFile] = useState<UploadedFile | null>(null);
+  const [cadastreFile, setCadastreFile] = useState<UploadedFile | null>(null);
 
-  const [selfieDone, setSelfieDone] = useState(false);
-  const [selfieImage, setSelfieImage] = useState<string | null>(null);
-
-  // Live WebCam States
-  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
-  const [cadastreDone, setCadastreDone] = useState(false);
-  const [cadastreImage, setCadastreImage] = useState<string | null>(null);
-  const [cadastreCode, setCadastreCode] = useState('');
+  const currentLevel = currentUser?.verificationLevel ?? 0;
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // -- Requests ------------------------------------------------------------
+  const loadRequests = useCallback(async () => {
+    if (!currentUser) {
+      setRequests([]);
+      return;
+    }
+    setRequestsLoading(true);
+    setRequestsError(false);
+    try {
+      const response = await AuthApi.myVerifications();
+      setRequests(response.data ?? []);
+    } catch {
+      setRequests([]);
+      setRequestsError(true);
+    } finally {
+      setRequestsLoading(false);
+    }
+  }, [currentUser]);
 
-  // Phone / Listing verification checker tool state
-  const [checkInput, setCheckInput] = useState('');
-  const [checkResult, setCheckResult] = useState<{
-    status: 'VERIFIED_OWNER' | 'STANDARD_OWNER' | 'BROKER_FLAGGED';
-    title: string;
-    trustScore: number;
-    description: string;
-  } | null>(null);
-
-  // Clean up media stream when component unmounts or step changes
   useEffect(() => {
-    return () => {
-      stopLiveCamera();
-    };
+    void loadRequests();
+  }, [loadRequests]);
+
+  /** The latest attempt per level decides what that step shows. */
+  const latestByLevel = useMemo(() => {
+    const map = new Map<number, VerificationRequestRow>();
+    for (const row of requests) {
+      const existing = map.get(row.targetLevel);
+      if (!existing || Date.parse(row.createdAt) > Date.parse(existing.createdAt)) {
+        map.set(row.targetLevel, row);
+      }
+    }
+    return map;
+  }, [requests]);
+
+  const stepState = useCallback(
+    (level: LadderLevel): StepState => {
+      if (currentLevel >= level) return 'approved';
+      const row = latestByLevel.get(level);
+      if (row?.status === 'PENDING') return 'pending';
+      if (row?.status === 'REJECTED') return 'rejected';
+      if (level > currentLevel + 1) return 'locked';
+      return 'todo';
+    },
+    [currentLevel, latestByLevel],
+  );
+
+  // Land the user on the first step they can actually act on, once.
+  const landed = useRef(false);
+  useEffect(() => {
+    if (landed.current || !currentUser) return;
+    landed.current = true;
+    setActiveStep((LADDER.find((level) => level > currentLevel) ?? 5) as LadderLevel);
+  }, [currentUser, currentLevel]);
+
+  // -- Camera --------------------------------------------------------------
+  const stopCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setCameraActive(false);
   }, []);
 
-  // --- Live WebCam Handlers ---
-  const startLiveCamera = async () => {
+  const startCamera = useCallback(async () => {
     setCameraError(null);
-    setIsCameraActive(true);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError(t('verification.selfie.unsupported'));
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } },
         audio: false,
       });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
+      // The component can unmount while the permission prompt is open; without
+      // this the camera light stays on with nothing to turn it off.
+      if (!videoRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
       }
-    } catch (err) {
-      console.error(err);
-      setCameraError("Kamerani jonli ochishda ruxsat yetmadi. Iltimos brauzer kameraga ruxsat bering yoki tayyor rasm yuklang.");
-      setIsCameraActive(false);
+      streamRef.current = stream;
+      videoRef.current.srcObject = stream;
+      setCameraActive(true);
+      void videoRef.current.play().catch(() => undefined);
+    } catch {
+      setCameraError(t('verification.selfie.denied'));
+      stopCamera();
     }
-  };
+  }, [stopCamera, t]);
 
-  const stopLiveCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    setIsCameraActive(false);
-  };
+  useEffect(() => {
+    if (activeStep !== 3) stopCamera();
+  }, [activeStep, stopCamera]);
 
-  const captureLiveSelfie = () => {
-    if (!videoRef.current) return;
+  useEffect(() => stopCamera, [stopCamera]);
+
+  const captureSelfie = () => {
     const video = videoRef.current;
-    const canvas = document.createElement('canvas');
+    if (!video) return;
     const width = video.videoWidth || 640;
     const height = video.videoHeight || 480;
+    const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    // Mirrored, so the capture matches the preview the user was looking at.
+    context.translate(width, 0);
+    context.scale(-1, 1);
+    context.drawImage(video, 0, 0, width, height);
+    setSelfieFile({ dataUrl: canvas.toDataURL('image/jpeg', 0.9), isImage: true });
+    stopCamera();
+  };
 
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      // Mirror the selfie horizontally for natural camera feel
-      ctx.translate(width, 0);
-      ctx.scale(-1, 1);
-      ctx.drawImage(video, 0, 0, width, height);
-
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-      setSelfieImage(dataUrl);
-      stopLiveCamera();
+  // -- Uploads -------------------------------------------------------------
+  const handleFile = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+    apply: (file: UploadedFile) => void,
+  ) => {
+    const file = event.target.files?.[0];
+    // Reset so re-picking the same file still fires a change event.
+    event.target.value = '';
+    if (!file) return;
+    try {
+      apply(await prepareUpload(file));
+    } catch (error) {
+      pushToast(
+        error instanceof Error && error.message === 'too-large'
+          ? 'verification.upload.tooLarge'
+          : 'verification.upload.failed',
+        'error',
+      );
     }
   };
 
-  // --- Handlers for Files ---
-  const handlePassportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setPassportImage(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSelfieFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setSelfieImage(reader.result);
-          stopLiveCamera();
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleCadastreFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setCadastreImage(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleLevel2Submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!passportImage) {
-      alert("Iltimos, avval pasportingiz yoki ID kartangiz rasmini yuklang.");
+  // -- Submit --------------------------------------------------------------
+  const submitDocument = async (
+    targetLevel: LadderLevel,
+    type: DocumentType,
+    payload: { documentUrl?: string; selfieUrl?: string },
+  ) => {
+    if (!currentUser) {
+      setShowAuth(true, 'LOGIN');
       return;
     }
-    setIsSubmitting(true);
-    try {
-      await ApiService.submitVerification({ type: 'PASSPORT', passportImage });
-    } catch {}
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setPassportDone(true);
-      setActiveStep(3);
-      addXp(50, 'Pasport tasdiqlandi');
-      setAiMascotMessage("✨ Pasport muvaffaqiyatli tasdiqlandi! +50 XP va Level 2 Badge berildi.");
-    }, 800);
-  };
-
-  const handleLevel3Submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selfieImage) {
-      alert("Iltimos, jonli kamerangiz orqali selfie tushing yoki rasm yuklang.");
+    if (!payload.documentUrl && !payload.selfieUrl) {
+      pushToast('verification.toast.fileRequired', 'warning');
       return;
     }
-    setIsSubmitting(true);
+    setSubmitting(true);
     try {
-      await ApiService.submitVerification({ type: 'SELFIE', selfieImage });
-    } catch {}
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setSelfieDone(true);
-      setActiveStep(4);
-      addXp(50, 'Selfie tasdiqlandi');
-      setAiMascotMessage("✨ Jonli Selfie va Liveness muvaffaqiyatli o'tdi! +50 XP yig'ildi.");
-    }, 800);
-  };
-
-  const handleLevel4Submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!cadastreImage && !cadastreCode.trim()) {
-      alert("Iltimos, kadastr raqamini kiriting yoki kadastr hujjatini yuklang.");
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      await ApiService.submitVerification({ type: 'CADASTRE', cadastreImage, cadastreCode });
-    } catch {}
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setCadastreDone(true);
-      setActiveStep(5);
-      addXp(100, 'Property Cadastre verified');
-      setAiMascotMessage("🏆 Tabriklaymiz! Kvartirangiz mulk egaligi kadastri bo'yicha Level 4 Property Verified statusini oldi!");
-    }, 1000);
-  };
-
-  const handlePhoneCheckSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!checkInput.trim()) return;
-    const clean = checkInput.replace(/\D/g, '');
-    if (clean.includes('901234567') || clean.includes('977778899')) {
-      setCheckResult({
-        status: 'VERIFIED_OWNER',
-        title: "Tasdiqlangan Haqiqiy Uy Egasi 🏠",
-        trustScore: 98,
-        description: "Ushbu foydalanuvchi Pasport va Kadastr hujjatlari orqali 100% tasdiqlangan. Makler emas!"
-      });
-    } else if (clean.length > 5 && (clean.includes('999') || clean.includes('111'))) {
-      setCheckResult({
-        status: 'BROKER_FLAGGED',
-        title: "Shubhali Telefon / Makler Ehtimoli ⚠️",
-        trustScore: 42,
-        description: "Ushbu raqam bazamizda 3+ martadan ko'p xilma-xil kvartira e'lonlarida uchragan. Ehtiyot bo'ling."
-      });
-    } else {
-      setCheckResult({
-        status: 'STANDARD_OWNER',
-        title: "Oddiy E'lon (Hujjat yuklanmagan) ℹ️",
-        trustScore: 75,
-        description: "Telefon raqami tasdiqlangan, lekin hali pasport yoki kadastr hujjatlari topshirilmagan."
-      });
+      await AuthApi.submitVerification({ targetLevel, documentType: type, ...payload });
+      pushToast('verification.toast.submitted', 'success');
+      await loadRequests();
+    } catch (error) {
+      pushToast(
+        error instanceof ApiError && error.isNetwork
+          ? 'common.error.network'
+          : 'verification.toast.failed',
+        'error',
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  // -- Presentation helpers ------------------------------------------------
+  const stepMeta = (level: LadderLevel) => {
+    const keys = STEP_KEYS[level];
+    return {
+      short: t(keys.short),
+      reward: t(keys.reward),
+      title: t(keys.title),
+      description: t(keys.description),
+    };
+  };
+
+  const documentLabel = (type: string): string => {
+    switch (type) {
+      case 'PASSPORT':
+        return t('verification.requests.doc.passport');
+      case 'ID_CARD':
+        return t('verification.requests.doc.idCard');
+      case 'CADASTRE':
+        return t('verification.requests.doc.cadastre');
+      case 'SELFIE_LIVENESS':
+        return t('verification.requests.doc.selfie');
+      default:
+        return t('verification.requests.doc.unknown');
+    }
+  };
+
+  const statusLabel = (status: string): string => {
+    if (status === 'APPROVED') return t('common.status.approved');
+    if (status === 'REJECTED') return t('common.status.rejected');
+    return t('common.status.pending');
+  };
+
+  const statusClass = (status: string): string => {
+    if (status === 'APPROVED') return 'bg-brand-soft text-brand-text';
+    if (status === 'REJECTED') return 'bg-danger-soft text-danger';
+    return 'bg-warning-soft text-warning';
+  };
+
+  /** Approved / pending / rejected / locked banner shown above a step's form. */
+  const stepNotice = (level: LadderLevel, approvedText: string): React.ReactNode => {
+    const state = stepState(level);
+    const row = latestByLevel.get(level);
+
+    if (state === 'approved') {
+      const nextLevel = LADDER.find((candidate) => candidate > level);
+      return (
+        <div className="space-y-3 rounded-2xl border border-brand/30 bg-brand-soft p-5 text-center">
+          <CheckCircle2 className="mx-auto h-10 w-10 text-brand" aria-hidden="true" />
+          <h4 className="text-sm font-black text-brand-text">
+            {t('verification.step.approvedTitle')}
+          </h4>
+          <p className="text-xs text-muted">{approvedText}</p>
+          {nextLevel && (
+            <Button
+              type="button"
+              onClick={() => setActiveStep(nextLevel)}
+              className="mx-auto"
+            >
+              <span>{t('verification.step.next', { title: stepMeta(nextLevel).short })}</span>
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          )}
+        </div>
+      );
+    }
+
+    if (state === 'pending') {
+      return (
+        <div className="flex items-start gap-3 rounded-2xl border border-warning/30 bg-warning-soft p-4">
+          <Clock className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
+          <div className="space-y-1">
+            <h4 className="text-sm font-black text-warning">
+              {t('verification.step.pendingTitle')}
+            </h4>
+            <p className="text-xs text-muted">{t('verification.step.pendingBody')}</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (state === 'rejected') {
+      return (
+        <div className="flex items-start gap-3 rounded-2xl border border-danger/30 bg-danger-soft p-4">
+          <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-danger" aria-hidden="true" />
+          <div className="space-y-1">
+            <h4 className="text-sm font-black text-danger">
+              {t('verification.step.rejectedTitle')}
+            </h4>
+            <p className="text-xs text-muted">
+              {row?.rejectionReason
+                ? t('verification.step.rejectedReason', { reason: row.rejectionReason })
+                : t('verification.step.rejectedNoReason')}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (state === 'locked') {
+      return (
+        <div className="flex items-start gap-3 rounded-2xl border border-line bg-surface-2 p-4">
+          <Lock className="mt-0.5 h-5 w-5 shrink-0 text-subtle" aria-hidden="true" />
+          <div className="space-y-1">
+            <h4 className="text-sm font-black text-content">
+              {t('verification.step.lockedTitle')}
+            </h4>
+            <p className="text-xs text-muted">
+              {t('verification.step.lockedBody', { level: level - 1 })}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  /** A step accepts a new document only while it is actionable. */
+  const canSubmit = (level: LadderLevel) => {
+    const state = stepState(level);
+    return state === 'todo' || state === 'rejected';
+  };
+
+  const stepHeader = (level: LadderLevel, icon: React.ReactNode, tone: string) => {
+    const meta = stepMeta(level);
+    return (
+      <div className="flex items-center gap-3 border-b border-line pb-4">
+        <div
+          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${tone}`}
+          aria-hidden="true"
+        >
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <h3 className="text-base font-black leading-tight text-content sm:text-lg">
+            {meta.title}
+          </h3>
+          <p className="text-xs text-muted">{meta.description}</p>
+        </div>
+      </div>
+    );
+  };
+
+  const uploadZone = (
+    file: UploadedFile | null,
+    onPick: () => void,
+    onClear: () => void,
+    title: string,
+    subtitle: string,
+  ) => (
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={onPick}
+        className="group w-full space-y-3 rounded-2xl border-2 border-dashed border-line-2 bg-surface-2 p-6 text-center transition-colors hover:bg-surface-3 sm:p-8"
+      >
+        {file ? (
+          file.isImage ? (
+            <img
+              src={file.dataUrl}
+              alt={t('verification.upload.preview')}
+              className="mx-auto h-32 w-48 rounded-xl border border-line object-cover shadow-card"
+            />
+          ) : (
+            <FileText className="mx-auto h-10 w-10 text-brand" aria-hidden="true" />
+          )
+        ) : (
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-soft text-brand-text transition-transform group-hover:scale-110">
+            <Upload className="h-6 w-6" aria-hidden="true" />
+          </span>
+        )}
+
+        <span className="block text-sm font-black text-content">
+          {file
+            ? file.isImage
+              ? t('verification.upload.selected')
+              : t('verification.upload.document')
+            : title}
+        </span>
+        <span className="block text-xs text-muted">
+          {file ? t('verification.upload.replace') : subtitle}
+        </span>
+        <span className="block text-[11px] text-subtle">{t('verification.upload.hint')}</span>
+      </button>
+
+      {file && (
+        <button
+          type="button"
+          onClick={onClear}
+          className="mx-auto flex items-center gap-1 text-[11px] font-bold text-danger hover:underline"
+        >
+          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+          {t('common.action.clear')}
+        </button>
+      )}
+    </div>
+  );
+
+  // -- Render --------------------------------------------------------------
   return (
-    <div className="max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-10 min-h-[85vh] space-y-8">
-
-      {/* Hidden File Inputs */}
+    <div className="mx-auto min-h-[85vh] max-w-6xl space-y-8 px-3 py-6 sm:px-6 sm:py-10">
+      {/* Hidden pickers, driven by the visible upload buttons above. */}
       <input
         type="file"
         ref={passportInputRef}
         accept="image/*,.pdf"
-        onChange={handlePassportFileChange}
+        onChange={(event) => void handleFile(event, setPassportFile)}
         className="hidden"
+        tabIndex={-1}
+        aria-hidden="true"
       />
       <input
         type="file"
         ref={selfieInputRef}
         accept="image/*"
         capture="user"
-        onChange={handleSelfieFileChange}
+        onChange={(event) => void handleFile(event, setSelfieFile)}
         className="hidden"
+        tabIndex={-1}
+        aria-hidden="true"
       />
       <input
         type="file"
         ref={cadastreInputRef}
         accept="image/*,.pdf"
-        onChange={handleCadastreFileChange}
+        onChange={(event) => void handleFile(event, setCadastreFile)}
         className="hidden"
+        tabIndex={-1}
+        aria-hidden="true"
       />
 
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white p-6 sm:p-8 rounded-3xl shadow-xl border border-emerald-500/30 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
-        <div className="space-y-3 relative z-10 text-center md:text-left">
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-950/80 px-3.5 py-1.5 rounded-full border border-emerald-500/40">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>Ishonchli Tekshiruv Markazi (Verification Center)</span>
-          </div>
-          <h1 className="text-2xl sm:text-4xl font-black tracking-tight leading-tight">
-            E'loningiz Ishonchini va Ko'rinishini 3x Oshiring
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-            Uy egasi sifatida hujjatlaringizni tasdiqlang: e'loningizda yashil <strong className="text-emerald-400 font-bold">"Tasdiqlangan Uy Egasi 🏠"</strong> nishoni paydo bo'ladi hamda talabalar va ijarachilar sizga to'g'ridan-to'g'ri ishonishadi.
-          </p>
-        </div>
-
-        <div className="bg-slate-900/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 text-center shrink-0 space-y-1.5 shadow-inner">
-          <span className="text-xs text-slate-400 font-bold">Sizning Trust Score</span>
-          <div className="text-3xl sm:text-4xl font-black text-amber-400 flex items-center justify-center gap-1.5">
-            <Award className="w-8 h-8 text-amber-400" /> {userXp} XP
-          </div>
-          <span className="text-xs text-emerald-400 font-bold block">Level 2 Silver Member</span>
-        </div>
-      </div>
-
-      {/* VISUAL DEMONSTRATION CARD: BEFORE vs AFTER */}
-      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-        <div className="text-center max-w-xl mx-auto space-y-1.5">
-          <span className="text-xs font-extrabold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-3 py-1 rounded-full">
-            Vizual Taqqoslash
+      {/* Hero */}
+      <header className="flex flex-col items-center justify-between gap-6 rounded-3xl bg-brand p-6 text-on-brand shadow-raised sm:p-8 md:flex-row">
+        <div className="space-y-3 text-center md:text-left">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-on-brand/15 px-3.5 py-1.5 text-xs font-bold">
+            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+            {t('verification.page.eyebrow')}
           </span>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900">
-            Ishonchli Tekshiruvdan o'tsam e'lonim qanday ko'rinadi?
-          </h2>
-          <p className="text-xs text-slate-500">
-            Tekshiruvdan o'tgan e'lonlar qidiruvda eng yuqoriga chiqadi va talabalarda 100% ishonch uyg'otadi.
+          <h1 className="text-2xl font-black leading-tight tracking-tight sm:text-4xl">
+            {t('verification.page.title')}
+          </h1>
+          <p className="max-w-2xl text-xs leading-relaxed text-on-brand/85 sm:text-sm">
+            {t('verification.page.subtitle')}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 pt-2">
-          
-          {/* Card 1: Oddiy (Unverified) */}
-          <div className="bg-slate-50 border-2 border-slate-200 rounded-2xl p-5 space-y-4 relative opacity-85">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-500 bg-slate-200 px-2.5 py-1 rounded-lg">
-                ❌ Oddiy E'lon (Tekshirilmagan)
+        <div className="w-full shrink-0 space-y-1.5 rounded-2xl border border-on-brand/25 bg-on-brand/10 p-5 text-center md:w-auto">
+          <span className="text-xs font-bold text-on-brand/80">
+            {t('verification.page.trustLabel')}
+          </span>
+          <p className="flex items-center justify-center gap-1.5 text-3xl font-black sm:text-4xl">
+            <Award className="h-8 w-8" aria-hidden="true" />
+            {formatNumber(currentUser?.trustScore ?? 0)}
+          </p>
+          <span className="block text-xs font-bold text-on-brand/85">
+            {t('verification.page.xp', { count: formatNumber(currentUser?.xpPoints ?? 0) })}
+          </span>
+          <span className="block text-xs font-bold text-on-brand/85">
+            {t('verification.page.currentLevel', {
+              level:
+                currentLevel > 0
+                  ? t('common.badge.verificationLevel', { level: currentLevel })
+                  : t('verification.page.levelZero'),
+            })}
+          </span>
+        </div>
+      </header>
+
+      {!currentUser && (
+        <section className="space-y-3 rounded-3xl border border-line bg-surface p-6 text-center shadow-card">
+          <h2 className="text-base font-black text-content">
+            {t('verification.page.guestTitle')}
+          </h2>
+          <p className="text-xs text-muted">{t('verification.page.guestBody')}</p>
+          <Button type="button" onClick={() => setShowAuth(true, 'LOGIN')} className="mx-auto">
+            {t('common.action.signIn')}
+          </Button>
+        </section>
+      )}
+
+      {/* Before / after illustration */}
+      <section className="space-y-6 rounded-3xl border border-line bg-surface p-6 shadow-card sm:p-8">
+        <div className="mx-auto max-w-xl space-y-1.5 text-center">
+          <span className="inline-block rounded-full bg-brand-soft px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-brand-text">
+            {t('verification.compare.eyebrow')}
+          </span>
+          <h2 className="text-xl font-black text-content sm:text-2xl">
+            {t('verification.compare.title')}
+          </h2>
+          <p className="text-xs text-muted">{t('verification.compare.subtitle')}</p>
+          <p className="text-[11px] text-subtle">{t('verification.compare.note')}</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 pt-2 sm:gap-6 md:grid-cols-2">
+          {/* Unverified */}
+          <article className="space-y-4 rounded-2xl border-2 border-line bg-surface-2 p-5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="rounded-lg bg-surface-3 px-2.5 py-1 text-xs font-bold text-muted">
+                {t('verification.compare.beforeLabel')}
               </span>
-              <span className="text-[11px] font-medium text-slate-400">Oddiy ko'rinish</span>
+              <span className="text-[11px] font-medium text-subtle">
+                {t('verification.compare.beforeHint')}
+              </span>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
+            <div className="space-y-3 rounded-xl border border-line bg-surface p-4">
               <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h4 className="font-bold text-sm text-slate-900">2-xonalik shinam kvartira, Yunusobod</h4>
-                  <p className="text-xs font-black text-slate-700 mt-1">4,500,000 so'm / oy</p>
-                </div>
-                <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-semibold">Oddiy</span>
-              </div>
-              <div className="text-xs text-slate-500 flex items-center gap-2 border-t border-slate-100 pt-2">
-                <span>Uy egasi: Dilshod</span>
-                <span className="text-slate-400">• Trust Score: 70 XP</span>
-              </div>
-            </div>
-
-            <ul className="space-y-2 text-xs text-slate-600 pt-1">
-              <li className="flex items-center gap-2 text-rose-600">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>Nishon (Badge) yo'q — ijarachilarda maklerlik shubha bo'lishi mumkin</span>
-              </li>
-              <li className="flex items-center gap-2 text-slate-500">
-                <Eye className="w-4 h-4 shrink-0" />
-                <span>Qidiruvda pastroq o'rinlarda ko'rinadi</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Card 2: Verified Owner (Ishonchli E'lon) */}
-          <div className="bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 border-2 border-emerald-500/80 rounded-2xl p-5 space-y-4 relative shadow-md">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-emerald-900 bg-emerald-200/80 px-3 py-1 rounded-lg flex items-center gap-1.5 shadow-xs">
-                <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                ✅ Tasdiqlangan Ishonchli E'lon
-              </span>
-              <span className="text-xs font-black text-emerald-700 flex items-center gap-1">
-                <Zap className="w-3.5 h-3.5 fill-emerald-600" /> 3x Ko'proq Murojaat
-              </span>
-            </div>
-
-            <div className="bg-white border-2 border-emerald-500/30 rounded-xl p-4 space-y-3 shadow-md">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-bold mb-1">
-                    <span className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 font-black shadow-xs">
-                      <ShieldCheck className="w-3 h-3" /> TASDIQLANGAN UY EGASI 🏠
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-content">
+                    {t('verification.compare.exampleTitle')}
+                  </h3>
+                  <p className="mt-1 text-xs font-black text-muted">
+                    {formatPrice(EXAMPLE_PRICE)}
+                    <span className="ml-1 font-semibold text-subtle">
+                      {t('common.units.perMonth')}
                     </span>
-                  </div>
-                  <h4 className="font-black text-sm text-slate-900">2-xonalik shinam kvartira, Yunusobod</h4>
-                  <p className="text-sm font-black text-emerald-700 mt-1">4,500,000 so'm / oy</p>
+                  </p>
                 </div>
-                <span className="text-[10px] bg-emerald-100 text-emerald-900 font-bold px-2 py-1 rounded-lg border border-emerald-300">
-                  TOP #1
+                <span className="shrink-0 rounded bg-surface-2 px-2 py-0.5 text-[10px] font-semibold text-muted">
+                  {t('verification.compare.beforeTag')}
                 </span>
               </div>
-              <div className="text-xs text-slate-700 font-semibold flex items-center justify-between border-t border-slate-100 pt-2">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-slate-900">Uy egasi: Dilshod K.</span>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                </div>
-                <span className="text-emerald-700 font-extrabold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                  ★ 98/100 Trust Score
+              <div className="flex flex-wrap items-center gap-x-2 border-t border-line pt-2 text-xs text-subtle">
+                <span>{t('verification.compare.beforeOwner')}</span>
+                <span>
+                  {t('verification.compare.beforeTrust', { score: EXAMPLE_TRUST_BEFORE })}
                 </span>
               </div>
             </div>
 
-            <ul className="space-y-2 text-xs text-emerald-950 font-semibold pt-1">
-              <li className="flex items-center gap-2 text-emerald-800">
-                <Check className="w-4 h-4 text-emerald-600 shrink-0 font-black" />
-                <span>Yashil "Tasdiqlangan Uy Egasi 🏠" nishoni bilan 100% ishonch</span>
+            <ul className="space-y-2 pt-1 text-xs">
+              <li className="flex items-center gap-2 text-danger">
+                <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>{t('verification.compare.beforeConBadge')}</span>
               </li>
-              <li className="flex items-center gap-2 text-emerald-800">
-                <Star className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />
-                <span>Bosh sahifa va qidiruvda eng TOP o'ringa chiqadi</span>
+              <li className="flex items-center gap-2 text-muted">
+                <Eye className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>{t('verification.compare.beforeConRank')}</span>
               </li>
             </ul>
-          </div>
+          </article>
 
+          {/* Verified */}
+          <article className="space-y-4 rounded-2xl border-2 border-brand/70 bg-brand-soft p-5 shadow-card">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-brand-soft-2 px-3 py-1 text-xs font-black text-brand-text">
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                {t('verification.compare.afterLabel')}
+              </span>
+              <span className="inline-flex items-center gap-1 text-xs font-black text-brand-text">
+                <Zap className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('verification.compare.afterHint')}
+              </span>
+            </div>
+
+            <div className="space-y-3 rounded-xl border-2 border-brand/30 bg-surface p-4 shadow-card">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="mb-1 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[10px] font-black uppercase text-on-brand">
+                    <ShieldCheck className="h-3 w-3" aria-hidden="true" />
+                    {t('verification.compare.afterBadge')}
+                  </span>
+                  <h3 className="text-sm font-black text-content">
+                    {t('verification.compare.exampleTitle')}
+                  </h3>
+                  <p className="mt-1 text-sm font-black text-brand-text">
+                    {formatPrice(EXAMPLE_PRICE)}
+                    <span className="ml-1 text-xs font-semibold text-subtle">
+                      {t('common.units.perMonth')}
+                    </span>
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-lg border border-brand/30 bg-brand-soft-2 px-2 py-1 text-[10px] font-bold text-brand-text">
+                  {t('verification.compare.afterRank')}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2 text-xs font-semibold">
+                <span className="inline-flex items-center gap-1.5 text-content">
+                  {t('verification.compare.afterOwner')}
+                  <CheckCircle2 className="h-3.5 w-3.5 text-brand" aria-hidden="true" />
+                </span>
+                <span className="rounded border border-brand/30 bg-brand-soft px-2 py-0.5 font-extrabold text-brand-text">
+                  {t('verification.compare.afterTrust', { score: EXAMPLE_TRUST_AFTER })}
+                </span>
+              </div>
+            </div>
+
+            <ul className="space-y-2 pt-1 text-xs font-semibold text-brand-text">
+              <li className="flex items-center gap-2">
+                <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>{t('verification.compare.afterProBadge')}</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Star className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                <span>{t('verification.compare.afterProRank')}</span>
+              </li>
+            </ul>
+          </article>
         </div>
-      </div>
+      </section>
 
-      {/* 5 STEPS INTERACTIVE VERIFICATION PROCESS */}
-      <div className="space-y-4">
-        <div className="text-center max-w-xl mx-auto space-y-1">
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900">
-            Ishonchli Tekshiruv Bosqichlari (5 Stepper)
+      {/* Ladder */}
+      <section className="space-y-4">
+        <div className="mx-auto max-w-xl space-y-1 text-center">
+          <h2 className="text-xl font-black text-content sm:text-2xl">
+            {t('verification.ladder.title')}
           </h2>
-          <p className="text-xs text-slate-500">
-            Quyidagi bosqichlarni ketma-ket bajarib, o'z ishonchlilik darajangizni oshiring:
-          </p>
+          <p className="text-xs text-muted">{t('verification.ladder.subtitle')}</p>
         </div>
 
-        {/* Stepper Navigation */}
-        <div className="grid grid-cols-5 gap-1.5 sm:gap-2 bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200 shadow-sm text-center">
-          {[
-            { level: 1, title: 'Telefon', done: phoneVerified, xp: '+10 XP' },
-            { level: 2, title: 'Pasport', done: passportDone, xp: '+50 XP' },
-            { level: 3, title: 'Jonli Selfie', done: selfieDone, xp: '+50 XP' },
-            { level: 4, title: 'Kadastr', done: cadastreDone, xp: '+100 XP' },
-            { level: 5, title: 'VIP Owner', done: cadastreDone, xp: 'VIP' },
-          ].map((step) => (
-            <button
-              key={step.level}
-              type="button"
-              onClick={() => {
-                if (step.level !== 3) stopLiveCamera();
-                setActiveStep(step.level as VerificationLevel);
-              }}
-              className={`p-2 sm:p-3 rounded-xl transition-all flex flex-col items-center justify-center gap-1 ${
-                activeStep === step.level
-                  ? 'bg-slate-900 text-white font-bold shadow-md scale-[1.02]'
-                  : step.done
-                  ? 'bg-emerald-50 text-emerald-800 font-semibold border border-emerald-200'
-                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <div className="flex items-center gap-1">
-                {step.done ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                ) : (
-                  <span className="text-xs font-mono font-bold">L{step.level}</span>
-                )}
-              </div>
-              <span className="text-[11px] sm:text-xs font-bold leading-none hidden sm:inline">{step.title}</span>
-              <span className="text-[9px] sm:text-[10px] opacity-75 font-mono">{step.xp}</span>
-            </button>
-          ))}
-        </div>
+        <nav aria-label={t('verification.ladder.navLabel')}>
+          <ul className="grid grid-cols-5 gap-1.5 rounded-2xl border border-line bg-surface p-2.5 text-center shadow-card sm:gap-2 sm:p-3">
+            {LADDER.map((level) => {
+              const meta = stepMeta(level);
+              const state = stepState(level);
+              const isActive = activeStep === level;
+              return (
+                <li key={level}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveStep(level)}
+                    aria-current={isActive ? 'step' : undefined}
+                    aria-controls={`verification-step-${level}`}
+                    aria-label={t('verification.ladder.stepAria', {
+                      level,
+                      title: meta.short,
+                    })}
+                    className={`flex w-full flex-col items-center justify-center gap-1 rounded-xl p-2 transition-all sm:p-3 ${
+                      isActive
+                        ? 'bg-brand font-bold text-on-brand shadow-card'
+                        : state === 'approved'
+                          ? 'border border-brand/30 bg-brand-soft font-semibold text-brand-text'
+                          : 'bg-surface-2 text-muted hover:bg-surface-3'
+                    }`}
+                  >
+                    {state === 'approved' ? (
+                      <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    ) : state === 'pending' ? (
+                      <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    ) : state === 'rejected' ? (
+                      <XCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    ) : (
+                      <span className="font-mono text-xs font-bold">{level}</span>
+                    )}
+                    <span className="hidden text-[11px] font-bold leading-none sm:inline sm:text-xs">
+                      {meta.short}
+                    </span>
+                    <span className="font-mono text-[9px] opacity-75 sm:text-[10px]">
+                      {meta.reward}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
 
-        {/* Active Step Panel Content */}
-        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
+        <div
+          id={`verification-step-${activeStep}`}
+          className="rounded-3xl border border-line bg-surface p-6 shadow-card sm:p-8"
+        >
+          {/* Level 1 — phone */}
           {activeStep === 1 && (
-            <div className="space-y-4 max-w-md mx-auto text-center py-4">
-              <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
-                <PhoneCall className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-black text-slate-900">Level 1: Telefon Tasdiqlangan</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Sizning telefon raqamingiz SMS OTP orqali muvaffaqiyatli tasdiqlangan.
+            <div className="mx-auto max-w-md space-y-4 py-4 text-center">
+              <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-soft text-brand-text">
+                <PhoneCall className="h-8 w-8" aria-hidden="true" />
+              </span>
+              <h3 className="text-lg font-black text-content sm:text-xl">
+                {stepMeta(1).title}
+              </h3>
+              <p className="text-xs leading-relaxed text-muted">
+                {currentUser?.phoneVerifiedAt || currentLevel >= 1
+                  ? t('verification.phone.verified')
+                  : t('verification.phone.pending')}
               </p>
-              <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-xs text-emerald-800 font-bold flex items-center justify-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Telefon Raqam Tasdiqlangan (+10 XP)
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveStep(2)}
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl text-xs transition-colors flex items-center justify-center gap-2"
+              <div
+                className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-xs font-bold ${
+                  currentUser?.phoneVerifiedAt || currentLevel >= 1
+                    ? 'border-brand/30 bg-brand-soft text-brand-text'
+                    : 'border-warning/30 bg-warning-soft text-warning'
+                }`}
               >
-                <span>Keyingi Bosqich: Pasport Tasdiqlash</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
+                {currentUser?.phoneVerifiedAt || currentLevel >= 1 ? (
+                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <Clock className="h-4 w-4" aria-hidden="true" />
+                )}
+                {currentUser?.phone ?? t('common.state.empty')}
+              </div>
+              <Button type="button" onClick={() => setActiveStep(2)} fullWidth>
+                <span>{t('verification.step.next', { title: stepMeta(2).short })}</span>
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </Button>
             </div>
           )}
 
+          {/* Level 2 — passport / ID */}
           {activeStep === 2 && (
-            <div className="space-y-6 max-w-xl mx-auto">
-              <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center font-black text-lg">
-                  L2
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">Level 2: Pasport / ID Karta Tasdiqlash</h3>
-                  <p className="text-xs text-slate-500">Pasportingiz yoki ID-kartangizning nusxasi rasmga olinadi.</p>
-                </div>
-              </div>
+            <div className="mx-auto max-w-xl space-y-6">
+              {stepHeader(
+                2,
+                <FileText className="h-6 w-6 text-info" aria-hidden="true" />,
+                'bg-info-soft',
+              )}
 
-              {passportDone ? (
-                <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-2xl text-center space-y-3">
-                  <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
-                  <h4 className="font-bold text-emerald-900">Pasport Hujjatlari Tasdiqlandi! (+50 XP)</h4>
-                  {passportImage && (
-                    <img src={passportImage} alt="Pasport preview" className="w-32 h-20 object-cover rounded-lg mx-auto border border-emerald-300 shadow-xs" />
-                  )}
-                  <p className="text-xs text-emerald-700">Shaxsingiz tasdiqlandi va maxfiylik standartlari bo'yicha shifrlab saqlandi.</p>
-                  <button
-                    type="button"
-                    onClick={() => setActiveStep(3)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-5 py-3 rounded-xl shadow-md transition-all"
-                  >
-                    Level 3 Jonli Selfie Bosqichiga O'tish ➔
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleLevel2Submit} className="space-y-4 text-xs">
-                  {/* File Upload Box */}
-                  <div
-                    onClick={() => passportInputRef.current?.click()}
-                    className="border-2 border-dashed border-blue-300 rounded-2xl p-6 sm:p-8 text-center bg-blue-50/50 hover:bg-blue-50 transition-colors cursor-pointer space-y-3 group"
-                  >
-                    {passportImage ? (
-                      <div className="space-y-2">
-                        <img src={passportImage} alt="Passport preview" className="w-48 h-32 object-cover rounded-xl mx-auto border-2 border-blue-400 shadow-md" />
-                        <div className="text-xs font-bold text-emerald-700 flex items-center justify-center gap-1">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Pasport rasmi tanlandi
-                        </div>
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); setPassportImage(null); }}
-                          className="text-[11px] text-rose-600 font-bold hover:underline flex items-center justify-center gap-1 mx-auto"
+              {stepNotice(2, t('verification.passport.approved'))}
+
+              {canSubmit(2) && (
+                <form
+                  className="space-y-4"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void submitDocument(2, documentType, {
+                      documentUrl: passportFile?.dataUrl,
+                    });
+                  }}
+                >
+                  <fieldset className="space-y-2">
+                    <legend className="text-xs font-bold text-muted">
+                      {t('verification.passport.docTypeLabel')}
+                    </legend>
+                    <div className="flex flex-wrap gap-2">
+                      {(['PASSPORT', 'ID_CARD'] as const).map((option) => (
+                        <label
+                          key={option}
+                          className={`cursor-pointer rounded-xl border px-4 py-2.5 text-xs font-bold transition-colors ${
+                            documentType === option
+                              ? 'border-brand bg-brand-soft text-brand-text'
+                              : 'border-line bg-surface-2 text-muted hover:bg-surface-3'
+                          }`}
                         >
-                          <Trash2 className="w-3.5 h-3.5" /> Boshqa rasm tanlash
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="w-14 h-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
-                          <Upload className="w-7 h-7" />
-                        </div>
-                        <div>
-                          <div className="font-black text-sm text-slate-900">Pasport yoki ID kartaning rasmini yuklang</div>
-                          <p className="text-xs text-slate-500 mt-1">Bosib fayl tanlang yoki suratingizni shu yerga tashlang</p>
-                        </div>
-                        <span className="inline-block bg-white text-blue-700 font-bold px-4 py-2 rounded-xl border border-blue-200 text-xs shadow-xs">
-                          📁 Pasport Faylini Tanlash
-                        </span>
-                      </>
-                    )}
-                  </div>
+                          <input
+                            type="radio"
+                            name="verification-document-type"
+                            value={option}
+                            checked={documentType === option}
+                            onChange={() => setDocumentType(option)}
+                            className="sr-only"
+                          />
+                          {option === 'PASSPORT'
+                            ? t('verification.passport.passport')
+                            : t('verification.passport.idCard')}
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
 
-                  <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl text-[11px] text-amber-900 flex items-start gap-2">
-                    <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                    <span>Maxfiylik Kafolati: Shaxsiy hujjatlar e'londa KO'RSATILMAYDI, faqat verification tekshiruvi uchun shifrlangan holda saqlanadi.</span>
-                  </div>
+                  {uploadZone(
+                    passportFile,
+                    () => passportInputRef.current?.click(),
+                    () => setPassportFile(null),
+                    t('verification.passport.uploadTitle'),
+                    t('verification.passport.uploadSubtitle'),
+                  )}
 
-                  <button
+                  <p className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-soft p-3.5 text-[11px] text-muted">
+                    <Lock className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                    <span>{t('verification.passport.privacy')}</span>
+                  </p>
+
+                  <Button
                     type="submit"
-                    disabled={isSubmitting || !passportImage}
-                    className={`w-full font-black py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm ${
-                      passportImage
-                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25 cursor-pointer'
-                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                    }`}
+                    fullWidth
+                    loading={submitting}
+                    disabled={!passportFile}
                   >
-                    {isSubmitting ? 'AI Skanerlamoqda...' : 'Pasportni Tasdiqlashga Yuborish (+50 XP)'}
-                  </button>
+                    {submitting
+                      ? t('verification.step.submitting')
+                      : t('verification.passport.submit')}
+                  </Button>
                 </form>
               )}
             </div>
           )}
 
-          {/* LEVEL 3: REAL-TIME LIVE WEBCAM SELFIE & LIVENESS */}
+          {/* Level 3 — live selfie */}
           {activeStep === 3 && (
-            <div className="space-y-6 max-w-xl mx-auto">
-              <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-lg">
-                  L3
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">Level 3: Jonli Kamera Selfie va Liveness Tekshiruvi</h3>
-                  <p className="text-xs text-slate-500">AI kamerani o'zida yuzingizni va liveness jonliligini 1-soniyada tekshiradi.</p>
-                </div>
-              </div>
+            <div className="mx-auto max-w-xl space-y-6">
+              {stepHeader(
+                3,
+                <Camera className="h-6 w-6 text-info" aria-hidden="true" />,
+                'bg-info-soft',
+              )}
 
-              {selfieDone ? (
-                <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-2xl text-center space-y-3">
-                  <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
-                  <h4 className="font-bold text-emerald-900">Jonli Selfie Liveness Tasdiqlandi! (+50 XP)</h4>
-                  {selfieImage && (
-                    <img src={selfieImage} alt="Selfie preview" className="w-32 h-32 object-cover rounded-full mx-auto border-4 border-emerald-400 shadow-lg" />
-                  )}
-                  <p className="text-xs text-emerald-700">Yuz va liveness jonliligi 99.6% darajada mos keldi.</p>
-                  <button
-                    type="button"
-                    onClick={() => setActiveStep(4)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-6 py-3 rounded-xl shadow-md transition-all"
-                  >
-                    Level 4 Kadastr Bosqichiga O'tish ➔
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleLevel3Submit} className="space-y-4 text-xs">
-                  
-                  {/* LIVE WEBCAM CAMERA CONTAINER */}
-                  <div className="bg-slate-950 border-2 border-indigo-500/40 rounded-3xl p-6 text-center text-white relative overflow-hidden shadow-xl space-y-4">
-                    
-                    {/* If Camera is Active: Show Real-Time Live Video Stream with Oval Guide */}
-                    {isCameraActive ? (
-                      <div className="space-y-4">
-                        <div className="relative w-64 h-64 sm:w-72 sm:h-72 mx-auto rounded-full overflow-hidden border-4 border-emerald-400 shadow-2xl bg-black">
-                          <video
-                            ref={videoRef}
-                            autoPlay
-                            playsInline
-                            muted
-                            className="w-full h-full object-cover transform -scale-x-100"
-                          />
-                          {/* Pulsing Face Oval Boundary */}
-                          <div className="absolute inset-0 rounded-full border-4 border-emerald-400 animate-pulse pointer-events-none" />
-                          <div className="absolute bottom-3 inset-x-0 bg-black/60 backdrop-blur-xs text-[10px] text-emerald-300 font-bold py-1">
-                            Yuzingizni aylanaga to'g'rilang
-                          </div>
-                        </div>
+              {stepNotice(3, t('verification.selfie.approved'))}
 
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={captureLiveSelfie}
-                            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm px-6 py-3 rounded-2xl shadow-lg flex items-center gap-2 transition-all active:scale-[0.97]"
-                          >
-                            <Camera className="w-5 h-5 fill-slate-950" />
-                            <span>📸 Jonli Rasmga Tushish</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={stopLiveCamera}
-                            className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs px-4 py-3 rounded-2xl transition-colors"
-                          >
-                            Yopish
-                          </button>
-                        </div>
+              {canSubmit(3) && (
+                <form
+                  className="space-y-4"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void submitDocument(3, 'SELFIE_LIVENESS', {
+                      selfieUrl: selfieFile?.dataUrl,
+                    });
+                  }}
+                >
+                  <div className="space-y-4 rounded-3xl border border-line bg-surface-2 p-6 text-center">
+                    {/* The video element must stay mounted: `startCamera` needs a
+                        node to attach the stream to before the state flips. */}
+                    <div className={cameraActive ? 'space-y-4' : 'hidden'}>
+                      <div className="relative mx-auto h-64 w-64 overflow-hidden rounded-full border-4 border-brand bg-black shadow-raised sm:h-72 sm:w-72">
+                        <video
+                          ref={videoRef}
+                          autoPlay
+                          playsInline
+                          muted
+                          aria-label={t('verification.selfie.videoLabel')}
+                          className="h-full w-full -scale-x-100 object-cover"
+                        />
+                        <p className="absolute inset-x-0 bottom-3 bg-black/60 py-1 text-[10px] font-bold text-white">
+                          {t('verification.selfie.guide')}
+                        </p>
                       </div>
-                    ) : selfieImage ? (
-                      /* Captured Image Preview */
+
+                      <div className="flex flex-wrap items-center justify-center gap-2">
+                        <Button type="button" onClick={captureSelfie}>
+                          <Camera className="h-4 w-4" aria-hidden="true" />
+                          {t('verification.selfie.capture')}
+                        </Button>
+                        <Button type="button" variant="secondary" onClick={stopCamera}>
+                          {t('common.action.close')}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {!cameraActive && selfieFile && (
                       <div className="space-y-3">
-                        <div className="relative w-40 h-40 mx-auto">
-                          <img src={selfieImage} alt="Captured Selfie" className="w-40 h-40 object-cover rounded-full border-4 border-emerald-400 shadow-xl" />
-                          <div className="absolute bottom-0 right-0 bg-emerald-600 text-white p-2 rounded-full shadow-lg">
-                            <CheckCircle2 className="w-5 h-5" />
-                          </div>
-                        </div>
-                        <div className="text-xs font-extrabold text-emerald-400 flex items-center justify-center gap-1">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Jonli selfie rasmga olindi! Yuz tayyor.
-                        </div>
+                        <img
+                          src={selfieFile.dataUrl}
+                          alt={t('verification.selfie.previewAlt')}
+                          className="mx-auto h-40 w-40 rounded-full border-4 border-brand object-cover shadow-raised"
+                        />
+                        <p className="flex items-center justify-center gap-1 text-xs font-extrabold text-brand-text">
+                          <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                          {t('verification.selfie.captured')}
+                        </p>
                         <button
                           type="button"
-                          onClick={() => { setSelfieImage(null); startLiveCamera(); }}
-                          className="text-xs text-indigo-300 font-bold hover:underline flex items-center justify-center gap-1 mx-auto"
+                          onClick={() => {
+                            setSelfieFile(null);
+                            void startCamera();
+                          }}
+                          className="mx-auto flex items-center gap-1 text-xs font-bold text-brand-text hover:underline"
                         >
-                          <RefreshCw className="w-3.5 h-3.5" /> Qayta Jonli Rasmga Tushish
+                          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                          {t('verification.selfie.retake')}
                         </button>
                       </div>
-                    ) : (
-                      /* Default Initial View before opening camera */
+                    )}
+
+                    {!cameraActive && !selfieFile && (
                       <div className="space-y-4 py-3">
-                        <div className="w-16 h-16 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center mx-auto shadow-inner">
-                          <Camera className="w-8 h-8 animate-pulse" />
-                        </div>
+                        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-brand-text">
+                          <Camera className="h-8 w-8" aria-hidden="true" />
+                        </span>
                         <div>
-                          <div className="font-black text-base text-white">Jonli Kamerani Ochish</div>
-                          <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
-                            Ekrandagi kamerasiz tasvir orqali yuzingiz va liveness jonliligi 100% haqiqiyligi tekshiriladi.
+                          <p className="text-base font-black text-content">
+                            {t('verification.selfie.cameraTitle')}
+                          </p>
+                          <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted">
+                            {t('verification.selfie.cameraBody')}
                           </p>
                         </div>
 
                         {cameraError && (
-                          <div className="bg-rose-950/80 border border-rose-500/40 p-3 rounded-xl text-rose-200 text-xs font-semibold">
+                          <p
+                            role="alert"
+                            className="rounded-xl border border-danger/30 bg-danger-soft p-3 text-xs font-semibold text-danger"
+                          >
                             {cameraError}
-                          </div>
+                          </p>
                         )}
 
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-1">
-                          <button
+                        <div className="flex flex-col items-center justify-center gap-2 pt-1 sm:flex-row">
+                          <Button type="button" onClick={() => void startCamera()}>
+                            <Video className="h-4 w-4" aria-hidden="true" />
+                            {t('verification.selfie.openCamera')}
+                          </Button>
+                          <Button
                             type="button"
-                            onClick={startLiveCamera}
-                            className="w-full sm:w-auto bg-gradient-to-r from-indigo-500 to-emerald-500 hover:from-indigo-400 hover:to-emerald-400 text-slate-950 font-black text-xs sm:text-sm px-6 py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                          >
-                            <Video className="w-4 h-4" />
-                            <span>📸 Jonli Kamerani Ochish (Live WebCam)</span>
-                          </button>
-                          <button
-                            type="button"
+                            variant="secondary"
                             onClick={() => selfieInputRef.current?.click()}
-                            className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs px-4 py-3.5 rounded-xl transition-colors flex items-center justify-center gap-1.5"
                           >
-                            <Upload className="w-3.5 h-3.5" />
-                            <span>Fayldan Yuklash</span>
-                          </button>
+                            <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+                            {t('verification.selfie.fromFile')}
+                          </Button>
                         </div>
                       </div>
                     )}
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={isSubmitting || !selfieImage}
-                    className={`w-full font-black py-4 rounded-xl shadow-lg transition-all text-sm ${
-                      selfieImage
-                        ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/25 cursor-pointer'
-                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                    }`}
-                  >
-                    {isSubmitting ? 'AI Yuzni Solishtirmoqda...' : '✨ AI Yuz Solishtirishni Boshlash (+50 XP)'}
-                  </button>
+                  <Button type="submit" fullWidth loading={submitting} disabled={!selfieFile}>
+                    {submitting
+                      ? t('verification.step.submitting')
+                      : t('verification.selfie.submit')}
+                  </Button>
                 </form>
               )}
             </div>
           )}
 
+          {/* Level 4 — cadastre */}
           {activeStep === 4 && (
-            <div className="space-y-6 max-w-xl mx-auto">
-              <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-lg">
-                  L4
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">Level 4: Kadastr va Mulk Egaligi Verification</h3>
-                  <p className="text-xs text-slate-500">Mulk egaligi hujjatlari yoki kadastr raqamini kiriting.</p>
-                </div>
-              </div>
+            <div className="mx-auto max-w-xl space-y-6">
+              {stepHeader(
+                4,
+                <Building2 className="h-6 w-6 text-brand-text" aria-hidden="true" />,
+                'bg-brand-soft',
+              )}
 
-              {cadastreDone ? (
-                <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-2xl text-center space-y-3">
-                  <Building className="w-12 h-12 text-emerald-600 mx-auto" />
-                  <h4 className="font-bold text-emerald-900">Property Verified Badge Berildi! (+100 XP)</h4>
-                  <p className="text-xs text-emerald-700">Kvartirangiz haqiqiy mulk egasi sifatida platformada belgilanadi.</p>
-                  <button
-                    type="button"
-                    onClick={() => setActiveStep(5)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-5 py-3 rounded-xl shadow-md transition-all"
-                  >
-                    Level 5 VIP Statustini Ko'rish ➔
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleLevel4Submit} className="space-y-4 text-xs">
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-700">Kadastr Raqami (Masalan: 10:01:04:02...)</label>
-                    <input
+              {stepNotice(4, t('verification.cadastre.approved'))}
+
+              {canSubmit(4) && (
+                <form
+                  className="space-y-4"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void submitDocument(4, 'CADASTRE', {
+                      documentUrl: cadastreFile?.dataUrl,
+                    });
+                  }}
+                >
+                  {/* The review API takes documents only — there is no field for a
+                      cadastre number yet, so the input stays visible but inert. */}
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor="verification-cadastre-code"
+                      className="block text-xs font-bold text-muted"
+                    >
+                      {t('verification.cadastre.codeLabel')}
+                    </label>
+                    <TextInput
+                      id="verification-cadastre-code"
                       type="text"
-                      value={cadastreCode}
-                      onChange={(e) => setCadastreCode(e.target.value)}
-                      placeholder="10:01:04:02:01:0045..."
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-mono font-semibold text-slate-900 outline-none focus:border-emerald-600"
+                      disabled
+                      value=""
+                      readOnly
+                      placeholder={t('verification.cadastre.codePlaceholder')}
+                      aria-describedby="verification-cadastre-code-hint"
+                      className="font-mono"
                     />
+                    <p id="verification-cadastre-code-hint" className="text-xs text-subtle">
+                      {t('verification.cadastre.codeDisabled')}
+                    </p>
                   </div>
 
-                  <div
-                    onClick={() => cadastreInputRef.current?.click()}
-                    className="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer space-y-2"
-                  >
-                    {cadastreImage ? (
-                      <div className="space-y-1">
-                        <FileText className="w-8 h-8 text-emerald-600 mx-auto" />
-                        <div className="font-bold text-emerald-900 text-xs">Kadastr Hujjati Yuklandi</div>
-                      </div>
-                    ) : (
-                      <>
-                        <FileText className="w-7 h-7 text-slate-400 mx-auto" />
-                        <div className="font-bold text-slate-700">Kadastr Hujjatining Nusxasi (Rasm/PDF)</div>
-                        <p className="text-[11px] text-slate-400">Bosib kadastr faylini tanlang</p>
-                      </>
+                  {uploadZone(
+                    cadastreFile,
+                    () => cadastreInputRef.current?.click(),
+                    () => setCadastreFile(null),
+                    t('verification.cadastre.uploadTitle'),
+                    t('verification.cadastre.uploadSubtitle'),
+                  )}
+
+                  <Button type="submit" fullWidth loading={submitting} disabled={!cadastreFile}>
+                    {submitting
+                      ? t('verification.step.submitting')
+                      : t('verification.cadastre.submit')}
+                  </Button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {/* Level 5 — VIP */}
+          {activeStep === 5 && (
+            <div className="mx-auto max-w-xl space-y-6 py-4 text-center">
+              <span
+                className={`mx-auto flex h-20 w-20 items-center justify-center rounded-full ${
+                  currentLevel >= 5 ? 'bg-warning-soft text-warning' : 'bg-surface-2 text-subtle'
+                }`}
+              >
+                {currentLevel >= 5 ? (
+                  <Sparkles className="h-10 w-10" aria-hidden="true" />
+                ) : (
+                  <Lock className="h-9 w-9" aria-hidden="true" />
+                )}
+              </span>
+              <h3 className="text-xl font-black text-content sm:text-2xl">
+                {stepMeta(5).title}
+              </h3>
+              <p className="mx-auto max-w-md text-xs leading-relaxed text-muted">
+                {currentLevel >= 5 ? t('verification.vip.body') : t('verification.vip.locked')}
+              </p>
+              {currentUser?.role === 'OWNER' && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setCurrentView('MY_LISTINGS')}
+                  className="mx-auto"
+                >
+                  {t('verification.vip.myListings')}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Submitted requests */}
+      {currentUser && (
+        <section className="space-y-4 rounded-3xl border border-line bg-surface p-6 shadow-card sm:p-8">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-black text-content">
+                {t('verification.requests.title')}
+              </h2>
+              <p className="text-xs text-muted">{t('verification.requests.subtitle')}</p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => void loadRequests()}
+              loading={requestsLoading}
+            >
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+              {t('common.action.refresh')}
+            </Button>
+          </div>
+
+          {requestsLoading ? (
+            <div className="space-y-2" aria-hidden="true">
+              {[0, 1].map((row) => (
+                <div key={row} className="h-16 w-full animate-shimmer rounded-xl" />
+              ))}
+            </div>
+          ) : requestsError ? (
+            <div className="space-y-3 rounded-2xl border border-danger/30 bg-danger-soft p-5 text-center">
+              <p className="text-xs font-semibold text-danger">
+                {t('verification.requests.error')}
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => void loadRequests()}
+                className="mx-auto"
+              >
+                {t('common.action.retry')}
+              </Button>
+            </div>
+          ) : requests.length === 0 ? (
+            <p className="rounded-2xl border border-line bg-surface-2 p-6 text-center text-xs text-muted">
+              {t('verification.requests.empty')}
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {requests.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-line bg-surface-2 p-4"
+                >
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-sm font-bold text-content">
+                      {documentLabel(row.documentType)}
+                    </p>
+                    <p className="text-xs text-muted">
+                      {t('verification.requests.level', { level: row.targetLevel })}
+                    </p>
+                    <p className="text-[11px] text-subtle">{formatDate(row.createdAt)}</p>
+                    {row.status === 'REJECTED' && (
+                      <p className="text-xs font-semibold text-danger">
+                        {row.rejectionReason
+                          ? t('verification.requests.reason', { reason: row.rejectionReason })
+                          : t('verification.step.rejectedNoReason')}
+                      </p>
                     )}
                   </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSubmitting || (!cadastreImage && !cadastreCode.trim())}
-                    className={`w-full font-black py-4 rounded-xl shadow-lg transition-all text-sm ${
-                      cadastreImage || cadastreCode.trim()
-                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 cursor-pointer'
-                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                    }`}
+                  <span
+                    className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-black ${statusClass(row.status)}`}
                   >
-                    {isSubmitting ? 'Kadastr AI Tahlil Qilinmoqda...' : 'Property Verification Yuborish (+100 XP)'}
-                  </button>
-                </form>
-              )}
-            </div>
+                    {statusLabel(row.status)}
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
+        </section>
+      )}
 
-          {activeStep === 5 && (
-            <div className="space-y-6 max-w-xl mx-auto text-center py-4">
-              <div className="w-20 h-20 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto shadow-lg animate-pulse">
-                <Sparkles className="w-10 h-10 fill-amber-500" />
-              </div>
-              <h3 className="text-2xl font-black text-slate-900">Level 5: VIP Verified Owner</h3>
-              <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
-                Tabriklaymiz! Siz platformaning eng ishonchli egalari qatoriga kirdingiz. E'lonlaringiz qidiruvda eng yuqori VIP o'ringa chiqadi.
-              </p>
-              <div className="inline-flex items-center gap-2">
-                <VerificationBadge level={5} size="md" />
-              </div>
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => setCurrentView('MY_LISTINGS')}
-                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-6 py-3 rounded-xl shadow-md"
-                >
-                  Mening E'lonlarimga O'tish
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* CHECKER TOOL: TELEFON RAQAM YOKI E'LONNI ISHONCHLILIKKA TEKSHIRISH */}
-      <div className="bg-gradient-to-br from-slate-900 to-slate-950 text-white p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-xl space-y-5">
+      {/* Phone trust lookup — kept visible, inert until the server exposes it. */}
+      <section className="space-y-4 rounded-3xl border border-line bg-surface p-6 shadow-card sm:p-8">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
-            <Search className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-lg font-black text-white">Istagan Telefon Raqamni Ishonchlilikka Tekshiring</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Ushbu raqam haqiqiy uy egasimi yoki makler ekanligini AI 1-soniyada tekshiradi</p>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-text">
+            <Search className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-base font-black text-content sm:text-lg">
+              {t('verification.checker.title')}
+            </h2>
+            <p className="mt-0.5 text-xs text-muted">{t('verification.checker.subtitle')}</p>
           </div>
         </div>
 
-        <form onSubmit={handlePhoneCheckSubmit} className="flex flex-col sm:flex-row gap-2">
-          <input
+        <form
+          className="flex flex-col gap-2 sm:flex-row"
+          onSubmit={(event) => event.preventDefault()}
+        >
+          <label htmlFor="verification-phone-check" className="sr-only">
+            {t('verification.checker.title')}
+          </label>
+          <TextInput
+            id="verification-phone-check"
             type="tel"
-            value={checkInput}
-            onChange={(e) => setCheckInput(e.target.value)}
-            placeholder="+998 90 123 45 67"
-            className="flex-1 bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3.5 text-sm font-semibold text-white placeholder:text-slate-500 outline-none focus:border-emerald-500"
+            disabled
+            placeholder={t('verification.checker.placeholder')}
+            aria-describedby="verification-phone-check-hint"
+            className="flex-1"
           />
-          <button
-            type="submit"
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-6 py-3.5 rounded-xl shadow-md text-xs sm:text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] shrink-0"
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span>AI Tekshiruvni Boshlash</span>
-          </button>
+          <Button type="submit" disabled className="shrink-0">
+            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+            {t('verification.checker.submit')}
+          </Button>
         </form>
 
-        {checkResult && (
-          <div className={`p-4 rounded-2xl border text-xs space-y-2 animate-in fade-in-50 duration-300 ${
-            checkResult.status === 'VERIFIED_OWNER'
-              ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-200'
-              : checkResult.status === 'BROKER_FLAGGED'
-              ? 'bg-rose-950/80 border-rose-500/50 text-rose-200'
-              : 'bg-slate-800/90 border-slate-700 text-slate-200'
-          }`}>
-            <div className="flex items-center justify-between font-black text-sm">
-              <span>{checkResult.title}</span>
-              <span className="bg-white/10 px-2.5 py-1 rounded-lg">Trust Score: {checkResult.trustScore}/100</span>
-            </div>
-            <p className="leading-relaxed">{checkResult.description}</p>
-          </div>
-        )}
-      </div>
-
+        <p
+          id="verification-phone-check-hint"
+          className="flex items-start gap-2 rounded-xl border border-info/30 bg-info-soft p-3.5 text-xs text-muted"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-info" aria-hidden="true" />
+          <span>{t('verification.checker.unavailable')}</span>
+        </p>
+      </section>
     </div>
   );
 };
+
+export default VerificationPage;

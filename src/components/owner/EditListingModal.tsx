@@ -1,41 +1,113 @@
-import React, { useState } from 'react';
-import { X, Save, Edit3, CheckCircle2, Video, Trash2 } from 'lucide-react';
-import { useAppStore } from '../../stores/useAppStore';
-import { ApiService } from '../../services/apiService';
+/**
+ * Edit an existing listing.
+ *
+ * The dialog owns its own open/close state through props — the store no
+ * longer carries `editingListing`, so whoever opens the modal decides when it
+ * closes. Saving goes through `ListingsApi.update`, which returns the listing
+ * as the server stored it; the caller gets that copy back rather than the
+ * optimistic local object the previous version invented.
+ */
+
+import React, { useEffect, useId, useRef, useState } from 'react';
+import { ChevronDown, Edit3, Save, Trash2, Video, X } from 'lucide-react';
+
+import { useTranslation } from '../../i18n';
 import { UZBEKISTAN_REGIONS, TASHKENT_METRO_LINES } from '../../data/mockLocations';
+import { ListingsApi } from '../../services/listingsApi';
+import { useAppStore } from '../../stores/useAppStore';
+import type { Listing } from '../../types';
+import { Button, Field, FormError, TextInput } from '../ui/Field';
 
-export const EditListingModal: React.FC = () => {
-  const { editingListing, setEditingListing, updateListing } = useAppStore();
+/** Stored value for "no metro nearby"; the label is translated at render time. */
+const METRO_NONE = 'NONE';
 
-  if (!editingListing) return null;
+const selectClass =
+  'w-full appearance-none rounded-xl border border-line bg-surface-2 px-3.5 py-3 pr-9 ' +
+  'text-sm font-bold text-content transition-colors focus:border-brand focus:bg-surface focus:outline-none';
 
-  const [title, setTitle] = useState(editingListing.title);
-  const [description, setDescription] = useState(editingListing.description);
-  const [price, setPrice] = useState(editingListing.price);
-  const [deposit, setDeposit] = useState(editingListing.depositPrice || 0);
-  const [rooms, setRooms] = useState(editingListing.rooms);
-  const [area, setArea] = useState(editingListing.area);
-  const [floor, setFloor] = useState(editingListing.floor);
-  const [totalFloors, setTotalFloors] = useState(editingListing.totalFloors);
-  const [region, setRegion] = useState(editingListing.region);
-  const [district, setDistrict] = useState(editingListing.district);
-  const [address, setAddress] = useState(editingListing.address || '');
-  const [metro, setMetro] = useState(editingListing.metroStation || "Yo'q");
-  const [metroDist, setMetroDist] = useState(editingListing.metroDistanceMinutes || 5);
-  const [videoUrl, setVideoUrl] = useState(editingListing.videoUrl || '');
-  const [furnished, setFurnished] = useState(editingListing.furnished);
-  const [utilities, setUtilities] = useState(editingListing.utilitiesIncluded);
-  const [pets, setPets] = useState(editingListing.petsAllowed);
-  const [parking, setParking] = useState(editingListing.parking);
+const checkboxClass =
+  'h-4 w-4 rounded border-line-2 text-brand accent-[var(--color-brand)] focus:ring-brand';
 
-  const activeRegionObj = UZBEKISTAN_REGIONS.find((r) => r.name === region) || UZBEKISTAN_REGIONS[0];
+const checkboxRowClass =
+  'flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-surface-2 p-2.5 ' +
+  'text-xs font-bold text-content transition-colors hover:bg-surface-3';
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    const updated = {
-      ...editingListing,
-      title,
-      description,
+interface EditListingModalProps {
+  listing: Listing;
+  onClose: () => void;
+  /** Receives the server's copy of the listing after a successful save. */
+  onSaved?: (listing: Listing) => void;
+}
+
+export const EditListingModal: React.FC<EditListingModalProps> = ({
+  listing,
+  onClose,
+  onSaved,
+}) => {
+  const { t } = useTranslation();
+  const pushToast = useAppStore((state) => state.pushToast);
+
+  const titleId = useId();
+  const videoInputId = useId();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  const [title, setTitle] = useState(listing.title);
+  const [description, setDescription] = useState(listing.description);
+  const [price, setPrice] = useState(listing.price);
+  const [deposit, setDeposit] = useState(listing.depositPrice ?? 0);
+  const [rooms, setRooms] = useState(listing.rooms);
+  const [area, setArea] = useState(listing.area);
+  const [floor, setFloor] = useState(listing.floor);
+  const [totalFloors, setTotalFloors] = useState(listing.totalFloors);
+  const [region, setRegion] = useState(listing.region);
+  const [district, setDistrict] = useState(listing.district);
+  const [address, setAddress] = useState(listing.address ?? '');
+  const [metro, setMetro] = useState(listing.metroStation ?? METRO_NONE);
+  const [metroMinutes, setMetroMinutes] = useState(listing.metroDistanceMinutes ?? 5);
+  const [videoUrl, setVideoUrl] = useState(listing.videoUrl ?? '');
+  const [furnished, setFurnished] = useState(listing.furnished);
+  const [utilities, setUtilities] = useState(listing.utilitiesIncluded);
+  const [pets, setPets] = useState(listing.petsAllowed);
+  const [parking, setParking] = useState(listing.parking);
+
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const activeRegion =
+    UZBEKISTAN_REGIONS.find((item) => item.name === region) ?? UZBEKISTAN_REGIONS[0];
+
+  // Escape closes the dialog, and focus starts inside it so keyboard users are
+  // not left behind on the page underneath.
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
+  const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') setVideoUrl(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setSaveError(null);
+
+    // Only fields the owner may change; server-owned values (status, scores,
+    // counters) are never echoed back or the API rejects the payload with 422.
+    const changes: Record<string, unknown> = {
+      title: title.trim(),
+      description: description.trim(),
       price,
       depositPrice: deposit,
       rooms,
@@ -44,331 +116,402 @@ export const EditListingModal: React.FC = () => {
       totalFloors,
       region,
       district,
-      address,
-      metroStation: metro !== "Yo'q" ? metro : undefined,
-      metroDistanceMinutes: metroDist,
-      videoUrl: videoUrl.trim() || undefined,
-      hasVirtualTour: false,
+      address: address.trim(),
+      metroStation: metro === METRO_NONE ? null : metro,
+      metroDistanceMinutes: metro === METRO_NONE ? null : metroMinutes,
+      videoUrl: videoUrl.trim() || null,
       furnished,
       utilitiesIncluded: utilities,
       petsAllowed: pets,
       parking,
     };
 
-    updateListing(updated);
-    if (updated.id) {
-      ApiService.updateListing(updated.id, updated).catch(() => {});
+    try {
+      const updated = await ListingsApi.update(listing.id, changes);
+      pushToast('layout.toast.listingUpdated', 'success');
+      onSaved?.(updated);
+      onClose();
+    } catch {
+      setSaveError(t('owner.edit.saveFailed'));
+      pushToast('common.error.generic', 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-5 my-auto max-h-[90vh] overflow-y-auto border border-slate-200">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-3 backdrop-blur-md sm:p-6"
+      style={{ backgroundColor: 'var(--overlay)' }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="my-auto max-h-[90vh] w-full max-w-2xl space-y-5 overflow-y-auto rounded-3xl border border-line bg-surface p-5 shadow-raised sm:p-6"
+      >
+        <div className="flex items-center justify-between border-b border-line pb-4">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center font-bold">
-              <Edit3 className="w-5 h-5" />
-            </div>
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-line bg-brand-soft text-brand-text">
+              <Edit3 className="h-5 w-5" aria-hidden="true" />
+            </span>
             <div>
-              <h3 className="text-lg font-black text-slate-900">E'lonni Tahrirlash</h3>
-              <p className="text-xs text-slate-500">Ma'lumotlarni o'zgartiring va saqlang</p>
+              <h2 id={titleId} className="text-lg font-black text-content">
+                {t('owner.edit.title')}
+              </h2>
+              <p className="text-xs text-subtle">{t('owner.edit.subtitle')}</p>
             </div>
           </div>
           <button
-            onClick={() => setEditingListing(null)}
-            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition"
+            ref={closeButtonRef}
+            type="button"
+            onClick={onClose}
+            aria-label={t('common.a11y.closeDialog')}
+            className="rounded-full p-2 text-subtle transition-colors hover:bg-surface-2 hover:text-content"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
 
-        {/* Edit Form */}
         <form onSubmit={handleSave} className="space-y-4">
-          
-          {/* Title */}
-          <div>
-            <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">E'lon Sarlavhasi</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-900 mt-1 focus:outline-none focus:border-emerald-500"
-              required
-            />
-          </div>
+          <FormError message={saveError} />
 
-          {/* Prices & Rooms */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Oylik narx (so'm)</label>
-              <input
-                type="number"
-                value={price}
-                onChange={(e) => setPrice(Number(e.target.value))}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-emerald-600 mt-1 focus:outline-none focus:border-emerald-500"
+          <Field label={t('owner.create.details.titleLabel')} required>
+            {({ id, describedBy }) => (
+              <TextInput
+                id={id}
+                aria-describedby={describedBy}
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
                 required
               />
-            </div>
-            <div>
-              <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Depozit (so'm)</label>
-              <input
-                type="number"
-                value={deposit}
-                onChange={(e) => setDeposit(Number(e.target.value))}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium mt-1 focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-            <div>
-              <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Xonalar</label>
-              <select
-                value={rooms}
-                onChange={(e) => setRooms(Number(e.target.value))}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold mt-1 focus:outline-none focus:border-emerald-500"
-              >
-                <option value={1}>1 xona</option>
-                <option value={2}>2 xona</option>
-                <option value={3}>3 xona</option>
-                <option value={4}>4+ xona</option>
-              </select>
-            </div>
-          </div>
+            )}
+          </Field>
 
-          {/* Area & Floor */}
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Maydon (m²)</label>
-              <input
-                type="number"
-                value={area}
-                onChange={(e) => setArea(Number(e.target.value))}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium mt-1 focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-            <div>
-              <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Qavat</label>
-              <input
-                type="number"
-                value={floor}
-                onChange={(e) => setFloor(Number(e.target.value))}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium mt-1 focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-            <div>
-              <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Jami qavat</label>
-              <input
-                type="number"
-                value={totalFloors}
-                onChange={(e) => setTotalFloors(Number(e.target.value))}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium mt-1 focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Field label={t('owner.create.details.priceLabel')} required>
+              {({ id }) => (
+                <TextInput
+                  id={id}
+                  type="number"
+                  min={0}
+                  step={100000}
+                  value={price}
+                  onChange={(event) => setPrice(Number(event.target.value))}
+                  required
+                />
+              )}
+            </Field>
 
-          {/* Location */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Viloyat</label>
-              <select
-                value={region}
-                onChange={(e) => {
-                  const newReg = e.target.value;
-                  setRegion(newReg);
-                  const newRegObj = UZBEKISTAN_REGIONS.find((r) => r.name === newReg);
-                  if (newRegObj) setDistrict(newRegObj.districts[0]);
-                }}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold mt-1 focus:outline-none focus:border-emerald-500"
-              >
-                {UZBEKISTAN_REGIONS.map((r) => (
-                  <option key={r.id} value={r.name}>{r.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Tuman</label>
-              <select
-                value={district}
-                onChange={(e) => setDistrict(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold mt-1 focus:outline-none focus:border-emerald-500"
-              >
-                {activeRegionObj.districts.map((d) => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+            <Field label={t('owner.create.details.depositLabel')}>
+              {({ id }) => (
+                <TextInput
+                  id={id}
+                  type="number"
+                  min={0}
+                  step={100000}
+                  value={deposit}
+                  onChange={(event) => setDeposit(Number(event.target.value))}
+                />
+              )}
+            </Field>
 
-          {/* Address */}
-          <div>
-            <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Aniq Manzil</label>
-            <input
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Mustaqillik ko'chasi, 15-uy"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium mt-1 focus:outline-none focus:border-emerald-500"
-            />
-          </div>
-
-          {/* Metro Selection */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Yaqin Metro Bekati</label>
-              <select
-                value={metro}
-                onChange={(e) => setMetro(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-900 mt-1 focus:outline-none focus:border-emerald-500"
-              >
-                <option value="Yo'q">Yo'q (Metro yaqin emas)</option>
-                {TASHKENT_METRO_LINES.map((line) => (
-                  <optgroup key={line.id} label={line.name}>
-                    {line.stations.map((st) => (
-                      <option key={st} value={st}>{st} bekati</option>
+            <Field label={t('common.filters.rooms')}>
+              {({ id }) => (
+                <div className="relative">
+                  <select
+                    id={id}
+                    value={rooms}
+                    onChange={(event) => setRooms(Number(event.target.value))}
+                    className={selectClass}
+                  >
+                    {[1, 2, 3].map((count) => (
+                      <option key={count} value={count}>
+                        {t('common.filters.roomsValue', { count })}
+                      </option>
                     ))}
-                  </optgroup>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Metroga piyoda (daqiqa)</label>
-              <input
-                type="number"
-                value={metroDist}
-                onChange={(e) => setMetroDist(Number(e.target.value))}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold mt-1 focus:outline-none focus:border-emerald-500"
+                    <option value={4}>{t('common.filters.roomsPlus', { count: 4 })}</option>
+                  </select>
+                  <ChevronDown
+                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle"
+                    aria-hidden="true"
+                  />
+                </div>
+              )}
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Field label={t('owner.create.details.areaLabel')}>
+              {({ id }) => (
+                <TextInput
+                  id={id}
+                  type="number"
+                  min={1}
+                  value={area}
+                  onChange={(event) => setArea(Number(event.target.value))}
+                />
+              )}
+            </Field>
+            <Field label={t('owner.create.details.floorLabel')}>
+              {({ id }) => (
+                <TextInput
+                  id={id}
+                  type="number"
+                  min={1}
+                  value={floor}
+                  onChange={(event) => setFloor(Number(event.target.value))}
+                />
+              )}
+            </Field>
+            <Field label={t('owner.create.details.totalFloorsLabel')}>
+              {({ id }) => (
+                <TextInput
+                  id={id}
+                  type="number"
+                  min={1}
+                  value={totalFloors}
+                  onChange={(event) => setTotalFloors(Number(event.target.value))}
+                />
+              )}
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label={t('owner.create.location.regionLabel')}>
+              {({ id }) => (
+                <div className="relative">
+                  <select
+                    id={id}
+                    value={region}
+                    onChange={(event) => {
+                      const nextRegion = event.target.value;
+                      setRegion(nextRegion);
+                      const match = UZBEKISTAN_REGIONS.find((item) => item.name === nextRegion);
+                      if (match) setDistrict(match.districts[0]);
+                    }}
+                    className={selectClass}
+                  >
+                    {UZBEKISTAN_REGIONS.map((item) => (
+                      <option key={item.id} value={item.name}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle"
+                    aria-hidden="true"
+                  />
+                </div>
+              )}
+            </Field>
+
+            <Field label={t('owner.create.location.districtLabel')}>
+              {({ id }) => (
+                <div className="relative">
+                  <select
+                    id={id}
+                    value={district}
+                    onChange={(event) => setDistrict(event.target.value)}
+                    className={selectClass}
+                  >
+                    {activeRegion.districts.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle"
+                    aria-hidden="true"
+                  />
+                </div>
+              )}
+            </Field>
+          </div>
+
+          <Field label={t('owner.create.location.addressLabel')}>
+            {({ id }) => (
+              <TextInput
+                id={id}
+                value={address}
+                onChange={(event) => setAddress(event.target.value)}
+                placeholder={t('owner.create.location.addressPlaceholder')}
               />
-            </div>
+            )}
+          </Field>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label={t('owner.create.location.metroLabel')}>
+              {({ id }) => (
+                <div className="relative">
+                  <select
+                    id={id}
+                    value={metro}
+                    onChange={(event) => setMetro(event.target.value)}
+                    className={selectClass}
+                  >
+                    <option value={METRO_NONE}>{t('owner.create.location.metroNone')}</option>
+                    {TASHKENT_METRO_LINES.map((line) => (
+                      <optgroup key={line.id} label={line.name}>
+                        {line.stations.map((station) => (
+                          <option key={station} value={station}>
+                            {t('owner.create.location.metroOption', { station })}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle"
+                    aria-hidden="true"
+                  />
+                </div>
+              )}
+            </Field>
+
+            <Field label={t('owner.create.location.metroMinutesLabel')}>
+              {({ id }) => (
+                <TextInput
+                  id={id}
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={metroMinutes}
+                  disabled={metro === METRO_NONE}
+                  onChange={(event) => setMetroMinutes(Number(event.target.value))}
+                />
+              )}
+            </Field>
           </div>
 
-          {/* Description */}
-          <div>
-            <label className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Tavsif</label>
-            <textarea
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium mt-1 focus:outline-none focus:border-emerald-500"
-            />
-          </div>
+          <Field label={t('owner.create.details.descriptionLabel')}>
+            {({ id }) => (
+              <textarea
+                id={id}
+                rows={3}
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                className="w-full rounded-xl border border-line bg-surface-2 p-3.5 text-sm font-medium text-content transition-colors placeholder:text-subtle focus:border-brand focus:bg-surface focus:outline-none"
+              />
+            )}
+          </Field>
 
-          {/* Direct Device Video Upload */}
-          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+          <div className="space-y-3 rounded-2xl border border-line bg-surface-2 p-4">
             <div className="flex items-center justify-between">
-              <label className="font-extrabold text-xs text-slate-800 flex items-center gap-1.5 uppercase tracking-wider">
-                <Video className="w-4 h-4 text-rose-500" />
-                <span>Kvartira Video Sharhi (Qurilmangizdan Yuklash)</span>
-              </label>
-              <span className="text-[10px] font-bold text-slate-400 bg-slate-200 px-2 py-0.5 rounded-full">
-                Ixtiyoriy
+              <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted">
+                <Video className="h-4 w-4 text-danger" aria-hidden="true" />
+                {t('owner.create.photos.videoLabel')}
+              </span>
+              <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-bold text-subtle">
+                {t('common.state.optional')}
               </span>
             </div>
 
             <input
+              id={videoInputId}
               type="file"
               accept="video/*"
-              className="hidden"
-              id="edit-video-upload-input"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () => {
-                  if (typeof reader.result === 'string') {
-                    setVideoUrl(reader.result);
-                  }
-                };
-                reader.readAsDataURL(file);
-                e.target.value = '';
-              }}
+              className="sr-only"
+              onChange={handleVideoUpload}
             />
 
             {videoUrl ? (
               <div className="space-y-2">
-                <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-700 shadow-md">
-                  <video
-                    controls
-                    src={videoUrl}
-                    className="w-full max-h-56 object-contain"
-                  />
+                <div className="relative overflow-hidden rounded-2xl border border-line bg-[#0b1220]">
+                  {/* eslint-disable-next-line jsx-a11y/media-has-caption -- owner-recorded tour, no caption track exists */}
+                  <video controls src={videoUrl} className="max-h-56 w-full object-contain" />
                   <button
                     type="button"
                     onClick={() => setVideoUrl('')}
-                    className="absolute top-2 right-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-1 transition-all active:scale-95"
+                    className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-xl bg-danger px-3 py-1.5 text-xs font-extrabold text-white shadow-raised transition-transform active:scale-95"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Videoni O'chirish</span>
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>{t('owner.create.photos.videoRemove')}</span>
                   </button>
                 </div>
-                <div className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Video muvaffaqiyatli yuklandi!
-                </div>
+                <p className="text-[11px] font-bold text-brand-text">
+                  {t('owner.create.photos.videoUploaded')}
+                </p>
               </div>
             ) : (
-              <div
-                onClick={() => document.getElementById('edit-video-upload-input')?.click()}
-                className="border-2 border-dashed border-rose-300 hover:border-rose-500 bg-rose-50/40 hover:bg-rose-50/80 rounded-xl p-4 text-center space-y-2 cursor-pointer transition-all"
+              <label
+                htmlFor={videoInputId}
+                className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-line-2 p-4 text-center transition-colors hover:border-brand"
               >
-                <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
-                  <Video className="w-5 h-5" />
-                </div>
-                <div className="font-bold text-slate-800 text-xs">
-                  📱 Telefoningiz yoki galereyangizdan video tanlang
-                </div>
-                <p className="text-[11px] text-slate-500">
-                  MP4, MOV, WEBM formatdagi video sharhni qurilmangizdan yuklang.
-                </p>
-                <button
-                  type="button"
-                  className="bg-white border border-rose-200 text-rose-700 font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-sm hover:bg-rose-100 transition-colors"
-                >
-                  🎥 Videoni yuklash
-                </button>
-              </div>
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-danger-soft text-danger">
+                  <Video className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <span className="text-xs font-bold text-content">
+                  {t('owner.create.photos.videoDropTitle')}
+                </span>
+                <span className="text-[11px] text-subtle">
+                  {t('owner.create.photos.videoDropBody')}
+                </span>
+              </label>
             )}
           </div>
 
-          {/* Amenities checkboxes */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-            <label className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-xs font-bold cursor-pointer">
-              <input type="checkbox" checked={furnished} onChange={(e) => setFurnished(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500" />
-              <span>Mebelli</span>
-            </label>
-            <label className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-xs font-bold cursor-pointer">
-              <input type="checkbox" checked={utilities} onChange={(e) => setUtilities(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500" />
-              <span>Kommunal kiradi</span>
-            </label>
-            <label className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-xs font-bold cursor-pointer">
-              <input type="checkbox" checked={pets} onChange={(e) => setPets(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500" />
-              <span>Uy hayvoni</span>
-            </label>
-            <label className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-xs font-bold cursor-pointer">
-              <input type="checkbox" checked={parking} onChange={(e) => setParking(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500" />
-              <span>Avto-Parking</span>
-            </label>
-          </div>
+          <fieldset className="space-y-2">
+            <legend className="text-xs font-bold uppercase tracking-wider text-muted">
+              {t('owner.create.details.amenitiesLabel')}
+            </legend>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <label className={checkboxRowClass}>
+                <input
+                  type="checkbox"
+                  checked={furnished}
+                  onChange={(event) => setFurnished(event.target.checked)}
+                  className={checkboxClass}
+                />
+                <span>{t('listings.amenities.furnished')}</span>
+              </label>
+              <label className={checkboxRowClass}>
+                <input
+                  type="checkbox"
+                  checked={utilities}
+                  onChange={(event) => setUtilities(event.target.checked)}
+                  className={checkboxClass}
+                />
+                <span>{t('listings.amenities.utilitiesIncluded')}</span>
+              </label>
+              <label className={checkboxRowClass}>
+                <input
+                  type="checkbox"
+                  checked={pets}
+                  onChange={(event) => setPets(event.target.checked)}
+                  className={checkboxClass}
+                />
+                <span>{t('listings.amenities.petsAllowed')}</span>
+              </label>
+              <label className={checkboxRowClass}>
+                <input
+                  type="checkbox"
+                  checked={parking}
+                  onChange={(event) => setParking(event.target.checked)}
+                  className={checkboxClass}
+                />
+                <span>{t('listings.amenities.parking')}</span>
+              </label>
+            </div>
+          </fieldset>
 
-          {/* Footer Actions */}
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => setEditingListing(null)}
-              className="px-5 py-3 rounded-xl border border-slate-200 font-bold text-xs text-slate-600 hover:bg-slate-50 transition"
-            >
-              Bekor qilish
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-600/30 flex items-center gap-2 transition active:scale-95"
-            >
-              <Save className="w-4 h-4" />
-              <span>O'zgarishlarni Saqlash</span>
-            </button>
+          <div className="flex items-center justify-end gap-3 border-t border-line pt-3">
+            <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
+              {t('common.action.cancel')}
+            </Button>
+            <Button type="submit" loading={saving}>
+              <Save className="h-4 w-4" aria-hidden="true" />
+              {saving ? t('common.action.saving') : t('common.action.save')}
+            </Button>
           </div>
-
         </form>
-
       </div>
     </div>
   );
 };
+
+export default EditListingModal;

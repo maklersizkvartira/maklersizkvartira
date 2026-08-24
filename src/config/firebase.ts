@@ -1,69 +1,65 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, UserCredential } from 'firebase/auth';
+/**
+ * Firebase — used for one thing only: obtaining a Google ID token.
+ *
+ * The token is sent to `POST /auth/google`, where the backend verifies its
+ * signature against Google's published certificates before trusting a single
+ * claim in it. The previous implementation posted the email address straight
+ * from the client and the server believed it, which meant anyone could sign
+ * in as anyone by typing their address into a request.
+ *
+ * The values here are publishable by design; Firebase config is not a secret.
+ */
 
-// Google OAuth Web Credentials Provided by User
-export const GOOGLE_CLIENT_ID = "63173300413-jfijmf1cng9dtlopjdpabb1e881go6pl.apps.googleusercontent.com";
-export const GOOGLE_PROJECT_ID = "maklersiz-uy";
+import { initializeApp, type FirebaseApp } from 'firebase/app';
+import {
+  GoogleAuthProvider,
+  getAuth,
+  signInWithPopup,
+  type Auth,
+} from 'firebase/auth';
 
-// Firebase configuration using environment variables with project credentials fallback
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyD9InxPaU3gRxGJUnU3hkLpSm7lQgfK_sA",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "maklersiz-uy.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "maklersiz-uy",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "maklersiz-uy.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "63173300413",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:63173300413:web:d69b2fe1fc5a5648e067d4"
+const config = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase App
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
+/** Google sign-in is simply unavailable when Firebase is not configured. */
+export const isGoogleAuthConfigured = Boolean(config.apiKey && config.projectId);
 
-// Custom Google Auth Provider Settings
-googleProvider.setCustomParameters({
-  prompt: 'select_account',
-  client_id: GOOGLE_CLIENT_ID
-});
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
 
-// Google Auth Helper
-export const signInWithGooglePopup = async (): Promise<{
-  user: {
-    uid: string;
-    email: string | null;
-    displayName: string | null;
-    photoURL: string | null;
-    phoneNumber: string | null;
-  };
-  idToken: string;
-}> => {
-  try {
-    const result: UserCredential = await signInWithPopup(auth, googleProvider);
-    const idToken = await result.user.getIdToken();
-    return {
-      user: {
-        uid: result.user.uid,
-        email: result.user.email,
-        displayName: result.user.displayName,
-        photoURL: result.user.photoURL,
-        phoneNumber: result.user.phoneNumber,
-      },
-      idToken,
-    };
-  } catch (error: any) {
-    if (error?.code === 'auth/popup-closed-by-user') {
-      throw error;
-    }
-    console.info("Google Auth fallback (development/demo mode):", error?.message || error);
-    return {
-      user: {
-        uid: `google-user-${Date.now()}`,
-        email: 'user.google@gmail.com',
-        displayName: 'Google Foydalanuvchisi',
-        photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
-        phoneNumber: '+998901234567',
-      },
-      idToken: `mock-google-id-token-${Date.now()}`,
-    };
+function getFirebaseAuth(): Auth {
+  if (!isGoogleAuthConfigured) {
+    throw new Error('Google sign-in is not configured');
   }
-};
+  if (!app) app = initializeApp(config);
+  if (!auth) auth = getAuth(app);
+  return auth;
+}
+
+/**
+ * Opens the Google popup and returns the raw ID token.
+ *
+ * Nothing else from the Firebase result is used or trusted: the backend reads
+ * the identity out of the verified token itself.
+ */
+export async function getGoogleIdToken(): Promise<string> {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  const credential = await signInWithPopup(getFirebaseAuth(), provider);
+  return credential.user.getIdToken();
+}
+
+export class GooglePopupClosed extends Error {}
+
+export function isPopupClosed(error: unknown): boolean {
+  const code = (error as { code?: string } | null)?.code ?? '';
+  return (
+    code === 'auth/popup-closed-by-user' ||
+    code === 'auth/cancelled-popup-request' ||
+    code === 'auth/user-cancelled'
+  );
+}

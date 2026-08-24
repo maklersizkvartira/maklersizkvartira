@@ -1,0 +1,48 @@
+{
+  "name": "Maklersiz Uy",
+  "short_name": "Maklersiz Uy",
+  "description": "Uy egasidan to‘g‘ridan-to‘g‘ri, komissiyasiz ijara. O‘zbekistonda maklersiz kvartira topish platformasi.",
+  "lang": "uz",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f6f8fb",
+  "theme_color": "#1447e6",
+  "categories": ["business", "lifestyle", "travel"],
+  "icons": [
+    {
+      "src": "/brand/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/brand/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/brand/mark-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "E'lonlar",
+      "short_name": "E'lonlar",
+      "url": "/?view=listings",
+      "icons": [{ "src": "/brand/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "E'lon berish",
+      "short_name": "E'lon berish",
+      "url": "/?view=create_listing",
+      "icons": [{ "src": "/brand/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

@@ -1,99 +1,208 @@
-import React, { useState } from 'react';
-import { ShieldCheck, UserCheck, ShieldAlert, Ban, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
+/**
+ * Platform figures.
+ *
+ * The previous version hardcoded "1,240+ verified owners" and "840+ brokers
+ * blocked". Those numbers had no source, so they are gone: this panel now
+ * renders only what the API actually reports, and says so when it reports
+ * nothing. The 0% commission tile is a policy, not a measurement, which is
+ * why it is always shown.
+ */
+
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Ban,
+  BarChart3,
+  ChevronDown,
+  ChevronUp,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react';
+
+import { useTranslation, type TranslationKey } from '../../i18n';
+import { useAppStore } from '../../stores/useAppStore';
+import { Button } from '../ui/Field';
+
+interface TrustStat {
+  id: string;
+  value: string;
+  labelKey: TranslationKey;
+  hintKey: TranslationKey;
+  icon: React.ComponentType<{ className?: string }>;
+  tone: string;
+}
 
 export const TrustStats: React.FC = () => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const { t, formatNumber } = useTranslation();
 
-  const stats = [
+  const totalCount = useAppStore((state) => state.totalCount);
+  const featured = useAppStore((state) => state.featured);
+  const loading = useAppStore((state) => state.listingsLoading);
+  const error = useAppStore((state) => state.listingsError);
+  const fetchListings = useAppStore((state) => state.fetchListings);
+  const fetchFeatured = useAppStore((state) => state.fetchFeatured);
+
+  const [isExpanded, setIsExpanded] = useState(false);
+  const requested = useRef(false);
+
+  // The home page may render before anything has queried the catalogue; ask
+  // once so the tiles have real figures instead of zeroes.
+  useEffect(() => {
+    if (requested.current) return;
+    requested.current = true;
+    if (totalCount === 0) void fetchListings({ page: 1 });
+    if (featured.length === 0) void fetchFeatured();
+  }, [totalCount, featured.length, fetchListings, fetchFeatured]);
+
+  const retry = () => {
+    void fetchListings({ page: 1 });
+    void fetchFeatured();
+  };
+
+  const stats: TrustStat[] = [
     {
-      label: 'Tasdiqlangan egalar',
-      value: '1,240+',
-      sub: 'Pasport va kadastr',
-      icon: UserCheck,
-      color: 'text-emerald-400 bg-emerald-950/60 border-emerald-500/30',
-    },
-    {
-      label: "Maklerlar to'sildi",
-      value: '840+',
-      sub: 'AI aniqlagan vositachilar',
-      icon: ShieldAlert,
-      color: 'text-rose-400 bg-rose-950/60 border-rose-500/30',
-    },
-    {
-      label: 'Faol e\'lonlar',
-      value: '3,500+',
-      sub: 'Komissiyasiz kvartiralar',
-      icon: ShieldCheck,
-      color: 'text-blue-400 bg-blue-950/60 border-blue-500/30',
-    },
-    {
-      label: '0% vositachilik',
-      value: '2,100+',
-      sub: 'Egasidan to\'g\'ridan-to\'g\'ri',
+      id: 'commission',
+      value: '0%',
+      labelKey: 'home.stats.commission',
+      hintKey: 'home.stats.commissionHint',
       icon: Ban,
-      color: 'text-amber-400 bg-amber-950/60 border-amber-500/30',
+      tone: 'bg-brand/20 text-brand',
     },
   ];
 
+  if (totalCount > 0) {
+    stats.unshift({
+      id: 'active',
+      value: formatNumber(totalCount),
+      labelKey: 'home.stats.activeListings',
+      hintKey: 'home.stats.activeListingsHint',
+      icon: ShieldCheck,
+      tone: 'bg-info/20 text-info',
+    });
+  }
+
+  if (featured.length > 0) {
+    stats.push({
+      id: 'featured',
+      value: formatNumber(featured.length),
+      labelKey: 'home.stats.featuredListings',
+      hintKey: 'home.stats.featuredListingsHint',
+      icon: Sparkles,
+      tone: 'bg-warning/20 text-warning',
+    });
+  }
+
+  const hasLiveFigures = totalCount > 0 || featured.length > 0;
+
   return (
-    <section className="bg-slate-950 text-white py-4 sm:py-6 px-3 sm:px-6 w-full border-t border-slate-800">
-      <div className="max-w-7xl mx-auto space-y-4">
-        {/* Expandable Ko'rsatkichlar Button */}
+    <section className="w-full border-t border-line bg-gradient-to-br from-band to-band-2 px-3 py-4 text-on-band sm:px-6 sm:py-6">
+      <div className="mx-auto max-w-7xl space-y-4">
         <button
           type="button"
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full bg-slate-900 hover:bg-slate-850 border border-slate-800 p-4 rounded-2xl flex items-center justify-between gap-3 transition-colors shadow-md group active:scale-[0.99]"
+          onClick={() => setIsExpanded((open) => !open)}
+          aria-expanded={isExpanded}
+          aria-controls="home-trust-stats-panel"
+          className="group flex w-full items-center justify-between gap-3 rounded-2xl border border-on-band/15 bg-on-band/5 p-4 transition-colors hover:bg-on-band/10 active:scale-[0.99]"
         >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
-              <BarChart3 className="w-5 h-5" />
-            </div>
-            <div className="text-left min-w-0">
-              <div className="text-sm sm:text-base font-black text-white truncate">Platforma Ko'rsatkichlari</div>
-              <div className="text-xs text-slate-400 truncate">1,240+ tasdiqlangan egalar • 0% vositachilik</div>
-            </div>
-          </div>
-          <div className="bg-slate-800 text-slate-300 group-hover:text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0">
-            <span>{isExpanded ? "Yopish" : "Ko'rish"}</span>
-            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </div>
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/20 text-brand">
+              <BarChart3 className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <span className="min-w-0 text-left">
+              <span className="block text-sm font-black leading-snug sm:text-base">
+                {t('home.stats.toggleTitle')}
+              </span>
+              <span className="block text-xs leading-snug text-on-band/60">
+                {totalCount > 0
+                  ? t('home.stats.toggleSubtitleWithCount', { count: formatNumber(totalCount) })
+                  : t('home.stats.toggleSubtitle')}
+              </span>
+            </span>
+          </span>
+          <span className="flex shrink-0 items-center gap-1.5 rounded-xl bg-on-band/10 px-3 py-1.5 text-xs font-bold">
+            <span>{isExpanded ? t('home.stats.collapse') : t('home.stats.expand')}</span>
+            {isExpanded ? (
+              <ChevronUp className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            )}
+          </span>
         </button>
 
-        {/* Expanded Content */}
-        {isExpanded && (
-          <div className="space-y-5 animate-in fade-in-50 duration-300 pt-2">
-            <div className="text-center max-w-xl mx-auto space-y-1.5 px-1">
-              <h2 className="text-lg sm:text-2xl font-black text-white tracking-tight leading-snug">
-                Maklersiz ijara, ishonch bilan
-              </h2>
-              <p className="text-[11px] sm:text-xs text-slate-400 leading-relaxed">
-                Odamlarga kvartirani o'zi mustaqil topish uchun makler va firibgarlarni tizimdan chiqaramiz.
-              </p>
-            </div>
+        <div id="home-trust-stats-panel" hidden={!isExpanded}>
+          {isExpanded && (
+            <div className="rise-in space-y-5 pt-2">
+              <div className="mx-auto max-w-xl space-y-1.5 px-1 text-center">
+                <h2 className="text-lg font-black leading-snug tracking-tight sm:text-2xl">
+                  {t('home.stats.title')}
+                </h2>
+                <p className="text-[11px] leading-relaxed text-on-band/60 sm:text-xs">
+                  {t('home.stats.subtitle')}
+                </p>
+              </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 w-full">
-              {stats.map((stat, idx) => {
-                const Icon = stat?.icon || ShieldCheck;
-                return (
-                  <div
-                    key={idx}
-                    className="bg-slate-900/90 p-3.5 sm:p-5 rounded-2xl border border-slate-800 flex flex-col justify-between"
-                  >
-                    <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl border flex items-center justify-center mb-2 sm:mb-3 ${stat.color}`}>
-                      <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+              {loading && !hasLiveFigures ? (
+                <div
+                  className="grid w-full grid-cols-2 gap-2 sm:gap-4 md:grid-cols-3"
+                  aria-label={t('common.a11y.loading')}
+                  aria-busy="true"
+                >
+                  {[0, 1, 2].map((slot) => (
+                    <div
+                      key={slot}
+                      className="h-28 animate-shimmer rounded-2xl sm:h-36"
+                      aria-hidden="true"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <dl className="grid w-full grid-cols-2 gap-2 sm:gap-4 md:grid-cols-3">
+                    {stats.map((stat) => {
+                      const Icon = stat.icon;
+                      return (
+                        <div
+                          key={stat.id}
+                          className="flex flex-col justify-between rounded-2xl border border-on-band/15 bg-on-band/5 p-3.5 sm:p-5"
+                        >
+                          <span
+                            className={`mb-2 flex h-8 w-8 items-center justify-center rounded-xl sm:mb-3 sm:h-10 sm:w-10 ${stat.tone}`}
+                          >
+                            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                          </span>
+                          <div>
+                            <dd className="text-xl font-black tracking-tight sm:text-3xl">
+                              {stat.value}
+                            </dd>
+                            <dt className="mt-0.5 text-[11px] font-extrabold leading-snug sm:text-sm">
+                              {t(stat.labelKey)}
+                            </dt>
+                            <p className="mt-0.5 text-[10px] leading-snug text-on-band/60 sm:text-[11px]">
+                              {t(stat.hintKey)}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </dl>
+
+                  {!hasLiveFigures && (
+                    <div className="flex flex-col items-center gap-3 text-center">
+                      <p className="text-xs text-on-band/60">
+                        {error ? t('common.error.network') : t('home.stats.unavailable')}
+                      </p>
+                      <Button type="button" variant="secondary" onClick={retry}>
+                        {t('common.action.retry')}
+                      </Button>
                     </div>
-                    <div>
-                      <div className="text-xl sm:text-3xl font-black text-white tracking-tight">{stat.value}</div>
-                      <div className="text-[11px] sm:text-sm font-extrabold text-slate-200 mt-0.5 leading-snug">{stat.label}</div>
-                      <div className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 leading-snug">{stat.sub}</div>
-                    </div>
-                  </div>
-                );
-              })}
+                  )}
+                </>
+              )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </section>
   );
 };
+
+export default TrustStats;

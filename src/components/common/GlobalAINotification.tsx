@@ -1,72 +1,134 @@
+/**
+ * A banner for the owner's own listings that moderation flagged.
+ *
+ * It used to mount <EditListingModal /> app-wide so its "edit" button could
+ * open it through a store field. That coupling is gone: the banner now just
+ * routes the owner to their listings, where editing lives.
+ */
+
 import React, { useState } from 'react';
-import { useAppStore } from '../../stores/useAppStore';
 import { AlertTriangle, Edit2, Trash2 } from 'lucide-react';
-import { ApiService } from '../../services/apiService';
-import { Listing } from '../../types';
-import { EditListingModal } from '../owner/EditListingModal';
+
+import { useTranslation } from '../../i18n';
+import { useAppStore } from '../../stores/useAppStore';
+import type { Listing } from '../../types';
+import { Button } from '../ui/Field';
 
 export const GlobalAINotification: React.FC = () => {
-  const { listings, currentUser, fetchListings, setEditingListing } = useAppStore();
+  const { t } = useTranslation();
 
-  if (!currentUser) return null;
+  const currentUser = useAppStore((state) => state.currentUser);
+  const listings = useAppStore((state) => state.listings);
+  const myListings = useAppStore((state) => state.myListings);
+  const removeListing = useAppStore((state) => state.removeListing);
+  const setCurrentView = useAppStore((state) => state.setCurrentView);
 
-  // Find any listing belonging to the user that has a WARNING status
-  // Specifically looking for the OLX/copied images warning.
-  const warningListings = listings.filter(
-    (l) => l.owner.id === currentUser.id && l.aiCheckStatus === 'WARNING'
-  );
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  if (warningListings.length === 0) return null;
+  // `myListings` is the authoritative set, but a flagged listing can also be
+  // sitting in the browse results, so both sources are merged and de-duplicated.
+  const flagged = React.useMemo(() => {
+    if (!currentUser) return [] as Listing[];
+    const byId = new Map<string, Listing>();
+    for (const listing of [...myListings, ...listings]) {
+      if (listing.owner?.id !== currentUser.id) continue;
+      if (listing.aiCheckStatus !== 'WARNING') continue;
+      byId.set(listing.id, listing);
+    }
+    return [...byId.values()];
+  }, [currentUser, listings, myListings]);
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm("E'lonni o'chirishga ishonchingiz komilmi?")) {
-      await ApiService.deleteListing(id);
-      fetchListings();
+  if (!currentUser || flagged.length === 0) return null;
+
+  const confirmDelete = async (listingId: string) => {
+    setDeletingId(listingId);
+    try {
+      await removeListing(listingId);
+    } finally {
+      setDeletingId(null);
+      setPendingDeleteId(null);
     }
   };
 
   return (
-    <>
-      {warningListings.map((listing) => (
-        <div key={listing.id} className="bg-rose-500 text-white shadow-md relative z-50 animate-fade-in-down">
-          <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8">
-            <div className="flex items-start sm:items-center flex-col sm:flex-row justify-between gap-3 sm:gap-4">
+    <section aria-label={t('assistant.notice.regionLabel')} className="relative z-50">
+      {flagged.map((listing) => (
+        <div
+          key={listing.id}
+          role="alert"
+          className="border-b border-danger/40 bg-danger-soft"
+        >
+          <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+            <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-white/20 rounded-lg shrink-0">
-                  <AlertTriangle className="w-5 h-5 text-white" />
-                </div>
+                <span className="shrink-0 rounded-lg bg-danger/15 p-2 text-danger">
+                  <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+                </span>
                 <div className="pt-0.5">
-                  <h3 className="font-bold text-sm sm:text-base leading-tight">Diqqat! E'loningiz ommaga ko'rsatilmayapti</h3>
-                  <p className="text-rose-100 text-xs sm:text-sm mt-1 leading-snug">
-                    <span className="font-semibold text-white">"{listing.title}"</span> — {listing.aiRiskReasons[0] || "Boshqa manbadan ko'chirilgani aniqlandi."} 
-                    Agar tahrirlamasangiz, e'lon o'chirib yuboriladi.
+                  <h3 className="text-sm font-bold leading-tight text-danger sm:text-base">
+                    {t('assistant.notice.title')}
+                  </h3>
+                  <p className="mt-1 text-xs leading-snug text-muted sm:text-sm">
+                    {t('assistant.notice.body', {
+                      title: listing.title,
+                      reason: listing.aiRiskReasons?.[0] ?? t('assistant.notice.defaultReason'),
+                    })}
                   </p>
                 </div>
               </div>
-              
-              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 mt-2 sm:mt-0">
-                <button
-                  onClick={() => setEditingListing(listing)}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-white text-rose-600 rounded-lg text-sm font-semibold hover:bg-rose-50 transition-colors shadow-sm"
-                >
-                  <Edit2 className="w-4 h-4" />
-                  Tahrirlash
-                </button>
-                <button
-                  onClick={() => handleDelete(listing.id)}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-rose-600 border border-rose-400 text-white rounded-lg text-sm font-semibold hover:bg-rose-700 transition-colors shadow-sm"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  O'chirish
-                </button>
+
+              <div className="mt-2 flex w-full shrink-0 items-center gap-2 sm:mt-0 sm:w-auto">
+                {pendingDeleteId === listing.id ? (
+                  <>
+                    <span className="text-xs font-semibold text-content">
+                      {t('assistant.notice.confirmDelete')}
+                    </span>
+                    <Button
+                      variant="secondary"
+                      className="px-4 py-2 text-sm"
+                      onClick={() => setPendingDeleteId(null)}
+                    >
+                      {t('common.action.cancel')}
+                    </Button>
+                    <Button
+                      variant="danger"
+                      loading={deletingId === listing.id}
+                      className="px-4 py-2 text-sm"
+                      onClick={() => {
+                        void confirmDelete(listing.id);
+                      }}
+                    >
+                      {t('common.action.confirm')}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="secondary"
+                      className="flex-1 px-4 py-2 text-sm sm:flex-none"
+                      onClick={() => setCurrentView('MY_LISTINGS')}
+                    >
+                      <Edit2 className="h-4 w-4" aria-hidden="true" />
+                      {t('assistant.notice.fix')}
+                    </Button>
+                    <Button
+                      variant="danger"
+                      className="flex-1 px-4 py-2 text-sm sm:flex-none"
+                      onClick={() => setPendingDeleteId(listing.id)}
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      {t('common.action.delete')}
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </div>
         </div>
       ))}
-
-      {/* The modal manages its own visibility via editingListing state */}
-      <EditListingModal />
-    </>
+    </section>
   );
 };
+
+export default GlobalAINotification;

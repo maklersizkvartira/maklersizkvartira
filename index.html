@@ -2,25 +2,91 @@
 <html lang="uz">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/logo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
-    <title>MaklersizUy.uz — Uy egasi va xaridorni to'g'ridan-to'g'ri bog'laydi</title>
-    <meta name="description" content="MaklersizUy.uz — O'zbekistonda uy-joy ijarasini maklersiz, vositachisiz va to'g'ridan-to'g'ri egasidan topish platformasi." />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/brand/mark-32.png" />
+    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>Maklersiz Uy — Uy egasidan to‘g‘ridan-to‘g‘ri, komissiyasiz ijara</title>
+    <meta
+      name="description"
+      content="Maklersiz Uy — O‘zbekistonda uy-joy ijarasini maklersiz, vositachisiz va to‘g‘ridan-to‘g‘ri egasidan topish platformasi. Komissiya 0%."
+    />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://maklersizuy.uz/" />
+
+    <meta name="theme-color" content="#f6f8fb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#080d18" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-title" content="Maklersiz Uy" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+
+    <!-- Alternate language versions for search engines -->
+    <link rel="alternate" hreflang="uz" href="https://maklersizuy.uz/?lang=uz" />
+    <link rel="alternate" hreflang="ru" href="https://maklersizuy.uz/?lang=ru" />
+    <link rel="alternate" hreflang="en" href="https://maklersizuy.uz/?lang=en" />
+    <link rel="alternate" hreflang="x-default" href="https://maklersizuy.uz/" />
+
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="uz_UZ" />
-    <meta property="og:title" content="MaklersizUy.uz — Uy egasi va xaridorni to'g'ridan-to'g'ri bog'laydi" />
-    <meta property="og:description" content="Makler yo'q. Komissiya 0%. Uy egasi va xaridorni to'g'ridan-to'g'ri bog'laydi." />
-    <meta property="og:image" content="/logo.png" />
+    <meta property="og:locale:alternate" content="ru_RU" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta
+      property="og:title"
+      content="Maklersiz Uy — Uy egasidan to‘g‘ridan-to‘g‘ri, komissiyasiz"
+    />
+    <meta
+      property="og:description"
+      content="Makler yo‘q. Komissiya 0%. Uy egasi va ijarachini to‘g‘ridan-to‘g‘ri bog‘laydi."
+    />
+    <meta property="og:image" content="/brand/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="Maklersiz Uy" />
     <meta property="og:url" content="https://maklersizuy.uz/" />
     <meta name="twitter:card" content="summary_large_image" />
-    <!-- Google Fonts Plus Jakarta Sans & Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <script>
+      /*
+       * Theme bootstrap — must run before first paint.
+       *
+       * Without this the page renders in light mode and then snaps to dark
+       * once React mounts, which reads as a white flash on every load for
+       * dark-mode users. Kept tiny and dependency-free on purpose.
+       */
+      (function () {
+        try {
+          var stored = localStorage.getItem('maklersiz.theme');
+          var prefersDark =
+            window.matchMedia &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var dark = stored === 'dark' || ((!stored || stored === 'system') && prefersDark);
+          if (dark) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.style.colorScheme = 'dark';
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', '#080d18');
+          }
+          var lang = localStorage.getItem('maklersiz.language');
+          if (lang === 'uz' || lang === 'ru' || lang === 'en') {
+            document.documentElement.lang = lang;
+          }
+        } catch (e) {
+          /* private mode: fall back to the light default */
+        }
+      })();
+    </script>
   </head>
-  <body class="bg-slate-50 text-slate-900 font-sans antialiased selection:bg-emerald-500 selection:text-white">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

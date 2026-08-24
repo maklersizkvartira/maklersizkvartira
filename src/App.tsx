@@ -1,136 +1,201 @@
-import React, { useEffect } from 'react';
-import { useAppStore } from './stores/useAppStore';
-import { Header } from './components/layout/Header';
+/**
+ * Application shell.
+ *
+ * Routing is a view switch rather than a router: the app is a single-surface
+ * product and the previous build already worked this way. Deep links are read
+ * from the query string on mount and written back on navigation.
+ *
+ * Every view except the listings grid is code-split, so the initial bundle
+ * carries only what the first screen needs.
+ */
+
+import React, { Suspense, lazy, useEffect } from 'react';
+
+import { AuthDialog } from './components/auth/AuthDialog';
 import { BottomNav } from './components/layout/BottomNav';
 import { Footer } from './components/layout/Footer';
+import { Header } from './components/layout/Header';
+import { Toaster } from './components/layout/Toaster';
+import { ListingsPage } from './components/listings/ListingsPage';
 import { ShieldMascot } from './components/common/ShieldMascot';
 import { GlobalAINotification } from './components/common/GlobalAINotification';
+import { useTranslation } from './i18n';
+import { setSessionExpiredHandler } from './services/http';
+import { MetaApi } from './services/listingsApi';
+import { useAppStore, type ViewState } from './stores/useAppStore';
 
-import { HeroSection } from './components/home/HeroSection';
-import { QuickCategories } from './components/home/QuickCategories';
-import { TrustStats } from './components/home/TrustStats';
-import { AIRecommended } from './components/home/AIRecommended';
-import { SearchPage } from './components/search/SearchPage';
-import { MapView } from './components/map/MapView';
-import { ListingDetailPage } from './components/listing/ListingDetailPage';
-import { VerificationPage } from './components/verification/VerificationPage';
-import { CreateListingPage } from './components/owner/CreateListingPage';
-import { OwnerDashboard } from './components/owner/OwnerDashboard';
-import { MyListingsPage } from './components/owner/MyListingsPage';
-import { ProfilePage } from './components/profile/ProfilePage';
-import { ChatPage } from './components/chat/ChatPage';
-import { ReferralPage } from './components/growth/ReferralPage';
-import { StudentProgramPage } from './components/student/StudentProgramPage';
-import { EcosystemPreviewPage } from './components/ecosystem/EcosystemPreviewPage';
-import { FavoritesPage } from './components/favorites/FavoritesPage';
-import { AdminPage } from './components/admin/AdminPage';
+const HomePage = lazy(() => import('./components/home/HomePage'));
+const ListingDetailPage = lazy(() => import('./components/listing/ListingDetailPage'));
+const MapView = lazy(() => import('./components/map/MapView'));
+const FavoritesPage = lazy(() => import('./components/favorites/FavoritesPage'));
+const ProfilePage = lazy(() => import('./components/profile/ProfilePage'));
+const MyListingsPage = lazy(() => import('./components/owner/MyListingsPage'));
+const CreateListingPage = lazy(() => import('./components/owner/CreateListingPage'));
+const VerificationPage = lazy(() => import('./components/verification/VerificationPage'));
+const ReferralPage = lazy(() => import('./components/growth/ReferralPage'));
+const StudentProgramPage = lazy(() => import('./components/student/StudentProgramPage'));
+const EcosystemPreviewPage = lazy(() => import('./components/ecosystem/EcosystemPreviewPage'));
+const ChatPage = lazy(() => import('./components/chat/ChatPage'));
+
+const VIEW_FROM_QUERY: Record<string, ViewState> = {
+  listings: 'LISTINGS',
+  map: 'MAP',
+  favorites: 'FAVORITES',
+  profile: 'PROFILE',
+  my_listings: 'MY_LISTINGS',
+  create_listing: 'CREATE_LISTING',
+  verification: 'VERIFICATION',
+  referral: 'REFERRAL',
+  student_program: 'STUDENT_PROGRAM',
+  ecosystem_preview: 'ECOSYSTEM_PREVIEW',
+  chat: 'CHAT',
+};
+
+/** Views that require an account; a guest is sent to the auth dialog instead. */
+const REQUIRES_AUTH: ReadonlySet<ViewState> = new Set<ViewState>([
+  'CREATE_LISTING',
+  'MY_LISTINGS',
+  'PROFILE',
+  'FAVORITES',
+  'VERIFICATION',
+  'REFERRAL',
+  'CHAT',
+]);
+
+const Loading: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center" role="status">
+      <div className="flex flex-col items-center gap-3">
+        <span
+          className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent"
+          aria-hidden="true"
+        />
+        <p className="text-xs font-bold text-muted">{t('common.state.loading')}</p>
+      </div>
+    </div>
+  );
+};
+
+const SignInPrompt: React.FC = () => {
+  const { t } = useTranslation();
+  const setShowAuth = useAppStore((state) => state.setShowAuth);
+  return (
+    <div className="mx-auto max-w-md px-4 py-20 text-center">
+      <h1 className="text-xl font-black text-content">{t('auth.guard.title')}</h1>
+      <p className="mt-2 text-sm text-muted">{t('auth.guard.body')}</p>
+      <button
+        type="button"
+        onClick={() => setShowAuth(true, 'LOGIN')}
+        className="mt-5 rounded-xl bg-brand px-5 py-3 text-sm font-bold text-on-brand shadow-brand"
+      >
+        {t('auth.guard.cta')}
+      </button>
+    </div>
+  );
+};
+
+function renderView(view: ViewState): React.ReactNode {
+  switch (view) {
+    case 'HOME':
+      return <HomePage />;
+    case 'LISTINGS':
+      return <ListingsPage />;
+    case 'LISTING_DETAIL':
+      return <ListingDetailPage />;
+    case 'MAP':
+      return <MapView />;
+    case 'FAVORITES':
+      return <FavoritesPage />;
+    case 'PROFILE':
+      return <ProfilePage />;
+    case 'MY_LISTINGS':
+      return <MyListingsPage />;
+    case 'CREATE_LISTING':
+      return <CreateListingPage />;
+    case 'VERIFICATION':
+      return <VerificationPage />;
+    case 'REFERRAL':
+      return <ReferralPage />;
+    case 'STUDENT_PROGRAM':
+      return <StudentProgramPage />;
+    case 'ECOSYSTEM_PREVIEW':
+      return <EcosystemPreviewPage />;
+    case 'CHAT':
+      return <ChatPage />;
+    default:
+      return <ListingsPage />;
+  }
+}
 
 export const App: React.FC = () => {
-  const { currentView, currentUser, fetchListings, setCurrentView, initAuth } = useAppStore();
-  const isOwner = currentUser?.role === 'OWNER';
-  const isStudent = currentUser?.role === 'STUDENT';
-  const [isAppReady, setIsAppReady] = React.useState(false);
+  const currentView = useAppStore((state) => state.currentView);
+  const setCurrentView = useAppStore((state) => state.setCurrentView);
+  const initAuth = useAppStore((state) => state.initAuth);
+  const authReady = useAppStore((state) => state.authReady);
+  const currentUser = useAppStore((state) => state.currentUser);
+  const pushToast = useAppStore((state) => state.pushToast);
 
   useEffect(() => {
-    // 1. Restore session from token — must run before fetchListings
-    initAuth();
+    void initAuth();
 
-    // 2. Load listings (also fetches owner's own listings if logged in)
-    fetchListings();
-
-    // 3. Auto-refresh listings every 10 seconds for real-time updates
-    const intervalId = setInterval(() => {
-      fetchListings();
-    }, 10000);
-
-    // Check for Deep Link URL parameters (e.g. ?listing=listing-1 or ?id=listing-1 or #listing-1)
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const listingIdParam = urlParams.get('listing') || urlParams.get('id') || window.location.hash.replace('#', '');
-      if (listingIdParam && listingIdParam.trim().length > 0) {
-        setCurrentView('LISTING_DETAIL', listingIdParam.trim());
-      }
-    } catch {}
+    // A rejected refresh signs the user out and says so, instead of leaving
+    // the UI in a half-authenticated state.
+    setSessionExpiredHandler(() => {
+      useAppStore.setState({ currentUser: null, favorites: [], favoriteIds: new Set() });
+      pushToast('layout.toast.sessionExpired', 'warning');
+    });
 
     try {
-      let guestId = sessionStorage.getItem('maklersiz_guest_id');
-      if (!guestId) {
-        guestId = `guest_${Math.floor(100000 + Math.random() * 900000)}`;
-        sessionStorage.setItem('maklersiz_guest_id', guestId);
+      const params = new URLSearchParams(window.location.search);
+      const listingId = params.get('listing') ?? params.get('id');
+      const view = params.get('view');
+      if (listingId) {
+        setCurrentView('LISTING_DETAIL', listingId);
+      } else if (view && VIEW_FROM_QUERY[view]) {
+        setCurrentView(VIEW_FROM_QUERY[view]);
       }
+    } catch {
+      /* malformed URL */
+    }
 
-      fetch('https://maklersizkvartira-production.up.railway.app/api/v1/traffic/track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: guestId, page_path: window.location.pathname || '/' }),
-      }).catch(() => {});
-    } catch (e) {}
+    // Anonymous page-view counter for the admin dashboard.
+    try {
+      let sessionId = sessionStorage.getItem('maklersiz.session');
+      if (!sessionId) {
+        sessionId = crypto.randomUUID();
+        sessionStorage.setItem('maklersiz.session', sessionId);
+      }
+      void MetaApi.track(sessionId, window.location.pathname || '/', document.referrer);
+    } catch {
+      /* storage unavailable */
+    }
 
-    const timer = setTimeout(() => setIsAppReady(true), 1000);
-    return () => {
-      clearInterval(intervalId);
-      clearTimeout(timer);
-    };
-  }, [fetchListings, setCurrentView, initAuth]);
+    return () => setSessionExpiredHandler(null);
+  }, [initAuth, setCurrentView, pushToast]);
 
-  if (!isAppReady) {
-    return (
-      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-emerald-600 text-white">
-        <div className="flex items-center justify-center w-20 h-20 bg-white rounded-3xl shadow-2xl mb-6 animate-bounce">
-          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-            <polyline points="9 22 9 12 15 12 15 22"></polyline>
-          </svg>
-        </div>
-        <h1 className="text-3xl sm:text-4xl font-black tracking-widest uppercase mb-2 animate-pulse">Maklersiz.uz</h1>
-        <p className="text-xs sm:text-sm font-bold opacity-90 animate-pulse">E'lonlar va xarita yuklanmoqda...</p>
-      </div>
-    );
-  }
+  const guarded = REQUIRES_AUTH.has(currentView) && !currentUser;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-white">
+    <div className="flex min-h-screen flex-col bg-canvas text-content">
       <Header />
       <GlobalAINotification />
 
-      <main className="flex-1 min-w-0 w-full pt-[52px] sm:pt-[64px] pb-0">
-        {currentView === 'HOME' && (
-          <>
-
-
-            {isStudent && (
-              <div className="bg-emerald-50 border-b border-emerald-100 px-4 py-3 text-center">
-                <p className="text-sm font-bold text-emerald-900">
-                  Salom, {currentUser.name.split(' ')[0]}. Kvartirani o'zingiz, maklersiz tanlang.
-                </p>
-              </div>
-            )}
-
-            <HeroSection />
-            <QuickCategories />
-            <AIRecommended />
-            <TrustStats />
-          </>
+      <main className="flex-1 pb-20 pt-[76px] sm:pt-[86px] lg:pb-0">
+        {!authReady ? (
+          <Loading />
+        ) : guarded ? (
+          <SignInPrompt />
+        ) : (
+          <Suspense fallback={<Loading />}>{renderView(currentView)}</Suspense>
         )}
-
-        {currentView === 'SEARCH' && <SearchPage />}
-        {currentView === 'MAP' && <MapView />}
-        {currentView === 'LISTING_DETAIL' && <ListingDetailPage />}
-        {currentView === 'VERIFICATION' && <VerificationPage />}
-        {currentView === 'CREATE_LISTING' && <CreateListingPage />}
-        {currentView === 'MY_LISTINGS' && <MyListingsPage />}
-        {currentView === 'PROFILE' && <ProfilePage />}
-        {currentView === 'CHAT' && <ChatPage />}
-        {currentView === 'REFERRAL' && <ReferralPage />}
-        {currentView === 'STUDENT_PROGRAM' && <StudentProgramPage />}
-        {currentView === 'ECOSYSTEM_PREVIEW' && <EcosystemPreviewPage />}
-        {currentView === 'FAVORITES' && <FavoritesPage />}
-        {currentView === 'ADMIN' && <AdminPage />}
       </main>
 
-      {currentView !== 'CHAT' && <ShieldMascot />}
-      <BottomNav />
       {currentView !== 'CHAT' && <Footer />}
+      <BottomNav />
+      {currentView !== 'CHAT' && <ShieldMascot />}
+      <AuthDialog />
+      <Toaster />
     </div>
   );
 };
