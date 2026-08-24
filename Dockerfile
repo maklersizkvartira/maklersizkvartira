@@ -30,6 +30,6 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD curl -fsS "http://127.0.0.1:${PORT}/health" || exit 1
 
-# Alembic migrations run before traffic is accepted. Unlike the previous
-# `prisma db push --accept-data-loss`, an upgrade never drops data.
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --proxy-headers --forwarded-allow-ips='*' --workers ${WEB_CONCURRENCY:-2}"]
+# Preflight first: a misconfigured deploy prints which variable is wrong and
+# exits, instead of dying inside pydantic or psycopg where the log is unusable.
+CMD ["sh", "-c", "python -m scripts.preflight && alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --proxy-headers --forwarded-allow-ips='*' --workers ${WEB_CONCURRENCY:-2}"]

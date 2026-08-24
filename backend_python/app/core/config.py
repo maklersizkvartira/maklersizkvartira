@@ -137,6 +137,19 @@ class Settings(BaseSettings):
         return raw if len(raw) == 32 else None
 
     # -- Validation ----------------------------------------------------------
+    @model_validator(mode="before")
+    @classmethod
+    def _blank_means_unset(cls, data):
+        """Treat an empty variable as absent.
+
+        A dashboard variable that exists with an empty value is the most
+        common misconfiguration, and letting "" reach a Literal or an int
+        field produces a validation traceback instead of a usable message.
+        """
+        if isinstance(data, dict):
+            return {k: v for k, v in data.items() if not (isinstance(v, str) and not v.strip())}
+        return data
+
     @field_validator("DATABASE_URL")
     @classmethod
     def _normalise_db_url(cls, v: str) -> str:
@@ -217,9 +230,48 @@ class Settings(BaseSettings):
         return self
 
 
+class ConfigurationError(RuntimeError):
+    """Raised when the environment cannot produce a usable configuration."""
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
 
 
-settings = get_settings()
+def load_settings_or_report() -> tuple[Settings | None, list[str]]:
+    """Return settings, or the list of human-readable problems.
+
+    Used by the preflight check so a misconfigured deploy prints what to fix
+    rather than a pydantic traceback.
+    """
+    from pydantic import ValidationError
+
+    try:
+        return Settings(), []
+    except ValidationError as exc:
+        problems: list[str] = []
+        for error in exc.errors():
+            field = ".".join(str(p) for p in error.get("loc", ())) or "(config)"
+            message = str(error.get("msg", "")).replace("Value error, ", "")
+            problems.append(f"{field}: {message}")
+        return None, problems
+    except Exception as exc:  # noqa: BLE001
+        return None, [str(exc)]
+
+
+def __getattr__(name: str) -> object:
+    """Build the settings singleton on first access, not at import.
+
+    Importing this module used to construct Settings immediately, so a bad
+    environment raised inside the import machinery — before any code could
+    catch it and explain which variable was wrong. Deferring it lets
+    scripts.preflight import `load_settings_or_report` safely and report the
+    problem in readable form.
+
+    `from app.core.config import settings` still works and still yields the
+    same cached instance, because get_settings() is lru_cached.
+    """
+    if name == "settings":
+        return get_settings()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
