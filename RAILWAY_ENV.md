@@ -116,7 +116,7 @@ Until DevSMS is connected, create accounts directly instead. In the Railway
 service shell:
 
 ```bash
-python -m scripts.create_account   --phone "+998 77 785 07 37"   --password "MaklersizUy!"   --name "Test Akkaunt"   --role OWNER
+python -m scripts.create_account --phone "+998777850737" --password "MaklersizUy!" --name "Test Akkaunt" --role OWNER
 ```
 
 The account is created ACTIVE with the phone already marked verified, so it
