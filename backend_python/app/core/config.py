@@ -114,7 +114,6 @@ class Settings(BaseSettings):
 
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
-    GEMINI_API_KEY: str = ""
 
     # Required to verify Firebase ID tokens on /auth/google. Empty disables
     # Google sign-in rather than accepting unverified identities.
