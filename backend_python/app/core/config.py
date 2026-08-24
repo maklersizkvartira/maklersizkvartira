@@ -139,6 +139,55 @@ class Settings(BaseSettings):
     # -- Validation ----------------------------------------------------------
     @model_validator(mode="before")
     @classmethod
+    def _database_url_from_parts(cls, data):
+        """Assemble DATABASE_URL from PG* variables when it is unusable.
+
+        Railway defines the Postgres service's own DATABASE_URL as a template
+        over PGUSER/POSTGRES_PASSWORD/RAILWAY_PRIVATE_DOMAIN/PGDATABASE. If the
+        reference in the API service is blank or mistyped it arrives empty, or
+        still literally containing "${{...}}". The PG* parts are injected
+        whenever the two services are linked, so they are the reliable source.
+        """
+        if not isinstance(data, dict):
+            return data
+
+        import os
+
+        current = str(data.get("DATABASE_URL") or "").strip().strip('"').strip("'")
+        usable = current and "${{" not in current and "://" in current
+        if usable:
+            return data
+
+        def pick(*names: str) -> str:
+            for name in names:
+                value = (data.get(name) or os.environ.get(name) or "").strip()
+                if value and "${{" not in value:
+                    return value
+            return ""
+
+        host = pick("PGHOST", "RAILWAY_PRIVATE_DOMAIN", "POSTGRES_HOST")
+        user = pick("PGUSER", "POSTGRES_USER")
+        password = pick("PGPASSWORD", "POSTGRES_PASSWORD")
+        database = pick("PGDATABASE", "POSTGRES_DB")
+        port = pick("PGPORT", "POSTGRES_PORT") or "5432"
+
+        if host and user and password:
+            from urllib.parse import quote
+
+            data = dict(data)
+            data["DATABASE_URL"] = (
+                f"postgresql://{quote(user, safe='')}:{quote(password, safe='')}"
+                f"@{host}:{port}/{database or 'railway'}"
+            )
+        elif current:
+            # Nothing to assemble from; drop the unusable value so the missing
+            # -variable report names DATABASE_URL instead of a parse error.
+            data = dict(data)
+            data.pop("DATABASE_URL", None)
+        return data
+
+    @model_validator(mode="before")
+    @classmethod
     def _blank_means_unset(cls, data):
         """Treat an empty variable as absent.
 

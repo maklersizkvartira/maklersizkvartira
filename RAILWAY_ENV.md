@@ -20,10 +20,14 @@ TRUSTED_PROXY_COUNT=1
 WEB_CONCURRENCY=2
 
 # ── Database ─────────────────────────────────────────────────────────────
-# Reference variable: Railway substitutes the real URL, so no password is
-# ever typed or stored twice. Rename "Postgres" if your DB service is named
-# differently (check the service tab in the same project).
-DATABASE_URL=${{Postgres.DATABASE_URL}}
+# EASIEST: do not set DATABASE_URL at all. In the API service use
+# "Variables → Add all from Postgres" (or add PGHOST/PGPORT/PGUSER/
+# PGPASSWORD/PGDATABASE), and the app assembles the URL from those.
+#
+# The reference form below also works, but "Postgres" must match your DB
+# service's exact name — if it does not, Railway leaves the ${{...}} text
+# unsubstituted and the app cannot connect.
+# DATABASE_URL=${{Postgres.DATABASE_URL}}
 DB_POOL_SIZE=5
 DB_MAX_OVERFLOW=5
 
@@ -97,11 +101,43 @@ your public git history or were shipped to browsers, so they are compromised.
 | `DEVSMS_API_TOKEN` | DevSMS dashboard → revoke the old token, issue a new one. Not needed yet — leave `SMS_ENABLED=false` until then |
 | `TELEGRAM_BOT_TOKEN` | Telegram → @BotFather → `/revoke`, then `/token` |
 | `OPENAI_API_KEY` | platform.openai.com → API keys → revoke old, create new |
-| `DATABASE_URL` | no action if you use the `${{Postgres.DATABASE_URL}}` reference above; otherwise rotate the DB password in the Postgres service |
+| `DATABASE_URL` | nothing to paste — use "Add all from Postgres" in the API service, or the reference form |
 
 Also revoke the **Gemini** key (`AQ.Ab8RN6Ka…`) — it was shipped to every
 visitor in the old JS bundle. Nothing needs it any more; AI moderation runs
 server-side through `OPENAI_API_KEY`.
+
+---
+
+## If the database will not connect
+
+Do **not** edit variables inside the Postgres service. Railway generates them
+and its own `DATABASE_URL` is a template over `PGUSER` / `POSTGRES_PASSWORD` /
+`RAILWAY_PRIVATE_DOMAIN`, which is why the list shows it blank while the edit
+box shows raw `${{...}}` text. That is normal.
+
+Set the connection on the **API service** instead, in this order of
+preference:
+
+1. **Add all from Postgres** — in the API service's Variables tab. This
+   injects `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, and the
+   app builds the URL from them. Nothing to type, no name to get right.
+2. **Reference** — `DATABASE_URL=${{<ServiceName>.DATABASE_URL}}`, where
+   `<ServiceName>` is exactly what the Postgres service is called. Typing
+   `${{` in the Variables editor opens an autocomplete list.
+3. **Literal** — copy the resolved value out of the Postgres service and
+   paste it. Any shape works: `postgres://`, `postgresql://`, with or without
+   surrounding quotes; the app normalises it.
+
+The startup log names the source it used, with the password stripped:
+
+```
+preflight: database=postgres.railway.internal:5432/railway (source: PG* variables)
+```
+
+An internal host (`*.railway.internal`) only resolves when the API and
+Postgres are in the **same project**. Across projects use the Postgres
+service's `DATABASE_PUBLIC_URL` instead.
 
 ---
 

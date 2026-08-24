@@ -171,6 +171,16 @@ async def check_database(settings) -> bool:
             )
         else:
             print("  DATABASE_URL ni tekshiring / check DATABASE_URL.", flush=True)
+        print(
+            "  Muqobil: Postgres servisidan PGHOST, PGUSER, PGPASSWORD, "
+            "PGDATABASE ni API servisiga qo'shsangiz ham yetadi.",
+            flush=True,
+        )
+        print(
+            "  Alternative: copying PGHOST/PGUSER/PGPASSWORD/PGDATABASE into "
+            "the API service is enough - the URL is assembled from them.",
+            flush=True,
+        )
         print(LINE, flush=True)
         return False
     finally:
@@ -183,12 +193,26 @@ def main() -> int:
     if settings is None:
         return 1
 
+    # Show where the database actually resolved to, with the password removed,
+    # so a wrong host is obvious without exposing the credential.
+    from urllib.parse import urlparse
+
+    try:
+        parsed = urlparse(settings.DATABASE_URL)
+        target = f"{parsed.hostname}:{parsed.port or 5432}{parsed.path}"
+    except Exception:  # noqa: BLE001
+        target = "(unparseable)"
+
+    raw = os.environ.get("DATABASE_URL", "").strip()
+    source = "DATABASE_URL" if (raw and "${{" not in raw) else "PG* variables"
+
     print(
         f"preflight: environment={settings.ENVIRONMENT} "
         f"reveal={'on' if settings.PASSWORD_REVEAL_ENABLED else 'off'} "
         f"sms={'on' if (settings.SMS_ENABLED and settings.DEVSMS_API_TOKEN) else 'off'}",
         flush=True,
     )
+    print(f"preflight: database={target} (source: {source})", flush=True)
 
     if not asyncio.run(check_database(settings)):
         return 1
