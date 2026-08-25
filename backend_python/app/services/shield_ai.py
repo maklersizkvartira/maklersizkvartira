@@ -393,6 +393,10 @@ Write "answer": a direct, complete answer to what they actually asked, in \
   - SEARCH: leave "answer" as an empty string unless they also asked a real
     question alongside the search; then answer that question here.
 
+Never open "answer" with a greeting or with an introduction of yourself.
+On a first message those are added separately, immediately before your text,
+so writing your own would greet the visitor twice. Start with the substance.
+
 Visitor's name: {user_name or "unknown"}.
 This is {"their FIRST message" if is_first_turn else "a CONTINUING conversation"}.
 

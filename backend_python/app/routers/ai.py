@@ -211,19 +211,24 @@ async def assistant(
     else:
         rows, relaxation, searched_district, total = [], "NONE", None, 0
 
-    # The reply always reflects what the database actually returned, so the
-    # assistant can never promise listings that do not exist.
-    reply = await shield_ai.compose_reply(
-        message=payload.message,
-        history=history,
-        language=language,
-        user_name=display_name,
-        is_first_turn=is_first_turn,
-        intent=intent,
-        rows=rows,
-        relaxation=relaxation,
-        searched_district=searched_district,
-    )
+    # The composing pass exists to describe rows. With no rows and no search,
+    # the first pass already wrote the whole answer, so a second round trip
+    # would only add latency to a turn that is finished.
+    reply = None
+    if rows or intent.kind == "SEARCH":
+        # The reply always reflects what the database actually returned, so the
+        # assistant can never promise listings that do not exist.
+        reply = await shield_ai.compose_reply(
+            message=payload.message,
+            history=history,
+            language=language,
+            user_name=display_name,
+            is_first_turn=is_first_turn,
+            intent=intent,
+            rows=rows,
+            relaxation=relaxation,
+            searched_district=searched_district,
+        )
     if not reply:
         reply = shield_ai.build_fallback_reply(
             intent=intent,
