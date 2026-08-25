@@ -170,6 +170,12 @@ export const auth = {
     codeRequired: 'Tasdiqlash kodini kiriting.',
     codeIncomplete: 'Kodni to‘liq kiriting.',
     roleRequired: 'Avval rolni tanlang.',
+    googleDomain:
+      'Google orqali kirish bu manzil uchun sozlanmagan. Telefon raqami bilan kiring yoki administratorga xabar bering.',
+    googleDisabled: 'Google orqali kirish hozircha o‘chirilgan.',
+    googlePopupBlocked: 'Brauzer oynani blokladi. Pop-up oynalarga ruxsat bering.',
+    googleUnavailable: 'Google xizmati hozir ishlamayapti. Telefon raqami bilan kiring.',
+    googleOtherAccount: 'Bu email allaqachon boshqa usulda ro‘yxatdan o‘tgan. Telefon raqami bilan kiring.',
     termsRequired: 'Davom etish uchun shartlarga rozilik bildiring.',
   },
 } as const;

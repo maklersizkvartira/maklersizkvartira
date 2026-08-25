@@ -41,6 +41,28 @@ const CODE_TO_KEY: Record<string, TranslationKey> = {
   validation_error: 'common.error.validation',
 };
 
+/**
+ * Firebase throws its own codes, and its `message` is an English sentence with
+ * the code in brackets — which is what a visitor saw when Google sign-in
+ * failed. These are the failures that actually happen in production, and each
+ * one has a different fix, so they must not collapse into "something went
+ * wrong".
+ */
+const FIREBASE_CODE_TO_KEY: Record<string, TranslationKey> = {
+  // The site's domain is not in the Firebase authorised list. Invisible from
+  // the outside and the single most common cause: adding a www subdomain, or
+  // a new Vercel domain, without adding it there too.
+  'auth/unauthorized-domain': 'auth.errors.googleDomain',
+  'auth/operation-not-allowed': 'auth.errors.googleDisabled',
+  'auth/popup-blocked': 'auth.errors.googlePopupBlocked',
+  'auth/network-request-failed': 'common.error.network',
+  'auth/too-many-requests': 'common.error.rateLimited',
+  'auth/invalid-api-key': 'auth.errors.googleUnavailable',
+  'auth/configuration-not-found': 'auth.errors.googleUnavailable',
+  'auth/internal-error': 'auth.errors.googleUnavailable',
+  'auth/account-exists-with-different-credential': 'auth.errors.googleOtherAccount',
+};
+
 export function useAuthErrors() {
   const { t } = useTranslation();
 
@@ -55,6 +77,14 @@ export function useAuthErrors() {
         const key = CODE_TO_KEY[error.code];
         if (key) return t(key, (error.params as Record<string, string | number>) ?? undefined);
         return t('common.error.generic');
+      }
+      const code = (error as { code?: string } | null)?.code;
+      if (code) {
+        const key = FIREBASE_CODE_TO_KEY[code];
+        // The raw code is worth keeping in the console: the message a visitor
+        // reads is deliberately not the one that identifies the misconfiguration.
+        if (import.meta.env.DEV) console.warn('auth provider error:', code);
+        if (key) return t(key);
       }
       if (error instanceof Error && error.message) return error.message;
       return t('common.error.generic');

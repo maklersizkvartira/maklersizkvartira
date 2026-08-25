@@ -170,6 +170,12 @@ export const auth = {
     codeRequired: 'Enter the verification code.',
     codeIncomplete: 'Enter the full code.',
     roleRequired: 'Select a role first.',
+    googleDomain:
+      'Google sign-in is not configured for this address. Sign in with your phone number instead.',
+    googleDisabled: 'Google sign-in is currently disabled.',
+    googlePopupBlocked: 'Your browser blocked the window. Allow pop-ups and try again.',
+    googleUnavailable: 'Google is unavailable right now. Sign in with your phone number.',
+    googleOtherAccount: 'That email is already registered another way. Sign in with your phone number.',
     termsRequired: 'Accept the terms to continue.',
   },
 } as const;

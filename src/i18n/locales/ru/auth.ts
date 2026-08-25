@@ -170,6 +170,12 @@ export const auth = {
     codeRequired: 'Введите код подтверждения.',
     codeIncomplete: 'Введите код полностью.',
     roleRequired: 'Сначала выберите роль.',
+    googleDomain:
+      'Вход через Google не настроен для этого адреса. Войдите по номеру телефона.',
+    googleDisabled: 'Вход через Google временно отключён.',
+    googlePopupBlocked: 'Браузер заблокировал окно. Разрешите всплывающие окна.',
+    googleUnavailable: 'Сервис Google сейчас недоступен. Войдите по номеру телефона.',
+    googleOtherAccount: 'Этот email уже зарегистрирован другим способом.',
     termsRequired: 'Чтобы продолжить, примите условия.',
   },
 } as const;

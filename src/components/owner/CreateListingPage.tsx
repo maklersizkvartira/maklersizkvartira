@@ -241,6 +241,9 @@ export const CreateListingPage: React.FC = () => {
     pushToast('owner.create.photos.videoUploadUnsupported', 'warning');
   };
 
+  // GPS has answered and the coordinates are on the form.
+  const located = latitude !== null && longitude !== null;
+
   const detectLocation = () => {
     setGpsError(null);
     setGpsNotice(null);
@@ -599,45 +602,41 @@ export const CreateListingPage: React.FC = () => {
                 {stepBadge}
               </header>
 
-              {/* First, because it fills the three fields below it. Everything
-                  underneath is a correction, not data entry. */}
-              <div className="rounded-2xl border border-brand/30 bg-brand-soft p-3.5">
-                <div className="flex flex-wrap items-center justify-between gap-2.5">
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-1.5 text-sm font-black text-brand-text">
-                      <Navigation className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      {t('owner.create.location.gpsTitle')}
-                    </p>
-                    <p className="mt-0.5 text-[11px] font-medium text-muted">
-                      {t('owner.create.location.gpsHint')}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    onClick={detectLocation}
-                    loading={gpsBusy}
-                    className="shrink-0 px-4 py-2.5 text-xs"
-                  >
-                    <MapPin className="h-4 w-4" aria-hidden="true" />
-                    {gpsBusy
-                      ? t('owner.create.location.gpsDetecting')
-                      : latitude !== null && longitude !== null
-                        ? t('owner.create.location.gpsDetected')
-                        : t('owner.create.location.gpsDetect')}
-                  </Button>
-                </div>
+              {/* First, because it fills the three fields below it — everything
+                  underneath is a correction rather than data entry. Prominence
+                  here is position and width, not colour: a filled brand panel
+                  made the shortcut louder than the form's actual subject. */}
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  variant={located ? 'secondary' : 'primary'}
+                  fullWidth
+                  onClick={detectLocation}
+                  loading={gpsBusy}
+                >
+                  {located ? (
+                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <Navigation className="h-4 w-4" aria-hidden="true" />
+                  )}
+                  {gpsBusy
+                    ? t('owner.create.location.gpsDetecting')
+                    : located
+                      ? t('owner.create.location.gpsDetected')
+                      : t('owner.create.location.gpsDetect')}
+                </Button>
+
+                <p className="text-center text-[11px] font-medium text-subtle">
+                  {t('owner.create.location.gpsHint')}
+                </p>
 
                 {gpsNotice && (
-                  <p className="mt-2.5 flex items-start gap-1.5 rounded-xl bg-surface p-2.5 text-xs font-bold text-brand-text">
-                    <CheckCircle2 className="mt-px h-4 w-4 shrink-0" aria-hidden="true" />
+                  <p className="flex items-start gap-2 rounded-xl border border-brand/25 bg-brand-soft px-3 py-2.5 text-xs font-semibold text-brand-text">
+                    <MapPin className="mt-px h-4 w-4 shrink-0" aria-hidden="true" />
                     <span>{tRaw(gpsNotice.key, gpsNotice.params)}</span>
                   </p>
                 )}
-                {gpsError && (
-                  <div className="mt-2.5">
-                    <FormError message={tRaw(gpsError.key, gpsError.params)} />
-                  </div>
-                )}
+                {gpsError && <FormError message={tRaw(gpsError.key, gpsError.params)} />}
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
