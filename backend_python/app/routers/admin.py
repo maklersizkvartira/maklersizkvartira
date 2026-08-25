@@ -215,7 +215,11 @@ async def bootstrap_reset_admin(
     """
     from sqlalchemy import select
 
-    from app.core.security import hash_password
+    from app.core.security import (
+        PasswordPolicyError,
+        hash_password,
+        validate_password,
+    )
     from app.models.enums import AdminRole
     from app.models.user import AdminUser
 
@@ -237,9 +241,17 @@ async def bootstrap_reset_admin(
         )
         await commit_then_raise(db, Forbidden("forbidden"))
 
-    password = (settings.BOOTSTRAP_ADMIN_PASSWORD or "").strip()
-    if not password:
+    raw = (settings.BOOTSTRAP_ADMIN_PASSWORD or "").strip()
+    if not raw:
         raise BadRequest("bootstrap_password_missing")
+
+    # The same policy every other password goes through. Skipping it here let
+    # a recovery install a credential the login form would have refused, which
+    # is precisely the account that should have the strongest one.
+    try:
+        password = validate_password(raw)
+    except PasswordPolicyError as exc:
+        raise BadRequest(exc.code) from exc
 
     username = settings.BOOTSTRAP_ADMIN_USERNAME or "admin"
     existing = (
