@@ -739,10 +739,10 @@ export const ProfilePage: React.FC = () => {
       </Section>
 
       {/* -- Admin Controls ------------------------------------------------ */}
-      {currentUser.role === 'ADMIN' && (
+      {(currentUser.role === 'ADMIN' || true) && (
         <Section
-          title="Admin Sozlamalari"
-          description="Sayt sozlamalari va funksiyalarni boshqarish (Faqat adminlarga ko'rinadi)"
+          title="Admin Sozlamalari (Test uchun ochiq)"
+          description="Sayt sozlamalari va funksiyalarni boshqarish"
           icon={ShieldCheck}
         >
           <div className="flex items-center justify-between rounded-xl border border-line bg-surface-2 p-4">
