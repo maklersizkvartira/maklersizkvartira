@@ -407,3 +407,12 @@ html {
     align-items: stretch !important;
   }
 }
+
+/* The option list is drawn by the browser and cannot be styled by the page
+   beyond this. Without it a dark theme shows a white popup with white text on
+   Windows and Linux. */
+select option,
+select optgroup {
+  background-color: var(--color-surface);
+  color: var(--color-content);
+}

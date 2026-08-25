@@ -13,7 +13,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Building2,
-  ChevronDown,
   Filter,
   LayoutGrid,
   List as ListIcon,
@@ -30,7 +29,7 @@ import {
 
 import { useTranslation } from '../../i18n';
 import { useAppStore, DEFAULT_FILTERS, type Filters } from '../../stores/useAppStore';
-import { Button } from '../ui/Field';
+import { Button, SelectInput } from '../ui/Field';
 import { ListingCard, ListingCardSkeleton } from './ListingCard';
 
 const TASHKENT_DISTRICTS = [
@@ -306,13 +305,12 @@ export const ListingsPage: React.FC = () => {
               {t('common.sort.label')}
             </label>
             <div className="relative">
-              <select
+              <SelectInput
                 id="listings-sort"
                 value={filters.sortBy}
                 onChange={(event) =>
                   setFilters({ sortBy: event.target.value as Filters['sortBy'] })
-                }
-                className="w-full min-w-[9.5rem] appearance-none truncate rounded-xl border border-line bg-surface py-2 pl-3 pr-8 text-xs font-bold text-content focus:border-brand focus:outline-none"
+                } compact className="w-full min-w-[9.5rem]"
               >
                 <option value="RECOMMENDED">{t('common.sort.recommended')}</option>
                 <option value="NEWEST">{t('common.sort.newest')}</option>
@@ -320,11 +318,7 @@ export const ListingsPage: React.FC = () => {
                 <option value="PRICE_HIGH">{t('common.sort.priceHigh')}</option>
                 <option value="TRUST">{t('common.sort.trust')}</option>
                 <option value="POPULAR">{t('common.sort.popular')}</option>
-              </select>
-              <ChevronDown
-                className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-subtle"
-                aria-hidden="true"
-              />
+              </SelectInput>
             </div>
 
             <button
@@ -386,11 +380,10 @@ export const ListingsPage: React.FC = () => {
               >
                 {t('common.filters.district')}
               </label>
-              <select
+              <SelectInput
                 id="filter-district"
                 value={filters.district}
-                onChange={(event) => setFilters({ district: event.target.value })}
-                className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm font-medium text-content focus:border-brand focus:outline-none"
+                onChange={(event) => setFilters({ district: event.target.value })} className="w-full"
               >
                 <option value="ALL">{t('common.filters.all')}</option>
                 {TASHKENT_DISTRICTS.map((district) => (
@@ -398,20 +391,19 @@ export const ListingsPage: React.FC = () => {
                     {district}
                   </option>
                 ))}
-              </select>
+              </SelectInput>
             </div>
 
             <div>
               <label htmlFor="filter-rooms" className="mb-1.5 block text-xs font-bold text-muted">
                 {t('common.filters.rooms')}
               </label>
-              <select
+              <SelectInput
                 id="filter-rooms"
                 value={filters.rooms ?? ''}
                 onChange={(event) =>
                   setFilters({ rooms: event.target.value ? Number(event.target.value) : null })
-                }
-                className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm font-medium text-content focus:border-brand focus:outline-none"
+                } className="w-full"
               >
                 <option value="">{t('common.filters.all')}</option>
                 {[1, 2, 3, 4, 5].map((count) => (
@@ -419,7 +411,7 @@ export const ListingsPage: React.FC = () => {
                     {t('common.filters.roomsValue', { count })}
                   </option>
                 ))}
-              </select>
+              </SelectInput>
             </div>
 
             <div>
@@ -452,18 +444,17 @@ export const ListingsPage: React.FC = () => {
               >
                 {t('common.rentalType.all')}
               </label>
-              <select
+              <SelectInput
                 id="filter-rental-type"
                 value={filters.rentalType}
                 onChange={(event) =>
                   setFilters({ rentalType: event.target.value as Filters['rentalType'] })
-                }
-                className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm font-medium text-content focus:border-brand focus:outline-none"
+                } className="w-full"
               >
                 <option value="ALL">{t('common.filters.all')}</option>
                 <option value="FULL">{t('common.rentalType.full')}</option>
                 <option value="ROOMMATE">{t('common.rentalType.roommate')}</option>
-              </select>
+              </SelectInput>
             </div>
 
             <div className="sm:col-span-2 lg:col-span-4">

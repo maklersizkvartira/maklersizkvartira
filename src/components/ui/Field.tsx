@@ -8,7 +8,7 @@
  */
 
 import React, { useId, useState } from 'react';
-import { AlertCircle, Check, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, Check, ChevronDown, Eye, EyeOff } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 
@@ -110,6 +110,55 @@ export const TextInput: React.FC<TextInputProps> = ({
     </div>
   );
 };
+
+// ---------------------------------------------------------------------------
+/**
+ * A themed `<select>`.
+ *
+ * Every dropdown in the app was a bare `<select>` with a border painted on,
+ * so each one still rendered the operating system's own control and arrow:
+ * grey on Windows, blue on macOS, and a white popup in dark mode. Next to the
+ * themed inputs beside them they looked like someone else's form.
+ *
+ * `appearance-none` removes the native control and the chevron is drawn here,
+ * which is the only way to get one consistent look. The option list itself is
+ * still drawn by the browser — no page can style that — so `index.css` gives
+ * options an explicit background and colour instead of letting a dark theme
+ * inherit a white popup.
+ */
+export interface SelectInputProps
+  extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  invalid?: boolean;
+  /** The dense variant used in filter bars and toolbars. */
+  compact?: boolean;
+}
+
+export const SelectInput: React.FC<SelectInputProps> = ({
+  invalid,
+  compact = false,
+  className = '',
+  children,
+  ...rest
+}) => (
+  <div className={`relative ${className}`}>
+    <select
+      {...rest}
+      aria-invalid={invalid || undefined}
+      className={`w-full cursor-pointer appearance-none truncate rounded-xl border bg-surface-2
+        font-medium text-content transition-colors focus:bg-surface focus:outline-none
+        disabled:cursor-not-allowed disabled:opacity-60
+        ${compact ? 'py-2 pl-3 pr-9 text-xs font-bold' : 'px-4 py-3 pr-11 text-sm'}
+        ${invalid ? inputStates.error : inputStates.normal}`}
+    >
+      {children}
+    </select>
+    <ChevronDown
+      className={`pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-subtle
+        ${compact ? 'right-2.5' : 'right-3.5'}`}
+      aria-hidden="true"
+    />
+  </div>
+);
 
 // ---------------------------------------------------------------------------
 export const PasswordInput: React.FC<TextInputProps> = ({

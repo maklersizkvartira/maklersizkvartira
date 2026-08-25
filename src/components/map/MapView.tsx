@@ -22,7 +22,7 @@ import { useTranslation } from '../../i18n';
 import { useAppStore } from '../../stores/useAppStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import type { Listing } from '../../types';
-import { Button } from '../ui/Field';
+import { Button, SelectInput } from '../ui/Field';
 
 // ---------------------------------------------------------------------------
 // Minimal Leaflet surface
@@ -589,31 +589,29 @@ export const MapView: React.FC = () => {
             <label className="sr-only" htmlFor="map-district">
               {t('map.filters.district')}
             </label>
-            <select
+            <SelectInput
               id="map-district"
               value={filters.district}
-              onChange={(event) => setFilters({ district: event.target.value })}
-              className="shrink-0 rounded-xl border border-line bg-surface-2 px-3 py-2 text-xs font-bold text-content focus:border-brand focus:outline-none"
-            >
+              onChange={(event) => setFilters({ district: event.target.value })} compact className="shrink-0"
+              >
               <option value="ALL">{t('common.filters.all')}</option>
               {TASHKENT_DISTRICTS.map((district) => (
                 <option key={district} value={district}>
                   {districtLabel(district)}
                 </option>
               ))}
-            </select>
+            </SelectInput>
 
             <label className="sr-only" htmlFor="map-rooms">
               {t('map.filters.rooms')}
             </label>
-            <select
+            <SelectInput
               id="map-rooms"
               value={filters.rooms ?? ''}
               onChange={(event) =>
                 setFilters({ rooms: event.target.value ? Number(event.target.value) : null })
-              }
-              className="shrink-0 rounded-xl border border-line bg-surface-2 px-3 py-2 text-xs font-bold text-content focus:border-brand focus:outline-none"
-            >
+              } compact className="shrink-0"
+              >
               <option value="">{t('common.filters.all')}</option>
               {/* Exact counts only — the server filters on equality, so a "4+"
                   option would promise something the query cannot deliver. */}
@@ -622,7 +620,7 @@ export const MapView: React.FC = () => {
                   {t('common.filters.roomsValue', { count })}
                 </option>
               ))}
-            </select>
+            </SelectInput>
           </div>
         </div>
 

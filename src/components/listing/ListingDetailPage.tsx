@@ -47,7 +47,7 @@ import { ApiError } from '../../services/http';
 import { ListingsApi } from '../../services/listingsApi';
 import { useAppStore } from '../../stores/useAppStore';
 import type { Listing } from '../../types';
-import { Button } from '../ui/Field';
+import { Button, SelectInput } from '../ui/Field';
 
 type LoadStatus = 'loading' | 'ready' | 'notFound' | 'error';
 
@@ -1113,18 +1113,17 @@ export const ListingDetailPage: React.FC = () => {
                   >
                     {t('listings.report.reasonLabel')}
                   </label>
-                  <select
+                  <SelectInput
                     id="report-reason"
                     value={reportReason}
-                    onChange={(event) => setReportReason(event.target.value)}
-                    className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm font-medium text-content focus:border-brand focus:outline-none"
-                  >
+                    onChange={(event) => setReportReason(event.target.value)} className="w-full"
+              >
                     {REPORT_REASONS.map(([value, labelKey]) => (
                       <option key={value} value={value}>
                         {t(labelKey)}
                       </option>
                     ))}
-                  </select>
+                  </SelectInput>
                 </div>
 
                 <div className="space-y-1.5">

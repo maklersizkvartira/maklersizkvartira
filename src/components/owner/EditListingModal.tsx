@@ -9,21 +9,17 @@
  */
 
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { ChevronDown, Edit3, Save, Trash2, Video, X } from 'lucide-react';
+import { Edit3, Save, Trash2, Video, X } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { UZBEKISTAN_REGIONS, TASHKENT_METRO_LINES } from '../../data/mockLocations';
 import { ListingsApi } from '../../services/listingsApi';
 import { useAppStore } from '../../stores/useAppStore';
 import type { Listing } from '../../types';
-import { Button, Field, FormError, TextInput } from '../ui/Field';
+import { Button, Field, FormError, SelectInput, TextInput } from '../ui/Field';
 
 /** Stored value for "no metro nearby"; the label is translated at render time. */
 const METRO_NONE = 'NONE';
-
-const selectClass =
-  'w-full appearance-none rounded-xl border border-line bg-surface-2 px-3.5 py-3 pr-9 ' +
-  'text-sm font-bold text-content transition-colors focus:border-brand focus:bg-surface focus:outline-none';
 
 const checkboxClass =
   'h-4 w-4 rounded border-line-2 text-brand accent-[var(--color-brand)] focus:ring-brand';
@@ -222,11 +218,11 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
             <Field label={t('common.filters.rooms')}>
               {({ id }) => (
                 <div className="relative">
-                  <select
+                  <SelectInput
                     id={id}
                     value={rooms}
                     onChange={(event) => setRooms(Number(event.target.value))}
-                    className={selectClass}
+                   
                   >
                     {[1, 2, 3].map((count) => (
                       <option key={count} value={count}>
@@ -234,11 +230,7 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
                       </option>
                     ))}
                     <option value={4}>{t('common.filters.roomsPlus', { count: 4 })}</option>
-                  </select>
-                  <ChevronDown
-                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle"
-                    aria-hidden="true"
-                  />
+                  </SelectInput>
                 </div>
               )}
             </Field>
@@ -284,7 +276,7 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
             <Field label={t('owner.create.location.regionLabel')}>
               {({ id }) => (
                 <div className="relative">
-                  <select
+                  <SelectInput
                     id={id}
                     value={region}
                     onChange={(event) => {
@@ -293,18 +285,14 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
                       const match = UZBEKISTAN_REGIONS.find((item) => item.name === nextRegion);
                       if (match) setDistrict(match.districts[0]);
                     }}
-                    className={selectClass}
+                   
                   >
                     {UZBEKISTAN_REGIONS.map((item) => (
                       <option key={item.id} value={item.name}>
                         {item.name}
                       </option>
                     ))}
-                  </select>
-                  <ChevronDown
-                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle"
-                    aria-hidden="true"
-                  />
+                  </SelectInput>
                 </div>
               )}
             </Field>
@@ -312,22 +300,18 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
             <Field label={t('owner.create.location.districtLabel')}>
               {({ id }) => (
                 <div className="relative">
-                  <select
+                  <SelectInput
                     id={id}
                     value={district}
                     onChange={(event) => setDistrict(event.target.value)}
-                    className={selectClass}
+                   
                   >
                     {activeRegion.districts.map((item) => (
                       <option key={item} value={item}>
                         {item}
                       </option>
                     ))}
-                  </select>
-                  <ChevronDown
-                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle"
-                    aria-hidden="true"
-                  />
+                  </SelectInput>
                 </div>
               )}
             </Field>
@@ -348,11 +332,11 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
             <Field label={t('owner.create.location.metroLabel')}>
               {({ id }) => (
                 <div className="relative">
-                  <select
+                  <SelectInput
                     id={id}
                     value={metro}
                     onChange={(event) => setMetro(event.target.value)}
-                    className={selectClass}
+                   
                   >
                     <option value={METRO_NONE}>{t('owner.create.location.metroNone')}</option>
                     {TASHKENT_METRO_LINES.map((line) => (
@@ -364,11 +348,7 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
                         ))}
                       </optgroup>
                     ))}
-                  </select>
-                  <ChevronDown
-                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle"
-                    aria-hidden="true"
-                  />
+                  </SelectInput>
                 </div>
               )}
             </Field>

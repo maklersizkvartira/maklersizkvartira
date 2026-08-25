@@ -7,12 +7,12 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { TASHKENT_METRO_LINES, UZBEKISTAN_REGIONS } from '../../data/mockLocations';
 import { useAppStore } from '../../stores/useAppStore';
-import { Button } from '../ui/Field';
+import { Button, SelectInput } from '../ui/Field';
 
 /** Metro only exists in and around Tashkent; 'ALL' keeps the filter reachable. */
 const METRO_REGIONS = new Set(['ALL', 'Toshkent shahri', 'Toshkent viloyati']);
@@ -140,7 +140,7 @@ export const SearchModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 {t('common.filters.region')}
               </label>
               <div className="relative">
-                <select
+                <SelectInput
                   id="home-search-region"
                   value={region}
                   onChange={(event) => handleRegionChange(event.target.value)}
@@ -152,11 +152,7 @@ export const SearchModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       {item.name}
                     </option>
                   ))}
-                </select>
-                <ChevronDown
-                  className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle"
-                  aria-hidden="true"
-                />
+                </SelectInput>
               </div>
             </div>
 
@@ -165,7 +161,7 @@ export const SearchModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 {t('common.filters.district')}
               </label>
               <div className="relative">
-                <select
+                <SelectInput
                   id="home-search-district"
                   value={district}
                   onChange={(event) => setDistrict(event.target.value)}
@@ -178,11 +174,7 @@ export const SearchModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       {name}
                     </option>
                   ))}
-                </select>
-                <ChevronDown
-                  className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle"
-                  aria-hidden="true"
-                />
+                </SelectInput>
               </div>
             </div>
           </div>
@@ -193,7 +185,7 @@ export const SearchModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 {t('common.filters.metro')}
               </label>
               <div className="relative">
-                <select
+                <SelectInput
                   id="home-search-metro"
                   value={metroStation}
                   onChange={(event) => setMetroStation(event.target.value)}
@@ -209,11 +201,7 @@ export const SearchModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       ))}
                     </optgroup>
                   ))}
-                </select>
-                <ChevronDown
-                  className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-info"
-                  aria-hidden="true"
-                />
+                </SelectInput>
               </div>
             </div>
           )}
