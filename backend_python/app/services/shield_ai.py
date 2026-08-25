@@ -718,6 +718,39 @@ TEMPLATES: dict[str, dict[str, str]] = {
 }
 
 
+#: Openings the model still produces after being told not to greet. Prompt
+#: instructions are guidance, not a guarantee, so the duplicate is removed in
+#: code: the introduction is prepended separately and "Men Shield AI ... AI
+#: yordamchisiman. Salom!" reads like a bug to the person on the other end.
+_LEADING_GREETING = re.compile(
+    r"^\s*(assalomu\s+alaykum|va\s+alaykum\s+assalom|salom"
+    r"|здравствуйте|привет"
+    r"|good\s+(?:morning|afternoon|evening)|hello|hey|hi)"
+    # The separator is required, not optional: without it "hi" would eat the
+    # start of "hisoblanadi" and "salom" the start of any word beginning with
+    # it, silently corrupting the reply.
+    r"(?:[\s,.!—–-]+|$)",
+    re.IGNORECASE,
+)
+
+
+def strip_leading_greeting(text: str) -> str:
+    """Drop a greeting the model opened with, leaving the substance.
+
+    The prompt tells the model not to greet, because the introduction is
+    prepended separately — but a prompt is guidance, not a guarantee, and
+    "Men Shield AI ... AI yordamchisiman. Salom!" reads like a bug to the
+    person on the other end.
+    """
+    original = (text or "").strip()
+    cleaned = _LEADING_GREETING.sub("", original, count=1).lstrip()
+    if not cleaned:
+        # The whole message was the greeting; keep it rather than say nothing.
+        return original
+    # Removing "Assalomu alaykum, " leaves a sentence starting mid-case.
+    return cleaned[0].upper() + cleaned[1:]
+
+
 def _pick(bucket: str, language: str) -> str:
     group = TEMPLATES[bucket]
     return group.get(language, group["uz"])
@@ -740,21 +773,23 @@ def build_fallback_reply(
     the same assistant.
     """
     intro = ""
+    answer = intent.answer.strip()
     if is_first_turn:
         name_part = f", {user_name}" if user_name else ""
         intro = _pick("intro", language).format(name=name_part)
+        answer = strip_leading_greeting(answer)
 
     if intent.kind == "OFFTOPIC":
         return intro + _pick("offtopic", language)
     if intent.kind == "INTERNAL":
         return intro + _pick("internal", language)
     if intent.kind == "COMPANY":
-        return intro + (intent.answer or _pick("company", language))
+        return intro + (answer or _pick("company", language))
     if intent.kind in {"DOMAIN", "SMALLTALK"} and not count:
-        return intro + (intent.answer or _pick("smalltalk", language))
+        return intro + (answer or _pick("smalltalk", language))
 
     # A search branch. Any answer the model produced comes before the results.
-    lead = f"{intent.answer.strip()} " if intent.answer.strip() else ""
+    lead = f"{answer} " if answer else ""
     criteria = ", ".join(intent.criteria_labels(language))
 
     if not count:

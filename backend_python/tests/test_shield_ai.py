@@ -169,6 +169,48 @@ def test_partial_matches_name_the_criteria_that_matched():
 
 
 # ---------------------------------------------------------------------------
+# Duplicate greetings
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("Salom! Sizga qanday yordam bera olaman?", "Sizga qanday yordam bera olaman?"),
+        ("Assalomu alaykum, sizga yordam beraman.", "Sizga yordam beraman."),
+        ("Здравствуйте! Чем помочь?", "Чем помочь?"),
+        ("Hello, how can I help?", "How can I help?"),
+    ],
+)
+def test_a_greeting_the_model_added_is_removed(raw, expected):
+    assert shield_ai.strip_leading_greeting(raw) == expected
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Qishda 3 xonali issiqroq.",
+        # The dangerous ones: words that merely start with a greeting.
+        "Bu ichki ma'lumot hisoblanadi.",
+        "Hisobingiz tayyor.",
+        "Salomatlik uchun yaxshi.",
+        "Hiyla-nayrangdan saqlaning.",
+    ],
+)
+def test_ordinary_sentences_are_left_alone(text):
+    assert shield_ai.strip_leading_greeting(text) == text
+
+
+def test_a_message_that_is_only_a_greeting_survives():
+    # Better a lone "Salom" than an empty reply.
+    assert shield_ai.strip_leading_greeting("Salom") == "Salom"
+
+
+def test_the_introduction_is_not_followed_by_a_second_greeting():
+    intent = SearchIntent(kind="SMALLTALK", answer="Salom! Sizga qanday yordam bera olaman?")
+    text = _reply(intent, is_first_turn=True, user_name="Kamron")
+    assert text.count("alom") == 1, text
+
+
+# ---------------------------------------------------------------------------
 # Relaxation plan
 # ---------------------------------------------------------------------------
 def test_plan_starts_strict_and_loosens_one_step_at_a_time():
