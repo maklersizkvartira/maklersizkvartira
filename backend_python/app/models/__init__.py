@@ -11,6 +11,7 @@ from app.models.auth import LoginAttempt, OtpCode, PendingRegistration, RefreshT
 from app.models.base import Base
 from app.models.listing import Favorite, Listing
 from app.models.moderation import Report, VerificationRequest
+from app.models.settings import SystemSetting
 from app.models.user import AdminUser, User
 
 __all__ = [
@@ -27,6 +28,7 @@ __all__ = [
     "RefreshToken",
     "Report",
     "SmsLog",
+    "SystemSetting",
     "TrafficEvent",
     "User",
     "VerificationRequest",

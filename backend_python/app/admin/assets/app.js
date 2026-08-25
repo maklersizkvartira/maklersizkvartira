@@ -361,15 +361,36 @@ const VIEWS = {};
 VIEWS.dashboard = async (host) => {
   host.append(el('div', { class: 'loading' }, t('common.loading')));
 
-  const [stats, registrations, traffic, districts, activity] = await Promise.all([
+  const [stats, registrations, traffic, districts, activity, settingsRes] = await Promise.all([
     Api.stats(),
     Api.chartRegistrations(7),
     Api.chartTraffic(7),
     Api.chartDistricts(8),
     Api.chartActivity(7),
+    Api.settings(),
   ]);
   const data = stats.data;
+  let isMonetizationEnabled = settingsRes.is_monetization_enabled;
   clear(host);
+
+  const toggleBtn = el('button', {
+    class: `btn ${isMonetizationEnabled ? 'btn-danger' : 'btn-primary'}`,
+    style: 'margin-bottom: 20px;',
+    onclick: async () => {
+      toggleBtn.disabled = true;
+      toggleBtn.textContent = '...';
+      try {
+        await Api.toggleMonetization();
+        VIEWS.dashboard(host);
+      } catch (e) {
+        toast('Xatolik yuz berdi', 'error');
+        toggleBtn.disabled = false;
+        toggleBtn.textContent = isMonetizationEnabled ? 'Yangi Dizayn (VIP) ni o\'chirish' : 'Yangi Dizayn (VIP) ni yoqish';
+      }
+    }
+  }, isMonetizationEnabled ? 'Yangi Dizayn (VIP) ni o\'chirish' : 'Yangi Dizayn (VIP) ni yoqish');
+
+  host.append(toggleBtn);
 
   const metric = (labelKey, value, sub, accent) =>
     el('div', { class: `card metric ${accent || ''}` }, [

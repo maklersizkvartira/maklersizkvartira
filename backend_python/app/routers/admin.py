@@ -58,6 +58,7 @@ from app.models.enums import (
 )
 from app.models.listing import Favorite, Listing
 from app.models.moderation import Report, VerificationRequest
+from app.models.settings import SystemSetting
 from app.models.user import AdminUser, User
 from app.schemas.admin import (
     AdminAiSessionRow,
@@ -185,6 +186,38 @@ async def admin_me(admin: CurrentAdmin) -> dict:
 @router.get("/stats", summary="Dashboard counters")
 async def stats(admin: RequireModerator, db: DbSession) -> dict:
     return _ok(await admin_service.dashboard_stats(db))
+
+
+@router.post("/settings/toggle-monetization", summary="Toggle monetization")
+async def toggle_monetization(admin: RequireSuperadmin, db: DbSession) -> MessageResponse:
+    from sqlalchemy import text
+    result = await db.execute(
+        text("SELECT value FROM system_settings WHERE key = 'is_monetization_enabled'")
+    )
+    row = result.fetchone()
+    current = row[0] == "true" if row else False
+    new_val = "false" if current else "true"
+    
+    if row is None:
+        await db.execute(
+            text("INSERT INTO system_settings (key, value) VALUES ('is_monetization_enabled', :val)"),
+            {"val": new_val}
+        )
+    else:
+        await db.execute(
+            text("UPDATE system_settings SET value = :val WHERE key = 'is_monetization_enabled'"),
+            {"val": new_val}
+        )
+    await db.flush()
+    await audit_log.record(
+        db,
+        AuditAction.ADMIN_UPDATED,
+        entity_type="system_settings",
+        entity_id=admin.id,
+        entity_label="is_monetization_enabled",
+        summary=f"{admin.full_name} turned {'off' if current else 'on'} monetization",
+    )
+    return MessageResponse(message="Sozlamalar yangilandi")
 
 
 @router.get("/chart/registrations")

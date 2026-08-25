@@ -163,6 +163,9 @@ export const Api = {
   me: () => request('/admin/auth/me'),
   logout: () => request('/admin/auth/logout', { method: 'POST' }),
 
+  settings: () => request('/settings', { anonymous: true }),
+  toggleMonetization: () => request('/admin/settings/toggle-monetization', { method: 'POST' }),
+
   stats: () => request('/admin/stats'),
   chartRegistrations: (days = 7) => request('/admin/chart/registrations', { params: { days } }),
   chartTraffic: (days = 7) => request('/admin/chart/traffic', { params: { days } }),

@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.core.context import anonymise_ip
 from app.core.deps import DbSession, Lang, OptionalUser, RequestCtx
 from app.models.analytics import TrafficEvent
+from app.models.settings import SystemSetting
 from app.schemas.auth import SUPPORTED_LANGUAGE_LIST
 from app.schemas.common import CamelModel, MessageResponse
 
@@ -42,6 +43,19 @@ async def languages() -> dict:
     return {
         "status": "success",
         "data": [lang.model_dump(by_alias=True) for lang in SUPPORTED_LANGUAGE_LIST],
+    }
+
+
+@router.get("/settings", summary="Public system settings")
+async def public_settings(db: DbSession) -> dict:
+    result = await db.execute(
+        text("SELECT value FROM system_settings WHERE key = 'is_monetization_enabled'")
+    )
+    row = result.fetchone()
+    # default false if not found
+    is_monetization_enabled = row[0] == "true" if row else False
+    return {
+        "is_monetization_enabled": is_monetization_enabled
     }
 
 
