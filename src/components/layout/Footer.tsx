@@ -63,7 +63,7 @@ export const Footer: React.FC = () => {
   return (
     <footer className="mt-auto border-t border-line bg-surface">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="flex flex-col gap-8 lg:grid lg:grid-cols-4">
           <div className="space-y-4">
             <Logo size="md" tagline={t('common.brand.shortTagline')} />
             <p className="text-xs leading-relaxed text-muted">
@@ -98,26 +98,32 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          {columns.map((column) => (
-            <nav key={column.titleKey} aria-label={t(column.titleKey as never)}>
-              <h2 className="mb-3 text-xs font-black uppercase tracking-wide text-content">
-                {t(column.titleKey as never)}
-              </h2>
-              <ul className="space-y-2">
-                {column.links.map((link) => (
-                  <li key={link.labelKey}>
-                    <button
-                      type="button"
-                      onClick={() => link.view && setCurrentView(link.view)}
-                      className="cursor-pointer text-xs text-muted transition-colors hover:text-brand-text"
-                    >
-                      {t(link.labelKey as never)}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          ))}
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:col-span-3">
+            {columns.map((column) => (
+              <nav
+                key={column.titleKey}
+                aria-label={t(column.titleKey as never)}
+                className={column.titleKey === 'layout.footer.legal' ? 'hidden sm:block' : ''}
+              >
+                <h2 className="mb-3 text-xs font-black uppercase tracking-wide text-content">
+                  {t(column.titleKey as never)}
+                </h2>
+                <ul className="space-y-2">
+                  {column.links.map((link) => (
+                    <li key={link.labelKey}>
+                      <button
+                        type="button"
+                        onClick={() => link.view && setCurrentView(link.view)}
+                        className="cursor-pointer text-xs text-muted transition-colors hover:text-brand-text"
+                      >
+                        {t(link.labelKey as never)}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ))}
+          </div>
         </div>
 
         <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-line pt-6 sm:flex-row">
