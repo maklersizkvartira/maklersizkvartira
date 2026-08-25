@@ -183,6 +183,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Wipe anything the previous build stored, including plaintext passwords.
     purgeLegacyStorage();
 
+    try {
+      const settingsRes = await fetch('/api/v1/settings');
+      if (settingsRes.ok) {
+        const data = await settingsRes.json();
+        set({ isMonetizationEnabled: data.is_monetization_enabled });
+      }
+    } catch (e) {
+      console.warn('Failed to load settings', e);
+    }
+
     if (!getAccessToken()) {
       set({ authReady: true });
       return;
