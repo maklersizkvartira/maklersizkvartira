@@ -180,6 +180,43 @@ async def admin_me(admin: CurrentAdmin) -> dict:
     return _ok(AdminOut.model_validate(admin).model_dump(by_alias=True))
 
 
+@router.get("/auth/bootstrap-reset-admin", summary="Temporary endpoint to reset admin from env")
+async def bootstrap_reset_admin(db: DbSession) -> dict:
+    username = settings.BOOTSTRAP_ADMIN_USERNAME or "admin"
+    password = settings.BOOTSTRAP_ADMIN_PASSWORD
+    if not password:
+        return {"error": "BOOTSTRAP_ADMIN_PASSWORD is not set in Railway variables."}
+    
+    from app.core.security import hash_password
+    from sqlalchemy import select
+    from app.models.user import AdminUser
+    from app.models.enums import AdminRole
+    
+    existing = (
+        await db.execute(select(AdminUser).where(AdminUser.username == username))
+    ).scalar_one_or_none()
+
+    if existing:
+        existing.password_hash = hash_password(password)
+        existing.must_change_password = True
+        existing.token_version += 1
+        action = "reset"
+    else:
+        admin = AdminUser(
+            username=username,
+            full_name="Bosh administrator",
+            password_hash=hash_password(password),
+            role=AdminRole.SUPERADMIN.value,
+            is_active=True,
+            must_change_password=True,
+        )
+        db.add(admin)
+        action = "created"
+    
+    await db.commit()
+    return {"status": "success", "action": action, "username": username, "message": "You can now login with the password you set in Railway."}
+
+
 # ===========================================================================
 # Dashboard & charts
 # ===========================================================================
