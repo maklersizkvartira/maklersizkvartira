@@ -24,7 +24,7 @@ const selectClass =
   'text-sm font-bold text-content focus:border-brand focus:outline-none';
 
 const chipClass = (active: boolean, activeTone = 'bg-brand text-on-brand') =>
-  `whitespace-nowrap rounded-xl px-4 py-2 text-xs font-bold transition-colors ${
+  `shrink-0 whitespace-nowrap rounded-xl px-4 py-2 text-xs font-bold transition-colors ${
     active ? activeTone : 'border border-line bg-surface-2 text-muted hover:text-content'
   }`;
 
@@ -240,7 +240,7 @@ export const SearchModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             </div>
           </fieldset>
 
-          <fieldset className="space-y-1.5">
+          <fieldset className="space-y-1.5 min-w-0">
             <legend className="ml-1 text-[10px] font-black uppercase text-subtle">
               {t('home.search.rentalTypeLabel')}
             </legend>
