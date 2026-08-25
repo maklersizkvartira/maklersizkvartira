@@ -86,6 +86,45 @@ def report_config() -> object | None:
     return None
 
 
+async def report_sms_balance(settings) -> None:
+    """Show how much SMS credit is left, when SMS is on.
+
+    Running out stops signup dead and nothing inside the app explains why —
+    the code is generated, the send fails, and the visitor sees a generic
+    error. Printing it at boot is the cheapest place to notice.
+    """
+    if not settings.SMS_ENABLED or not settings.DEVSMS_API_TOKEN:
+        return
+    from app.services.sms import check_balance
+
+    credit = await check_balance()
+    if credit is None:
+        print(
+            "preflight: sms=on (balansni tekshirib bo'lmadi / balance check failed)",
+            flush=True,
+        )
+        return
+
+    remaining = credit["remaining_sms"]
+    print(
+        f"preflight: sms=on balance={credit['balance']:.0f} "
+        f"price={credit['sms_price']:.0f} remaining={remaining}",
+        flush=True,
+    )
+    if remaining is not None and remaining < 50:
+        print(LINE, flush=True)
+        print(
+            f"  DIQQAT: SMS krediti tugayapti — atigi {remaining} ta SMS qoldi.",
+            flush=True,
+        )
+        print(
+            f"  WARNING: only {remaining} messages of credit left. Signup stops "
+            "working when it runs out.",
+            flush=True,
+        )
+        print(LINE, flush=True)
+
+
 def report_missing_in_production(settings) -> bool:
     """Warn about variables that are legal but will disable a feature."""
     notes: list[tuple[str, str]] = []
@@ -218,6 +257,7 @@ def main() -> int:
         return 1
 
     report_missing_in_production(settings)
+    asyncio.run(report_sms_balance(settings))
     print("preflight: OK", flush=True)
     return 0
 

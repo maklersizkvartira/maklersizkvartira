@@ -107,6 +107,10 @@ class Settings(BaseSettings):
     DEVSMS_API_TOKEN: str = ""
     DEVSMS_API_URL: str = "https://devsms.uz/api"
     DEVSMS_SENDER: str = "4546"
+    #: The company name inside a verification SMS. Screened by the provider on
+    #: every send, and twenty consecutive rejections suspend the account for a
+    #: day — so it has to be changeable without a deploy.
+    DEVSMS_SERVICE_NAME: str = "MaklersizUy"
     SMS_ENABLED: bool = True
 
     TELEGRAM_BOT_TOKEN: str = ""
