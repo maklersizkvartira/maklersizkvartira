@@ -60,14 +60,16 @@ export const home = {
   },
 
   recommended: {
-    badge: 'Shield AI tavsiyalari',
-    title: 'Eng ishonchli e’lonlar',
-    subtitle: 'Maklersiz, egasidan to‘g‘ridan-to‘g‘ri',
+    badge: 'Tavsiya',
+    title: 'E’lonlar',
+    titleVIP: 'Top va VIP E’lonlar',
+    subtitle: 'Eng so’nggi va ishonchli uylar',
+    subtitleVIP: 'Saytimiz orqali yuqoriga ko’tarilgan ishonchli uylar',
     viewAll: 'Barchasi',
     listLabel: 'Tavsiya etilgan e’lonlar',
-    empty: 'Hozircha tavsiya etiladigan e’lon yo‘q.',
-    emptyCta: 'Birinchi bo‘lib e’lon joylash',
-    error: 'Tavsiyalarni yuklab bo‘lmadi.',
+    empty: 'Hozircha e’lonlar yo‘q.',
+    emptyCta: 'E’lon joylash',
+    error: 'E’lonlarni yuklab bo‘lmadi.',
   },
 
   search: {

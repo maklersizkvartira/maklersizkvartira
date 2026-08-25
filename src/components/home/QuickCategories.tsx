@@ -149,38 +149,28 @@ export const QuickCategories: React.FC = () => {
         </button>
       </div>
 
-      <ul className="hide-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 sm:grid sm:grid-cols-2 sm:px-0 lg:grid-cols-3">
+      <ul className="hide-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 sm:px-0">
         {CATEGORIES.map((category) => {
           const Icon = category.icon;
           return (
-            <li key={category.id} className="flex w-[240px] shrink-0 snap-start sm:w-auto">
+            <li key={category.id} className="flex w-[140px] shrink-0 snap-start sm:w-[160px]">
               <button
                 type="button"
                 onClick={() => openCategory(category.patch)}
-                className="group relative flex w-full flex-row items-center gap-3 overflow-hidden rounded-2xl border border-line bg-surface p-3 text-left transition-all duration-300 hover:border-brand hover:shadow-card"
+                className="group relative flex w-full flex-col items-center justify-center gap-3 rounded-2xl border border-line bg-surface p-4 text-center transition-all duration-300 hover:border-brand hover:shadow-card"
               >
                 <span
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-line transition-transform duration-300 group-hover:scale-105 ${category.tone}`}
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-line transition-transform duration-300 group-hover:scale-105 ${category.tone}`}
                 >
                   <Icon className={`h-6 w-6 transition-transform duration-300 ${category.iconMotion}`} />
                 </span>
 
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-black text-content transition-colors group-hover:text-brand-text">
+                <span className="min-w-0 w-full">
+                  <span className="block truncate text-[13px] font-black text-content transition-colors group-hover:text-brand-text">
                     {t(category.titleKey)}
                   </span>
-                  <span className="mt-0.5 block text-[11px] font-medium leading-snug text-subtle">
+                  <span className="mt-1 hidden text-[11px] font-medium leading-snug text-subtle sm:block">
                     {t(category.descriptionKey)}
-                  </span>
-                  <span className="mt-1.5 flex flex-wrap gap-1">
-                    {category.tagKeys.map((tagKey) => (
-                      <span
-                        key={tagKey}
-                        className="whitespace-nowrap rounded bg-surface-2 px-1.5 py-0.5 text-[9px] font-bold text-muted transition-colors group-hover:bg-brand-soft group-hover:text-brand-text"
-                      >
-                        {t(tagKey)}
-                      </span>
-                    ))}
                   </span>
                 </span>
               </button>

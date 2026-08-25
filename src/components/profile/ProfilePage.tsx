@@ -107,6 +107,8 @@ export const ProfilePage: React.FC = () => {
   const switchRole = useAppStore((state) => state.switchRole);
   const logout = useAppStore((state) => state.logout);
   const pushToast = useAppStore((state) => state.pushToast);
+  const isMonetizationEnabled = useAppStore((state) => state.isMonetizationEnabled);
+  const setMonetizationEnabled = useAppStore((state) => state.setMonetizationEnabled);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -735,6 +737,48 @@ export const ProfilePage: React.FC = () => {
           </>
         )}
       </Section>
+
+      {/* -- Admin Controls ------------------------------------------------ */}
+      {currentUser.role === 'ADMIN' && (
+        <Section
+          title="Admin Sozlamalari"
+          description="Sayt sozlamalari va funksiyalarni boshqarish (Faqat adminlarga ko'rinadi)"
+          icon={ShieldCheck}
+        >
+          <div className="flex items-center justify-between rounded-xl border border-line bg-surface-2 p-4">
+            <div>
+              <h3 className="text-sm font-bold text-content">
+                VIP, Top va To'lovlarni (Click/Payme) yoqish
+              </h3>
+              <p className="mt-1 text-xs text-muted max-w-[250px]">
+                Bu xizmatlarni yangi kelgan foydalanuvchilarni cho'chitmaslik uchun o'chirib turish tavsiya etiladi.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setMonetizationEnabled(!isMonetizationEnabled);
+                pushToast(
+                  !isMonetizationEnabled 
+                    ? 'Pullik xizmatlar saytda yoqildi' 
+                    : 'Pullik xizmatlar saytda o\'chirildi', 
+                  'success'
+                );
+              }}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                isMonetizationEnabled ? 'bg-brand' : 'bg-surface-3'
+              }`}
+            >
+              <span className="sr-only">Pullik xizmatlarni boshqarish</span>
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  isMonetizationEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        </Section>
+      )}
 
       {/* -- Sign out ------------------------------------------------------ */}
       <Section title={t('account.signOut.title')} icon={LogOut}>

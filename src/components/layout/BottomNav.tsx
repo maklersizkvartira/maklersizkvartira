@@ -17,6 +17,7 @@ const TABS: Tab[] = [
   { view: 'HOME', labelKey: 'layout.nav.home', icon: Home },
   { view: 'LISTINGS', labelKey: 'layout.nav.listings', icon: Search },
   { view: 'CREATE_LISTING', labelKey: 'layout.nav.createListing', icon: Plus, primary: true },
+  { view: 'MAP', labelKey: 'layout.nav.map', icon: Map },
   { view: 'FAVORITES', labelKey: 'layout.nav.favorites', icon: Heart },
   { view: 'PROFILE', labelKey: 'layout.nav.profile', icon: UserIcon },
 ];

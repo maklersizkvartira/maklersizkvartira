@@ -142,6 +142,10 @@ interface AppState {
   toasts: Toast[];
   pushToast: (key: string, tone?: Toast['tone'], params?: Record<string, string | number>) => void;
   dismissToast: (id: number) => void;
+
+  // -- Feature Flags -------------------------------------------------------
+  isMonetizationEnabled: boolean;
+  setMonetizationEnabled: (enabled: boolean) => void;
 }
 
 let toastSequence = 0;
@@ -441,4 +445,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   dismissToast: (id) =>
     set((state) => ({ toasts: state.toasts.filter((toast) => toast.id !== id) })),
+
+  // -- Feature Flags -------------------------------------------------------
+  // Setting this to false hides all VIP and Top listings, and payment UI
+  isMonetizationEnabled: false,
+  setMonetizationEnabled: (enabled: boolean) => set({ isMonetizationEnabled: enabled }),
 }));

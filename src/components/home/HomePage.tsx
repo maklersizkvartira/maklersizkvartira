@@ -7,19 +7,20 @@
  */
 
 import React from 'react';
-
 import { AIRecommended } from './AIRecommended';
 import { HeroSection } from './HeroSection';
 import { QuickCategories } from './QuickCategories';
 import { TrustStats } from './TrustStats';
 
-export const HomePage: React.FC = () => (
-  <>
-    <HeroSection />
-    <QuickCategories />
-    <AIRecommended />
-    <TrustStats />
-  </>
-);
+export const HomePage: React.FC = () => {
+  return (
+    <>
+      <HeroSection />
+      <AIRecommended />
+      <QuickCategories />
+      <TrustStats />
+    </>
+  );
+};
 
 export default HomePage;

@@ -8,7 +8,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowRight, RefreshCw } from 'lucide-react';
+import { ArrowRight, RefreshCw, Star } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { ListingsApi } from '../../services/listingsApi';
@@ -30,6 +30,7 @@ export const AIRecommended: React.FC = () => {
   const currentUser = useAppStore((state) => state.currentUser);
   const audienceFilter = useAppStore((state) => state.filters.audience);
   const pushToast = useAppStore((state) => state.pushToast);
+  const isMonetizationEnabled = useAppStore((state) => state.isMonetizationEnabled);
 
   const [pool, setPool] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,13 +86,29 @@ export const AIRecommended: React.FC = () => {
     >
       <div className="mb-4 flex flex-row items-center justify-between gap-2">
         <div>
-          <h2
-            id="home-recommended-title"
-            className="text-lg font-black tracking-tight text-content sm:text-2xl"
-          >
-            {t('home.recommended.title')}
-          </h2>
-          <p className="text-[11px] text-subtle sm:text-xs">{t('home.recommended.subtitle')}</p>
+          <div className="flex items-center gap-2 mb-1">
+            {isMonetizationEnabled && (
+              <Star className="h-5 w-5 text-yellow-500" fill="currentColor" aria-hidden="true" />
+            )}
+            <h2
+              id="home-recommended-title"
+              className="text-lg font-black tracking-tight text-content sm:text-2xl"
+            >
+              {isMonetizationEnabled 
+                ? t('home.recommended.titleVIP' as never) 
+                : t('home.recommended.title' as never)}
+            </h2>
+            {isMonetizationEnabled && (
+              <span className="rounded-md bg-yellow-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-yellow-600 border border-yellow-500/20">
+                VIP
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-subtle sm:text-xs">
+            {isMonetizationEnabled 
+              ? t('home.recommended.subtitleVIP' as never) 
+              : t('home.recommended.subtitle' as never)}
+          </p>
         </div>
 
         <button

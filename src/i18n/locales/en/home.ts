@@ -55,13 +55,15 @@ export const home = {
   },
 
   recommended: {
-    badge: 'Shield AI picks',
-    title: 'Most trusted listings',
-    subtitle: 'No broker — straight from the owner',
+    badge: 'Recommended',
+    title: 'Listings',
+    titleVIP: 'Top and VIP Listings',
+    subtitle: 'The latest and most trusted',
+    subtitleVIP: 'Most trusted listings promoted on our platform',
     viewAll: 'See all',
     listLabel: 'Recommended listings',
     empty: 'There are no listings to recommend yet.',
-    emptyCta: 'Be the first to post a listing',
+    emptyCta: 'Post a listing',
     error: 'The recommendations could not be loaded.',
   },
 

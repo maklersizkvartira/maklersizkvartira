@@ -81,10 +81,10 @@ export const Footer: React.FC = () => {
               </div>
               <div className="flex flex-col gap-1.5 pt-1 text-xs font-semibold text-muted">
                 <a
-                  href="tel:+998700797237"
+                  href="tel:+998937188885"
                   className="group flex cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-surface hover:text-brand-text"
                 >
-                  <span className="font-semibold text-content">+998 70 079 72 37</span>
+                  <span className="font-semibold text-content">+998 93 718 88 85</span>
                   <span className="text-[10px] font-bold text-brand group-hover:underline">Qo‘ng‘iroq</span>
                 </a>
                 <a
