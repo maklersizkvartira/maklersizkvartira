@@ -15,7 +15,7 @@ from app.core.rate_limit import enforce
 from app.core.security import PasswordPolicyError, password_strength, validate_password
 from app.core.tokens import TokenError, rotate_token_pair
 from app.models.auth import RefreshToken
-from app.models.enums import AuditAction, OtpPurpose
+from app.models.enums import AuditAction, OtpPurpose, SIGNUP_ROLES
 from app.core.tokens import issue_token_pair
 from app.schemas.auth import (
     ChangePasswordRequest,
@@ -244,6 +244,15 @@ async def update_profile(
     payload: UpdateProfileRequest, user: CurrentUser, db: DbSession
 ) -> MeResponse:
     changes = payload.model_dump(exclude_unset=True, exclude_none=True)
+
+    # Self-service role switching exists so a STUDENT can become an OWNER. It
+    # must not touch a role that was granted: a MODERATOR, ADMIN or DEVELOPER
+    # who opens the profile page would otherwise be silently demoted to OWNER
+    # by a form that has no idea those roles exist, with no way back except a
+    # seeding script.
+    if "role" in changes and user.role not in {r.value for r in SIGNUP_ROLES}:
+        changes.pop("role")
+
     before = {key: getattr(user, key) for key in changes}
 
     for key, value in changes.items():

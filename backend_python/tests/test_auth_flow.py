@@ -481,3 +481,46 @@ async def test_accept_language_header_is_honoured(client, unique_phone):
         headers={"Accept-Language": "ru-RU,ru;q=0.9,en;q=0.8"},
     )
     assert "Неверный" in response.json()["message"]
+
+
+async def test_a_student_may_still_switch_to_owner(client, unique_phone):
+    """Self-service role switching is the point of the field; keep it working."""
+    phone = unique_phone()
+    tokens = await register_and_verify(client, phone, role="STUDENT")
+
+    response = await client.patch(
+        "/api/v1/auth/profile", json={"role": "OWNER"}, headers=auth_headers(tokens)
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["user"]["role"] == "OWNER"
+
+
+async def test_a_granted_role_survives_a_profile_update(client, db, unique_phone):
+    """A granted role must not be lost to the profile form.
+
+    DEVELOPER was silently demoted to OWNER the moment the account opened the
+    profile page: the form posts the role it knows about, the handler wrote it
+    straight through, and the only way back was a seeding script.
+    """
+    from sqlalchemy import select
+
+    from app.models.user import User
+
+    phone = unique_phone()
+    tokens = await register_and_verify(client, phone, role="OWNER")
+
+    user = (await db.execute(select(User).where(User.phone == phone))).scalar_one()
+    user.role = "DEVELOPER"
+    await db.commit()
+
+    response = await client.patch(
+        "/api/v1/auth/profile",
+        json={"role": "OWNER", "name": "Yangi Ism"},
+        headers=auth_headers(tokens),
+    )
+    assert response.status_code == 200, response.text
+
+    payload = response.json()["user"]
+    assert payload["role"] == "DEVELOPER", "the granted role was overwritten"
+    # The rest of the update still applies — only the role is protected.
+    assert payload["name"] == "Yangi Ism"
