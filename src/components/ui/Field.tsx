@@ -8,9 +8,10 @@
  */
 
 import React, { useId, useState } from 'react';
-import { AlertCircle, Check, ChevronDown, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, Check, Eye, EyeOff } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
+import { Dropdown } from './Dropdown';
 
 const inputBase =
   'w-full rounded-xl border bg-surface-2 px-4 py-3 text-base font-medium text-content ' +
@@ -113,24 +114,23 @@ export const TextInput: React.FC<TextInputProps> = ({
 
 // ---------------------------------------------------------------------------
 /**
- * A themed `<select>`.
+ * A themed dropdown.
  *
- * Every dropdown in the app was a bare `<select>` with a border painted on,
- * so each one still rendered the operating system's own control and arrow:
- * grey on Windows, blue on macOS, and a white popup in dark mode. Next to the
- * themed inputs beside them they looked like someone else's form.
+ * This was a real `<select>` with `appearance-none`, which styled the closed
+ * box and nothing else: the list that opens is drawn by the operating system
+ * and no page CSS reaches it. So every dropdown still looked like someone
+ * else's form the moment it was opened.
  *
- * `appearance-none` removes the native control and the chevron is drawn here,
- * which is the only way to get one consistent look. The option list itself is
- * still drawn by the browser — no page can style that — so `index.css` gives
- * options an explicit background and colour instead of letting a dark theme
- * inherit a white popup.
+ * It now renders {@link Dropdown}, which draws the open list too. The props
+ * are unchanged — including an `onChange` that receives an event with
+ * `target.value` — so the twenty call sites did not have to move.
  */
 export interface SelectInputProps
-  extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> {
   invalid?: boolean;
   /** The dense variant used in filter bars and toolbars. */
   compact?: boolean;
+  onChange?: (event: { target: { value: string } }) => void;
 }
 
 export const SelectInput: React.FC<SelectInputProps> = ({
@@ -138,26 +138,28 @@ export const SelectInput: React.FC<SelectInputProps> = ({
   compact = false,
   className = '',
   children,
+  value,
+  onChange,
+  id,
+  disabled,
   ...rest
 }) => (
-  <div className={`relative ${className}`}>
-    <select
-      {...rest}
-      aria-invalid={invalid || undefined}
-      className={`w-full cursor-pointer appearance-none truncate rounded-xl border bg-surface-2
-        font-medium text-content transition-colors focus:bg-surface focus:outline-none
-        disabled:cursor-not-allowed disabled:opacity-60
-        ${compact ? 'py-2 pl-3 pr-9 text-xs font-bold' : 'px-4 py-3 pr-11 text-sm'}
-        ${invalid ? inputStates.error : inputStates.normal}`}
-    >
-      {children}
-    </select>
-    <ChevronDown
-      className={`pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-subtle
-        ${compact ? 'right-2.5' : 'right-3.5'}`}
-      aria-hidden="true"
-    />
-  </div>
+  <Dropdown
+    id={id}
+    value={String(value ?? '')}
+    // Callers were written against a `<select>` and read `event.target.value`.
+    // Handing them the shape they already expect keeps this a drop-in swap
+    // rather than an edit to every form in the app.
+    onChange={(next) => onChange?.({ target: { value: next } })}
+    invalid={invalid}
+    disabled={disabled}
+    compact={compact}
+    className={className}
+    aria-label={rest['aria-label']}
+    aria-describedby={rest['aria-describedby']}
+  >
+    {children}
+  </Dropdown>
 );
 
 // ---------------------------------------------------------------------------

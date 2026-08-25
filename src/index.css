@@ -474,3 +474,16 @@ select optgroup {
   .animate-welcome-ring { animation: none; opacity: 0; }
   .animate-welcome-progress { animation: welcome-progress 5200ms linear both; }
 }
+
+/* Number inputs draw the browser's own stepper — two grey arrows that ignore
+   the theme entirely and are the last native-looking control on the listing
+   form. The fields that use them are short and bounded (rooms, minutes,
+   floors), so typing is the whole interaction; the arrows only added chrome. */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  appearance: textfield;
+}
