@@ -611,6 +611,11 @@ async function openUserModal(userId, host) {
             onclick: () => openSuspendModal(user, host),
           }, t('users.suspend')),
 
+      el('button', {
+        class: 'btn btn-primary btn-sm',
+        onclick: () => openEditUserModal(user, host),
+      }, t('users.editUser')),
+
       app.admin?.role === 'SUPERADMIN'
         ? el('button', {
             class: 'btn btn-danger btn-sm',
@@ -717,6 +722,117 @@ function confirmReveal(user) {
   );
 }
 
+
+
+/**
+ * Full user editor.
+ *
+ * Only fields the API actually accepts are here — offering a control the
+ * backend ignores is worse than not offering it, because the change appears
+ * to save. Everything is sent in one PATCH, and only the fields that were
+ * actually touched, so an untouched dropdown cannot overwrite a value
+ * somebody set from somewhere else.
+ */
+const USER_ROLES = ['STUDENT', 'TENANT', 'OWNER', 'MODERATOR', 'ADMIN', 'DEVELOPER'];
+const USER_STATUSES = [
+  'ACTIVE',
+  'PENDING_VERIFICATION',
+  'SUSPENDED',
+  'BANNED',
+  'REGISTRATION_REQUIRED',
+];
+const USER_LANGUAGES = ['uz', 'ru', 'en'];
+
+function selectField(labelText, options, current) {
+  const select = el('select', { class: 'input' });
+  options.forEach((option) => {
+    const node = el('option', { value: option }, option);
+    if (option === current) node.selected = true;
+    select.append(node);
+  });
+  return { node: el('label', { class: 'field' }, [el('span', {}, labelText), select]), select };
+}
+
+function openEditUserModal(user, host) {
+  const name = el('input', { class: 'input', type: 'text', value: user.name || '' });
+  const role = selectField(t('users.role'), USER_ROLES, user.role);
+  const status = selectField(t('users.status'), USER_STATUSES, user.status);
+  const language = selectField(t('users.language'), USER_LANGUAGES, user.language);
+
+  const trust = el('input', {
+    class: 'input',
+    type: 'number',
+    min: '0',
+    max: '100',
+    value: String(user.trustScore ?? 0),
+  });
+  const level = el('input', {
+    class: 'input',
+    type: 'number',
+    min: '1',
+    max: '5',
+    value: String(user.verificationLevel ?? 1),
+  });
+  const verified = el('input', { type: 'checkbox' });
+  verified.checked = Boolean(user.isVerified);
+  const note = el('textarea', { class: 'input', rows: '3' });
+  note.value = user.adminNote || '';
+
+  modal({
+    title: t('users.editUser'),
+    body: el('div', {}, [
+      el('label', { class: 'field' }, [el('span', {}, t('users.name')), name]),
+      el('div', { class: 'field-pair' }, [role.node, status.node]),
+      el('div', { class: 'field-pair' }, [
+        el('label', { class: 'field' }, [el('span', {}, t('users.trust')), trust]),
+        el('label', { class: 'field' }, [el('span', {}, t('users.verificationLevel')), level]),
+      ]),
+      language.node,
+      el('label', { style: 'display:flex;gap:8px;align-items:center;font-size:12px;margin:6px 0 10px' },
+        [verified, t('users.isVerified')]),
+      el('label', { class: 'field' }, [el('span', {}, t('users.adminNote')), note]),
+      el('p', { class: 'hint' }, t('users.editHint')),
+    ]),
+    actions: [
+      el('button', { class: 'btn btn-secondary', onclick: closeModal }, t('common.cancel')),
+      el('button', {
+        class: 'btn btn-primary',
+        onclick: async () => {
+          // Send only what changed: a PATCH that repeats every current value
+          // would quietly clobber an edit someone else made in between.
+          const changes = {};
+          if (name.value.trim() !== (user.name || '')) changes.name = name.value.trim();
+          if (role.select.value !== user.role) changes.role = role.select.value;
+          if (status.select.value !== user.status) changes.status = status.select.value;
+          if (language.select.value !== user.language) changes.language = language.select.value;
+          if (Number(trust.value) !== Number(user.trustScore ?? 0)) {
+            changes.trustScore = Number(trust.value);
+          }
+          if (Number(level.value) !== Number(user.verificationLevel ?? 1)) {
+            changes.verificationLevel = Number(level.value);
+          }
+          if (verified.checked !== Boolean(user.isVerified)) {
+            changes.isVerified = verified.checked;
+          }
+          if (note.value !== (user.adminNote || '')) changes.adminNote = note.value;
+
+          if (Object.keys(changes).length === 0) {
+            closeModal();
+            return;
+          }
+          try {
+            await Api.updateUser(user.id, changes);
+            toast(t('common.save'), 'success');
+            closeModal();
+            VIEWS.users(host, {});
+          } catch (error) {
+            reportError(error);
+          }
+        },
+      }, t('common.save')),
+    ],
+  });
+}
 
 function openSetPasswordModal(user, host) {
   const input = el('input', { class: 'input', type: 'text', minlength: '8' });

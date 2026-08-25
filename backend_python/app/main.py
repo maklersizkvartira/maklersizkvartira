@@ -10,7 +10,7 @@ import structlog
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -126,9 +126,22 @@ def create_app() -> FastAPI:
             name="admin-assets",
         )
 
+        # The panel's asset paths are relative, so it can also be served from
+        # its own domain. Relative paths resolve against the *directory* of the
+        # current URL, so "/admin" without the trailing slash would look for
+        # "/assets/..." at the site root. The redirect is what makes one set of
+        # paths work in both places.
         @app.get("/admin", include_in_schema=False)
+        async def admin_root() -> RedirectResponse:
+            return RedirectResponse("/admin/", status_code=308)
+
+        @app.get("/admin/", include_in_schema=False)
         @app.get("/admin/{path:path}", include_in_schema=False)
         async def admin_panel(path: str = "") -> FileResponse:
+            # config.js sits beside index.html rather than under assets/,
+            # because it is the one file a deployment is expected to change.
+            if path == "config.js":
+                return FileResponse(ADMIN_DIR / "config.js")
             return FileResponse(ADMIN_DIR / "index.html")
 
     _install_exception_handlers(app)

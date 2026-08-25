@@ -349,3 +349,49 @@ details.changes pre {
 @media (min-width: 901px) {
   #sidebarToggle { display: none; }
 }
+
+/* ---------------------------------------------------------------------------
+   User editor
+--------------------------------------------------------------------------- */
+/* Two fields side by side inside a modal. `.grid-2` is for page layout and
+   its 320px minimum collapses to one column at dialog width, which is not
+   what a pair of short fields wants. */
+.field-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+/* A quiet line under a form, for the rule that explains how it behaves. */
+.hint {
+  margin: 2px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--subtle);
+}
+
+/* Selects were the browser's own control sitting next to themed inputs.
+   The option list itself is drawn by the browser and cannot be styled beyond
+   its colours, which is what the rule below is for. */
+select.input {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+}
+
+select.input option,
+select.input optgroup {
+  background: var(--surface);
+  color: var(--text);
+}
+
+textarea.input {
+  min-height: 68px;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.5;
+}

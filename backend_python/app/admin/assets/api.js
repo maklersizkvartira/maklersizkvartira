@@ -8,7 +8,15 @@
 
 import { state as i18nState } from './i18n.js';
 
-const API_BASE = '/api/v1';
+/**
+ * Where the API lives.
+ *
+ * The panel is served two ways: from the backend itself at /admin, where a
+ * relative path is right, and from its own domain on Vercel, where it has to
+ * name the backend outright. `config.js` decides which, and runs before this
+ * module so the value is already there.
+ */
+const API_BASE = (window.MAKLERSIZ_ADMIN_API || '/api/v1').replace(/\/+$/, '');
 const ACCESS_KEY = 'maklersiz.admin.access';
 const REFRESH_KEY = 'maklersiz.admin.refresh';
 
