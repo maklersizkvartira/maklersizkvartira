@@ -18,6 +18,7 @@ export const common = {
     guest: 'Mehmon',
     moderator: 'Moderator',
     admin: 'Administrator',
+    developer: 'Dasturchi',
   },
 
   action: {

@@ -16,7 +16,7 @@ from app.core.errors import Forbidden, translate
 from app.core.rate_limit import enforce
 from app.core.security import generate_token
 from app.models.ai import AIMessage, AISession
-from app.models.enums import AuditAction
+from app.models.enums import AuditAction, UserRole
 from app.schemas.common import CamelModel
 from app.schemas.listing import ListingOut
 from app.services import listings as listing_service
@@ -26,6 +26,17 @@ from app.services.telegram import send_chat_summary
 router = APIRouter(prefix="/smart", tags=["shield-ai"])
 
 DAILY_LIMIT = settings.RATE_LIMIT_AI_PER_DAY
+
+
+def _is_unlimited(viewer) -> bool:
+    """Whether this caller has no AI ceiling at all.
+
+    Both ceilings exist to stop an anonymous visitor running up an OpenAI
+    bill; neither has anything to say to a DEVELOPER account, which has to be
+    able to exercise the assistant freely. A limit of 0 is the wire signal for
+    "no ceiling" — the client hides the counter rather than showing 0 left.
+    """
+    return viewer is not None and viewer.role == UserRole.DEVELOPER.value
 
 #: Session keys are server-issued secrets. The old client-generated
 #: ``guest_123456`` keys were six digits - anyone could enumerate them and
@@ -81,10 +92,11 @@ async def create_session(
     db.add(session)
     await db.flush()
     used = await _used_today(db, viewer=viewer, ctx=ctx)
+    unlimited = _is_unlimited(viewer)
     return SessionResponse(
         session_key=session.session_key,
-        limit=DAILY_LIMIT,
-        remaining=max(0, DAILY_LIMIT - used),
+        limit=0 if unlimited else DAILY_LIMIT,
+        remaining=0 if unlimited else max(0, DAILY_LIMIT - used),
     )
 
 
@@ -149,13 +161,21 @@ async def assistant(
     ctx: RequestCtx,
     lang: Lang,
 ) -> dict:
-    await enforce("ai_chat", str(viewer.id) if viewer else (ctx.ip or payload.session_key))
+    # Both ceilings — the hourly limiter and the daily quota below — exist to
+    # keep an anonymous visitor from running up an OpenAI bill. Neither has
+    # anything to say to a DEVELOPER account, which has to be able to exercise
+    # the assistant freely.
+    unlimited = _is_unlimited(viewer)
+    if not unlimited:
+        await enforce(
+            "ai_chat", str(viewer.id) if viewer else (ctx.ip or payload.session_key)
+        )
 
     language = (viewer.language if viewer else None) or lang
     session = await _load_session(db, payload.session_key, viewer=viewer, ctx=ctx)
 
     used = await _used_today(db, viewer=viewer, ctx=ctx)
-    if used >= DAILY_LIMIT:
+    if not unlimited and used >= DAILY_LIMIT:
         await audit_log.record(
             db,
             AuditAction.AI_LIMIT_REACHED,
@@ -200,6 +220,12 @@ async def assistant(
     )
     intent = shield_ai.merge_intents(parsed, llm)
     display_name = intent.user_name or (viewer.name if viewer else payload.user_name)
+
+    # Asking for details is right once. Asking again after they have already
+    # been asked and still said nothing concrete is stonewalling, so the
+    # second time we show what exists and let them narrow it from there.
+    if intent.kind == "CLARIFY" and (session.last_intent or {}).get("kind") == "CLARIFY":
+        intent.kind = "SEARCH"
 
     # Only turns that are actually about finding somewhere to live touch the
     # catalogue. A company question or an off-topic message gets an answer, not
@@ -289,8 +315,9 @@ async def assistant(
         "listings": serialised,
         "sessionKey": session.session_key,
         "used": used + 1,
-        "limit": DAILY_LIMIT,
-        "remaining": max(0, DAILY_LIMIT - (used + 1)),
+        "limit": 0 if unlimited else DAILY_LIMIT,
+        "remaining": 0 if unlimited else max(0, DAILY_LIMIT - (used + 1)),
+        "unlimited": unlimited,
     }
 
 
@@ -323,6 +350,7 @@ async def history(
     ).scalars().all()
 
     used = await _used_today(db, viewer=viewer, ctx=ctx)
+    unlimited = _is_unlimited(viewer)
     return {
         "status": "success",
         "sessionKey": session_key,
@@ -334,8 +362,8 @@ async def history(
             }
             for m in rows
         ],
-        "limit": DAILY_LIMIT,
-        "remaining": max(0, DAILY_LIMIT - used),
+        "limit": 0 if unlimited else DAILY_LIMIT,
+        "remaining": 0 if unlimited else max(0, DAILY_LIMIT - used),
     }
 
 

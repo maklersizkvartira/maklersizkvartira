@@ -234,21 +234,105 @@ def test_plan_has_no_duplicate_steps():
 
 
 # ---------------------------------------------------------------------------
-# District data
+# Places
 # ---------------------------------------------------------------------------
-def test_every_district_has_neighbours_and_they_are_real():
-    known = set(shield_ai.TASHKENT_DISTRICTS)
-    assert set(shield_ai.NEARBY_DISTRICTS) == known
-    for district, neighbours in shield_ai.NEARBY_DISTRICTS.items():
+def test_the_whole_country_is_known_not_just_tashkent():
+    # The old map had twelve districts. "Samarqandda uy kere" parsed as a
+    # request with no location at all, which is the bug this guards.
+    assert len(shield_ai.ALL_REGIONS) == 14
+    assert len(shield_ai.ALL_DISTRICTS) > 140
+
+
+@pytest.mark.parametrize(
+    ("message", "district", "region"),
+    [
+        ("Chilonzordan uy kere", "Chilonzor", "Toshkent shahri"),
+        ("Samarqandda kvartira", "Samarqand sh.", "Samarqand viloyati"),
+        ("Urgutda 2 xona", "Urgut", "Samarqand viloyati"),
+        ("Nukusda uy", "Nukus sh.", "Qoraqalpogʻiston Respublikasi"),
+        ("Buxoroga koʻchmoqchiman", "Buxoro sh.", "Buxoro viloyati"),
+    ],
+)
+def test_a_case_suffix_does_not_hide_the_place(message, district, region):
+    # Uzbek glues the case onto the noun; matching on a bare word boundary
+    # found none of these.
+    intent = shield_ai.parse_intent(message)
+    assert intent.district == district
+    assert intent.region == region
+
+
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [
+        ("в Чиланзаре", "Chilonzor"),
+        ("ferganada uy", "Fargʻona sh."),
+        ("Mirzo Ulugbek tumanida", "Mirzo Ulugʻbek"),
+        ("Yangiyoʻlda ijara", "Yangiyo'l sh."),
+    ],
+)
+def test_spelling_and_language_variants_resolve(message, expected):
+    assert shield_ai.normalise_district(message) == expected
+
+
+def test_a_region_is_recognised_even_without_a_district():
+    intent = shield_ai.parse_intent("xorazmda uy kere")
+    assert intent.region == "Xorazm viloyati"
+
+
+def test_every_district_belongs_to_a_region():
+    for district in shield_ai.ALL_DISTRICTS:
+        assert shield_ai.region_of(district) in shield_ai.ALL_REGIONS
+
+
+def test_tashkent_neighbours_are_real_and_exclude_self():
+    city = set(shield_ai.REGIONS["Toshkent shahri"])
+    for district in city:
+        neighbours = shield_ai.nearby_districts(district)
         assert neighbours, f"{district} has no neighbours"
-        assert district not in neighbours, f"{district} lists itself"
-        assert set(neighbours) <= known, f"{district} points at an unknown district"
+        assert district not in neighbours
+        assert set(neighbours) <= city
 
 
-def test_aliases_resolve_to_canonical_districts():
-    known = set(shield_ai.TASHKENT_DISTRICTS)
-    for alias in shield_ai._DISTRICT_ALIASES:
-        assert shield_ai.normalise_district(alias) in known
+def test_outside_tashkent_nearby_means_the_rest_of_the_province():
+    neighbours = shield_ai.nearby_districts("Urgut")
+    assert "Samarqand sh." in neighbours
+    assert "Urgut" not in neighbours
+    # Never another province: that is not "nearby" to anyone.
+    assert all(shield_ai.region_of(n) == "Samarqand viloyati" for n in neighbours)
+
+
+def test_an_unknown_place_has_no_neighbours():
+    assert shield_ai.nearby_districts("Atlantis") == ()
+    assert shield_ai.nearby_districts(None) == ()
+
+
+# ---------------------------------------------------------------------------
+# Asking before searching
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize("message", ["uy kere", "kvartira kerak", "I need a flat", "ищу квартиру"])
+def test_a_bare_request_asks_instead_of_searching(message):
+    # "uy kere" is the opening of a search, not a search. Answering it with
+    # the whole catalogue answers a question nobody asked.
+    assert shield_ai.parse_intent(message).kind == "CLARIFY"
+
+
+def test_one_stated_criterion_is_enough_to_search():
+    assert shield_ai.parse_intent("Chilonzordan uy kere").kind == "SEARCH"
+    assert shield_ai.parse_intent("3 xonali kerak").kind == "SEARCH"
+
+
+@pytest.mark.parametrize("language", ["uz", "ru", "en"])
+def test_the_clarifying_question_is_short_and_asks_for_all_three(language):
+    text = _reply(SearchIntent(kind="CLARIFY"), language=language)
+    assert len(text) < 120, "the clarifying question should be one sentence"
+    # It must not claim anything about availability: nothing has been searched.
+    assert "topilmadi" not in text and "yo'q" not in text
+
+
+def test_clarifying_never_mentions_results():
+    for language in ("uz", "ru", "en"):
+        text = _reply(SearchIntent(kind="CLARIFY"), language=language, count=0)
+        assert "0" not in text
 
 
 def test_criteria_labels_are_translated():
@@ -328,7 +412,7 @@ async def test_empty_district_falls_back_to_a_neighbour(client, db, unique_phone
     )
     assert rows, "a neighbouring district should be searched before giving up"
     assert relaxation == "NEARBY"
-    assert searched in shield_ai.NEARBY_DISTRICTS["Bektemir"]
+    assert searched in shield_ai.nearby_districts("Bektemir")
     assert rows[0].district == searched
 
 

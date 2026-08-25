@@ -39,6 +39,11 @@ export const account = {
   },
 
   role: {
+    granted: {
+      title: 'Sizga maxsus rol berilgan',
+      description:
+        '«{role}» roli administrator tomonidan beriladi va uni bu yerdan o‘zgartirib bo‘lmaydi. Barcha imkoniyatlar ochiq.',
+    },
     title: 'Tizimdagi rolingiz',
     subtitle: 'Rolni istalgan vaqtda almashtirishingiz mumkin.',
     owner: {

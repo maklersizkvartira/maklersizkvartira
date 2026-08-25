@@ -24,7 +24,7 @@ import { useAppStore, type ViewState } from '../../stores/useAppStore';
 import { Logo } from '../brand/Logo';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ThemeToggle } from './ThemeToggle';
-import { canPublishListings } from '../../types/roles';
+import { canPublishListings, roleLabelKey } from '../../types/roles';
 
 interface NavItem {
   view: ViewState;
@@ -122,9 +122,7 @@ export const Header: React.FC = () => {
                       {currentUser.name}
                     </p>
                     <p className="text-xs text-muted">
-                      {canPublishListings(currentUser.role)
-                        ? t('common.role.owner')
-                        : t('common.role.student')}
+                      {t(roleLabelKey(currentUser.role))}
                     </p>
                   </div>
                 </div>

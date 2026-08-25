@@ -123,7 +123,10 @@ export const ShieldMascot: React.FC = () => {
   const logEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const limitReached = quota !== null && quota.remaining <= 0;
+  // A limit of 0 is the server saying this account has no ceiling. Read
+  // literally it would mean "0 requests left" and lock the box shut.
+  const metered = quota !== null && quota.limit > 0;
+  const limitReached = metered && quota.remaining <= 0;
 
   const append = useCallback((message: Omit<ChatMessage, 'id'>) => {
     setLog((previous) => [...previous, { ...message, id: ++messageSequence }]);
@@ -353,7 +356,7 @@ export const ShieldMascot: React.FC = () => {
                     {t('assistant.mascot.name')}
                     <Sparkles className="h-4 w-4 text-warning" aria-hidden="true" />
                   </h4>
-                  {quota && (
+                  {metered && quota && (
                     <span
                       title={t('assistant.chat.quotaLabel', {
                         remaining: quota.remaining,
@@ -504,7 +507,7 @@ export const ShieldMascot: React.FC = () => {
               {t('assistant.chat.limitReached')}
             </p>
           )}
-          {!limitReached && quota && quota.remaining <= 2 && (
+          {!limitReached && metered && quota && quota.remaining <= 2 && (
             <p className="shrink-0 border-t border-line bg-warning-soft px-4 py-2 text-[11px] font-semibold text-warning">
               {t('assistant.chat.quotaWarning', { count: quota.remaining })}
             </p>

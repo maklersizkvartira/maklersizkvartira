@@ -66,6 +66,11 @@ export const UZBEKISTAN_REGIONS: RegionData[] = [
     districts: ['Jizzax sh.', 'Do\'stlik', 'Forish', 'G\'allaorol', 'Sharof Rashidov', 'Mirzacho\'l', 'Paxtakor', 'Zomin', 'Zarbdor', 'Zaafarobod', 'Arnasoy']
   },
   {
+    id: 'sirdaryo',
+    name: 'Sirdaryo viloyati',
+    districts: ['Guliston sh.', 'Shirin sh.', 'Yangiyer sh.', 'Boyovut', 'Sayxunobod', 'Sardoba', 'Mirzaobod', 'Oqoltin', 'Xovos', 'Sirdaryo t.', 'Guliston t.']
+  },
+  {
     id: 'karakalpakstan',
     name: 'Qoraqalpogʻiston Respublikasi',
     districts: ['Nukus sh.', 'Qo\'ng\'irot', 'To\'rtko\'l', 'Beruniy', 'Amudaryo', 'Chimboy', 'Xo\'jayli', 'Mo\'ynoq', 'Taxtako\'pir', 'Ellikqal\'a']

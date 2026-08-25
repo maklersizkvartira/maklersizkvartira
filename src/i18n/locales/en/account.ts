@@ -36,6 +36,11 @@ export const account = {
   },
 
   role: {
+    granted: {
+      title: 'You have been given a special role',
+      description:
+        'The «{role}» role is granted by an administrator and cannot be changed here. Every capability is available.',
+    },
     title: 'Your role',
     subtitle: 'You can switch roles at any time.',
     owner: {

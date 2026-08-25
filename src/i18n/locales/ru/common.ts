@@ -18,6 +18,7 @@ export const common = {
     guest: 'Гость',
     moderator: 'Модератор',
     admin: 'Администратор',
+    developer: 'Разработчик',
   },
 
   action: {

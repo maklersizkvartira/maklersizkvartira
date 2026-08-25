@@ -35,7 +35,7 @@ import { useAuthErrors } from '../auth/useAuthErrors';
 import { LanguageSwitcher } from '../layout/LanguageSwitcher';
 import { ThemeToggle } from '../layout/ThemeToggle';
 import { Button, Field, FormError, PasswordInput, TextInput } from '../ui/Field';
-import { canPublishListings } from '../../types/roles';
+import { canPublishListings, isSwitchableRole, roleLabelKey } from '../../types/roles';
 
 const MAX_AVATAR_MB = 2;
 const MIN_PASSWORD_LENGTH = 8;
@@ -471,6 +471,22 @@ export const ProfilePage: React.FC = () => {
         description={t('account.role.subtitle')}
         icon={UserCog}
       >
+        {!isSwitchableRole(currentUser.role) ? (
+          // A granted role is not a preference. Showing two radio buttons with
+          // neither selected reads as "your role did not save", and pressing
+          // one used to silently give the granted role away.
+          <div className="rounded-xl border border-brand/30 bg-brand-soft p-3">
+            <p className="flex items-center gap-2 text-xs font-black text-brand-text">
+              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+              {t('account.role.granted.title')}
+            </p>
+            <p className="mt-1 text-[11px] font-medium text-muted">
+              {t('account.role.granted.description', {
+                role: t(roleLabelKey(currentUser.role)),
+              })}
+            </p>
+          </div>
+        ) : (
         <div role="radiogroup" aria-label={t('account.role.title')} className="grid grid-cols-2 gap-2">
           {(
             [
@@ -511,6 +527,7 @@ export const ProfilePage: React.FC = () => {
             );
           })}
         </div>
+        )}
 
         {isOwner && (
           <Button fullWidth onClick={() => setCurrentView('CREATE_LISTING')}>
