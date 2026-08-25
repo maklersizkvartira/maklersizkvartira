@@ -214,3 +214,103 @@ def test_criteria_labels_are_translated():
     assert "2 xonali" in shield_ai.SearchIntent.criteria_labels(intent, "uz")
     assert "2-комнатная" in shield_ai.SearchIntent.criteria_labels(intent, "ru")
     assert "2 rooms" in shield_ai.SearchIntent.criteria_labels(intent, "en")
+
+
+# ---------------------------------------------------------------------------
+# Finding stock — against a real database
+# ---------------------------------------------------------------------------
+"""The relaxation ladder is the part that decides whether a visitor sees an
+empty screen or the closest thing we actually have, so it is exercised against
+real rows rather than a stub."""
+
+from tests.conftest import auth_headers, register_and_verify  # noqa: E402
+
+_LISTING = {
+    "title": "Kvartira ijaraga beriladi",
+    "description": (
+        "Yangi ta'mirlangan, mebel va texnika bilan jihozlangan kvartira. "
+        "Metro bekatiga 5 daqiqa piyoda. Uy egasidan, vositachisiz."
+    ),
+    "price": 4_000_000,
+    "rooms": 2,
+    "area": 62,
+    "district": "Chilonzor",
+    "region": "Toshkent shahri",
+    "images": ["https://example.uz/photo1.jpg"],
+}
+
+
+async def _seed(client, unique_phone, *listings):
+    tokens = await register_and_verify(client, unique_phone(), role="OWNER")
+    created = []
+    for overrides in listings:
+        response = await client.post(
+            "/api/v1/listings", json={**_LISTING, **overrides}, headers=auth_headers(tokens)
+        )
+        assert response.status_code == 201, response.text
+        created.append(response.json()["data"])
+    return created
+
+
+async def test_exact_match_is_reported_as_exact(client, db, unique_phone):
+    await _seed(client, unique_phone, {"district": "Chilonzor", "rooms": 3, "price": 3_500_000})
+
+    rows, relaxation, _, _ = await shield_ai.search_for_intent(
+        db,
+        SearchIntent(district="Chilonzor", region="Toshkent shahri", rooms=3, max_price=4_000_000),
+    )
+    assert rows, "a listing that satisfies every criterion should be found"
+    assert relaxation == "EXACT"
+
+
+async def test_budget_is_the_first_criterion_to_give(client, db, unique_phone):
+    # Only stock above the stated ceiling exists. Rather than showing nothing,
+    # the search lifts the budget one step and reports the match as partial.
+    await _seed(client, unique_phone, {"district": "Chilonzor", "rooms": 3, "price": 5_000_000})
+
+    rows, relaxation, _, _ = await shield_ai.search_for_intent(
+        db,
+        SearchIntent(district="Chilonzor", region="Toshkent shahri", rooms=3, max_price=4_000_000),
+    )
+    assert rows
+    assert relaxation == "PARTIAL"
+    assert rows[0].district == "Chilonzor", "the district must not be given up first"
+
+
+async def test_empty_district_falls_back_to_a_neighbour(client, db, unique_phone):
+    # Nothing in Bektemir; Yashnobod borders it and does have stock.
+    await _seed(client, unique_phone, {"district": "Yashnobod", "rooms": 2, "price": 3_000_000})
+
+    rows, relaxation, searched, _ = await shield_ai.search_for_intent(
+        db, SearchIntent(district="Bektemir", region="Toshkent shahri", rooms=2)
+    )
+    assert rows, "a neighbouring district should be searched before giving up"
+    assert relaxation == "NEARBY"
+    assert searched in shield_ai.NEARBY_DISTRICTS["Bektemir"]
+    assert rows[0].district == searched
+
+
+async def test_a_message_with_no_criteria_just_shows_what_exists(client, db, unique_phone):
+    await _seed(client, unique_phone, {"district": "Sergeli"}, {"district": "Mirobod"})
+
+    rows, relaxation, _, _ = await shield_ai.search_for_intent(db, SearchIntent())
+    assert len(rows) == 2
+    assert relaxation == "NONE"
+
+
+async def test_nothing_anywhere_is_reported_honestly(db):
+    rows, relaxation, _, _ = await shield_ai.search_for_intent(
+        db, SearchIntent(district="Chilonzor", region="Toshkent shahri", rooms=3)
+    )
+    assert rows == []
+    # With an empty catalogue the reply must say so rather than imply a match.
+    text = shield_ai.build_fallback_reply(
+        intent=SearchIntent(kind="SEARCH", district="Chilonzor"),
+        count=0,
+        language="uz",
+        user_name=None,
+        is_first_turn=False,
+        relaxation=relaxation,
+        searched_district=None,
+    )
+    assert "topilmadi" in text or "yo'q" in text

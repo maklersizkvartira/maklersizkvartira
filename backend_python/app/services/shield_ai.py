@@ -405,9 +405,11 @@ def _compose_prompt(language: str, user_name: str | None, is_first_turn: bool) -
     lang_name = _LANGUAGE_NAME.get(language, _LANGUAGE_NAME["uz"])
     greeting_rule = (
         "This is their first message, so introduce yourself exactly once, in "
-        "one short sentence: you are Shield AI, the AI assistant of the "
-        "MaklersizUy company. Never say only \"Men Shield AI yordamchisiman\" "
-        "— the company name must be in the introduction."
+        "one short sentence, with all three parts present: the name Shield "
+        "AI, the words \"AI assistant\", and the company name MaklersizUy. "
+        "In Uzbek the required shape is \"Men Shield AI — MaklersizUy "
+        "kompaniyasining AI yordamchisiman\". Never introduce yourself "
+        "without the company name."
         if is_first_turn
         else "You have already introduced yourself earlier in this "
         "conversation. Do NOT greet or introduce yourself again. Continue "
@@ -428,6 +430,16 @@ ORDER OF THE REPLY — this matters:
      own natural voice so it flows into the rest of the message.
   2. Only after that, present the listings as YOUR recommendation.
   3. End with one short, useful next step or question.
+
+WHETHER TO MENTION LISTINGS AT ALL:
+  - "turnIsSearch" in the data tells you whether the visitor is actually
+    looking for somewhere to live on this turn.
+  - When it is false, do NOT mention listings, availability, districts, prices
+    or searching. Saying "there is nothing available in the area you asked
+    about" to someone who only said hello is wrong — they asked about no area.
+    Answer what they said and stop.
+  - When it is true but listingCount is 0, say plainly that nothing matches
+    right now and name one concrete way to widen the search.
 
 PRESENTING LISTINGS:
   - You are given the exact rows the database returned. Talk about those rows
@@ -570,6 +582,12 @@ async def compose_reply(
         "requestedDistrict": intent.district,
         "searchWidenedTo": searched_district if relaxation == "NEARBY" else None,
         "relaxation": relaxation,
+        # Whether listings belong in this reply at all. True when they were
+        # asked for, and true whenever rows were found — a housing question
+        # still ends with a suggestion. False for a greeting with nothing to
+        # show, which is what stopped "hello" being answered with a report on
+        # apartment availability.
+        "turnIsSearch": intent.kind == "SEARCH" or bool(rows),
         "listingCount": len(rows),
         "listings": [_listing_brief(row, i + 1) for i, row in enumerate(rows)],
     }
