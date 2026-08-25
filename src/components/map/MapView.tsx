@@ -19,7 +19,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { createMapEngine, mapProvider } from './engine';
+import { createMapEngine } from './engine';
 import type { LatLng, MapEngine } from './engine';
 import { Image as ImageIcon, List, MapPin, Search, ShieldCheck, X } from 'lucide-react';
 
