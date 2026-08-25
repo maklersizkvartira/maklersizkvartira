@@ -197,14 +197,19 @@ export const Header: React.FC = () => {
             className="flex shrink-0 items-center gap-2"
             aria-label={t('common.brand.name')}
           >
-            {/* Mark only below sm so the bar keeps room for the actions.
+            {/* The name is rendered at every width. It used to be the mark
+                alone below sm, to leave room for the actions — but every one
+                of those is itself hidden below sm except the menu button, so
+                the room was never needed and the brand simply went missing on
+                phones.
+
                 The wrappers own the display utility; passing `hidden` into
                 Logo would collide with its own `inline-flex`. */}
             <span className="hidden sm:block">
               <Logo size="md" />
             </span>
             <span className="sm:hidden">
-              <Logo size="sm" markOnly />
+              <Logo size="sm" />
             </span>
           </button>
 

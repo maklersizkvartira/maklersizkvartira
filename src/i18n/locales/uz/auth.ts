@@ -128,6 +128,10 @@ export const auth = {
       'Hisobingiz yaratildi va telefon raqamingiz tasdiqlandi. Endi maklersiz kvartira izlashingiz mumkin.',
     loggedIn: 'Xush kelibsiz, {name}',
     loggedInBody: 'Tizimga muvaffaqiyatli kirdingiz.',
+    welcomeTitle: 'Xush kelibsiz, {name}!',
+    welcomeThanks:
+      'MaklersizUy loyihasidan ro‘yxatdan o‘tganingiz va bizni tanlaganingiz uchun rahmat.',
+    welcomeDismiss: 'Davom etish uchun bosing',
     redirecting: 'Yo‘naltirilmoqda...',
   },
 

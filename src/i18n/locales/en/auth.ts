@@ -128,6 +128,10 @@ export const auth = {
       'Your account has been created and your phone number verified. You can now look for a flat without a broker.',
     loggedIn: 'Welcome, {name}',
     loggedInBody: 'You have signed in successfully.',
+    welcomeTitle: 'Welcome, {name}!',
+    welcomeThanks:
+      'Thank you for registering with MaklersizUy and for choosing us.',
+    welcomeDismiss: 'Tap to continue',
     redirecting: 'Redirecting...',
   },
 

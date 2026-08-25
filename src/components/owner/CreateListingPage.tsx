@@ -24,6 +24,7 @@ import {
   CheckCircle2,
   Clock,
   Home,
+  Navigation,
   MapPin,
   MessageSquare,
   Phone,
@@ -598,63 +599,26 @@ export const CreateListingPage: React.FC = () => {
                 {stepBadge}
               </header>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label={t('owner.create.location.regionLabel')}>
-                  {({ id }) => (
-                    <div className="relative">
-                      <SelectInput
-                        id={id}
-                        value={region}
-                        onChange={(event) => {
-                          const nextRegion = event.target.value;
-                          setRegion(nextRegion);
-                          const match = UZBEKISTAN_REGIONS.find(
-                            (item) => item.name === nextRegion,
-                          );
-                          if (match) setDistrict(match.districts[0]);
-                        }}
-                       
-                      >
-                        {UZBEKISTAN_REGIONS.map((item) => (
-                          <option key={item.id} value={item.name}>
-                            {item.name}
-                          </option>
-                        ))}
-                      </SelectInput>
-                    </div>
-                  )}
-                </Field>
-
-                <Field label={t('owner.create.location.districtLabel')}>
-                  {({ id }) => (
-                    <div className="relative">
-                      <SelectInput
-                        id={id}
-                        value={district}
-                        onChange={(event) => setDistrict(event.target.value)}
-                       
-                      >
-                        {activeRegion.districts.map((item) => (
-                          <option key={item} value={item}>
-                            {item}
-                          </option>
-                        ))}
-                      </SelectInput>
-                    </div>
-                  )}
-                </Field>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-end">
+              {/* First, because it fills the three fields below it. Everything
+                  underneath is a correction, not data entry. */}
+              <div className="rounded-2xl border border-brand/30 bg-brand-soft p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2.5">
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 text-sm font-black text-brand-text">
+                      <Navigation className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      {t('owner.create.location.gpsTitle')}
+                    </p>
+                    <p className="mt-0.5 text-[11px] font-medium text-muted">
+                      {t('owner.create.location.gpsHint')}
+                    </p>
+                  </div>
                   <Button
-                    variant="secondary"
                     type="button"
                     onClick={detectLocation}
                     loading={gpsBusy}
-                    className="px-3 py-1.5 text-[11px]"
+                    className="shrink-0 px-4 py-2.5 text-xs"
                   >
-                    <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                    <MapPin className="h-4 w-4" aria-hidden="true" />
                     {gpsBusy
                       ? t('owner.create.location.gpsDetecting')
                       : latitude !== null && longitude !== null
@@ -663,63 +627,103 @@ export const CreateListingPage: React.FC = () => {
                   </Button>
                 </div>
 
-                <Field
-                  label={t('owner.create.location.addressLabel')}
-                  required
-                  error={formErrors.address ? tRaw(formErrors.address) : undefined}
-                >
-                  {({ id, describedBy, invalid }) => (
-                    <TextInput
-                      id={id}
-                      aria-describedby={describedBy}
-                      invalid={invalid}
-                      value={address}
-                      onChange={(event) => {
-                        setAddress(event.target.value);
-                        if (event.target.value.trim()) {
-                          setFormErrors((current) => ({ ...current, address: '' }));
-                        }
-                      }}
-                      placeholder={t('owner.create.location.addressPlaceholder')}
-                    />
-                  )}
-                </Field>
-
                 {gpsNotice && (
-                  <p className="flex items-start gap-1.5 rounded-xl border border-line bg-brand-soft p-2.5 text-xs font-bold text-brand-text">
+                  <p className="mt-2.5 flex items-start gap-1.5 rounded-xl bg-surface p-2.5 text-xs font-bold text-brand-text">
                     <CheckCircle2 className="mt-px h-4 w-4 shrink-0" aria-hidden="true" />
                     <span>{tRaw(gpsNotice.key, gpsNotice.params)}</span>
                   </p>
                 )}
                 {gpsError && (
-                  <FormError message={tRaw(gpsError.key, gpsError.params)} />
+                  <div className="mt-2.5">
+                    <FormError message={tRaw(gpsError.key, gpsError.params)} />
+                  </div>
                 )}
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label={t('owner.create.location.regionLabel')}>
+                  {({ id }) => (
+                    <SelectInput
+                      id={id}
+                      value={region}
+                      onChange={(event) => {
+                        const nextRegion = event.target.value;
+                        setRegion(nextRegion);
+                        const match = UZBEKISTAN_REGIONS.find(
+                          (item) => item.name === nextRegion,
+                        );
+                        if (match) setDistrict(match.districts[0]);
+                      }}
+                    >
+                      {UZBEKISTAN_REGIONS.map((item) => (
+                        <option key={item.id} value={item.name}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </SelectInput>
+                  )}
+                </Field>
+
+                <Field label={t('owner.create.location.districtLabel')}>
+                  {({ id }) => (
+                    <SelectInput
+                      id={id}
+                      value={district}
+                      onChange={(event) => setDistrict(event.target.value)}
+                    >
+                      {activeRegion.districts.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </SelectInput>
+                  )}
+                </Field>
+              </div>
+
+              <Field
+                label={t('owner.create.location.addressLabel')}
+                required
+                error={formErrors.address ? tRaw(formErrors.address) : undefined}
+              >
+                {({ id, describedBy, invalid }) => (
+                  <TextInput
+                    id={id}
+                    aria-describedby={describedBy}
+                    invalid={invalid}
+                    value={address}
+                    onChange={(event) => {
+                      setAddress(event.target.value);
+                      if (event.target.value.trim()) {
+                        setFormErrors((current) => ({ ...current, address: '' }));
+                      }
+                    }}
+                    placeholder={t('owner.create.location.addressPlaceholder')}
+                  />
+                )}
+              </Field>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label={t('owner.create.location.metroLabel')}>
                   {({ id }) => (
-                    <div className="relative">
-                      <SelectInput
-                        id={id}
-                        value={metro}
-                        onChange={(event) => setMetro(event.target.value)}
-                       
-                      >
-                        <option value={METRO_NONE}>
-                          {t('owner.create.location.metroNone')}
-                        </option>
-                        {TASHKENT_METRO_LINES.map((line) => (
-                          <optgroup key={line.id} label={line.name}>
-                            {line.stations.map((station) => (
-                              <option key={station} value={station}>
-                                {t('owner.create.location.metroOption', { station })}
-                              </option>
-                            ))}
-                          </optgroup>
-                        ))}
-                      </SelectInput>
-                    </div>
+                    <SelectInput
+                      id={id}
+                      value={metro}
+                      onChange={(event) => setMetro(event.target.value)}
+                    >
+                      <option value={METRO_NONE}>
+                        {t('owner.create.location.metroNone')}
+                      </option>
+                      {TASHKENT_METRO_LINES.map((line) => (
+                        <optgroup key={line.id} label={line.name}>
+                          {line.stations.map((station) => (
+                            <option key={station} value={station}>
+                              {t('owner.create.location.metroOption', { station })}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </SelectInput>
                   )}
                 </Field>
 

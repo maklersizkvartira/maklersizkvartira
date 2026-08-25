@@ -53,6 +53,8 @@ export const owner = {
       addressLabel: 'Ko‘cha va mo‘ljal (aniq manzil)',
       addressPlaceholder:
         'Masalan: Mustaqillik shoh ko‘chasi, 14-uy (mo‘ljal: Mirzo Ulug‘bek metrosi)',
+      gpsTitle: 'Joylashuvni avtomatik aniqlash',
+      gpsHint: 'Bir bosishda viloyat, tuman va ko‘cha o‘zi to‘ldiriladi.',
       gpsDetect: 'GPS orqali aniqlash',
       gpsDetecting: 'Aniqlanmoqda...',
       gpsDetected: 'GPS aniqlandi',

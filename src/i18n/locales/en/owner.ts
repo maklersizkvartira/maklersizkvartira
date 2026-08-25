@@ -51,6 +51,8 @@ export const owner = {
       addressLabel: 'Street and landmark (exact address)',
       addressPlaceholder:
         'For example: Mustaqillik avenue 14 (landmark: Mirzo Ulugbek metro station)',
+      gpsTitle: 'Detect the location automatically',
+      gpsHint: 'One tap fills the region, district and street for you.',
       gpsDetect: 'Detect with GPS',
       gpsDetecting: 'Detecting...',
       gpsDetected: 'GPS detected',

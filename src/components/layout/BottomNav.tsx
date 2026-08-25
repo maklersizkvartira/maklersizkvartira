@@ -49,7 +49,11 @@ export const BottomNav: React.FC = () => {
           const active = currentView === tab.view;
           if (tab.primary) {
             return (
-              <li key={tab.view} className="flex items-center px-1">
+              // `flex-1` like every other tab, so all five columns are equal
+              // and the third one is the true centre. Without it this item was
+              // only as wide as its button while the others grew, which slid
+              // the "+" off-centre to the left.
+              <li key={tab.view} className="flex flex-1 items-center justify-center">
                 <button
                   type="button"
                   onClick={() => open(tab)}

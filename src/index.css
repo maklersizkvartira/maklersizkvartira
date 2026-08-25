@@ -416,3 +416,61 @@ select optgroup {
   background-color: var(--color-surface);
   color: var(--color-content);
 }
+
+/* ---------------------------------------------------------------------------
+   Registration welcome.
+
+   Staged on purpose: ring, mark, wordmark, then the message, so the eye
+   follows one thing at a time instead of a finished screen appearing at once.
+   `prefers-reduced-motion` collapses the whole sequence to a plain fade —
+   a celebration is exactly the kind of thing that should not lurch for
+   someone who asked for less movement.
+--------------------------------------------------------------------------- */
+@keyframes welcome-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes welcome-out {
+  from { opacity: 1; }
+  to { opacity: 0; transform: scale(0.98); }
+}
+@keyframes welcome-mark {
+  0% { opacity: 0; transform: scale(0.4) rotate(-12deg); }
+  60% { opacity: 1; transform: scale(1.08) rotate(3deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+@keyframes welcome-ring {
+  0% { opacity: 0; transform: scale(0.6); }
+  50% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.6); }
+}
+@keyframes welcome-step {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes welcome-progress {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+.welcome-overlay { background: var(--overlay); }
+.animate-welcome-in { animation: welcome-in 420ms ease-out both; }
+.animate-welcome-out { animation: welcome-out 420ms ease-in both; }
+.animate-welcome-mark { animation: welcome-mark 900ms cubic-bezier(0.34, 1.56, 0.64, 1) 120ms both; }
+.animate-welcome-ring { animation: welcome-ring 1600ms ease-out 320ms infinite; }
+.animate-welcome-step-1 { animation: welcome-step 600ms ease-out 700ms both; }
+.animate-welcome-step-2 { animation: welcome-step 600ms ease-out 1050ms both; }
+.animate-welcome-step-3 { animation: welcome-step 600ms ease-out 1400ms both; }
+/* Runs for the hold, so the bar empties exactly as the panel closes. */
+.animate-welcome-progress { animation: welcome-progress 5200ms linear both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-welcome-mark,
+  .animate-welcome-step-1,
+  .animate-welcome-step-2,
+  .animate-welcome-step-3 {
+    animation: welcome-in 200ms ease-out both;
+  }
+  .animate-welcome-ring { animation: none; opacity: 0; }
+  .animate-welcome-progress { animation: welcome-progress 5200ms linear both; }
+}

@@ -36,6 +36,7 @@ import { ApiError } from '../../services/http';
 import { useAppStore } from '../../stores/useAppStore';
 import { Logo } from '../brand/Logo';
 import { CodeInput } from './CodeInput';
+import { WelcomeCelebration } from './WelcomeCelebration';
 import { useAuthErrors } from './useAuthErrors';
 import {
   Button,
@@ -134,6 +135,7 @@ export const AuthDialog: React.FC = () => {
   const [maskedPhone, setMaskedPhone] = useState('');
   const [devCode, setDevCode] = useState<string | null>(null);
   const [signedInUser, setSignedInUser] = useState<ApiUser | null>(null);
+  const [celebrateName, setCelebrateName] = useState<string | null>(null);
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<Element | null>(null);
@@ -222,10 +224,18 @@ export const AuthDialog: React.FC = () => {
     if (caught instanceof ApiError && caught.code === 'otp_invalid') setCode('');
   };
 
-  const succeed = (user: ApiUser) => {
+  const succeed = (user: ApiUser, celebrate = false) => {
     setSignedInUser(user);
     setStep('DONE');
     login(user);
+
+    // Signing in is routine and the dialog should get out of the way. Joining
+    // happens once, so it gets the welcome instead of a 1.8-second checkmark
+    // — and the dialog stays open underneath until that has been dismissed.
+    if (celebrate) {
+      setCelebrateName(user.name);
+      return;
+    }
     // Tracked so a reopened dialog is not closed by the previous run's timer.
     successTimer.current = setTimeout(close, 1800);
   };
@@ -320,7 +330,7 @@ export const AuthDialog: React.FC = () => {
     setFieldError(undefined);
     setBusy(true);
     try {
-      succeed(await AuthApi.verifyCode(phoneDigits(phone), value));
+      succeed(await AuthApi.verifyCode(phoneDigits(phone), value), true);
     } catch (caught) {
       fail(caught);
     } finally {
@@ -845,6 +855,18 @@ export const AuthDialog: React.FC = () => {
         return null;
     }
   };
+
+  if (celebrateName !== null) {
+    return (
+      <WelcomeCelebration
+        name={celebrateName}
+        onDone={() => {
+          setCelebrateName(null);
+          close();
+        }}
+      />
+    );
+  }
 
   return createPortal(
     <div
