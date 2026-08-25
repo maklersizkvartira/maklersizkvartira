@@ -1,7 +1,7 @@
 /** Mobile tab bar. */
 
 import React from 'react';
-import { Heart, Home, Map, Plus, Search, User as UserIcon } from 'lucide-react';
+import { Heart, Home, Plus, Search, User as UserIcon } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { useAppStore, type ViewState } from '../../stores/useAppStore';
@@ -13,11 +13,21 @@ interface Tab {
   primary?: boolean;
 }
 
+/**
+ * Five tabs, and the count is the point.
+ *
+ * The raised "+" is the middle column, so the row has to hold an odd number of
+ * items — with six, the centre of the bar falls on the boundary *between* two
+ * columns and no column can sit on it. Adding a sixth tab is what pushed the
+ * button off to the left.
+ *
+ * The map is not here for that reason. It stays one tap away in the header
+ * menu, which on mobile lists every primary destination.
+ */
 const TABS: Tab[] = [
   { view: 'HOME', labelKey: 'layout.nav.home', icon: Home },
   { view: 'LISTINGS', labelKey: 'layout.nav.listings', icon: Search },
   { view: 'CREATE_LISTING', labelKey: 'layout.nav.createListing', icon: Plus, primary: true },
-  { view: 'MAP', labelKey: 'layout.nav.map', icon: Map },
   { view: 'FAVORITES', labelKey: 'layout.nav.favorites', icon: Heart },
   { view: 'PROFILE', labelKey: 'layout.nav.profile', icon: UserIcon },
 ];
