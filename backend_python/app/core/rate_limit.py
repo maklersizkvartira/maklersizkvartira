@@ -129,6 +129,9 @@ def _rules() -> dict[str, RateLimitRule]:
         ),
         "listing_write": RateLimitRule("listing_write", 60, 3600),
         "ai_chat": RateLimitRule("ai_chat", 30, 3600),
+        # Admin recovery. Three attempts an hour is plenty for a real
+        # recovery and useless for guessing at the token.
+        "bootstrap_admin": RateLimitRule("bootstrap_admin", 3, 3600),
         "stat_ip": RateLimitRule("stat_ip", 240, 3600),
         "report_ip": RateLimitRule("report_ip", 10, 3600),
         "admin_login_ip": RateLimitRule("admin_login_ip", 8, 900),

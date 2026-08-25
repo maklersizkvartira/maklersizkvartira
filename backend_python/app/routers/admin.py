@@ -10,16 +10,19 @@ feed reads back.
 
 from __future__ import annotations
 
+import secrets
+
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy import String, and_, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import audit as audit_log
 from app.core.config import settings
+from app.core.database import commit_then_raise
 from app.core.deps import (
     CurrentAdmin,
     DbSession,
@@ -180,29 +183,80 @@ async def admin_me(admin: CurrentAdmin) -> dict:
     return _ok(AdminOut.model_validate(admin).model_dump(by_alias=True))
 
 
-@router.get("/auth/bootstrap-reset-admin", summary="Temporary endpoint to reset admin from env")
-async def bootstrap_reset_admin(db: DbSession) -> dict:
-    username = settings.BOOTSTRAP_ADMIN_USERNAME or "admin"
-    password = settings.BOOTSTRAP_ADMIN_PASSWORD
-    if not password:
-        return {"error": "BOOTSTRAP_ADMIN_PASSWORD is not set in Railway variables."}
-    
-    from app.core.security import hash_password
+@router.post(
+    "/auth/bootstrap-reset-admin",
+    summary="Recreate or reset the first administrator",
+)
+async def bootstrap_reset_admin(
+    db: DbSession, ctx: RequestCtx, token: str = Header(default="", alias="X-Bootstrap-Token")
+) -> dict:
+    """Recover the first admin account when nobody can sign in any more.
+
+    This used to be a GET with no authentication at all. Anyone who knew the
+    URL could reset the administrator's password to whatever the environment
+    held and, as a side effect of bumping ``token_version``, sign the real
+    administrator out — repeatedly, from a browser address bar, with no trace
+    beyond the change itself.
+
+    Three things now stand in the way:
+
+    * It is off unless ``BOOTSTRAP_TOKEN`` is set, and answers 404 otherwise,
+      so the door is not merely locked but absent. Set it to run a recovery,
+      then remove it again.
+    * It requires that token in a header, compared in constant time. A header
+      cannot be triggered by a link, an image tag or a redirect, which is what
+      made the GET form usable as a drive-by.
+    * It is rate limited and written to the audit log at CRITICAL, because an
+      administrator's credentials changing is exactly the event someone should
+      be able to find afterwards.
+
+    ``scripts/create_admin.py`` remains the ordinary way to do this; it needs
+    no open endpoint at all.
+    """
     from sqlalchemy import select
-    from app.models.user import AdminUser
+
+    from app.core.security import hash_password
     from app.models.enums import AdminRole
-    
+    from app.models.user import AdminUser
+
+    expected = (settings.BOOTSTRAP_TOKEN or "").strip()
+    if not expected:
+        raise NotFound("not_found")
+
+    await enforce("bootstrap_admin", ctx.ip or "unknown")
+
+    if not secrets.compare_digest(token.strip(), expected):
+        await audit_log.record(
+            db,
+            AuditAction.ADMIN_LOGIN_FAILED,
+            actor_type="SYSTEM",
+            entity_type="admin",
+            summary="Bootstrap admin reset attempted with a bad token",
+            severity="CRITICAL",
+            meta={"ip": ctx.ip},
+        )
+        await commit_then_raise(db, Forbidden("forbidden"))
+
+    password = (settings.BOOTSTRAP_ADMIN_PASSWORD or "").strip()
+    if not password:
+        raise BadRequest("bootstrap_password_missing")
+
+    username = settings.BOOTSTRAP_ADMIN_USERNAME or "admin"
     existing = (
         await db.execute(select(AdminUser).where(AdminUser.username == username))
     ).scalar_one_or_none()
 
-    if existing:
+    if existing is not None:
         existing.password_hash = hash_password(password)
         existing.must_change_password = True
+        # Retires every token issued to this account, including any an
+        # attacker may hold.
         existing.token_version += 1
+        existing.is_active = True
+        entity_id = existing.id
         action = "reset"
     else:
-        admin = AdminUser(
+        created = AdminUser(
             username=username,
             full_name="Bosh administrator",
             password_hash=hash_password(password),
@@ -210,11 +264,32 @@ async def bootstrap_reset_admin(db: DbSession) -> dict:
             is_active=True,
             must_change_password=True,
         )
-        db.add(admin)
+        db.add(created)
+        await db.flush()
+        entity_id = created.id
         action = "created"
-    
-    await db.commit()
-    return {"status": "success", "action": action, "username": username, "message": "You can now login with the password you set in Railway."}
+
+    await audit_log.record(
+        db,
+        AuditAction.ADMIN_LOGIN_SUCCESS,
+        actor_type="SYSTEM",
+        entity_type="admin",
+        entity_id=entity_id,
+        entity_label=username,
+        summary=f"Bootstrap administrator {action}",
+        severity="CRITICAL",
+        meta={"action": action, "username": username, "ip": ctx.ip},
+    )
+
+    return {
+        "status": "success",
+        "action": action,
+        "username": username,
+        "message": (
+            "Sign in with the password from BOOTSTRAP_ADMIN_PASSWORD, change it, "
+            "then unset BOOTSTRAP_TOKEN."
+        ),
+    }
 
 
 # ===========================================================================

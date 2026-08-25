@@ -524,3 +524,48 @@ async def test_a_granted_role_survives_a_profile_update(client, db, unique_phone
     assert payload["role"] == "DEVELOPER", "the granted role was overwritten"
     # The rest of the update still applies — only the role is protected.
     assert payload["name"] == "Yangi Ism"
+
+
+# ---------------------------------------------------------------------------
+# Admin recovery endpoint
+# ---------------------------------------------------------------------------
+"""This route reset the administrator's password with no authentication at
+all, over GET, from a browser address bar — and bumped token_version as a side
+effect, signing the real administrator out. These pin the door shut."""
+
+
+async def test_admin_recovery_does_not_exist_without_a_token(client):
+    # Off by default: the door should be absent, not merely locked.
+    response = await client.post("/api/v1/admin/auth/bootstrap-reset-admin")
+    assert response.status_code == 404
+
+
+async def test_admin_recovery_rejects_get(client):
+    # A GET is reachable from a link, an image tag or a redirect, which is
+    # what made the original usable as a drive-by.
+    response = await client.get("/api/v1/admin/auth/bootstrap-reset-admin")
+    assert response.status_code in (404, 405)
+
+
+async def test_admin_recovery_needs_the_right_token(client, monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "BOOTSTRAP_TOKEN", "the-real-token", raising=False)
+    monkeypatch.setattr(settings, "BOOTSTRAP_ADMIN_PASSWORD", "Recovery2026x", raising=False)
+    monkeypatch.setattr(settings, "BOOTSTRAP_ADMIN_USERNAME", "recovered", raising=False)
+
+    missing = await client.post("/api/v1/admin/auth/bootstrap-reset-admin")
+    assert missing.status_code == 403, "no token must not be accepted"
+
+    wrong = await client.post(
+        "/api/v1/admin/auth/bootstrap-reset-admin",
+        headers={"X-Bootstrap-Token": "not-it"},
+    )
+    assert wrong.status_code == 403
+
+    right = await client.post(
+        "/api/v1/admin/auth/bootstrap-reset-admin",
+        headers={"X-Bootstrap-Token": "the-real-token"},
+    )
+    assert right.status_code == 200, right.text
+    assert right.json()["username"] == "recovered"

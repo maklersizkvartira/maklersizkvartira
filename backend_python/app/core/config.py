@@ -131,6 +131,10 @@ class Settings(BaseSettings):
     # Used once by scripts/create_admin.py; not read at request time.
     BOOTSTRAP_ADMIN_USERNAME: str = ""
     BOOTSTRAP_ADMIN_PASSWORD: str = ""
+    #: Gate for the admin-recovery endpoint. Empty means the route answers 404
+    #: — the door is absent, not merely locked. Set it only while running a
+    #: recovery, then unset it again.
+    BOOTSTRAP_TOKEN: str = ""
 
     # -- Derived -------------------------------------------------------------
     @property
