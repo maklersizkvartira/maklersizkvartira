@@ -93,12 +93,15 @@ RATE_LIMIT_OTP_PER_HOUR=12
 RATE_LIMIT_LISTING_CREATE_PER_HOUR=5
 RATE_LIMIT_AI_PER_DAY=10
 
-# ── SMS (DevSMS) — OFF until the provider is connected ───────────────────
-# With this false the app does not call DevSMS at all. Read "Working without
-# SMS" below: public signup cannot complete while it is off.
-SMS_ENABLED=false
+# ── SMS (DevSMS) ─────────────────────────────────────────────────────────
+SMS_ENABLED=true
+DEVSMS_API_URL=https://devsms.uz/api
 DEVSMS_SENDER=4546
-# DEVSMS_API_TOKEN=PASTE_ROTATED_DEVSMS_TOKEN
+DEVSMS_API_TOKEN=PASTE_DEVSMS_TOKEN
+# The company name inside a verification SMS. The provider screens it on every
+# send and twenty consecutive rejections suspend the account for a day, so it
+# is a variable: if screening ever objects, change it without a deploy.
+DEVSMS_SERVICE_NAME=MaklersizUy
 
 # ── Telegram operations group ────────────────────────────────────────────
 TELEGRAM_GROUP_ID=-1003935734144
@@ -171,37 +174,53 @@ service's `DATABASE_PUBLIC_URL` instead.
 
 ---
 
-## Working without SMS
+## SMS
 
-`SMS_ENABLED=false` means no code is ever delivered, and
-`OTP_DEBUG_RETURN_CODE` cannot be enabled in production (the guard refuses to
-start). So **public signup cannot be completed** while SMS is off: a visitor
-reaches the verification screen and waits for a code that never arrives.
+Verification codes go through DevSMS, which forwards to Eskiz.
 
-Until DevSMS is connected, create accounts directly instead. In the Railway
-service shell:
+**Codes use the provider's universal-OTP templates, not our own text.** Eskiz
+only delivers messages matching a template approved in advance, so free text
+is refused — per message, silently, and only for real users. The four
+universal templates are approved already and the app picks one by purpose:
 
-```bash
-python -m scripts.create_account --phone "+998777850737" --password "MaklersizUy!" --name "Test Akkaunt" --role OWNER
+| Purpose | Template | Delivered text |
+|---|---|---|
+| Signing up | 3 | `... {name} xizmatiga ro'yxatdan o'tish uchun tasdiqlash kodi: {code}` |
+| Signing in | 4 | `... xizmatiga kirish uchun ...` |
+| Password reset | 2 | `... xizmatida parolni tiklash uchun ...` |
+| Phone change | 1 | `... xizmatida amaliyotni tasdiqlash ...` |
+
+The wording is Eskiz's, in Uzbek, whatever language the visitor is using —
+that is a provider constraint, not a choice.
+
+### Credit
+
+Each message costs 200 so'm. **Running out stops signup dead** and nothing in
+the app explains why: the code is generated, the send fails, the visitor sees
+a generic error. The startup log prints the balance and shouts below fifty:
+
+```
+preflight: sms=on balance=10000 price=200 remaining=50
 ```
 
-The account is created ACTIVE with the phone already marked verified, so it
-signs in with phone + password and is never asked for a code. Re-running the
-same command with a different `--password` resets it.
+Top up at [devsms.uz](https://devsms.uz). Every attempt is also recorded in
+`sms_logs` with its provider id, cost and status — the code itself is never
+stored.
 
-`--role OWNER` can post listings; `--role STUDENT` can only browse and save.
+### Turning it off
 
-Two constraints the password must satisfy (the same policy real users get):
-at least 8 characters with two character classes, and it may not contain the
-account name or the phone number. `MaklersizUy!` passes with the name
-"Test Akkaunt", but would be rejected if the name were "Maklersiz Uy".
+Set `SMS_ENABLED=false`. Public signup then cannot complete, so seed accounts
+directly instead:
 
-Seeded accounts appear in the admin activity feed as a WARNING-level row, so
-they are not invisible.
+```bash
+python -m scripts.create_account --phone "+998777850737" --password "..." --name "..." --role OWNER
+```
 
-When DevSMS is ready: set `SMS_ENABLED=true`, add the rotated
-`DEVSMS_API_TOKEN`, redeploy. Normal signup starts working immediately and
-the seeded accounts keep working unchanged.
+The account is created ACTIVE with the phone already verified, so it signs in
+with phone + password and is never asked for a code. `--role DEVELOPER` grants
+full access to every user-side capability, including an assistant with no
+daily limit.
+
 
 ---
 
