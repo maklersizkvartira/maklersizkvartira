@@ -248,7 +248,29 @@ VITE_FIREBASE_API_KEY=<your firebase web api key>
 VITE_FIREBASE_AUTH_DOMAIN=maklersiz-uy.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=maklersiz-uy
 VITE_FIREBASE_APP_ID=<your firebase app id>
+
+# Yandex — optional, but this is what makes the map and the GPS button good
+VITE_YANDEX_MAPS_API_KEY=<JavaScript API and Geocoder key>
 ```
+
+## Yandex maps and geocoding
+
+Without these the site still works: the map falls back to Leaflet with Carto
+tiles, and the listing form's GPS button reverse-geocodes through Nominatim.
+Both are noticeably worse here — Nominatim's Uzbek district coverage is patchy
+and it rate-limits everyone sharing an IP to one request per second, which is
+why the GPS button sometimes filled nothing in.
+
+Two keys from [developer.tech.yandex.ru](https://developer.tech.yandex.ru/):
+
+| Key | What it powers |
+|---|---|
+| **JavaScript API and Geocoder** | the map itself, and address lookup |
+| Geocoder (separate key, optional) | set `VITE_YANDEX_GEOCODER_API_KEY` if you issue one; otherwise the maps key is used for both |
+
+The free tier covers ordinary traffic. The key is compiled into the bundle and
+is public by design — restrict it to your domain in the Yandex console, which
+is what stops someone else spending your quota.
 
 Firebase web config is publishable by design — the backend verifies the ID
 token's signature against Google's certificates before trusting any claim in

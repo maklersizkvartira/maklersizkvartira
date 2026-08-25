@@ -41,6 +41,11 @@ import { ListingsApi, type ModerationResult } from '../../services/listingsApi';
 import { useAppStore } from '../../stores/useAppStore';
 import { Button, Field, FormError, SelectInput, TextInput } from '../ui/Field';
 import { canPublishListings } from '../../types/roles';
+import {
+  districtCentre,
+  reverseGeocode,
+  TASHKENT_CITY,
+} from '../../services/geocoding';
 
 /** Stored value for "no metro nearby"; the label is translated at render time. */
 const METRO_NONE = 'NONE';
@@ -60,101 +65,6 @@ const checkboxRowClass =
 const textareaClass =
   'w-full rounded-xl border border-line bg-surface-2 p-3.5 text-sm font-medium text-content ' +
   'transition-colors placeholder:text-subtle focus:border-brand focus:bg-surface focus:outline-none';
-
-/** Rough district centres, used when the browser gives coordinates but the
- *  reverse geocoder cannot name the district. Proper nouns, never translated. */
-const DISTRICT_COORDINATES: Record<string, [number, number]> = {
-  Chilonzor: [41.278, 69.208],
-  Yunusobod: [41.365, 69.292],
-  Mirobod: [41.3005, 69.274],
-  Yakkasaroy: [41.289, 69.255],
-  Sergeli: [41.225, 69.22],
-  Uchtepa: [41.295, 69.175],
-  Olmazor: [41.349, 69.208],
-  Yashnobod: [41.29, 69.34],
-  Shayxontohur: [41.32, 69.24],
-  'Mirzo Ulugʻbek': [41.335, 69.33],
-  Bektemir: [41.21, 69.33],
-  Yangihayot: [41.2, 69.21],
-  'Samarqand sh.': [39.6542, 66.9597],
-  "Farg'ona sh.": [40.3842, 71.7843],
-  'Andijon sh.': [40.7821, 72.3442],
-  'Namangan sh.': [41.0011, 71.6683],
-  'Buxoro sh.': [39.7747, 64.4286],
-  'Qarshi sh.': [38.8606, 65.7891],
-  'Termiz sh.': [37.2242, 67.2783],
-  'Urganch sh.': [41.5504, 60.6317],
-  'Navoiy sh.': [40.0844, 65.3792],
-  'Jizzax sh.': [40.1158, 67.8422],
-  'Nukus sh.': [42.4619, 59.6166],
-};
-
-const TASHKENT_CITY = 'Toshkent shahri';
-
-interface GeoMatch {
-  region: string;
-  district: string;
-  street: string;
-}
-
-/** Best-effort reverse geocode. Never throws: GPS is a convenience here. */
-async function reverseGeocode(latitude: number, longitude: number): Promise<GeoMatch> {
-  let region = TASHKENT_CITY;
-  let district = '';
-  let street = '';
-
-  try {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
-    );
-    if (response.ok) {
-      const data: { address?: Record<string, string> } = await response.json();
-      const address = data.address ?? {};
-
-      const stateOrCity = address.state || address.city || address.region || '';
-      for (const candidate of UZBEKISTAN_REGIONS) {
-        const core = candidate.name.toLowerCase().replace(' viloyati', '').replace(' shahri', '');
-        if (stateOrCity.toLowerCase().includes(core)) {
-          region = candidate.name;
-          break;
-        }
-      }
-
-      const regionData =
-        UZBEKISTAN_REGIONS.find((item) => item.name === region) ?? UZBEKISTAN_REGIONS[0];
-      const rawDistrict =
-        address.city_district || address.suburb || address.district || address.county ||
-        address.town || '';
-      if (rawDistrict) {
-        const normalise = (value: string) => value.toLowerCase().replace(/['ʻ’]/g, '');
-        for (const candidate of regionData.districts) {
-          if (normalise(rawDistrict).includes(normalise(candidate))) {
-            district = candidate;
-            break;
-          }
-        }
-      }
-
-      const road = address.road || address.street || address.neighbourhood || address.suburb || '';
-      if (road) street = address.house_number ? `${road}, ${address.house_number}` : road;
-    }
-  } catch {
-    /* offline or rate-limited — fall through to the coordinate match */
-  }
-
-  if (!district) {
-    let closest = Infinity;
-    for (const [name, [dLat, dLng]] of Object.entries(DISTRICT_COORDINATES)) {
-      const distance = Math.hypot(latitude - dLat, longitude - dLng);
-      if (distance < closest) {
-        closest = distance;
-        district = name;
-      }
-    }
-  }
-
-  return { region, district, street };
-}
 
 /** Approximate byte size of a base64 data URL, without decoding it. */
 function dataUrlBytes(dataUrl: string): number {
@@ -467,7 +377,7 @@ export const CreateListingPage: React.FC = () => {
   // -- Submit ----------------------------------------------------------------
   const coordinates = (): { latitude: number; longitude: number } => {
     if (latitude !== null && longitude !== null) return { latitude, longitude };
-    const fallback = DISTRICT_COORDINATES[district] ?? [41.311, 69.279];
+    const fallback = districtCentre(district);
     return { latitude: fallback[0], longitude: fallback[1] };
   };
 
