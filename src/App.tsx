@@ -136,9 +136,28 @@ export const App: React.FC = () => {
   const currentUser = useAppStore((state) => state.currentUser);
   const pushToast = useAppStore((state) => state.pushToast);
 
+  const fetchUnreadChatCount = useAppStore((state) => state.fetchUnreadChatCount);
+
   useEffect(() => {
     void initAuth();
+  }, [initAuth]);
 
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval>;
+    if (currentUser) {
+      intervalId = setInterval(() => {
+        if (useAppStore.getState().currentView !== 'CHAT') {
+          void fetchUnreadChatCount();
+        }
+      }, 15000); // Poll every 15 seconds
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [currentUser, fetchUnreadChatCount]);
+
+  useEffect(() => {
     // A rejected refresh signs the user out and says so, instead of leaving
     // the UI in a half-authenticated state.
     setSessionExpiredHandler(() => {
