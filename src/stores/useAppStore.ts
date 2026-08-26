@@ -127,6 +127,9 @@ interface AppState {
   fetchFeatured: () => Promise<void>;
   fetchMyListings: () => Promise<void>;
   fetchFavorites: () => Promise<void>;
+  activeListingId: string | null;
+  activeConversationId: string | null;
+  setCurrentView: (view: ViewState, id?: string, conversationId?: string) => void;
   toggleFavorite: (listingId: string) => Promise<void>;
   removeListing: (listingId: string) => Promise<void>;
   recordView: (listingId: string) => void;
@@ -278,8 +281,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   // -- Navigation ----------------------------------------------------------
   currentView: 'HOME',
   selectedListingId: null,
-  setCurrentView: (view, listingId = null) => {
-    set({ currentView: view, selectedListingId: listingId ?? get().selectedListingId });
+  setCurrentView: (view, listingId = null, conversationId = null) => {
+    set({ 
+      currentView: view, 
+      selectedListingId: listingId ?? get().selectedListingId,
+      activeConversationId: conversationId ?? (view === 'CHAT' ? get().activeConversationId : null) 
+    });
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       try {
