@@ -20,12 +20,12 @@ import unicodedata
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Response
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, select
 
 from app.core.config import settings
 from app.core.deps import DbSession
-from app.models.enums import ListingStatus
 from app.models.listing import Listing
+from app.services.listings import visible_clause
 
 router = APIRouter(tags=["seo"])
 
@@ -39,15 +39,6 @@ LANGUAGE_PREFIX = {"uz": "", "ru": "/ru", "en": "/en"}
 
 #: Every apostrophe Uzbek Latin uses for oʻ, gʻ and the glottal stop.
 _APOSTROPHES = "'‘’ʻʼ`´"
-
-
-def _visible_clause():
-    now = datetime.now(timezone.utc)
-    return and_(
-        Listing.deleted_at.is_(None),
-        Listing.status == ListingStatus.APPROVED.value,
-        or_(Listing.expires_at.is_(None), Listing.expires_at > now),
-    )
 
 
 def slugify(value: str) -> str:
@@ -114,7 +105,7 @@ async def sitemap_listings(db: DbSession) -> Response:
                 Listing.district,
                 Listing.updated_at,
             )
-            .where(_visible_clause())
+            .where(visible_clause())
             .order_by(Listing.created_at.desc())
             .limit(MAX_URLS)
         )
@@ -177,7 +168,7 @@ async def seo_facets(db: DbSession) -> dict:
         rows = (
             await db.execute(
                 select(column, func.count())
-                .where(and_(_visible_clause(), column.isnot(None)))
+                .where(and_(visible_clause(), column.isnot(None)))
                 .group_by(column)
             )
         ).all()
@@ -186,12 +177,12 @@ async def seo_facets(db: DbSession) -> dict:
     roommate = (
         await db.execute(
             select(func.count()).where(
-                and_(_visible_clause(), Listing.is_roommate.is_(True))
+                and_(visible_clause(), Listing.is_roommate.is_(True))
             )
         )
     ).scalar_one()
 
-    total = (await db.execute(select(func.count()).where(_visible_clause()))).scalar_one()
+    total = (await db.execute(select(func.count()).where(visible_clause()))).scalar_one()
 
     return {
         "status": "success",
