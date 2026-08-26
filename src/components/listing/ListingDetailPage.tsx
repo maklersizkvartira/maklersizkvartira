@@ -1025,20 +1025,27 @@ export const ListingDetailPage: React.FC = () => {
 
             {/* Contact */}
             <div className="space-y-3">
-              {/* In-app messaging has no endpoint yet: the control stays, visibly
-                  disabled, instead of vanishing between releases. */}
               <Button
                 variant="secondary"
                 fullWidth
-                disabled
-                title={t('listings.detail.chatUnavailable')}
+                disabled={listing.owner.id === currentUser?.id}
+                onClick={async () => {
+                  if (!currentUser) {
+                    setShowAuth(true, 'LOGIN');
+                    return;
+                  }
+                  try {
+                    const { chatApi } = await import('../../services/chatApi');
+                    const conv = await chatApi.startOrGetConversation(listing.id);
+                    setCurrentView('CHAT', null, conv.id);
+                  } catch (e) {
+                    useAppStore.getState().pushToast('common.error.generic', 'error');
+                  }
+                }}
               >
                 <MessageSquare className="h-4 w-4" aria-hidden="true" />
                 {t('listings.card.contactOwner')}
               </Button>
-              <p className="text-[11px] leading-tight text-subtle">
-                {t('listings.detail.chatUnavailable')}
-              </p>
 
               {phoneVisible && ownerPhone ? (
                 <a

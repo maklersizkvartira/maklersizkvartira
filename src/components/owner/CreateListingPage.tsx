@@ -704,25 +704,35 @@ export const CreateListingPage: React.FC = () => {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label={t('owner.create.location.metroLabel')}>
-                  {({ id }) => (
-                    <SelectInput
-                      id={id}
-                      value={metro}
-                      onChange={(event) => setMetro(event.target.value)}
-                    >
-                      <option value={METRO_NONE}>
-                        {t('owner.create.location.metroNone')}
-                      </option>
+                  {() => (
+                    <div className="max-h-60 overflow-y-auto rounded-xl border border-divider p-2 bg-surface">
                       {TASHKENT_METRO_LINES.map((line) => (
-                        <optgroup key={line.id} label={line.name}>
-                          {line.stations.map((station) => (
-                            <option key={station} value={station}>
-                              {t('owner.create.location.metroOption', { station })}
-                            </option>
-                          ))}
-                        </optgroup>
+                        <div key={line.id} className="mb-2 last:mb-0">
+                          <div className="px-2 py-1 text-xs font-bold text-muted uppercase tracking-wider sticky top-0 bg-surface/90 backdrop-blur-sm z-10">
+                            {line.name}
+                          </div>
+                          <div className="space-y-1 mt-1">
+                            {line.stations.map((station) => {
+                              const isSelected = metro === station;
+                              return (
+                                <button
+                                  key={station}
+                                  type="button"
+                                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                                    isSelected 
+                                      ? 'bg-blue-600 text-white font-medium'
+                                      : 'hover:bg-hover active:bg-divider text-content'
+                                  }`}
+                                  onClick={() => setMetro(isSelected ? METRO_NONE : station)}
+                                >
+                                  {t('owner.create.location.metroOption', { station })}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       ))}
-                    </SelectInput>
+                    </div>
                   )}
                 </Field>
 

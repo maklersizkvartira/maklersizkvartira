@@ -1,7 +1,7 @@
 /** Mobile tab bar. */
 
 import React from 'react';
-import { Heart, Home, Plus, Search, User as UserIcon } from 'lucide-react';
+import { Heart, Home, Plus, Search, User as UserIcon, Map as MapIcon, MessageSquare } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { useAppStore, type ViewState } from '../../stores/useAppStore';
@@ -15,21 +15,12 @@ interface Tab {
   primary?: boolean;
 }
 
-/**
- * Five tabs, and the count is the point.
- *
- * The raised "+" is the middle column, so the row has to hold an odd number of
- * items — with six, the centre of the bar falls on the boundary *between* two
- * columns and no column can sit on it. Adding a sixth tab is what pushed the
- * button off to the left.
- *
- * The map is not here for that reason. It stays one tap away in the header
- * menu, which on mobile lists every primary destination.
- */
 const TABS: Tab[] = [
   { view: 'HOME', labelKey: 'layout.nav.home', icon: Home },
+  { view: 'MAP', labelKey: 'layout.nav.map', icon: MapIcon },
   { view: 'LISTINGS', labelKey: 'layout.nav.listings', icon: Search },
   { view: 'CREATE_LISTING', labelKey: 'layout.nav.createListing', icon: Plus, primary: true },
+  { view: 'CHAT', labelKey: 'layout.nav.chat', icon: MessageSquare },
   { view: 'FAVORITES', labelKey: 'layout.nav.favorites', icon: Heart },
   { view: 'PROFILE', labelKey: 'layout.nav.profile', icon: UserIcon },
 ];
@@ -41,6 +32,7 @@ export const BottomNav: React.FC = () => {
   const currentUser = useAppStore((state) => state.currentUser);
   const setShowAuth = useAppStore((state) => state.setShowAuth);
   const favorites = useAppStore((state) => state.favoriteIds);
+  const unreadChatCount = useAppStore((state) => state.unreadChatCount);
 
   /** True when tapping this tab should open the auth dialog instead. */
   const isGated = (tab: Tab) => REQUIRES_AUTH.has(tab.view) && !currentUser;
@@ -63,10 +55,6 @@ export const BottomNav: React.FC = () => {
           const active = currentView === tab.view;
           if (tab.primary) {
             return (
-              // `flex-1` like every other tab, so all five columns are equal
-              // and the third one is the true centre. Without it this item was
-              // only as wide as its button while the others grew, which slid
-              // the "+" off-centre to the left.
               <li key={tab.view} className="flex flex-1 items-center justify-center">
                 <button
                   type="button"
@@ -79,21 +67,28 @@ export const BottomNav: React.FC = () => {
               </li>
             );
           }
-          const className = `relative flex w-full flex-col items-center gap-0.5 py-2.5 text-[10px] font-bold transition-colors ${
+          // Seven tabs now, so the icons carry the row on their own; the
+          // label that used to sit under each one no longer fits a narrow
+          // phone. `aria-label` is what keeps the tab named for a screen
+          // reader once the visible text is gone.
+          const className = `relative flex h-full w-full items-center justify-center py-4 transition-colors ${
             active ? 'text-brand-text' : 'text-subtle hover:text-content'
           }`;
+          const badge =
+            tab.view === 'FAVORITES'
+              ? favorites.size
+              : tab.view === 'CHAT'
+                ? unreadChatCount
+                : 0;
           const body = (
-            <>
-              <span className="relative">
-                <tab.icon className="h-5 w-5" aria-hidden="true" />
-                {tab.view === 'FAVORITES' && favorites.size > 0 && (
-                  <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-black text-white">
-                    {favorites.size}
-                  </span>
-                )}
-              </span>
-              {t(tab.labelKey as never)}
-            </>
+            <span className="relative">
+              <tab.icon className="h-6 w-6" aria-hidden="true" />
+              {badge > 0 && (
+                <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-black text-white">
+                  {badge}
+                </span>
+              )}
+            </span>
           );
 
           return (
@@ -106,6 +101,7 @@ export const BottomNav: React.FC = () => {
                   type="button"
                   onClick={() => open(tab)}
                   aria-current={active ? 'page' : undefined}
+                  aria-label={t(tab.labelKey as never)}
                   className={className}
                 >
                   {body}
@@ -114,6 +110,7 @@ export const BottomNav: React.FC = () => {
                 <AppLink
                   view={tab.view}
                   aria-current={active ? 'page' : undefined}
+                  aria-label={t(tab.labelKey as never)}
                   className={className}
                 >
                   {body}

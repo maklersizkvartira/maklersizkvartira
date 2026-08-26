@@ -10,6 +10,37 @@ import { ThemeProvider } from './theme/ThemeProvider';
 import './index.css';
 
 /**
+ * A stale chunk reference survives a deploy in an open tab: the HTML it has
+ * points at hashed files that no longer exist. Reloading once fixes it; the
+ * sessionStorage flag is what stops a permanently broken deploy from turning
+ * that into a reload loop.
+ *
+ * Registered before the first render, because the dynamic imports below are
+ * exactly the kind of request that fails this way.
+ */
+const handleChunkError = (message: string) => {
+  if (
+    message.includes('Failed to fetch dynamically imported module') ||
+    message.includes('Importing a module script failed') ||
+    message.includes('non-JavaScript MIME type') ||
+    message.includes('dynamically imported module')
+  ) {
+    if (!sessionStorage.getItem('chunk-load-reload')) {
+      sessionStorage.setItem('chunk-load-reload', 'true');
+      window.location.reload();
+    }
+  }
+};
+
+window.addEventListener('error', (e) => {
+  if (e.message) handleChunkError(e.message);
+});
+
+window.addEventListener('unhandledrejection', (e) => {
+  if (e.reason && e.reason.message) handleChunkError(e.reason.message);
+});
+
+/**
  * The visitor's dictionary and SEO copy are fetched before the first render,
  * not during it.
  *

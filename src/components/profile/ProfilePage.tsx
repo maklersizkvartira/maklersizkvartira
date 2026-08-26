@@ -37,7 +37,7 @@ import { ThemeToggle } from '../layout/ThemeToggle';
 import { Button, Field, FormError, PasswordInput, TextInput } from '../ui/Field';
 import { canPublishListings, isSwitchableRole, roleLabelKey } from '../../types/roles';
 
-const MAX_AVATAR_MB = 2;
+const MAX_AVATAR_MB = 5;
 const MIN_PASSWORD_LENGTH = 8;
 
 interface SessionRow {

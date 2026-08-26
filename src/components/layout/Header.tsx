@@ -258,9 +258,9 @@ export const Header: React.FC = () => {
               onClick={() =>
                 currentUser ? go('CREATE_LISTING') : setShowAuth(true, 'REGISTER')
               }
-              className="hidden items-center gap-1.5 rounded-xl bg-brand px-3.5 py-2 text-xs font-bold text-on-brand shadow-brand transition-colors hover:bg-brand-hover sm:inline-flex"
+              className="flex items-center gap-1 sm:gap-1.5 rounded-xl bg-brand px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-[11px] sm:text-xs font-bold text-on-brand shadow-brand transition-colors hover:bg-brand-hover"
             >
-              <Plus className="h-4 w-4" aria-hidden="true" />
+              <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
               {t('layout.header.createListingCta')}
             </button>
 

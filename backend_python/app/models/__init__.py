@@ -9,6 +9,7 @@ from app.models.analytics import SmsLog, TrafficEvent
 from app.models.audit import AuditLog
 from app.models.auth import LoginAttempt, OtpCode, PendingRegistration, RefreshToken
 from app.models.base import Base
+from app.models.chat import ChatMessage, Conversation
 from app.models.listing import Favorite, Listing
 from app.models.moderation import Report, VerificationRequest
 from app.models.settings import SystemSetting

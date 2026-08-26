@@ -53,7 +53,7 @@ export interface EngineOptions {
   zoomOutTitle: string;
 }
 
-const YANDEX_KEY = import.meta.env.VITE_YANDEX_MAPS_API_KEY || '';
+const YANDEX_KEY = import.meta.env.VITE_YANDEX_MAPS_API_KEY || '57fdc2ff-4eab-4070-bea6-771b83cf3433';
 
 /** Which provider a fresh map will use. Exported so the UI can credit it. */
 export const mapProvider: 'yandex' | 'leaflet' = YANDEX_KEY ? 'yandex' : 'leaflet';
@@ -174,6 +174,7 @@ async function createYandex(
 
   const map = new YMap(element, {
     location: { center: [options.center[1], options.center[0]], zoom: options.zoom },
+    camera: { tilt: 45 * (Math.PI / 180), azimuth: 0, duration: 0 }
   });
 
   let scheme = new YMapDefaultSchemeLayer({ theme: options.dark ? 'dark' : 'light' });
@@ -379,8 +380,10 @@ export async function createMapEngine(
       return await createYandex(element, options);
     } catch {
       // A bad or over-quota key must not cost the visitor their map.
-      return createLeaflet(element, options);
+      const { createMapLibre } = await import('./maplibre');
+      return createMapLibre(element, options);
     }
   }
-  return createLeaflet(element, options);
+  const { createMapLibre } = await import('./maplibre');
+  return createMapLibre(element, options);
 }

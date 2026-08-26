@@ -16,6 +16,7 @@ import { useStore } from 'zustand';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 
 import {
+  browserLanguage,
   detectInitialLanguage as getStoredLanguage,
   storedLanguage,
 } from '../i18n/storage';
@@ -38,6 +39,7 @@ import {
 } from '../services/http';
 import { isAutomatedAgent } from '../services/crawler';
 import { ListingsApi, type ListingQuery } from '../services/listingsApi';
+import { chatApi } from '../services/chatApi';
 import type { Listing } from '../types';
 import { canPublishListings } from '../types/roles';
 
@@ -121,7 +123,11 @@ interface AppState {
    * URL is a projection of this, never the other way round.
    */
   route: RouteMatch;
-  setCurrentView: (view: ViewState, listingId?: string | null) => void;
+  setCurrentView: (
+    view: ViewState,
+    listingId?: string | null,
+    conversationId?: string | null,
+  ) => void;
   /** Navigates to a path, pushing (or replacing) a history entry. */
   navigate: (path: string, options?: { replace?: boolean }) => void;
   /**
@@ -130,6 +136,12 @@ interface AppState {
    * and pushing again would add a phantom entry.
    */
   adoptLocation: (pathname: string, search?: string) => void;
+
+  // -- Chat ----------------------------------------------------------------
+  activeListingId: string | null;
+  activeConversationId: string | null;
+  unreadChatCount: number;
+  fetchUnreadChatCount: () => Promise<void>;
 
   // -- Listings ------------------------------------------------------------
   listings: Listing[];
@@ -269,6 +281,7 @@ const store = createStore<AppState>((set, get) => ({
       // Without this the hearts are empty after every reload, and clicking one
       // "adds" a listing that was already saved.
       await get().fetchFavorites();
+      await get().fetchUnreadChatCount();
       if (canPublishListings(user.role)) void get().fetchMyListings();
     } catch (error) {
       if (error instanceof ApiError && error.isAuth) clearTokens();
@@ -287,6 +300,7 @@ const store = createStore<AppState>((set, get) => ({
       'success',
     );
     void get().fetchFavorites();
+    void get().fetchUnreadChatCount();
     if (canPublishListings(user.role)) void get().fetchMyListings();
   },
 
@@ -297,6 +311,7 @@ const store = createStore<AppState>((set, get) => ({
       myListings: [],
       favorites: [],
       favoriteIds: new Set(),
+      unreadChatCount: 0,
     });
     // Through the navigator, so the address bar leaves the private page too.
     // Setting `currentView` directly left the URL on `/profil` after signing
@@ -345,8 +360,21 @@ const store = createStore<AppState>((set, get) => ({
   currentView: 'HOME',
   selectedListingId: null,
   route: routeForView('HOME'),
+  activeListingId: null,
+  activeConversationId: null,
+  unreadChatCount: 0,
 
-  setCurrentView: (view, listingId = null) => {
+  fetchUnreadChatCount: async () => {
+    try {
+      const { count } = await chatApi.getUnreadCount();
+      set({ unreadChatCount: count });
+    } catch {
+      // A badge is not worth an error: a failed poll just leaves the last
+      // count standing until the next one succeeds.
+    }
+  },
+
+  setCurrentView: (view, listingId = null, conversationId = null) => {
     // The id is scoped to the detail view. Leaving it set across navigations
     // meant a later "open the listing" with no id reopened whichever flat was
     // last viewed, which is how a stale listing could appear under a fresh URL.
@@ -355,7 +383,20 @@ const store = createStore<AppState>((set, get) => ({
     const route =
       view === 'LISTING_DETAIL' && nextId ? routeForListing(nextId) : routeForView(view);
 
-    set({ currentView: view, selectedListingId: nextId, route });
+    set({
+      currentView: view,
+      selectedListingId: nextId,
+      route,
+      // A conversation survives navigation *inside* chat and nothing else, so
+      // that returning to the list does not silently reopen the last thread.
+      activeConversationId:
+        conversationId ?? (view === 'CHAT' ? get().activeConversationId : null),
+      // Opening chat is what marks it read; the badge clears at that moment
+      // rather than waiting for the next poll to notice.
+      ...(view === 'CHAT' ? { unreadChatCount: 0 } : {}),
+    });
+    // `pushPath` scrolls to the top itself, and only when the address really
+    // changed — re-selecting the current tab should not jump the page.
     pushPath(localisedPath(route.path, get().language));
   },
 
@@ -373,13 +414,19 @@ const store = createStore<AppState>((set, get) => ({
   adoptLocation: (pathname, search = '') => {
     const match = matchUrl(pathname, search);
 
-    // A returning visitor who chose Russian lands on the Uzbek address of
-    // whatever they clicked. Move them to their own language's URL rather
-    // than rendering Russian at a URL that calls itself Uzbek. A crawler has
-    // no stored preference, so it stays exactly where it asked to be.
+    // A visitor who reads Russian lands on the Uzbek address of whatever they
+    // clicked. Move them to their own language's URL rather than rendering
+    // Russian at a URL that calls itself Uzbek — the replace below is what
+    // makes the address and the content agree.
+    //
+    // A stored choice outranks the browser's, and a crawler gets neither: its
+    // `navigator.language` is whatever the rendering service happens to be
+    // configured with, and letting that bounce Googlebot off the Uzbek home
+    // page would be a poor way to rank for Uzbek searches.
     const preferred = match.languageFromUrl
       ? match.language
-      : (storedLanguage() ?? match.language);
+      : (storedLanguage() ??
+        (isAutomatedAgent() ? match.language : (browserLanguage() ?? match.language)));
 
     if (preferred !== get().language) get().applyLanguage(preferred);
     set({

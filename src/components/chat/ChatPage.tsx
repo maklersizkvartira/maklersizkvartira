@@ -1,32 +1,20 @@
-/**
- * Messages screen.
- *
- * There is no messaging backend. The previous version kept conversations in
- * a zustand slice, so every "sent" message lived in one browser tab and was
- * never delivered to the other person — the inbox looked functional and was
- * not. Rather than reproduce that, this screen states the situation and
- * routes the user to the contact channels that do work (phone, Telegram),
- * while keeping the composer as a local draft pad they can copy from.
- */
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
+  ArrowLeft,
   Building2,
-  Check,
-  Copy,
-  ExternalLink,
   Info,
   MessageSquare,
-  PhoneCall,
   PlusCircle,
   Send,
-  ShieldCheck,
+  Loader2,
+  User as UserIcon
 } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { useAppStore } from '../../stores/useAppStore';
 import { Button } from '../ui/Field';
 import { canPublishListings } from '../../types/roles';
+import { chatApi, Conversation, ConversationDetail, ChatMessage } from '../../services/chatApi';
 
 const QUICK_QUESTION_KEYS = [
   'chat.composer.quick.viewing',
@@ -35,41 +23,88 @@ const QUICK_QUESTION_KEYS = [
   'chat.composer.quick.phone',
 ] as const;
 
-const CONTACT_STEPS = [
-  { icon: Building2, titleKey: 'chat.contact.step1Title', bodyKey: 'chat.contact.step1Body' },
-  { icon: PhoneCall, titleKey: 'chat.contact.step2Title', bodyKey: 'chat.contact.step2Body' },
-  { icon: ExternalLink, titleKey: 'chat.contact.step3Title', bodyKey: 'chat.contact.step3Body' },
-] as const;
+const playNotificationSound = () => {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.1);
+    
+    gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+    
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.1);
+  } catch (e) {
+    // Ignore audio errors
+  }
+};
 
 export const ChatPage: React.FC = () => {
-  const { t, formatNumber } = useTranslation();
+  const { t } = useTranslation();
 
   const currentUser = useAppStore((state) => state.currentUser);
   const setCurrentView = useAppStore((state) => state.setCurrentView);
   const setShowAuth = useAppStore((state) => state.setShowAuth);
   const pushToast = useAppStore((state) => state.pushToast);
+  const activeConversationId = useAppStore((state) => state.activeConversationId);
 
-  // Draft state is deliberately component-local: nothing here is persisted or
-  // transmitted, and pretending otherwise in the store is what caused the
-  // phantom inbox in the first place.
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [detail, setDetail] = useState<ConversationDetail | null>(null);
+  const [loading, setLoading] = useState(false);
   const [draft, setDraft] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [sending, setSending] = useState(false);
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const appendQuestion = (text: string) => {
-    setCopied(false);
-    setDraft((current) => (current.trim() ? `${current.trimEnd()}\n${text}` : text));
-  };
-
-  const handleCopy = async () => {
-    if (!draft.trim()) return;
-    try {
-      await navigator.clipboard.writeText(draft.trim());
-      setCopied(true);
-      pushToast('common.action.copied', 'success');
-    } catch {
-      pushToast('common.error.generic', 'error');
+  // Load conversations list
+  useEffect(() => {
+    if (!currentUser) return;
+    let isMounted = true;
+    
+    if (!activeConversationId) {
+      setLoading(true);
+      chatApi.listConversations()
+        .then(data => {
+          if (isMounted) setConversations(data);
+        })
+        .catch(() => {
+          if (isMounted) pushToast('common.error.generic', 'error');
+        })
+        .finally(() => {
+          if (isMounted) setLoading(false);
+        });
+    } else {
+      setLoading(true);
+      chatApi.getMessages(activeConversationId)
+        .then(data => {
+          if (isMounted) setDetail(data);
+        })
+        .catch(() => {
+          if (isMounted) pushToast('common.error.generic', 'error');
+        })
+        .finally(() => {
+          if (isMounted) setLoading(false);
+        });
     }
-  };
+    
+    return () => { isMounted = false; };
+  }, [activeConversationId, currentUser, pushToast]);
+
+  // Scroll to bottom when messages load or change
+  useEffect(() => {
+    if (detail) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [detail?.messages.length]);
 
   const handleCreateListing = () => {
     if (!currentUser) {
@@ -83,149 +118,192 @@ export const ChatPage: React.FC = () => {
     setCurrentView('CREATE_LISTING');
   };
 
+  const handleSend = async () => {
+    if (!draft.trim() || !activeConversationId || sending) return;
+    setSending(true);
+    try {
+      const newMsg = await chatApi.sendMessage(activeConversationId, draft.trim());
+      setDraft('');
+      playNotificationSound();
+      setDetail(prev => prev ? { ...prev, messages: [...prev.messages, newMsg] } : prev);
+    } catch {
+      pushToast('common.error.generic', 'error');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const appendQuestion = (text: string) => {
+    setDraft((current) => (current.trim() ? `${current.trimEnd()}\n${text}` : text));
+  };
+
+  if (!currentUser) {
+    return null; // Handled by App.tsx guarded views
+  }
+
+  // LIST VIEW
+  if (!activeConversationId) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-6 sm:py-8">
+        <header className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-text">
+            <MessageSquare className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-xl font-black text-content sm:text-2xl">{t('layout.nav.chat')}</h1>
+            <p className="mt-0.5 text-sm text-muted">{t('chat.page.subtitle')}</p>
+          </div>
+        </header>
+
+        {loading ? (
+          <div className="mt-8 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted" /></div>
+        ) : conversations.length === 0 ? (
+          <section role="status" className="mt-5 rounded-2xl border border-info/30 bg-info-soft p-4 sm:p-5">
+            <h2 className="flex items-center gap-2 text-sm font-black text-info">
+              <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {t('chat.notice.title')}
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-content">{t('chat.notice.body')}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button type="button" onClick={() => setCurrentView('LISTINGS')} className="px-4 py-2.5 text-xs">
+                <Building2 className="h-4 w-4" aria-hidden="true" />
+                {t('chat.actions.browse')}
+              </Button>
+              <Button type="button" variant="secondary" onClick={handleCreateListing} className="px-4 py-2.5 text-xs">
+                <PlusCircle className="h-4 w-4" aria-hidden="true" />
+                {t('chat.actions.create')}
+              </Button>
+            </div>
+          </section>
+        ) : (
+          <div className="mt-6 space-y-3">
+            {conversations.map(conv => {
+              const isOwner = conv.owner_id === currentUser.id;
+              const otherPerson = isOwner ? conv.user : conv.owner;
+              const avatarFallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(otherPerson?.name || 'U')}&background=random`;
+              
+              return (
+                <button
+                  key={conv.id}
+                  onClick={() => setCurrentView('CHAT', null, conv.id)}
+                  className="w-full text-left bg-surface border border-line rounded-xl p-4 shadow-sm hover:border-brand/50 transition-colors flex items-center gap-3"
+                >
+                  <img 
+                    src={otherPerson?.avatar || avatarFallback}
+                    alt={otherPerson?.name}
+                    className="w-12 h-12 rounded-full object-cover shrink-0 border border-line bg-surface-2"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-content truncate">
+                      {otherPerson?.name || "Foydalanuvchi"} {isOwner ? "(Xaridor/Ijarachi)" : "(Uy egasi)"}
+                    </p>
+                    <p className="text-xs text-muted mt-1">Suhbat sanasi: {new Date(conv.updated_at).toLocaleDateString()}</p>
+                  </div>
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted">
+                    <MessageSquare className="h-4 w-4" />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // DETAIL VIEW
+  const isOwner = detail?.owner_id === currentUser.id;
+  const otherPerson = isOwner ? detail?.user : detail?.owner;
+  const mePerson = isOwner ? detail?.owner : detail?.user;
+  
+  const getAvatarFallback = (name?: string) => `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&background=random`;
+  
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 sm:py-8">
-      <header className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-text">
-          <MessageSquare className="h-5 w-5" aria-hidden="true" />
-        </span>
-        <div className="min-w-0">
-          <h1 className="text-xl font-black text-content sm:text-2xl">{t('layout.nav.chat')}</h1>
-          <p className="mt-0.5 text-sm text-muted">{t('chat.page.subtitle')}</p>
+    <div className="flex flex-col h-[calc(100vh-140px)] max-w-3xl mx-auto px-4 py-4">
+      <header className="flex items-center gap-3 pb-4 border-b border-line shrink-0">
+        <button 
+          onClick={() => setCurrentView('CHAT', null, null)}
+          className="p-2 -ml-2 rounded-lg hover:bg-surface-2 text-muted transition-colors"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <div className="flex items-center gap-2 min-w-0">
+          <img 
+            src={otherPerson?.avatar || getAvatarFallback(otherPerson?.name)}
+            alt="Avatar"
+            className="w-8 h-8 rounded-full object-cover shrink-0 border border-line"
+          />
+          <h1 className="text-lg font-black text-content truncate">{otherPerson?.name || t('layout.nav.chat')}</h1>
         </div>
       </header>
-
-      {/* The honest status of the feature, announced rather than buried. */}
-      <section
-        role="status"
-        className="mt-5 rounded-2xl border border-info/30 bg-info-soft p-4 sm:p-5"
-      >
-        <h2 className="flex items-center gap-2 text-sm font-black text-info">
-          <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {t('chat.notice.title')}
-        </h2>
-        <p className="mt-2 text-sm leading-relaxed text-content">{t('chat.notice.body')}</p>
-        <p className="mt-1.5 text-xs leading-relaxed text-muted">{t('chat.notice.legacyNote')}</p>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button
-            type="button"
-            onClick={() => setCurrentView('LISTINGS')}
-            className="px-4 py-2.5 text-xs"
-          >
-            <Building2 className="h-4 w-4" aria-hidden="true" />
-            {t('chat.actions.browse')}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={handleCreateListing}
-            className="px-4 py-2.5 text-xs"
-          >
-            <PlusCircle className="h-4 w-4" aria-hidden="true" />
-            {t('chat.actions.create')}
-          </Button>
-        </div>
-      </section>
-
-      <section className="mt-5 rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5">
-        <h2 className="text-sm font-black text-content">{t('chat.contact.title')}</h2>
-        <ol className="mt-3 space-y-3">
-          {CONTACT_STEPS.map(({ icon: Icon, titleKey, bodyKey }, index) => (
-            <li key={titleKey} className="flex gap-3">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-muted">
-                <Icon className="h-4 w-4" aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-content">
-                  {formatNumber(index + 1)}. {t(titleKey)}
-                </p>
-                <p className="mt-0.5 text-xs leading-relaxed text-muted">{t(bodyKey)}</p>
+      
+      <div className="flex-1 overflow-y-auto py-4 space-y-4">
+        {loading ? (
+          <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted" /></div>
+        ) : (
+          detail?.messages.map(msg => {
+            const isMe = msg.sender_id === currentUser.id;
+            const msgSender = isMe ? mePerson : otherPerson;
+            return (
+              <div key={msg.id} className={`flex gap-2 ${isMe ? 'justify-end flex-row-reverse' : 'justify-start flex-row'} items-end`}>
+                <div className="shrink-0">
+                  <img 
+                    src={msgSender?.avatar || getAvatarFallback(msgSender?.name)} 
+                    alt="avatar" 
+                    className="w-7 h-7 rounded-full object-cover bg-surface-2 border border-line"
+                  />
+                </div>
+                <div className={`max-w-[75%] rounded-2xl px-4 py-2 ${
+                  isMe ? 'bg-brand text-on-brand rounded-br-sm' : 'bg-surface border border-line text-content rounded-bl-sm'
+                }`}>
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                  <p className={`text-[10px] mt-1 ${isMe ? 'text-on-brand/70 text-right' : 'text-muted'}`}>
+                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
               </div>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section className="mt-5 flex gap-2.5 rounded-2xl border border-brand/30 bg-brand-soft p-4">
-        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
-        <div className="min-w-0">
-          <h2 className="text-sm font-black text-brand-text">{t('chat.safety.title')}</h2>
-          <p className="mt-1 text-xs leading-relaxed text-content">{t('chat.safety.body')}</p>
-        </div>
-      </section>
-
-      {/* The composer survives as a draft pad: typing and the quick questions
-          still work, only delivery does not — so the button is disabled and
-          says why, instead of quietly vanishing. */}
-      <section className="mt-5 rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5">
-        <h2 className="text-sm font-black text-content">{t('chat.composer.title')}</h2>
-
-        <p className="mt-3 text-xs font-bold text-muted">{t('chat.composer.quickTitle')}</p>
-        <p className="mt-0.5 text-xs text-subtle">{t('chat.composer.quickHint')}</p>
-        <div className="mt-2 flex flex-wrap gap-1.5">
+            );
+          })
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+      
+      <div className="pt-4 shrink-0 border-t border-line">
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {QUICK_QUESTION_KEYS.map((key) => (
             <button
               key={key}
               type="button"
               onClick={() => appendQuestion(t(key))}
-              className="rounded-full border border-line bg-surface-2 px-3 py-1.5 text-[11px] font-bold text-muted transition-colors hover:bg-brand-soft hover:text-brand-text"
+              className="shrink-0 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:border-brand hover:text-brand"
             >
               {t(key)}
             </button>
           ))}
         </div>
-
-        {/* The section heading is the visible label; this one names the field
-            for assistive tech without repeating the text on screen. */}
-        <label htmlFor="chat-draft" className="sr-only">
-          {t('chat.composer.title')}
-        </label>
-        <textarea
-          id="chat-draft"
-          value={draft}
-          onChange={(event) => {
-            setDraft(event.target.value);
-            setCopied(false);
-          }}
-          rows={4}
-          placeholder={t('chat.composer.placeholder')}
-          aria-describedby="chat-draft-hint"
-          className="mt-4 w-full resize-y rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm font-medium text-content transition-colors placeholder:text-subtle focus:border-brand focus:bg-surface focus:outline-none"
-        />
-
-        <p id="chat-draft-hint" className="mt-2 text-xs leading-relaxed text-warning">
-          {t('chat.composer.disabledHint')}
-        </p>
-
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => void handleCopy()}
-            disabled={!draft.trim()}
-            className="px-4 py-2.5 text-xs"
+        <div className="flex items-end gap-2 mt-2">
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            rows={1}
+            placeholder={t('chat.composer.placeholder')}
+            className="flex-1 min-h-[44px] max-h-32 resize-none rounded-xl border border-line bg-surface px-4 py-3 text-sm transition-colors focus:border-brand focus:outline-none"
+          />
+          <button
+            onClick={handleSend}
+            disabled={!draft.trim() || sending}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand text-on-brand disabled:opacity-50"
           >
-            {copied ? (
-              <Check className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <Copy className="h-4 w-4" aria-hidden="true" />
-            )}
-            {copied ? t('common.action.copied') : t('common.action.copy')}
-          </Button>
-
-          <Button
-            type="button"
-            disabled
-            aria-describedby="chat-draft-hint"
-            title={t('chat.composer.disabledHint')}
-            className="px-4 py-2.5 text-xs"
-          >
-            <Send className="h-4 w-4" aria-hidden="true" />
-            {t('common.action.send')}
-          </Button>
+            {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+          </button>
         </div>
-      </section>
+      </div>
     </div>
   );
 };

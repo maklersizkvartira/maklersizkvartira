@@ -278,10 +278,13 @@ export const Dropdown: React.FC<DropdownProps> = ({
                   aria-selected={isSelected}
                   aria-disabled={item.disabled || undefined}
                   data-active={isActive}
-                  // Pointer, not click: the button keeps focus, so the
-                  // keyboard still works after a mouse selection.
-                  onPointerDown={(event) => {
+                  // MouseDown prevents focus shift on desktop, keeping keyboard active.
+                  // Click actually selects it. This allows touch scrolling on mobile
+                  // without accidentally selecting items.
+                  onMouseDown={(event) => {
                     event.preventDefault();
+                  }}
+                  onClick={() => {
                     commit(index);
                   }}
                   onPointerEnter={() => !item.disabled && setActive(index)}

@@ -85,7 +85,7 @@ class Settings(BaseSettings):
     PASSWORD_MIN_LENGTH: int = 8
     PASSWORD_MAX_LENGTH: int = 128
     MAX_FAILED_LOGINS: int = 5
-    LOCKOUT_MINUTES: int = 15
+    LOCKOUT_MINUTES: int = 3
 
     # -- OTP policy ----------------------------------------------------------
     OTP_LENGTH: int = 6

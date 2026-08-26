@@ -236,8 +236,8 @@ class GoogleAuthRequest(CamelModel):
 class SubmitVerificationRequest(CamelModel):
     target_level: Annotated[int, Field(ge=2, le=5)] = 2
     document_type: VerificationDocumentType = VerificationDocumentType.PASSPORT
-    document_url: str | None = Field(default=None, max_length=500_000)
-    selfie_url: str | None = Field(default=None, max_length=500_000)
+    document_url: str | None = Field(default=None, max_length=8_000_000)
+    selfie_url: str | None = Field(default=None, max_length=8_000_000)
 
     @field_validator("document_url", "selfie_url")
     @classmethod
@@ -256,7 +256,7 @@ class SubmitVerificationRequest(CamelModel):
 
 class UpdateProfileRequest(CamelModel):
     name: NameStr | None = None
-    avatar: str | None = Field(default=None, max_length=500_000)
+    avatar: str | None = Field(default=None, max_length=8_000_000)
     role: Literal[UserRole.STUDENT, UserRole.OWNER] | None = None
     language: Language | None = None
     theme: ThemePreference | None = None
