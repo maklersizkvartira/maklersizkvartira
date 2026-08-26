@@ -174,6 +174,7 @@ async function createYandex(
 
   const map = new YMap(element, {
     location: { center: [options.center[1], options.center[0]], zoom: options.zoom },
+    camera: { tilt: 45 * (Math.PI / 180), azimuth: 0, duration: 0 }
   });
 
   let scheme = new YMapDefaultSchemeLayer({ theme: options.dark ? 'dark' : 'light' });
@@ -379,8 +380,10 @@ export async function createMapEngine(
       return await createYandex(element, options);
     } catch {
       // A bad or over-quota key must not cost the visitor their map.
-      return createLeaflet(element, options);
+      const { createMapLibre } = await import('./maplibre');
+      return createMapLibre(element, options);
     }
   }
-  return createLeaflet(element, options);
+  const { createMapLibre } = await import('./maplibre');
+  return createMapLibre(element, options);
 }
