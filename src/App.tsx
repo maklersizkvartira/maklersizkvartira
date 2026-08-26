@@ -25,6 +25,7 @@ import { GlobalAINotification } from './components/common/GlobalAINotification';
 import { useTranslation } from './i18n';
 import { setSessionExpiredHandler } from './services/http';
 import { isAutomatedAgent } from './services/crawler';
+import { trackPageView } from './services/analytics';
 import { MetaApi } from './services/listingsApi';
 import { useSeoHead } from './seo/useSeoHead';
 import { REQUIRES_AUTH } from './router/views';
@@ -214,6 +215,9 @@ export const App: React.FC = () => {
     } catch {
       /* storage unavailable */
     }
+    // The same navigation, reported to GA4 — which is switched off entirely
+    // unless a measurement id is configured.
+    trackPageView(window.location.pathname || '/', document.title);
   }, [route.path]);
 
   // Views that load their own data describe themselves; the rest are fully

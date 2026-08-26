@@ -51,6 +51,18 @@ export default defineConfig(({ isSsrBuild }) => ({
               if (!id.includes('node_modules')) return undefined;
               if (id.includes('firebase') || id.includes('@firebase')) return 'firebase';
               if (id.includes('react-dom') || id.includes('/react/')) return 'react';
+
+              // These are loaded on demand by exactly one screen each, and a
+              // catch-all `return 'vendor'` undoes that: it drags them into
+              // the chunk the entry already depends on, so the map library
+              // ended up modulepreloaded on the home page — 259KB gzipped,
+              // in front of the first paint, for a view most visitors never
+              // open. Their own chunks stay lazy.
+              if (id.includes('maplibre-gl')) return 'maplibre';
+              if (id.includes('framer-motion')) return 'motion';
+              if (id.includes('canvas-confetti')) return 'confetti';
+              if (id.includes('@phosphor-icons')) return 'phosphor';
+
               return 'vendor';
             },
       },

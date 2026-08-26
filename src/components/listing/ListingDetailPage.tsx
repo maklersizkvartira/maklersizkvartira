@@ -45,6 +45,7 @@ import { VerificationBadge } from '../common/VerificationBadge';
 import { useTranslation } from '../../i18n';
 import { ApiError } from '../../services/http';
 import { ListingsApi } from '../../services/listingsApi';
+import { trackEvent } from '../../services/analytics';
 import { useAppStore } from '../../stores/useAppStore';
 import type { Listing } from '../../types';
 import { Button, SelectInput } from '../ui/Field';
@@ -347,6 +348,9 @@ export const ListingDetailPage: React.FC = () => {
     if (!ownerPhone) return;
     setPhoneVisible(true);
     recordContact(listing.id);
+    // The moment a search visitor becomes a lead. It is the only
+    // honest way to tell a page that ranks from a page that works.
+    trackEvent('contact_reveal', { listing_id: listing.id, district: listing?.district ?? '' });
   }, [currentUser, listing, ownerPhone, recordContact, setShowAuth]);
 
   const handleDelete = useCallback(async () => {
