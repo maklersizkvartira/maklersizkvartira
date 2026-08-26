@@ -19,6 +19,7 @@ import type { Language } from '../i18n/types';
 import { AuthApi, type ApiUser } from '../services/authApi';
 import { ApiError, clearTokens, getAccessToken, purgeLegacyStorage } from '../services/http';
 import { ListingsApi, type ListingQuery } from '../services/listingsApi';
+import { chatApi } from '../services/chatApi';
 import type { Listing } from '../types';
 import { canPublishListings } from '../types/roles';
 
@@ -129,6 +130,8 @@ interface AppState {
   fetchFavorites: () => Promise<void>;
   activeListingId: string | null;
   activeConversationId: string | null;
+  unreadChatCount: number;
+  fetchUnreadChatCount: () => Promise<void>;
   setCurrentView: (view: ViewState, id?: string | null, conversationId?: string | null) => void;
   toggleFavorite: (listingId: string) => Promise<void>;
   removeListing: (listingId: string) => Promise<void>;
@@ -213,6 +216,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Without this the hearts are empty after every reload, and clicking one
       // "adds" a listing that was already saved.
       await get().fetchFavorites();
+      await get().fetchUnreadChatCount();
       if (canPublishListings(user.role)) void get().fetchMyListings();
     } catch (error) {
       if (error instanceof ApiError && error.isAuth) clearTokens();
@@ -231,6 +235,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       'success',
     );
     void get().fetchFavorites();
+    void get().fetchUnreadChatCount();
     if (canPublishListings(user.role)) void get().fetchMyListings();
   },
 
@@ -242,6 +247,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       myListings: [],
       favorites: [],
       favoriteIds: new Set(),
+      unreadChatCount: 0,
     });
   },
 
@@ -283,12 +289,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedListingId: null,
   activeListingId: null,
   activeConversationId: null,
+  unreadChatCount: 0,
+  fetchUnreadChatCount: async () => {
+    try {
+      const res = await chatApi.getUnreadCount();
+      set({ unreadChatCount: res.count });
+    } catch {
+      // Ignore
+    }
+  },
   setCurrentView: (view, listingId = null, conversationId = null) => {
     set({ 
       currentView: view, 
       selectedListingId: listingId ?? get().selectedListingId,
       activeConversationId: conversationId ?? (view === 'CHAT' ? get().activeConversationId : null) 
     });
+    if (view === 'CHAT') {
+      // Clear unread count when viewing chat
+      set({ unreadChatCount: 0 });
+    }
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       try {

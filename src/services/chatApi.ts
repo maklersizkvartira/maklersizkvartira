@@ -36,4 +36,7 @@ export const chatApi = {
     
   sendMessage: (conversationId: string, text: string) =>
     http.post<ChatMessage>(`/chat/conversations/${conversationId}/messages`, { text }),
+    
+  getUnreadCount: () =>
+    http.get<{ count: number }>('/chat/unread-count'),
 };

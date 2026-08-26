@@ -30,6 +30,7 @@ export const BottomNav: React.FC = () => {
   const currentUser = useAppStore((state) => state.currentUser);
   const setShowAuth = useAppStore((state) => state.setShowAuth);
   const favorites = useAppStore((state) => state.favoriteIds);
+  const unreadChatCount = useAppStore((state) => state.unreadChatCount);
 
   const open = (tab: Tab) => {
     const needsAuth = tab.view === 'CREATE_LISTING' || tab.view === 'FAVORITES' || tab.view === 'PROFILE' || tab.view === 'CHAT';
@@ -78,6 +79,11 @@ export const BottomNav: React.FC = () => {
                   {tab.view === 'FAVORITES' && favorites.size > 0 && (
                     <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-black text-white">
                       {favorites.size}
+                    </span>
+                  )}
+                  {tab.view === 'CHAT' && unreadChatCount > 0 && (
+                    <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-black text-white">
+                      {unreadChatCount}
                     </span>
                   )}
                 </span>

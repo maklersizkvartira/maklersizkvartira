@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func
 from sqlalchemy.orm import selectinload
 
 from app.core.deps import CurrentUser, DbSession
@@ -116,3 +116,24 @@ async def send_message(
     await db.refresh(msg)
     
     return msg
+
+from pydantic import BaseModel
+
+class UnreadCountOut(BaseModel):
+    count: int
+
+@router.get("/unread-count", response_model=UnreadCountOut)
+async def get_unread_count(db: DbSession, user: CurrentUser) -> UnreadCountOut:
+    """Get total unread messages count for the user."""
+    stmt = (
+        select(func.count(ChatMessage.id))
+        .join(Conversation, ChatMessage.conversation_id == Conversation.id)
+        .where(
+            or_(Conversation.user_id == user.id, Conversation.owner_id == user.id),
+            ChatMessage.sender_id != user.id,
+            ChatMessage.read_at.is_(None)
+        )
+    )
+    result = await db.execute(stmt)
+    count = result.scalar_one()
+    return UnreadCountOut(count=count)
