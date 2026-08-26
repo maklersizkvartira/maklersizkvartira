@@ -987,7 +987,7 @@ export const ListingDetailPage: React.FC = () => {
               <Button
                 variant="secondary"
                 fullWidth
-                disabled={listing.owner_id === currentUser?.id}
+                disabled={listing.owner.id === currentUser?.id}
                 onClick={async () => {
                   if (!currentUser) {
                     setShowAuth(true, 'LOGIN');

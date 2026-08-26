@@ -110,7 +110,7 @@ interface AppState {
   // -- Navigation ----------------------------------------------------------
   currentView: ViewState;
   selectedListingId: string | null;
-  setCurrentView: (view: ViewState, listingId?: string | null) => void;
+  
 
   // -- Listings ------------------------------------------------------------
   listings: Listing[];
@@ -129,7 +129,7 @@ interface AppState {
   fetchFavorites: () => Promise<void>;
   activeListingId: string | null;
   activeConversationId: string | null;
-  setCurrentView: (view: ViewState, id?: string, conversationId?: string) => void;
+  setCurrentView: (view: ViewState, id?: string | null, conversationId?: string | null) => void;
   toggleFavorite: (listingId: string) => Promise<void>;
   removeListing: (listingId: string) => Promise<void>;
   recordView: (listingId: string) => void;
@@ -281,6 +281,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   // -- Navigation ----------------------------------------------------------
   currentView: 'HOME',
   selectedListingId: null,
+  activeListingId: null,
+  activeConversationId: null,
   setCurrentView: (view, listingId = null, conversationId = null) => {
     set({ 
       currentView: view, 
