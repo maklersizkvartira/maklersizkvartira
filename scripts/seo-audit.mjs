@@ -162,7 +162,11 @@ async function main() {
 
     // -- Robots and canonical ---------------------------------------------
     if (!robots) fail(url, 'no robots meta');
-    if (!canonical && !isListingShell) fail(url, 'no canonical');
+    // Two documents legitimately declare none: the listing shell, which is
+    // served for thousands of different URLs, and the 404 document, whose
+    // address is whatever the visitor mistyped. In both cases the requested
+    // URL is the right canonical and naming one would be a lie.
+    if (!canonical && !isListingShell && !is404) fail(url, 'no canonical');
     if (canonical && indexable) {
       if (!canonicals.has(canonical)) canonicals.set(canonical, []);
       canonicals.get(canonical).push(url);

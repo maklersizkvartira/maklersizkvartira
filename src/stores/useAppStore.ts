@@ -23,6 +23,7 @@ import {
 } from '../i18n/storage';
 import { DEFAULT_LANGUAGE, type Language } from '../i18n/types';
 import type { ViewState } from '../router/views';
+import { stripLanguagePrefix } from '../router/language';
 import {
   localisedPath,
   matchUrl,
@@ -215,6 +216,29 @@ function pushPath(path: string, replace = false): void {
   }
 }
 
+/**
+ * Applies a language the visitor did not ask for *in the URL*.
+ *
+ * The account's saved preference and the browser's are both suggestions; the
+ * address is the source of truth. So a preference moves the visitor to that
+ * language's URL, and is ignored outright when the URL already names a
+ * language — otherwise signing in on `/en/toshkent` would render Russian at
+ * an address whose canonical and hreflang both say English.
+ */
+function adoptPreferredLanguage(language: Language): void {
+  const state = useAppStore.getState();
+  if (language === state.language) return;
+  if (typeof window !== 'undefined') {
+    try {
+      if (stripLanguagePrefix(window.location.pathname).explicit) return;
+    } catch {
+      /* malformed URL: fall through and just apply it */
+    }
+  }
+  useAppStore.setState({ language });
+  replacePath(localisedPath(state.route.path, language), false);
+}
+
 function replacePath(path: string, scroll = true): void {
   if (typeof window === 'undefined') return;
   try {
@@ -280,11 +304,8 @@ const store = createStore<AppState>((set, get) => ({
       const user = await AuthApi.me();
       set({ currentUser: user, authReady: true });
 
-      // The account's saved language follows the user across devices, so it
-      // wins over whatever this browser had stored.
-      if (user.language && user.language !== get().language) {
-        set({ language: user.language });
-      }
+      // The account's saved language follows the user across devices.
+      if (user.language) adoptPreferredLanguage(user.language);
 
       // Without this the hearts are empty after every reload, and clicking one
       // "adds" a listing that was already saved.
@@ -298,11 +319,11 @@ const store = createStore<AppState>((set, get) => ({
   },
 
   login: (user) => {
-    set({
-      currentUser: user,
-      showAuth: false,
-      language: user.language ?? get().language,
-    });
+    set({ currentUser: user, showAuth: false });
+    // Setting `language` in the same breath would have left the address, the
+    // canonical tag and the hreflang set describing the language the visitor
+    // was reading a moment ago.
+    if (user.language) adoptPreferredLanguage(user.language);
     get().pushToast(
       user.role === 'OWNER' ? 'layout.toast.welcomeOwner' : 'layout.toast.welcomeStudent',
       'success',
@@ -383,12 +404,17 @@ const store = createStore<AppState>((set, get) => ({
     }
   },
 
-  setCurrentView: (view, listingId = null, conversationId = null) => {
+  setCurrentView: (view, listingId, conversationId) => {
     // The id is scoped to the detail view. Leaving it set across navigations
     // meant a later "open the listing" with no id reopened whichever flat was
     // last viewed, which is how a stale listing could appear under a fresh URL.
+    // `undefined` means "not given"; an explicit `null` means "clear it".
+    // `??` collapsed the two, which is why the chat back arrow did nothing:
+    // it passes null to close the open thread, and null ?? current kept it.
     const nextId =
-      view === 'LISTING_DETAIL' ? (listingId ?? get().selectedListingId) : null;
+      view === 'LISTING_DETAIL'
+        ? (listingId !== undefined ? listingId : get().selectedListingId)
+        : null;
     const route =
       view === 'LISTING_DETAIL' && nextId ? routeForListing(nextId) : routeForView(view);
 
@@ -399,7 +425,11 @@ const store = createStore<AppState>((set, get) => ({
       // A conversation survives navigation *inside* chat and nothing else, so
       // that returning to the list does not silently reopen the last thread.
       activeConversationId:
-        conversationId ?? (view === 'CHAT' ? get().activeConversationId : null),
+        conversationId !== undefined
+          ? conversationId
+          : view === 'CHAT'
+            ? get().activeConversationId
+            : null,
       // Opening chat is what marks it read; the badge clears at that moment
       // rather than waiting for the next poll to notice.
       ...(view === 'CHAT' ? { unreadChatCount: 0 } : {}),

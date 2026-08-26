@@ -30,6 +30,8 @@ import { HomePage } from './components/home/HomePage';
 import { ListingsPage } from './components/listings/ListingsPage';
 import { SeoLandingPage } from './components/seo/SeoLandingPage';
 import { BlogIndexPage, BlogPostPage, HelpPage } from './components/content/ArticlePages';
+import StudentProgramPage from './components/student/StudentProgramPage';
+import EcosystemPreviewPage from './components/ecosystem/EcosystemPreviewPage';
 import { buildHead, type HeadTags } from './seo/meta';
 import { registerCopy } from './seo/content';
 import { UZ_COPY } from './seo/content/copy.uz';
@@ -43,7 +45,7 @@ import { matchPath, type RouteMatch } from './seo/routes';
 import { INDEXABLE_PAGES, STATIC_PAGES } from './seo/pages';
 import { alternatePaths, localisedPath } from './router/language';
 import { LANGUAGES, type Language } from './i18n/types';
-import { pinServerSnapshot, useAppStore } from './stores/useAppStore';
+import { DEFAULT_FILTERS, pinServerSnapshot, useAppStore } from './stores/useAppStore';
 import type { ViewState } from './router/views';
 
 export { LANGUAGES, STATIC_PAGES, INDEXABLE_PAGES, alternatePaths };
@@ -76,6 +78,11 @@ const PRERENDERABLE: Partial<Record<ViewState, React.ComponentType>> = {
   BLOG_INDEX: BlogIndexPage,
   BLOG_POST: BlogPostPage,
   HELP: HelpPage,
+  // Both are static prose. Left out, they shipped as `index, follow` pages
+  // with an empty body and a place in the sitemap — an invitation to crawl
+  // nothing. The map stays out: its content is a canvas, not text.
+  STUDENT_PROGRAM: StudentProgramPage,
+  ECOSYSTEM_PREVIEW: EcosystemPreviewPage,
 };
 
 export interface RenderedPage {
@@ -98,11 +105,28 @@ function seedStore(route: RouteMatch, language: Language): void {
     // Without this the shell renders its loading spinner instead of the page.
     authReady: true,
     currentUser: null,
+
+    // The store is a module singleton and `renderAll` drives 334 pages
+    // through it in one process, so every slice a prerendered component reads
+    // has to be reset here or it leaks from the previous page.
+    //
+    // `listingsLoading` is true rather than false on purpose: with an empty
+    // list and nothing in flight, the catalogue renders its "there are no
+    // listings" state, and the static HTML would tell a crawler the site has
+    // nothing on it. Skeletons say "loading", which is what is actually true.
     listings: [],
     featured: [],
+    myListings: [],
     favorites: [],
     favoriteIds: new Set<string>(),
+    totalCount: 0,
+    page: 1,
+    listingsLoading: true,
+    listingsError: null,
+    filters: { ...DEFAULT_FILTERS },
     showAuth: false,
+    activeConversationId: null,
+    unreadChatCount: 0,
   });
 }
 
@@ -173,7 +197,15 @@ export function renderListingShell(language: Language): RenderedPage {
 /** The document the host serves, with a 404 status, for an unknown path. */
 export function renderNotFound(language: Language): RenderedPage {
   const route = matchPath('/__not-found__');
-  return { path: localisedPath('/404', language), language, head: buildHead(route, language), html: '' };
+  const head = buildHead(route, language);
+  return {
+    path: localisedPath('/404', language),
+    language,
+    // No canonical and no og:url: this one document answers every unknown
+    // address, and the sentinel path it was built from is not one of them.
+    head: { ...head, canonicalUrl: '', alternates: [], jsonLd: '' },
+    html: '',
+  };
 }
 
 /** Every static page, in every language, plus the two special shells. */

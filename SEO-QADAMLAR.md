@@ -9,43 +9,24 @@ Tartib muhim: 1-bosqichsiz qolganlarining hech biri ishlamaydi.
 
 ## Hozirgi holat
 
-Kod tayyor: **334 ta sahifa**, 309 ta sitemap URL, SEO audit **0 xato**.
+Kod tayyor: **346 ta sahifa**, 321 ta sitemap URL, SEO audit **0 xato**.
 
-Lekin **jonli saytda hali eski versiya turibdi.** `seo-ssr` brenchida 3 ta
-commit push qilinmagan. Ya'ni Google bu ishning hali bitta baytini ham
-ko'rmagan, va reyting bugun o'zgarmaydi.
+Lekin **jonli saytda hali eski versiya turibdi.** Hamma ish `seo-ssr`
+brenchida turibdi va GitHub'ga push qilingan; `main` esa tegilmagan, chunki
+`main` ga qo'shish — bu production'ga chiqarish, va undan oldin quyidagi
+o'zgaruvchilar qo'yilishi kerak. Google hali bu ishning bitta baytini ham
+ko'rmagan.
 
 ---
 
-## 1-BOSQICH — Deploy (bugun, ~20 daqiqa)
+## 1-BOSQICH — Deploy (~15 daqiqa)
 
-### 1.1. Qolgan o'zgarishlarni commit qiling
+### 1.1. Avval Vercel va Railway o'zgaruvchilari
 
-```bash
-cd C:/Users/karim/OneDrive/Desktop/maklersiz-uy/maklersizkvartira
-git status --short          # 6 ta fayl ko'rinadi
-git add -A
-git commit -m "feat(seo): analytics, chunk splitting va SEO qo'llanma"
-```
+Bu `main` ga merge qilishdan **oldin** bo'lishi kerak: merge production
+deploy'ni ishga tushiradi, va `VITE_API_URL` bo'lmasa e'lonlar yuklanmaydi.
 
-### 1.2. Deploydan oldin oxirgi tekshiruv
-
-```bash
-npm run build && npm run seo:audit
-```
-
-Oxirida **`No errors.`** yozilishi shart. Yozilmasa — deploy qilmang.
-
-### 1.3. Push
-
-```bash
-git push origin seo-ssr
-```
-
-Keyin GitHub'da `seo-ssr` → `main` ga Pull Request oching va merge qiling.
-(Yoki to'g'ridan-to'g'ri: `git checkout main && git merge seo-ssr && git push`.)
-
-### 1.4. Vercel'da 2 ta sozlama
+### 1.1b. Vercel'da 2 ta sozlama
 
 Vercel → loyihangiz → **Settings**:
 
@@ -66,7 +47,7 @@ Vercel → loyihangiz → **Settings**:
 > Ikkalasi ham ochilaversa, Google ularni ikki xil sayt deb biladi va kuchni
 > ikkiga bo'ladi.
 
-### 1.5. Railway (backend) — 1 ta o'zgaruvchi
+### 1.2. Railway (backend) — 1 ta o'zgaruvchi
 
 Railway → servis → **Variables**:
 
@@ -76,6 +57,21 @@ Railway → servis → **Variables**:
 
 > Bu e'lonlar sitemapidagi manzillar uchun. Qo'ymasangiz ham default shu, lekin
 > domen o'zgarsa shu yerdan o'zgartirasiz.
+
+### 1.3. Endi `main` ga qo'shing
+
+GitHub'da `seo-ssr` → `main` uchun Pull Request oching va merge qiling, yoki:
+
+```bash
+cd C:/Users/karim/OneDrive/Desktop/maklersiz-uy/maklersizkvartira
+git checkout main
+git pull
+git merge seo-ssr
+git push origin main
+```
+
+Vercel avtomatik deploy qiladi. Build oxirida `seo:audit` ishlaydi — SEO
+buzilgan bo'lsa deploy o'zi to'xtaydi.
 
 ---
 
@@ -250,7 +246,7 @@ ko'rsatadi; nimani ko'rsatishni e'lonlar hal qiladi. 50 ta e'lon bilan
 
 1. **Search Console → Performance** ni oching, qaysi so'rovlar ishlayotganini
    ko'ring. Yaxshi ishlayotgan sahifaga kontent qo'shing.
-2. **Oyiga 2 ta maqola** yozing — odamlar haqiqatan so'raydigan savolga:
+2. **Oyiga 2 ta maqola** yozing (hozir 10 tasi bor) — odamlar haqiqatan so'raydigan savolga:
    zakladka qaytariladimi, kadastrni qanday tekshirish kerak, shartnomada
    nima bo'lishi shart. `src/seo/content/articles.uz.ts` ichida.
 3. **Telegram** — har bir maqolani kanalga tashlang, orqasiga link bilan.

@@ -34,7 +34,9 @@ export const LanguageSwitcher: React.FC<{ compact?: boolean }> = ({ compact = fa
   }, [open]);
 
   const choose = (next: Language) => {
-    setLanguage(next);
+    // One call, not two: since the provider stopped holding its own copy of
+    // the language, `setLanguage` from the context IS the store's setter, and
+    // calling both sent two profile-update requests per switch.
     setStoreLanguage(next);
     setOpen(false);
   };

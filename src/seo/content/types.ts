@@ -136,6 +136,16 @@ export interface CopyPack {
   /** Turns a stored place name into its grammatical forms. */
   placeWords: (name: string, kind: 'region' | 'district') => PlaceWords;
 
+  /**
+   * The country, in the same grammatical forms.
+   *
+   * Category pages are about a kind of home rather than a place, but their
+   * FAQ is still phrased "how do I find X in Y". Without this the builder
+   * substituted the brand name for Y and asked "how do I find a flat in
+   * Maklersiz Uy".
+   */
+  country?: PlaceWords;
+
   /** Home page. */
   home: {
     title: string;
