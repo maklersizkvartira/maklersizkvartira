@@ -56,7 +56,7 @@ void Promise.all([loadDictionary(language), loadCopy(language)]).then(() => {
   ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <React.StrictMode>
       <ThemeProvider>
-        <I18nProvider initialLanguage={language}>
+        <I18nProvider>
           <App />
         </I18nProvider>
       </ThemeProvider>

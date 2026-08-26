@@ -45,7 +45,13 @@ export function isCopyLoaded(language: Language): boolean {
  * that moment would be worse than rendering a plain one.
  */
 export function copyFor(language: Language): CopyPack {
-  return packs[language] ?? packs[DEFAULT_LANGUAGE] ?? FALLBACK_COPY;
+  const exact = packs[language];
+  if (exact) return exact;
+  // Any real pack beats the placeholder. A visitor mid-switch sees prose in
+  // the wrong language for a frame; the placeholder would show them the raw
+  // category key instead, which is what "Chilonzor — apartment" was.
+  const loaded = packs[DEFAULT_LANGUAGE] ?? Object.values(packs)[0];
+  return loaded ?? FALLBACK_COPY;
 }
 
 export function loadCopy(language: Language): Promise<CopyPack> {

@@ -29,7 +29,7 @@ import {
 
 import { useTranslation } from '../../i18n';
 import { useAppStore, DEFAULT_FILTERS, type Filters } from '../../stores/useAppStore';
-import { copyFor } from '../../seo/content';
+import { useSeoCopy } from '../../seo/useSeoCopy';
 import { hubLinks } from '../../seo/links';
 import { Button, SelectInput } from '../ui/Field';
 import { LinkGroups } from '../seo/blocks';
@@ -83,7 +83,7 @@ const QUICK_FILTERS: QuickFilter[] = [
 export const ListingsPage: React.FC = () => {
   const { t, formatNumber } = useTranslation();
   const language = useAppStore((state) => state.language);
-  const copy = copyFor(language);
+  const copy = useSeoCopy(language);
 
   const listings = useAppStore((state) => state.listings);
   const featured = useAppStore((state) => state.featured);

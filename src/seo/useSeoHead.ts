@@ -16,6 +16,7 @@ import { useEffect } from 'react';
 
 import { SITE_NAME } from './config';
 import { buildHead, type HeadData, type HeadTags } from './meta';
+import { useSeoCopy } from './useSeoCopy';
 import type { RouteMatch } from './routes';
 import type { Language } from '../i18n/types';
 
@@ -121,6 +122,9 @@ export function useSeoHead(
   enabled = true,
 ): void {
   const { listing, resultCount, noindex } = data;
+  // Subscribing to the pack is what makes the head correct itself once a
+  // lazily-loaded language arrives, rather than keeping the fallback title.
+  const copy = useSeoCopy(language);
 
   useEffect(() => {
     if (!enabled) return;
@@ -129,5 +133,5 @@ export function useSeoHead(
     // object itself would re-run on every render, because callers build it
     // inline.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [route, language, listing, resultCount, noindex, enabled]);
+  }, [route, language, copy, listing, resultCount, noindex, enabled]);
 }

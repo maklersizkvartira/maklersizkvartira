@@ -18,6 +18,7 @@ import { createStore, type StoreApi } from 'zustand/vanilla';
 import {
   browserLanguage,
   detectInitialLanguage as getStoredLanguage,
+  persistLanguage,
   storedLanguage,
 } from '../i18n/storage';
 import { DEFAULT_LANGUAGE, type Language } from '../i18n/types';
@@ -106,11 +107,17 @@ interface AppState {
   updateAvatar: (avatar: string) => Promise<void>;
 
   // -- Preferences ---------------------------------------------------------
+  /**
+   * The active language, and the only copy of it.
+   *
+   * It used to live here *and* in `<I18nProvider>`'s own state, kept in step
+   * by an applier the provider registered in an effect. Child effects run
+   * before parent ones, so on mount the router adopted the URL's language
+   * before that applier existed: the store switched, the provider did not, and
+   * a Russian URL rendered a Russian heading over Uzbek navigation.
+   */
   language: Language;
   setLanguage: (language: Language) => void;
-  /** Applies a language to the live UI. Registered by <I18nProvider>. */
-  applyLanguage: (language: Language) => void;
-  registerLanguageApplier: (apply: (language: Language) => void) => void;
   currency: 'UZS' | 'USD';
   setCurrency: (currency: 'UZS' | 'USD') => void;
   fxRate: number;
@@ -272,10 +279,10 @@ const store = createStore<AppState>((set, get) => ({
       const user = await AuthApi.me();
       set({ currentUser: user, authReady: true });
 
-      // The account's saved language must actually drive the UI, not just sit
-      // in the store; applyLanguage is wired to the i18n provider on mount.
+      // The account's saved language follows the user across devices, so it
+      // wins over whatever this browser had stored.
       if (user.language && user.language !== get().language) {
-        get().applyLanguage(user.language);
+        set({ language: user.language });
       }
 
       // Without this the hearts are empty after every reload, and clicking one
@@ -339,10 +346,9 @@ const store = createStore<AppState>((set, get) => ({
 
   // -- Preferences ---------------------------------------------------------
   language: getStoredLanguage(),
-  applyLanguage: (language) => set({ language }),
-  registerLanguageApplier: (apply) => set({ applyLanguage: apply }),
   setLanguage: (language) => {
-    get().applyLanguage(language);
+    set({ language });
+    persistLanguage(language);
     // Each language has its own URL, so switching languages is a navigation.
     // Without this the address would keep claiming to be the Uzbek page while
     // showing Russian, and every hreflang tag on the site would be a lie.
@@ -402,7 +408,7 @@ const store = createStore<AppState>((set, get) => ({
 
   navigate: (path, options = {}) => {
     const match = matchUrl(path);
-    if (match.language !== get().language) get().applyLanguage(match.language);
+    if (match.language !== get().language) set({ language: match.language });
     set({
       currentView: match.route.view,
       selectedListingId: match.route.listingId ?? null,
@@ -428,7 +434,7 @@ const store = createStore<AppState>((set, get) => ({
       : (storedLanguage() ??
         (isAutomatedAgent() ? match.language : (browserLanguage() ?? match.language)));
 
-    if (preferred !== get().language) get().applyLanguage(preferred);
+    if (preferred !== get().language) set({ language: preferred });
     set({
       currentView: match.route.view,
       selectedListingId: match.route.listingId ?? null,

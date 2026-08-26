@@ -8,11 +8,11 @@
  * authoritative to point when a visitor's question is not "where", but "how".
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ArrowRight, CalendarDays, Clock } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
-import { copyFor } from '../../seo/content';
+import { useSeoCopy } from '../../seo/useSeoCopy';
 import type { Article, ArticleSection, HelpArticle } from '../../seo/content/types';
 import { buildPageCopy } from '../../seo/meta';
 import { blogPostPath, helpPath, BLOG_PATH, HELP_PATH } from '../../seo/routes';
@@ -60,8 +60,8 @@ export const BlogIndexPage: React.FC = () => {
   const { t, formatDate } = useTranslation();
   const route = useAppStore((state) => state.route);
   const language = useAppStore((state) => state.language);
-  const copy = copyFor(language);
-  const page = buildPageCopy(route, language);
+  const copy = useSeoCopy(language);
+  const page = useMemo(() => buildPageCopy(route, language), [route, language, copy]);
 
   useSeoHead(route, language);
 
@@ -104,8 +104,8 @@ export const BlogPostPage: React.FC = () => {
   const { t, formatDate } = useTranslation();
   const route = useAppStore((state) => state.route);
   const language = useAppStore((state) => state.language);
-  const copy = copyFor(language);
-  const page = buildPageCopy(route, language);
+  const copy = useSeoCopy(language);
+  const page = useMemo(() => buildPageCopy(route, language), [route, language, copy]);
   const article = copy.articles.find((item) => item.slug === route.slug);
 
   useSeoHead(route, language);
@@ -165,8 +165,8 @@ export const HelpPage: React.FC = () => {
   const { t, formatDate } = useTranslation();
   const route = useAppStore((state) => state.route);
   const language = useAppStore((state) => state.language);
-  const copy = copyFor(language);
-  const page = buildPageCopy(route, language);
+  const copy = useSeoCopy(language);
+  const page = useMemo(() => buildPageCopy(route, language), [route, language, copy]);
   const article: HelpArticle | undefined = route.slug
     ? copy.help.find((item) => item.slug === route.slug)
     : undefined;
@@ -221,7 +221,7 @@ export const NotFoundPage: React.FC = () => {
   const { t } = useTranslation();
   const route = useAppStore((state) => state.route);
   const language = useAppStore((state) => state.language);
-  const copy = copyFor(language);
+  const copy = useSeoCopy(language);
 
   useSeoHead(route, language, { noindex: true });
 

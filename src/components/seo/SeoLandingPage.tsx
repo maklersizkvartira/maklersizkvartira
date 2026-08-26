@@ -24,7 +24,7 @@ import { useTranslation } from '../../i18n';
 import { buildPageCopy } from '../../seo/meta';
 import { relatedLinks } from '../../seo/links';
 import { useSeoHead } from '../../seo/useSeoHead';
-import { copyFor } from '../../seo/content';
+import { useSeoCopy } from '../../seo/useSeoCopy';
 import { useAppStore } from '../../stores/useAppStore';
 import type { Listing } from '../../types';
 import { ListingsApi } from '../../services/listingsApi';
@@ -48,9 +48,9 @@ export const SeoLandingPage: React.FC = () => {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [reloadToken, setReloadToken] = useState(0);
 
-  const copy = copyFor(language);
-  const page = useMemo(() => buildPageCopy(route, language), [route, language]);
-  const groups = useMemo(() => relatedLinks(route, language), [route, language]);
+  const copy = useSeoCopy(language);
+  const page = useMemo(() => buildPageCopy(route, language), [route, language, copy]);
+  const groups = useMemo(() => relatedLinks(route, language), [route, language, copy]);
 
   const profile = route.district
     ? copy.places.districts[route.district.slug]

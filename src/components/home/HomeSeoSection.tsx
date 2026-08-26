@@ -15,14 +15,14 @@
 
 import React from 'react';
 
-import { copyFor } from '../../seo/content';
+import { useSeoCopy } from '../../seo/useSeoCopy';
 import { hubLinks } from '../../seo/links';
 import { useAppStore } from '../../stores/useAppStore';
 import { FaqSection, LinkGroups, Prose } from '../seo/blocks';
 
 export const HomeSeoSection: React.FC = () => {
   const language = useAppStore((state) => state.language);
-  const copy = copyFor(language);
+  const copy = useSeoCopy(language);
 
   return (
     <section className="mx-auto w-full max-w-7xl px-4 pb-14 pt-4 sm:px-6">

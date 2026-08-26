@@ -109,7 +109,7 @@ export function renderPage(path: string, language: Language): RenderedPage {
   try {
     const html = renderToStaticMarkup(
       <ThemeProvider>
-        <I18nProvider initialLanguage={language}>
+        <I18nProvider>
           <div className="flex min-h-screen flex-col bg-canvas text-content">
             <Header />
             {/* Same padding as the live shell, so the fixed header appearing

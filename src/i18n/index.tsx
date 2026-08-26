@@ -14,7 +14,6 @@
 
 import React, {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -25,7 +24,7 @@ import { useAppStore } from '../stores/useAppStore';
 import { dictionaryFor, isDictionaryLoaded, loadDictionary } from './dictionaries';
 import { isCopyLoaded, loadCopy } from '../seo/content';
 import { uz, type UzDictionary } from './locales/uz';
-import { detectInitialLanguage, persistLanguage } from './storage';
+import { detectInitialLanguage } from './storage';
 import {
   DEFAULT_LANGUAGE,
   isLanguage,
@@ -99,19 +98,19 @@ interface I18nContextValue {
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
-export const I18nProvider: React.FC<{
-  children: React.ReactNode;
-  /**
-   * Forces the starting language. Only the build-time prerenderer passes it:
-   * it renders every page once per language in a Node process where
-   * `detectInitialLanguage` can only ever answer "Uzbek", and a Russian page
-   * rendered in Uzbek is worse than no prerendered page at all.
-   */
-  initialLanguage?: Language;
-}> = ({ children, initialLanguage }) => {
-  const [language, setLanguageState] = useState<Language>(
-    () => initialLanguage ?? detectInitialLanguage(),
-  );
+/**
+ * The provider reads the language; it does not own it.
+ *
+ * The store is the single owner (see `useAppStore`), because the router has to
+ * be able to change the language from the URL before this component's effects
+ * have run. Holding a second copy here and syncing it through a registered
+ * callback meant that on mount the router switched the store, the provider
+ * kept its own value, and a `/ru/…` page rendered Russian headings over Uzbek
+ * navigation.
+ */
+export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const language = useAppStore((state) => state.language);
+  const setLanguage = useAppStore((state) => state.setLanguage);
 
   // Keep <html lang> in sync: it drives screen-reader pronunciation, browser
   // translation prompts and CSS `:lang()` rules.
@@ -127,23 +126,18 @@ export const I18nProvider: React.FC<{
    */
   const [revision, setRevision] = useState(0);
 
-  const setLanguage = useCallback((next: Language) => {
-    setLanguageState(next);
-    persistLanguage(next);
+  useEffect(() => {
     // The SEO copy pack is per-language too, and the head builder reads it
     // synchronously — so it has to arrive with the dictionary, not after.
-    if (!isDictionaryLoaded(next) || !isCopyLoaded(next)) {
-      void Promise.all([loadDictionary(next), loadCopy(next)]).then(() =>
-        setRevision((value) => value + 1),
-      );
-    }
-  }, []);
-
-  // The store holds the account's saved preference but cannot re-render the
-  // tree on its own; registering the setter lets it drive the live UI.
-  useEffect(() => {
-    useAppStore.getState().registerLanguageApplier(setLanguage);
-  }, [setLanguage]);
+    if (isDictionaryLoaded(language) && isCopyLoaded(language)) return;
+    let cancelled = false;
+    void Promise.all([loadDictionary(language), loadCopy(language)]).then(() => {
+      if (!cancelled) setRevision((value) => value + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [language]);
 
   const value = useMemo<I18nContextValue>(() => {
     const locale = LANGUAGE_META[language].locale;

@@ -13,13 +13,21 @@ import { DEFAULT_LANGUAGE, isLanguage, type Language } from './types';
 export const LANGUAGE_STORAGE_KEY = 'maklersiz.language';
 
 /**
- * Resolution order: the URL's language prefix, then an explicit stored choice,
- * then the legacy `?lang=`, then the browser's preferences, then Uzbek.
+ * The language the current URL renders in.
  *
- * The prefix has to come first. `/ru/toshkent` declares itself the Russian
- * page in its canonical and hreflang tags, so if a returning Uzbek-preferring
- * visitor were served Uzbek at that address the page would contradict its own
- * metadata — and hreflang stops working the moment it does.
+ * Resolution order: the URL's language prefix, then an explicit stored choice,
+ * then Uzbek. The browser's own preference is deliberately NOT consulted here.
+ *
+ * It has to answer exactly what the router will answer. When it did not — when
+ * this returned the browser language while the router resolved an unprefixed
+ * path to Uzbek — the two disagreed, and the app booted having loaded one
+ * language's copy while rendering another's, which fell through to the
+ * placeholder pack and put "Chilonzor — apartment" on the page.
+ *
+ * A first-time visitor whose browser asks for Russian is still served Russian:
+ * `browserLanguage` below feeds a redirect to `/ru/…`, so the address and the
+ * content agree instead of a Russian page claiming in its own canonical tag to
+ * be the Uzbek one.
  */
 export function detectInitialLanguage(): Language {
   if (typeof window === 'undefined') return DEFAULT_LANGUAGE;
@@ -31,30 +39,34 @@ export function detectInitialLanguage(): Language {
     /* malformed URL */
   }
 
-  try {
-    const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    if (isLanguage(stored)) return stored;
-  } catch {
-    /* private mode / storage disabled */
-  }
+  return storedLanguage() ?? DEFAULT_LANGUAGE;
+}
+
+/**
+ * What this visitor would probably rather read, ignoring the URL.
+ *
+ * Used only to decide whether to move somebody to their language's address.
+ * It never decides what a given URL renders.
+ */
+export function browserLanguage(): Language | null {
+  if (typeof window === 'undefined') return null;
 
   try {
-    const fromUrl = new URLSearchParams(window.location.search).get('lang');
-    if (isLanguage(fromUrl)) return fromUrl;
+    // The previous build advertised `?lang=` alternates; those links still exist.
+    const fromQuery = new URLSearchParams(window.location.search).get('lang');
+    if (isLanguage(fromQuery)) return fromQuery;
   } catch {
     /* malformed URL */
   }
 
   // Guarded separately from `window`: a prerender or test that shims `window`
-  // without shimming `navigator` would otherwise throw here, at module
-  // evaluation time, before anything has had a chance to render.
-  if (typeof navigator !== 'undefined') {
-    for (const candidate of navigator.languages ?? [navigator.language]) {
-      const base = candidate?.slice(0, 2).toLowerCase();
-      if (isLanguage(base)) return base;
-    }
+  // without shimming `navigator` would otherwise throw at module evaluation.
+  if (typeof navigator === 'undefined') return null;
+  for (const candidate of navigator.languages ?? [navigator.language]) {
+    const base = candidate?.slice(0, 2).toLowerCase();
+    if (isLanguage(base)) return base;
   }
-  return DEFAULT_LANGUAGE;
+  return null;
 }
 
 /** The language a returning visitor last chose, ignoring the current URL. */
