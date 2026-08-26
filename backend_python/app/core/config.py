@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     ENVIRONMENT: Environment = "development"
     APP_NAME: str = "Maklersiz.uz API"
     API_PREFIX: str = "/api/v1"
+    #: The public origin of the SITE, not of this API. Sitemaps served here are
+    #: proxied onto that host, so every <loc> they publish has to name it —
+    #: a sitemap listing URLs for a host it is not served from is only honoured
+    #: when both hosts are verified in Search Console.
+    SITE_URL: str = "https://maklersizuy.uz"
     PORT: int = 5000
     LOG_LEVEL: str = "INFO"
     # Number of reverse proxies in front of the app. Controls how far back in

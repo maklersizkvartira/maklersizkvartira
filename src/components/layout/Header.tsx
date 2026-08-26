@@ -25,6 +25,7 @@ import { Logo } from '../brand/Logo';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ThemeToggle } from './ThemeToggle';
 import { canPublishListings, roleLabelKey } from '../../types/roles';
+import { AppLink } from '../../router/AppLink';
 
 interface NavItem {
   view: ViewState;
@@ -148,10 +149,10 @@ export const Header: React.FC = () => {
 
             <nav className="flex-1 px-2 py-3">
               {[...PRIMARY_NAV, ...ACCOUNT_NAV].filter(visible).map((item) => (
-                <button
+                <AppLink
                   key={item.view}
-                  type="button"
-                  onClick={() => go(item.view)}
+                  view={item.view}
+                  onNavigate={() => setDrawerOpen(false)}
                   aria-current={currentView === item.view ? 'page' : undefined}
                   className={`w-full rounded-xl px-3 py-3 text-left text-sm font-bold transition-colors ${
                     currentView === item.view
@@ -160,7 +161,7 @@ export const Header: React.FC = () => {
                   }`}
                 >
                   {t(item.labelKey as never)}
-                </button>
+                </AppLink>
               ))}
             </nav>
 
@@ -191,9 +192,9 @@ export const Header: React.FC = () => {
     <>
       <header className="fixed inset-x-0 top-0 z-[90] border-b border-line bg-surface/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:h-16 sm:px-6">
-          <button
-            type="button"
-            onClick={() => go('HOME')}
+          <AppLink
+            view="HOME"
+            onNavigate={() => setDrawerOpen(false)}
             className="flex shrink-0 items-center gap-2"
             aria-label={t('common.brand.name')}
           >
@@ -211,14 +212,14 @@ export const Header: React.FC = () => {
             <span className="sm:hidden">
               <Logo size="sm" />
             </span>
-          </button>
+          </AppLink>
 
           <nav className="ml-2 hidden items-center gap-1 lg:flex">
             {PRIMARY_NAV.map((item) => (
-              <button
+              <AppLink
                 key={item.view}
-                type="button"
-                onClick={() => go(item.view)}
+                view={item.view}
+                onNavigate={() => setDrawerOpen(false)}
                 aria-current={currentView === item.view ? 'page' : undefined}
                 className={`rounded-xl px-3 py-2 text-sm font-bold transition-colors ${
                   currentView === item.view
@@ -227,14 +228,13 @@ export const Header: React.FC = () => {
                 }`}
               >
                 {t(item.labelKey as never)}
-              </button>
+              </AppLink>
             ))}
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => go('FAVORITES')}
+            <AppLink
+              view="FAVORITES"
               aria-label={t('layout.nav.favorites')}
               className="relative hidden rounded-xl border border-line bg-surface p-2 text-muted transition-colors hover:border-brand hover:text-content sm:block"
             >
@@ -244,7 +244,7 @@ export const Header: React.FC = () => {
                   {favorites.size}
                 </span>
               )}
-            </button>
+            </AppLink>
 
             <div className="hidden sm:block">
               <ThemeToggle />

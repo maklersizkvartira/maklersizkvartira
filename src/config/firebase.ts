@@ -7,16 +7,17 @@
  * from the client and the server believed it, which meant anyone could sign
  * in as anyone by typing their address into a request.
  *
- * The values here are publishable by design; Firebase config is not a secret.
+ * The SDK is loaded on demand rather than imported at the top of the file.
+ * `AuthDialog` is part of the app shell, so a static import put ~94KB of
+ * Firebase (28KB gzipped) on the critical path of every first paint — for a
+ * button that most visitors never press, on a page most of them never open.
+ * Everything below that a caller needs synchronously (is it configured, was
+ * the popup dismissed) stays synchronous.
+ *
+ * The config values are publishable by design; Firebase config is not a secret.
  */
 
-import { initializeApp, type FirebaseApp } from 'firebase/app';
-import {
-  GoogleAuthProvider,
-  getAuth,
-  signInWithPopup,
-  type Auth,
-} from 'firebase/auth';
+import type { Auth } from 'firebase/auth';
 
 const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -28,16 +29,35 @@ const config = {
 /** Google sign-in is simply unavailable when Firebase is not configured. */
 export const isGoogleAuthConfigured = Boolean(config.apiKey && config.projectId);
 
-let app: FirebaseApp | null = null;
-let auth: Auth | null = null;
+let authPromise: Promise<Auth> | null = null;
 
-function getFirebaseAuth(): Auth {
+/** Loads the SDK once and memoises the initialised Auth instance. */
+function getFirebaseAuth(): Promise<Auth> {
   if (!isGoogleAuthConfigured) {
-    throw new Error('Google sign-in is not configured');
+    return Promise.reject(new Error('Google sign-in is not configured'));
   }
-  if (!app) app = initializeApp(config);
-  if (!auth) auth = getAuth(app);
-  return auth;
+  if (!authPromise) {
+    authPromise = Promise.all([import('firebase/app'), import('firebase/auth')])
+      .then(([{ initializeApp }, { getAuth }]) => getAuth(initializeApp(config)))
+      .catch((error) => {
+        // A failed chunk fetch must not poison every later attempt: clearing
+        // the memo lets the next click retry instead of rejecting instantly.
+        authPromise = null;
+        throw error;
+      });
+  }
+  return authPromise;
+}
+
+/**
+ * Warms the SDK chunk without opening anything.
+ *
+ * Called when the auth dialog opens, so the network fetch overlaps with the
+ * user reading the form instead of starting after they click.
+ */
+export function preloadGoogleAuth(): void {
+  if (!isGoogleAuthConfigured) return;
+  void getFirebaseAuth().catch(() => undefined);
 }
 
 /**
@@ -47,9 +67,13 @@ function getFirebaseAuth(): Auth {
  * the identity out of the verified token itself.
  */
 export async function getGoogleIdToken(): Promise<string> {
+  const [auth, { GoogleAuthProvider, signInWithPopup }] = await Promise.all([
+    getFirebaseAuth(),
+    import('firebase/auth'),
+  ]);
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
-  const credential = await signInWithPopup(getFirebaseAuth(), provider);
+  const credential = await signInWithPopup(auth, provider);
   return credential.user.getIdToken();
 }
 

@@ -37,6 +37,8 @@ export const listings = {
     title: 'Tavsiya etilgan e’lonlar',
     subtitle: 'Eng ishonchli va ommabop takliflar',
     badge: 'Reklama',
+    vipTitle: 'VIP e’lonlar',
+    topBadge: 'Top',
     empty: 'Hozircha tavsiya etilgan e’lon yo‘q',
   },
 
@@ -85,6 +87,7 @@ export const listings = {
     videoTitle: 'E’lon video sharhi',
     videoUnsupported: 'Brauzeringiz videoni qo‘llab-quvvatlamaydi.',
     showImage: '{index}-rasmni ko‘rsatish',
+    photoOf: '{title} — {index}-rasm',
     viewOnMap: 'Xaritada ko‘rish',
     ownerRentals: '{count} ta muvaffaqiyatli ijara',
     utilitiesExcluded: 'Kommunal to‘lovlar alohida',

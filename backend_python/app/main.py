@@ -20,7 +20,7 @@ from app.core import middleware as app_middleware
 from app.core.config import settings
 from app.core.database import dispose_engine
 from app.core.errors import APIError, MESSAGES, translate
-from app.routers import admin, ai, auth, chat, listings, meta
+from app.routers import admin, ai, auth, chat, listings, meta, seo
 
 ADMIN_DIR = Path(__file__).resolve().parent / "admin"
 
@@ -113,6 +113,11 @@ def create_app() -> FastAPI:
     app.include_router(chat.router, prefix=prefix)
     app.include_router(ai.router, prefix=prefix)
     app.include_router(admin.router, prefix=prefix)
+
+    # Served at the app root, not under the API prefix: the security
+    # middleware puts `Cache-Control: no-store` on everything under the prefix,
+    # and a sitemap no crawler may cache is refetched in full on every pass.
+    app.include_router(seo.router)
 
     # Unprefixed liveness probe for the platform's health check.
     @app.get("/health", include_in_schema=False)

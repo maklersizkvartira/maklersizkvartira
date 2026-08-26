@@ -5,6 +5,8 @@ import { Heart, Home, Plus, Search, User as UserIcon, Map as MapIcon, MessageSqu
 
 import { useTranslation } from '../../i18n';
 import { useAppStore, type ViewState } from '../../stores/useAppStore';
+import { AppLink } from '../../router/AppLink';
+import { REQUIRES_AUTH } from '../../router/views';
 
 interface Tab {
   view: ViewState;
@@ -32,9 +34,11 @@ export const BottomNav: React.FC = () => {
   const favorites = useAppStore((state) => state.favoriteIds);
   const unreadChatCount = useAppStore((state) => state.unreadChatCount);
 
+  /** True when tapping this tab should open the auth dialog instead. */
+  const isGated = (tab: Tab) => REQUIRES_AUTH.has(tab.view) && !currentUser;
+
   const open = (tab: Tab) => {
-    const needsAuth = tab.view === 'CREATE_LISTING' || tab.view === 'FAVORITES' || tab.view === 'PROFILE' || tab.view === 'CHAT';
-    if (needsAuth && !currentUser) {
+    if (isGated(tab)) {
       setShowAuth(true, tab.view === 'CREATE_LISTING' ? 'REGISTER' : 'LOGIN');
       return;
     }
@@ -63,31 +67,55 @@ export const BottomNav: React.FC = () => {
               </li>
             );
           }
+          // Seven tabs now, so the icons carry the row on their own; the
+          // label that used to sit under each one no longer fits a narrow
+          // phone. `aria-label` is what keeps the tab named for a screen
+          // reader once the visible text is gone.
+          const className = `relative flex h-full w-full items-center justify-center py-4 transition-colors ${
+            active ? 'text-brand-text' : 'text-subtle hover:text-content'
+          }`;
+          const badge =
+            tab.view === 'FAVORITES'
+              ? favorites.size
+              : tab.view === 'CHAT'
+                ? unreadChatCount
+                : 0;
+          const body = (
+            <span className="relative">
+              <tab.icon className="h-6 w-6" aria-hidden="true" />
+              {badge > 0 && (
+                <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-black text-white">
+                  {badge}
+                </span>
+              )}
+            </span>
+          );
+
           return (
             <li key={tab.view} className="flex-1">
-              <button
-                type="button"
-                onClick={() => open(tab)}
-                aria-current={active ? 'page' : undefined}
-                aria-label={t(tab.labelKey as never)}
-                className={`relative flex w-full h-full items-center justify-center py-4 transition-colors ${
-                  active ? 'text-brand-text' : 'text-subtle hover:text-content'
-                }`}
-              >
-                <span className="relative">
-                  <tab.icon className="h-6 w-6" aria-hidden="true" />
-                  {tab.view === 'FAVORITES' && favorites.size > 0 && (
-                    <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-black text-white">
-                      {favorites.size}
-                    </span>
-                  )}
-                  {tab.view === 'CHAT' && unreadChatCount > 0 && (
-                    <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-black text-white">
-                      {unreadChatCount}
-                    </span>
-                  )}
-                </span>
-              </button>
+              {/* A gated tab opens the sign-in dialog rather than navigating,
+                  so it stays a button — an anchor whose href never loads is
+                  worse than no anchor at all. */}
+              {isGated(tab) ? (
+                <button
+                  type="button"
+                  onClick={() => open(tab)}
+                  aria-current={active ? 'page' : undefined}
+                  aria-label={t(tab.labelKey as never)}
+                  className={className}
+                >
+                  {body}
+                </button>
+              ) : (
+                <AppLink
+                  view={tab.view}
+                  aria-current={active ? 'page' : undefined}
+                  aria-label={t(tab.labelKey as never)}
+                  className={className}
+                >
+                  {body}
+                </AppLink>
+              )}
             </li>
           );
         })}

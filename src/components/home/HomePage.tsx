@@ -9,6 +9,7 @@
 import React from 'react';
 import { AIRecommended } from './AIRecommended';
 import { HeroSection } from './HeroSection';
+import { HomeSeoSection } from './HomeSeoSection';
 import { QuickCategories } from './QuickCategories';
 import { TrustStats } from './TrustStats';
 
@@ -19,6 +20,7 @@ export const HomePage: React.FC = () => {
       <AIRecommended />
       <QuickCategories />
       <TrustStats />
+      <HomeSeoSection />
     </>
   );
 };

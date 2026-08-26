@@ -37,6 +37,8 @@ export const listings = {
     title: 'Рекомендуемые объявления',
     subtitle: 'Самые надёжные и популярные предложения',
     badge: 'Реклама',
+    vipTitle: 'VIP объявления',
+    topBadge: 'Топ',
     empty: 'Пока нет рекомендуемых объявлений',
   },
 
@@ -85,6 +87,7 @@ export const listings = {
     videoTitle: 'Видеообзор объявления',
     videoUnsupported: 'Ваш браузер не поддерживает видео.',
     showImage: 'Показать фото {index}',
+    photoOf: '{title} — фото {index}',
     viewOnMap: 'Показать на карте',
     ownerRentals: 'Успешных сделок: {count}',
     utilitiesExcluded: 'Коммунальные оплачиваются отдельно',

@@ -1,4 +1,7 @@
-backend/
-requirements.txt
+backend_python/
+ui-verification/
 Procfile
-nixpacks.toml
+Dockerfile
+railway.json
+*.md
+!README.md

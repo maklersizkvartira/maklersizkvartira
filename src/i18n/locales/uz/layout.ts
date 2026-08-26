@@ -79,6 +79,7 @@ export const layout = {
     terms: 'Foydalanish shartlari',
     privacy: 'Maxfiylik siyosati',
     safety: 'Xavfsizlik qoidalari',
+    guides: 'Qo‘llanmalar',
     contact: 'Bog‘lanish',
     support: 'Qo‘llab-quvvatlash',
     faq: 'Ko‘p so‘raladigan savollar',

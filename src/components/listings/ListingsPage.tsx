@@ -29,7 +29,10 @@ import {
 
 import { useTranslation } from '../../i18n';
 import { useAppStore, DEFAULT_FILTERS, type Filters } from '../../stores/useAppStore';
+import { useSeoCopy } from '../../seo/useSeoCopy';
+import { hubLinks } from '../../seo/links';
 import { Button, SelectInput } from '../ui/Field';
+import { LinkGroups } from '../seo/blocks';
 import { ListingCard, ListingCardSkeleton } from './ListingCard';
 
 const TASHKENT_DISTRICTS = [
@@ -79,6 +82,8 @@ const QUICK_FILTERS: QuickFilter[] = [
 
 export const ListingsPage: React.FC = () => {
   const { t, formatNumber } = useTranslation();
+  const language = useAppStore((state) => state.language);
+  const copy = useSeoCopy(language);
 
   const listings = useAppStore((state) => state.listings);
   const featured = useAppStore((state) => state.featured);
@@ -352,10 +357,10 @@ export const ListingsPage: React.FC = () => {
           <div className="mb-3 flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-warning" aria-hidden="true" />
             <h2 className="text-lg font-black text-content sm:text-xl">
-              VIP E'lonlar
+              {t('listings.featured.vipTitle')}
             </h2>
             <span className="rounded-md bg-warning-soft px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-warning border border-warning/20">
-              Top
+              {t('listings.featured.topBadge')}
             </span>
           </div>
           <div className="hide-scrollbar -mx-4 flex snap-x snap-mandatory gap-3.5 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-4">
@@ -371,6 +376,16 @@ export const ListingsPage: React.FC = () => {
       {/* ---------------------------------------------------------------- */}
       {/* Results                                                           */}
       {/* ---------------------------------------------------------------- */}
+      {/* The catalogue is the site's main money page and had no <h1> at all:
+          its first heading was a conditional "VIP" <h2>, so on most renders
+          the document's outline started inside the footer. */}
+      <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 sm:pt-8">
+        <h1 className="text-xl font-black leading-tight tracking-tight text-content sm:text-2xl">
+          {copy.catalog.h1}
+        </h1>
+        <p className="mt-1.5 max-w-2xl text-sm text-muted">{copy.catalog.intro[0]}</p>
+      </section>
+
       <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
         {error && !loading && listings.length === 0 ? (
           <div className="rounded-2xl border border-danger/30 bg-danger-soft p-8 text-center">
@@ -469,9 +484,16 @@ export const ListingsPage: React.FC = () => {
       </section>
 
       {/* ---------------------------------------------------------------- */}
+      {/* Where else to look                                                */}
+      {/* ---------------------------------------------------------------- */}
+      <section className="mx-auto max-w-7xl px-4 sm:px-6">
+        <LinkGroups heading={copy.common.exploreHeading} groups={hubLinks(language)} />
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
       {/* Safety note                                                       */}
       {/* ---------------------------------------------------------------- */}
-      <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 pb-12 pt-10 sm:px-6">
         <div className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
           <h2 className="flex items-center gap-2 text-base font-black text-content">
             <ShieldCheck className="h-5 w-5 text-brand" aria-hidden="true" />

@@ -1,9 +1,12 @@
 /**
  * Application shell.
  *
- * Routing is a view switch rather than a router: the app is a single-surface
- * product and the previous build already worked this way. Deep links are read
- * from the query string on mount and written back on navigation.
+ * Routing is a view switch driven by the URL. The store holds the resolved
+ * route; the address bar is a projection of it, written by `setCurrentView`
+ * and `navigate`, and read back on mount and on every `popstate`. That last
+ * part is what makes Back and Forward work — the previous build pushed history
+ * entries it never consumed, so the URL and the rendered view drifted apart
+ * the first time anybody pressed Back.
  *
  * Every view except the listings grid is code-split, so the initial bundle
  * carries only what the first screen needs.
@@ -21,7 +24,11 @@ import { ShieldMascot } from './components/common/ShieldMascot';
 import { GlobalAINotification } from './components/common/GlobalAINotification';
 import { useTranslation } from './i18n';
 import { setSessionExpiredHandler } from './services/http';
+import { isAutomatedAgent } from './services/crawler';
+import { trackPageView } from './services/analytics';
 import { MetaApi } from './services/listingsApi';
+import { useSeoHead } from './seo/useSeoHead';
+import { REQUIRES_AUTH } from './router/views';
 import { useAppStore, type ViewState } from './stores/useAppStore';
 
 const HomePage = lazy(() => import('./components/home/HomePage'));
@@ -36,30 +43,32 @@ const ReferralPage = lazy(() => import('./components/growth/ReferralPage'));
 const StudentProgramPage = lazy(() => import('./components/student/StudentProgramPage'));
 const EcosystemPreviewPage = lazy(() => import('./components/ecosystem/EcosystemPreviewPage'));
 const ChatPage = lazy(() => import('./components/chat/ChatPage'));
+const SeoLandingPage = lazy(() => import('./components/seo/SeoLandingPage'));
 
-const VIEW_FROM_QUERY: Record<string, ViewState> = {
-  listings: 'LISTINGS',
-  map: 'MAP',
-  favorites: 'FAVORITES',
-  profile: 'PROFILE',
-  my_listings: 'MY_LISTINGS',
-  create_listing: 'CREATE_LISTING',
-  verification: 'VERIFICATION',
-  referral: 'REFERRAL',
-  student_program: 'STUDENT_PROGRAM',
-  ecosystem_preview: 'ECOSYSTEM_PREVIEW',
-  chat: 'CHAT',
-};
+const ArticlePages = () => import('./components/content/ArticlePages');
+const BlogIndexPage = lazy(() =>
+  ArticlePages().then((module) => ({ default: module.BlogIndexPage })),
+);
+const BlogPostPage = lazy(() =>
+  ArticlePages().then((module) => ({ default: module.BlogPostPage })),
+);
+const HelpPage = lazy(() => ArticlePages().then((module) => ({ default: module.HelpPage })));
+const NotFoundPage = lazy(() =>
+  ArticlePages().then((module) => ({ default: module.NotFoundPage })),
+);
 
-/** Views that require an account; a guest is sent to the auth dialog instead. */
-const REQUIRES_AUTH: ReadonlySet<ViewState> = new Set<ViewState>([
-  'CREATE_LISTING',
-  'MY_LISTINGS',
-  'PROFILE',
-  'FAVORITES',
-  'VERIFICATION',
-  'REFERRAL',
-  'CHAT',
+/**
+ * Views that write their own `<head>`, because it depends on data they load —
+ * a listing's title, or whether a facet turned out to be empty. Everything
+ * else is described well enough by its route alone.
+ */
+const SELF_TITLING: ReadonlySet<ViewState> = new Set<ViewState>([
+  'LISTING_DETAIL',
+  'SEO_LANDING',
+  'BLOG_INDEX',
+  'BLOG_POST',
+  'HELP',
+  'NOT_FOUND',
 ]);
 
 const Loading: React.FC = () => {
@@ -123,14 +132,28 @@ function renderView(view: ViewState): React.ReactNode {
       return <EcosystemPreviewPage />;
     case 'CHAT':
       return <ChatPage />;
+    case 'SEO_LANDING':
+      return <SeoLandingPage />;
+    case 'BLOG_INDEX':
+      return <BlogIndexPage />;
+    case 'BLOG_POST':
+      return <BlogPostPage />;
+    case 'HELP':
+      return <HelpPage />;
+    // An unknown path is a 404, not the listings page. Answering every bad
+    // link with real content is what produces soft-404s in Search Console and
+    // hides broken links from everyone.
+    case 'NOT_FOUND':
     default:
-      return <ListingsPage />;
+      return <NotFoundPage />;
   }
 }
 
 export const App: React.FC = () => {
   const currentView = useAppStore((state) => state.currentView);
-  const setCurrentView = useAppStore((state) => state.setCurrentView);
+  const route = useAppStore((state) => state.route);
+  const language = useAppStore((state) => state.language);
+  const adoptLocation = useAppStore((state) => state.adoptLocation);
   const initAuth = useAppStore((state) => state.initAuth);
   const authReady = useAppStore((state) => state.authReady);
   const currentUser = useAppStore((state) => state.currentUser);
@@ -165,20 +188,23 @@ export const App: React.FC = () => {
       pushToast('layout.toast.sessionExpired', 'warning');
     });
 
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const listingId = params.get('listing') ?? params.get('id');
-      const view = params.get('view');
-      if (listingId) {
-        setCurrentView('LISTING_DETAIL', listingId);
-      } else if (view && VIEW_FROM_QUERY[view]) {
-        setCurrentView(VIEW_FROM_QUERY[view]);
-      }
-    } catch {
-      /* malformed URL */
-    }
+    return () => setSessionExpiredHandler(null);
+  }, [initAuth, pushToast]);
 
-    // Anonymous page-view counter for the admin dashboard.
+  // -- URL <-> view --------------------------------------------------------
+  useEffect(() => {
+    adoptLocation(window.location.pathname, window.location.search);
+
+    const onPopState = () => {
+      adoptLocation(window.location.pathname, window.location.search);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [adoptLocation]);
+
+  // -- Analytics -----------------------------------------------------------
+  useEffect(() => {
+    if (isAutomatedAgent()) return;
     try {
       let sessionId = sessionStorage.getItem('maklersiz.session');
       if (!sessionId) {
@@ -189,9 +215,14 @@ export const App: React.FC = () => {
     } catch {
       /* storage unavailable */
     }
+    // The same navigation, reported to GA4 — which is switched off entirely
+    // unless a measurement id is configured.
+    trackPageView(window.location.pathname || '/', document.title);
+  }, [route.path]);
 
-    return () => setSessionExpiredHandler(null);
-  }, [initAuth, setCurrentView, pushToast]);
+  // Views that load their own data describe themselves; the rest are fully
+  // described by the route, so the shell writes their head here.
+  useSeoHead(route, language, {}, !SELF_TITLING.has(currentView));
 
   const guarded = REQUIRES_AUTH.has(currentView) && !currentUser;
 

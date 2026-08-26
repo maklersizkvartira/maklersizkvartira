@@ -14,7 +14,6 @@
 
 import React, {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -22,10 +21,10 @@ import React, {
 } from 'react';
 
 import { useAppStore } from '../stores/useAppStore';
-import { en } from './locales/en';
-import { ru } from './locales/ru';
-import { uz, type Dictionary, type UzDictionary } from './locales/uz';
-import { detectInitialLanguage, persistLanguage } from './storage';
+import { dictionaryFor, isDictionaryLoaded, loadDictionary } from './dictionaries';
+import { isCopyLoaded, loadCopy } from '../seo/content';
+import { uz, type UzDictionary } from './locales/uz';
+import { detectInitialLanguage } from './storage';
 import {
   DEFAULT_LANGUAGE,
   isLanguage,
@@ -36,8 +35,6 @@ import {
 } from './types';
 
 export type TranslationKey = DotKeys<UzDictionary>;
-
-const DICTIONARIES: Record<Language, Dictionary> = { uz, ru, en };
 
 // ---------------------------------------------------------------------------
 // Lookup + interpolation
@@ -69,9 +66,10 @@ export function translate(
   params?: TranslationParams,
 ): string {
   const template =
-    resolve(DICTIONARIES[language], key) ??
-    // Fall back to Uzbek rather than rendering the raw key at the user.
-    resolve(DICTIONARIES[DEFAULT_LANGUAGE], key);
+    resolve(dictionaryFor(language), key) ??
+    // Fall back to Uzbek rather than rendering the raw key at the user. This
+    // also covers the window before a lazily-loaded dictionary has arrived.
+    resolve(uz, key);
 
   if (template === undefined) {
     if (import.meta.env.DEV) {
@@ -100,8 +98,19 @@ interface I18nContextValue {
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
+/**
+ * The provider reads the language; it does not own it.
+ *
+ * The store is the single owner (see `useAppStore`), because the router has to
+ * be able to change the language from the URL before this component's effects
+ * have run. Holding a second copy here and syncing it through a registered
+ * callback meant that on mount the router switched the store, the provider
+ * kept its own value, and a `/ru/…` page rendered Russian headings over Uzbek
+ * navigation.
+ */
 export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [language, setLanguageState] = useState<Language>(detectInitialLanguage);
+  const language = useAppStore((state) => state.language);
+  const setLanguage = useAppStore((state) => state.setLanguage);
 
   // Keep <html lang> in sync: it drives screen-reader pronunciation, browser
   // translation prompts and CSS `:lang()` rules.
@@ -110,16 +119,25 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
     document.documentElement.lang = language;
   }, [language]);
 
-  const setLanguage = useCallback((next: Language) => {
-    setLanguageState(next);
-    persistLanguage(next);
-  }, []);
+  /**
+   * Bumped when a lazily-loaded dictionary arrives. `translate` reads the
+   * registry rather than React state, so without this the tree would keep
+   * rendering the Uzbek fallback after the Russian chunk had landed.
+   */
+  const [revision, setRevision] = useState(0);
 
-  // The store holds the account's saved preference but cannot re-render the
-  // tree on its own; registering the setter lets it drive the live UI.
   useEffect(() => {
-    useAppStore.getState().registerLanguageApplier(setLanguage);
-  }, [setLanguage]);
+    // The SEO copy pack is per-language too, and the head builder reads it
+    // synchronously — so it has to arrive with the dictionary, not after.
+    if (isDictionaryLoaded(language) && isCopyLoaded(language)) return;
+    let cancelled = false;
+    void Promise.all([loadDictionary(language), loadCopy(language)]).then(() => {
+      if (!cancelled) setRevision((value) => value + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [language]);
 
   const value = useMemo<I18nContextValue>(() => {
     const locale = LANGUAGE_META[language].locale;
@@ -165,7 +183,10 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date);
       },
     };
-  }, [language, setLanguage]);
+    // `revision` is a dependency on purpose: it is the signal that the
+    // dictionary behind `translate` has changed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language, setLanguage, revision]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 };

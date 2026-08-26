@@ -11,7 +11,7 @@
 export const home = {
   hero: {
     badge: '0% komissiya · to‘g‘ridan-to‘g‘ri ijara',
-    title: 'Maklersiz kvartira toping',
+    title: 'Maklersiz uy va kvartira ijarasi',
     subtitle:
       'O‘zbekiston bo‘ylab {regions} ta viloyat va {districts} ta tumandagi tekshirilgan uylar.',
     searchTitle: 'Qayerdan izlayapsiz?',
