@@ -6,6 +6,7 @@ import uuid
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select, or_
+from sqlalchemy.orm import selectinload
 
 from app.core.deps import CurrentUser, DbSession
 from app.core.errors import BadRequest
@@ -41,7 +42,7 @@ async def start_or_get_conversation(
     if listing.owner_id == user.id:
         raise BadRequest("cannot_chat_with_self")
 
-    stmt = select(Conversation).where(
+    stmt = select(Conversation).options(selectinload(Conversation.messages)).where(
         Conversation.listing_id == listing_id,
         Conversation.user_id == user.id
     )
@@ -56,6 +57,9 @@ async def start_or_get_conversation(
         db.add(conversation)
         await db.commit()
         await db.refresh(conversation)
+        # For a new conversation, messages is implicitly empty, but SQLAlchemy might not know that
+        # unless we populate it or re-fetch it. Let's just set it to [] to prevent lazy load errors.
+        conversation.messages = []
 
     return conversation
 
@@ -65,7 +69,7 @@ async def get_messages(
     conversation_id: uuid.UUID, db: DbSession, user: CurrentUser
 ) -> ConversationDetailOut:
     """Get all messages for a specific conversation."""
-    conversation = (await db.execute(select(Conversation).where(Conversation.id == conversation_id))).scalar_one_or_none()
+    conversation = (await db.execute(select(Conversation).options(selectinload(Conversation.messages)).where(Conversation.id == conversation_id))).scalar_one_or_none()
     if not conversation:
         raise BadRequest("conversation_not_found")
         
