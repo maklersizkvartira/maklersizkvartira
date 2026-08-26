@@ -22,88 +22,84 @@ export async function createMapLibre(
 
   let markers: maplibregl.Marker[] = [];
 
-  return new Promise((resolve) => {
-    map.on('load', () => {
-      
-      // Add 3D buildings layer if available or just wait for map to load
-      try {
-        const layers = map.getStyle().layers;
-        const labelLayerId = layers.find(
-            (layer) => layer.type === 'symbol' && layer.layout?.['text-field']
-        )?.id;
+  map.on('load', () => {
+    try {
+      const layers = map.getStyle().layers;
+      const labelLayerId = layers.find(
+          (layer) => layer.type === 'symbol' && layer.layout?.['text-field']
+      )?.id;
 
-        map.addLayer(
-            {
-                'id': '3d-buildings',
-                'source': 'carto',
-                'source-layer': 'building',
-                'filter': ['==', 'extrude', 'true'],
-                'type': 'fill-extrusion',
-                'minzoom': 15,
-                'paint': {
-                    'fill-extrusion-color': '#aaa',
-                    'fill-extrusion-height': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        15,
-                        0,
-                        15.05,
-                        ['get', 'height']
-                    ],
-                    'fill-extrusion-base': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        15,
-                        0,
-                        15.05,
-                        ['get', 'min_height']
-                    ],
-                    'fill-extrusion-opacity': 0.6
-                }
-            },
-            labelLayerId
-        );
-      } catch (e) {
-        // Source might not exist in style, that's fine
-      }
-
-      resolve({
-        provider: 'leaflet', // Return 'leaflet' so we don't break types if it only accepts yandex|leaflet
-        setTheme(dark) {
-          map.setStyle(dark ? STYLE_URL_DARK : STYLE_URL_LIGHT);
-        },
-        setMarkers(next, onSelect) {
-          markers.forEach((m) => m.remove());
-          markers = next.map((entry) => {
-            const el = document.createElement('div');
-            el.innerHTML = entry.html;
-            el.className = 'listing-marker';
-            el.style.cursor = 'pointer';
-            el.onclick = () => onSelect(entry.id);
-            return new maplibregl.Marker({ element: el })
-              .setLngLat([entry.position[1], entry.position[0]])
-              .addTo(map);
-          });
-        },
-        fitTo(positions) {
-          if (positions.length === 0) return;
-          const bounds = new maplibregl.LngLatBounds();
-          positions.forEach(p => bounds.extend([p[1], p[0]]));
-          map.fitBounds(bounds, { padding: 56, maxZoom: 15 });
-        },
-        flyTo(position, zoom) {
-          map.flyTo({ center: [position[1], position[0]], zoom, pitch: 60, duration: 1200 });
-        },
-        panTo(position) {
-          map.panTo([position[1], position[0]], { duration: 400 });
-        },
-        destroy() {
-          markers.forEach(m => m.remove());
-          map.remove();
-        },
-      });
-    });
+      map.addLayer(
+          {
+              'id': '3d-buildings',
+              'source': 'carto',
+              'source-layer': 'building',
+              'filter': ['==', 'extrude', 'true'],
+              'type': 'fill-extrusion',
+              'minzoom': 15,
+              'paint': {
+                  'fill-extrusion-color': '#aaa',
+                  'fill-extrusion-height': [
+                      'interpolate',
+                      ['linear'],
+                      ['zoom'],
+                      15,
+                      0,
+                      15.05,
+                      ['get', 'height']
+                  ],
+                  'fill-extrusion-base': [
+                      'interpolate',
+                      ['linear'],
+                      ['zoom'],
+                      15,
+                      0,
+                      15.05,
+                      ['get', 'min_height']
+                  ],
+                  'fill-extrusion-opacity': 0.6
+              }
+          },
+          labelLayerId
+      );
+    } catch (e) {
+      console.error('Failed to add 3D buildings:', e);
+    }
   });
+
+  return {
+    provider: 'leaflet', // Return 'leaflet' so we don't break types if it only accepts yandex|leaflet
+    setTheme(dark) {
+      map.setStyle(dark ? STYLE_URL_DARK : STYLE_URL_LIGHT);
+    },
+    setMarkers(next, onSelect) {
+      markers.forEach((m) => m.remove());
+      markers = next.map((entry) => {
+        const el = document.createElement('div');
+        el.innerHTML = entry.html;
+        el.className = 'listing-marker';
+        el.style.cursor = 'pointer';
+        el.onclick = () => onSelect(entry.id);
+        return new maplibregl.Marker({ element: el })
+          .setLngLat([entry.position[1], entry.position[0]])
+          .addTo(map);
+      });
+    },
+    fitTo(positions) {
+      if (positions.length === 0) return;
+      const bounds = new maplibregl.LngLatBounds();
+      positions.forEach(p => bounds.extend([p[1], p[0]]));
+      map.fitBounds(bounds, { padding: 56, maxZoom: 15 });
+    },
+    flyTo(position, zoom) {
+      map.flyTo({ center: [position[1], position[0]], zoom, pitch: 60, duration: 1200 });
+    },
+    panTo(position) {
+      map.panTo([position[1], position[0]], { duration: 400 });
+    },
+    destroy() {
+      markers.forEach(m => m.remove());
+      map.remove();
+    },
+  };
 }
