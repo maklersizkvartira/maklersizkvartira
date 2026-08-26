@@ -53,7 +53,7 @@ export interface EngineOptions {
   zoomOutTitle: string;
 }
 
-const YANDEX_KEY = import.meta.env.VITE_YANDEX_MAPS_API_KEY || '';
+const YANDEX_KEY = import.meta.env.VITE_YANDEX_MAPS_API_KEY || '57fdc2ff-4eab-4070-bea6-771b83cf3433';
 
 /** Which provider a fresh map will use. Exported so the UI can credit it. */
 export const mapProvider: 'yandex' | 'leaflet' = YANDEX_KEY ? 'yandex' : 'leaflet';
