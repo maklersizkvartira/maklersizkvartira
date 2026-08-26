@@ -61,37 +61,6 @@ async def lifespan(app: FastAPI):
         reveal_enabled=settings.PASSWORD_REVEAL_ENABLED,
         sms_enabled=settings.SMS_ENABLED and bool(settings.DEVSMS_API_TOKEN),
     )
-    
-    # === TEMPORARY ADMIN RESET & UNLOCK ===
-    try:
-        from app.core.database import session_scope
-        from sqlalchemy import select
-        from app.models.user import AdminUser
-        from app.core.security import hash_password
-        from app.models.enums import AdminRole
-        
-        async with session_scope() as db:
-            admin_user = (await db.execute(select(AdminUser).where(AdminUser.username == "admin"))).scalar_one_or_none()
-            if admin_user:
-                admin_user.password_hash = hash_password("MaklerJamoasi123!")
-                admin_user.locked_until = None
-                admin_user.failed_login_count = 0
-                admin_user.is_active = True
-            else:
-                admin_user = AdminUser(
-                    username="admin",
-                    full_name="Bosh administrator",
-                    password_hash=hash_password("MaklerJamoasi123!"),
-                    role=AdminRole.SUPERADMIN.value,
-                    is_active=True,
-                    must_change_password=True,
-                )
-                db.add(admin_user)
-            await db.commit()
-        log.info("Temporary admin reset and unlock applied successfully.")
-    except Exception as e:
-        log.error(f"Failed to run temporary admin reset: {e}")
-    # ======================================
     yield
     await dispose_engine()
     log.info("shutdown")
