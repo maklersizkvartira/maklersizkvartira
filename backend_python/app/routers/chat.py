@@ -107,9 +107,10 @@ async def send_message(
         text=payload.text
     )
     db.add(msg)
+    await db.flush() # flush to generate msg.created_at
     
     # Touch conversation
-    conversation.updated_at = msg.created_at # Will be set on flush, just doing db.commit is fine
+    conversation.updated_at = msg.created_at
     
     await db.commit()
     await db.refresh(msg)
