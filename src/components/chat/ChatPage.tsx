@@ -180,7 +180,7 @@ export const ChatPage: React.FC = () => {
             {conversations.map(conv => {
               const isOwner = conv.owner_id === currentUser.id;
               const otherPerson = isOwner ? conv.user : conv.owner;
-              const avatarFallback = `https://ui-avatars.com/api/?name=${otherPerson?.name || 'U'}&background=random`;
+              const avatarFallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(otherPerson?.name || 'U')}&background=random`;
               
               return (
                 <button
@@ -212,8 +212,11 @@ export const ChatPage: React.FC = () => {
   }
 
   // DETAIL VIEW
-  const otherPerson = detail?.owner_id === currentUser.id ? detail?.user : detail?.owner;
-  const avatarFallback = `https://ui-avatars.com/api/?name=${otherPerson?.name || 'U'}&background=random`;
+  const isOwner = detail?.owner_id === currentUser.id;
+  const otherPerson = isOwner ? detail?.user : detail?.owner;
+  const mePerson = isOwner ? detail?.owner : detail?.user;
+  
+  const getAvatarFallback = (name?: string) => `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&background=random`;
   
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] max-w-3xl mx-auto px-4 py-4">
@@ -226,7 +229,7 @@ export const ChatPage: React.FC = () => {
         </button>
         <div className="flex items-center gap-2 min-w-0">
           <img 
-            src={otherPerson?.avatar || avatarFallback}
+            src={otherPerson?.avatar || getAvatarFallback(otherPerson?.name)}
             alt="Avatar"
             className="w-8 h-8 rounded-full object-cover shrink-0 border border-line"
           />
@@ -240,17 +243,16 @@ export const ChatPage: React.FC = () => {
         ) : (
           detail?.messages.map(msg => {
             const isMe = msg.sender_id === currentUser.id;
+            const msgSender = isMe ? mePerson : otherPerson;
             return (
-              <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                {!isMe && (
-                  <div className="mr-2 shrink-0 self-end">
-                    <img 
-                      src={otherPerson?.avatar || avatarFallback} 
-                      alt="avatar" 
-                      className="w-7 h-7 rounded-full object-cover bg-surface-2 border border-line"
-                    />
-                  </div>
-                )}
+              <div key={msg.id} className={`flex gap-2 ${isMe ? 'justify-end flex-row-reverse' : 'justify-start flex-row'} items-end`}>
+                <div className="shrink-0">
+                  <img 
+                    src={msgSender?.avatar || getAvatarFallback(msgSender?.name)} 
+                    alt="avatar" 
+                    className="w-7 h-7 rounded-full object-cover bg-surface-2 border border-line"
+                  />
+                </div>
                 <div className={`max-w-[75%] rounded-2xl px-4 py-2 ${
                   isMe ? 'bg-brand text-on-brand rounded-br-sm' : 'bg-surface border border-line text-content rounded-bl-sm'
                 }`}>
