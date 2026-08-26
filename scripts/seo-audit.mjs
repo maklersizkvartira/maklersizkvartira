@@ -125,6 +125,8 @@ async function main() {
   const descriptions = new Map();
   const canonicals = new Map();
   const linkedTo = new Set();
+  /** Header navigation labels per URL, for the chrome-language check below. */
+  const chrome = new Map();
 
   for (const [url, page] of pages) {
     const { html } = page;
@@ -246,6 +248,12 @@ async function main() {
       }
     }
 
+    // Header navigation, kept for the cross-language comparison after the loop.
+    const nav = one(html, /(<nav[^>]*class="ml-2[\s\S]*?<\/nav>)/i);
+    if (nav) {
+      chrome.set(url, all(nav, />([^<>]{2,40})<\/a>/g).map((t) => t.trim()).join('|'));
+    }
+
     // -- Links ------------------------------------------------------------
     for (const href of readers.hrefs(html)) {
       const target = href.replace(/\/$/, '') || '/';
@@ -270,6 +278,26 @@ async function main() {
   for (const [canonical, urls] of canonicals) {
     if (urls.length > 1) {
       fail(urls[0], `${urls.length} indexable pages share the canonical ${canonical}`);
+    }
+  }
+
+  // -- Is the CHROME translated, not just the prose? -----------------------
+  //
+  // The language-ratio check above passes on a page whose headings and body
+  // are Russian but whose navigation, footer and buttons are Uzbek: the prose
+  // outweighs the labels. That is exactly what shipped when the prerenderer
+  // registered the SEO copy packs and forgot the i18n dictionaries.
+  //
+  // Comparing a page against its own translation needs no language detection:
+  // if `/toshkent` and `/ru/toshkent` render the same navigation labels, one
+  // of the two is not translated.
+  for (const [url, labels] of chrome) {
+    if (url.startsWith('/ru') || url.startsWith('/en') || !labels) continue;
+    for (const prefix of ['/ru', '/en']) {
+      const other = chrome.get(url === '/' ? prefix : `${prefix}${url}`);
+      if (other && other === labels) {
+        fail(url, `its navigation is identical to ${prefix}${url === '/' ? '' : url} — one of them is untranslated chrome`);
+      }
     }
   }
 

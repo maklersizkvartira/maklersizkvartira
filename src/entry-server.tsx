@@ -35,6 +35,10 @@ import { registerCopy } from './seo/content';
 import { UZ_COPY } from './seo/content/copy.uz';
 import { RU_COPY } from './seo/content/copy.ru';
 import { EN_COPY } from './seo/content/copy.en';
+import { registerDictionary } from './i18n/dictionaries';
+import { uz } from './i18n/locales/uz';
+import { ru } from './i18n/locales/ru';
+import { en } from './i18n/locales/en';
 import { matchPath, type RouteMatch } from './seo/routes';
 import { INDEXABLE_PAGES, STATIC_PAGES } from './seo/pages';
 import { alternatePaths, localisedPath } from './router/language';
@@ -46,9 +50,16 @@ export { LANGUAGES, STATIC_PAGES, INDEXABLE_PAGES, alternatePaths };
 
 // The browser fetches these on demand; the build has no network and needs all
 // three at once, so it hands them over directly.
+//
+// Both registries, not just the copy: the copy pack supplies a page's heading
+// and prose, the dictionary supplies every label around it. Registering only
+// the first shipped Russian pages wrapped in Uzbek navigation.
 registerCopy('uz', UZ_COPY);
 registerCopy('ru', RU_COPY);
 registerCopy('en', EN_COPY);
+registerDictionary('uz', uz);
+registerDictionary('ru', ru);
+registerDictionary('en', en);
 
 /**
  * Views with a component worth rendering into the static HTML.

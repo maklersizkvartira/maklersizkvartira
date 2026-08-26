@@ -16,6 +16,7 @@ Two rules this module exists to enforce:
 
 from __future__ import annotations
 
+import re
 import unicodedata
 from datetime import datetime, timezone
 
@@ -29,16 +30,29 @@ from app.services.listings import visible_clause
 
 router = APIRouter(tags=["seo"])
 
-#: Sitemaps are capped at 50 000 URLs by the protocol. Well below it, and low
-#: enough that the response stays a sensible size.
-MAX_URLS = 20_000
-
 LANGUAGES = ("uz", "ru", "en")
+
+#: The sitemap protocol's hard ceiling.
+MAX_URLS = 50_000
+#: Every listing is published once per language, so the listing cap is the URL
+#: cap divided by the language count — not the URL cap itself. Emitting 20 000
+#: listings produced 60 000 <url> entries and Google rejected the whole file.
+MAX_LISTINGS = MAX_URLS // len(LANGUAGES)
 #: Uzbek is the default and lives at the bare root.
 LANGUAGE_PREFIX = {"uz": "", "ru": "/ru", "en": "/en"}
 
 #: Every apostrophe Uzbek Latin uses for oʻ, gʻ and the glottal stop.
 _APOSTROPHES = "'‘’ʻʼ`´"
+
+#: The administrative abbreviations, matched exactly as the TypeScript does.
+#: Plain `endswith(" sh.")` diverged from it on "SH.", on a double space, and
+#: on "tum." entirely — and a slug that differs by one letter turns a listing
+#: into two pages that each name the other as the original.
+_ADMIN_SUFFIXES = (
+    (re.compile(r"\s+sh\.$", re.IGNORECASE), " shahri"),
+    (re.compile(r"\s+t\.$", re.IGNORECASE), " tumani"),
+    (re.compile(r"\s+tum\.$", re.IGNORECASE), " tumani"),
+)
 
 
 def slugify(value: str) -> str:
@@ -50,10 +64,8 @@ def slugify(value: str) -> str:
     claim the other is the original.
     """
     text = value.strip()
-    if text.endswith(" sh."):
-        text = f"{text[:-4]} shahri"
-    elif text.endswith(" t."):
-        text = f"{text[:-3]} tumani"
+    for pattern, replacement in _ADMIN_SUFFIXES:
+        text = pattern.sub(replacement, text)
 
     # NFD, then drop the combining marks, so an accented letter collapses onto
     # its base rather than disappearing.
@@ -86,8 +98,12 @@ def _escape(value: str) -> str:
 
 
 def _url_for(path: str, language: str) -> str:
+    # The trailing slash is stripped here rather than trusted from config: the
+    # build-time generator strips it too, and one of the two keeping it would
+    # publish `https://maklersizuy.uz//e/...` for every listing.
+    origin = settings.SITE_URL.rstrip("/")
     prefix = LANGUAGE_PREFIX[language]
-    return f"{settings.SITE_URL}{prefix}{path}"
+    return f"{origin}{prefix}{path}"
 
 
 @router.get(
@@ -107,7 +123,7 @@ async def sitemap_listings(db: DbSession) -> Response:
             )
             .where(visible_clause())
             .order_by(Listing.created_at.desc())
-            .limit(MAX_URLS)
+            .limit(MAX_LISTINGS)
         )
     ).all()
 

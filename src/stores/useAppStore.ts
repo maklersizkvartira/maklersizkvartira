@@ -411,13 +411,21 @@ const store = createStore<AppState>((set, get) => ({
 
   navigate: (path, options = {}) => {
     const match = matchUrl(path);
-    if (match.language !== get().language) set({ language: match.language });
+
+    // A path with no /ru or /en in front of it is not a request for Uzbek —
+    // it is a route, to be shown in whatever language the visitor is already
+    // reading. Every internal link passes the bare path, so treating it as an
+    // explicit Uzbek request dropped a Russian visitor back to Uzbek, and
+    // stripped the prefix from the address, on their very first click.
+    const language = match.languageFromUrl ? match.language : get().language;
+    if (language !== get().language) set({ language });
+
     set({
       currentView: match.route.view,
       selectedListingId: match.route.listingId ?? null,
       route: match.route,
     });
-    pushPath(match.redirectTo ?? path, options.replace);
+    pushPath(localisedPath(match.route.path, language), options.replace);
   },
 
   adoptLocation: (pathname, search = '') => {
