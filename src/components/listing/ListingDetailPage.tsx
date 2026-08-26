@@ -229,6 +229,11 @@ export const ListingDetailPage: React.FC = () => {
     if (viewedIdRef.current === listing.id) return;
     viewedIdRef.current = listing.id;
     recordView(listing.id);
+    trackEvent('listing_view', {
+      listing_id: listing.id,
+      district: listing.district ?? '',
+      rooms: listing.rooms ?? 0,
+    });
   }, [status, listing, recordView]);
 
   // The readable address needs the title, which only exists once the listing

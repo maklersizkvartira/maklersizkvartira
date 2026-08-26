@@ -38,6 +38,7 @@ import {
   http,
   purgeLegacyStorage,
 } from '../services/http';
+import { trackEvent } from '../services/analytics';
 import { isAutomatedAgent } from '../services/crawler';
 import { ListingsApi, type ListingQuery } from '../services/listingsApi';
 import { chatApi } from '../services/chatApi';
@@ -347,8 +348,10 @@ const store = createStore<AppState>((set, get) => ({
   // -- Preferences ---------------------------------------------------------
   language: getStoredLanguage(),
   setLanguage: (language) => {
+    const previous = get().language;
     set({ language });
     persistLanguage(language);
+    if (previous !== language) trackEvent('language_switch', { from: previous, to: language });
     // Each language has its own URL, so switching languages is a navigation.
     // Without this the address would keep claiming to be the Uzbek page while
     // showing Russian, and every hreflang tag on the site would be a lie.
@@ -541,6 +544,7 @@ const store = createStore<AppState>((set, get) => ({
     try {
       await ListingsApi.recordStat(listingId, 'favorites', wasFavorite ? -1 : 1);
       await get().fetchFavorites();
+      trackEvent('listing_favorite', { listing_id: listingId, added: !wasFavorite });
       get().pushToast(
         wasFavorite ? 'layout.toast.favoriteRemoved' : 'layout.toast.favoriteAdded',
         'success',
@@ -580,6 +584,14 @@ const store = createStore<AppState>((set, get) => ({
   setFilters: (patch) => {
     set((state) => ({ filters: { ...state.filters, ...patch }, page: 1 }));
     void get().fetchListings({ page: 1 });
+    // A typed query and a tapped filter chip are different intents and belong
+    // in different reports, but they arrive through the same action — so they
+    // are separated here rather than at each of the call sites.
+    if (typeof patch.search === 'string') {
+      if (patch.search) trackEvent('search_submit', { query_length: patch.search.length });
+    } else {
+      trackEvent('filter_apply', { fields: Object.keys(patch).join(',') });
+    }
   },
   resetFilters: () => {
     set({ filters: { ...DEFAULT_FILTERS }, page: 1 });
