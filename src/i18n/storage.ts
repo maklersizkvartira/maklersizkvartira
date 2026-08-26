@@ -7,16 +7,29 @@
  * component depends on is a fragile place to have one.
  */
 
+import { stripLanguagePrefix } from '../router/language';
 import { DEFAULT_LANGUAGE, isLanguage, type Language } from './types';
 
 export const LANGUAGE_STORAGE_KEY = 'maklersiz.language';
 
 /**
- * Resolution order: an explicit stored choice, then `?lang=`, then the
- * browser's preferences, then Uzbek.
+ * Resolution order: the URL's language prefix, then an explicit stored choice,
+ * then the legacy `?lang=`, then the browser's preferences, then Uzbek.
+ *
+ * The prefix has to come first. `/ru/toshkent` declares itself the Russian
+ * page in its canonical and hreflang tags, so if a returning Uzbek-preferring
+ * visitor were served Uzbek at that address the page would contradict its own
+ * metadata — and hreflang stops working the moment it does.
  */
 export function detectInitialLanguage(): Language {
   if (typeof window === 'undefined') return DEFAULT_LANGUAGE;
+
+  try {
+    const fromPath = stripLanguagePrefix(window.location.pathname);
+    if (fromPath.explicit) return fromPath.language;
+  } catch {
+    /* malformed URL */
+  }
 
   try {
     const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
@@ -32,11 +45,27 @@ export function detectInitialLanguage(): Language {
     /* malformed URL */
   }
 
-  for (const candidate of navigator.languages ?? [navigator.language]) {
-    const base = candidate?.slice(0, 2).toLowerCase();
-    if (isLanguage(base)) return base;
+  // Guarded separately from `window`: a prerender or test that shims `window`
+  // without shimming `navigator` would otherwise throw here, at module
+  // evaluation time, before anything has had a chance to render.
+  if (typeof navigator !== 'undefined') {
+    for (const candidate of navigator.languages ?? [navigator.language]) {
+      const base = candidate?.slice(0, 2).toLowerCase();
+      if (isLanguage(base)) return base;
+    }
   }
   return DEFAULT_LANGUAGE;
+}
+
+/** The language a returning visitor last chose, ignoring the current URL. */
+export function storedLanguage(): Language | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    return isLanguage(stored) ? stored : null;
+  } catch {
+    return null;
+  }
 }
 
 export function persistLanguage(language: Language): void {

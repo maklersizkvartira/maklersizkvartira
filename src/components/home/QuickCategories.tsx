@@ -22,6 +22,8 @@ import {
 
 import { useTranslation, type TranslationKey } from '../../i18n';
 import { DEFAULT_FILTERS, useAppStore, type Filters } from '../../stores/useAppStore';
+import { AppLink } from '../../router/AppLink';
+import { VIEW_PATHS } from '../../router/views';
 
 interface HomeCategory {
   id: string;
@@ -33,11 +35,22 @@ interface HomeCategory {
   iconMotion: string;
   tone: string;
   patch: Partial<Filters>;
+  /**
+   * The landing page this shortcut belongs to, when there is one.
+   *
+   * These cards used to commit a filter and swap the view, so six of the
+   * site's most prominent entry points led to the same URL and passed no
+   * signal to the pages built for exactly those searches. Metro and trust
+   * have no landing page — no keyword worth a page — and keep the old
+   * filter behaviour.
+   */
+  landing?: string;
 }
 
 const CATEGORIES: HomeCategory[] = [
   {
     id: 'roommate',
+    landing: '/sheriklikka-ijara',
     titleKey: 'layout.categories.roommate.title',
     descriptionKey: 'layout.categories.roommate.description',
     tagKeys: ['home.categories.tags.roommateBoys', 'home.categories.tags.roommateGirls'],
@@ -48,6 +61,7 @@ const CATEGORIES: HomeCategory[] = [
   },
   {
     id: 'student',
+    landing: '/talabalar-uchun-ijara',
     titleKey: 'layout.categories.student.title',
     descriptionKey: 'layout.categories.student.description',
     tagKeys: [
@@ -61,6 +75,7 @@ const CATEGORIES: HomeCategory[] = [
   },
   {
     id: 'family',
+    landing: '/oilalar-uchun-ijara',
     titleKey: 'layout.categories.family.title',
     descriptionKey: 'layout.categories.family.description',
     tagKeys: ['home.categories.tags.familyTwoRooms', 'home.categories.tags.familyThreeRooms'],
@@ -83,6 +98,7 @@ const CATEGORIES: HomeCategory[] = [
   },
   {
     id: 'budget',
+    landing: '/arzon-ijara',
     titleKey: 'layout.categories.budget.title',
     descriptionKey: 'layout.categories.budget.description',
     tagKeys: ['home.categories.tags.budgetNoDeposit', 'home.categories.tags.budgetLowPrice'],
@@ -136,9 +152,8 @@ export const QuickCategories: React.FC = () => {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setCurrentView('LISTINGS')}
+        <AppLink
+          to={VIEW_PATHS.LISTINGS ?? '/elonlar'}
           className="group inline-flex items-center gap-2 self-start rounded-2xl bg-brand px-4 py-2.5 text-xs font-extrabold text-on-brand shadow-brand transition-colors hover:bg-brand-hover sm:self-auto sm:text-sm"
         >
           <span>{t('home.categories.viewAll')}</span>
@@ -146,17 +161,20 @@ export const QuickCategories: React.FC = () => {
             className="h-4 w-4 transition-transform group-hover:translate-x-1"
             aria-hidden="true"
           />
-        </button>
+        </AppLink>
       </div>
 
       <ul className="hide-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 sm:px-0">
         {CATEGORIES.map((category) => {
           const Icon = category.icon;
-          return (
+            const Tile = category.landing ? AppLink : 'button';
+            const tileProps = category.landing
+              ? ({ to: category.landing } as const)
+              : ({ type: 'button', onClick: () => openCategory(category.patch) } as const);
+            return (
             <li key={category.id} className="flex w-[140px] shrink-0 snap-start sm:w-[160px]">
-              <button
-                type="button"
-                onClick={() => openCategory(category.patch)}
+              <Tile
+                {...tileProps}
                 className="group relative flex w-full flex-col items-center justify-center gap-3 rounded-2xl border border-line bg-surface p-4 text-center transition-all duration-300 hover:border-brand hover:shadow-card"
               >
                 <span
@@ -173,7 +191,7 @@ export const QuickCategories: React.FC = () => {
                     {t(category.descriptionKey)}
                   </span>
                 </span>
-              </button>
+              </Tile>
             </li>
           );
         })}

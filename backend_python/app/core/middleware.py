@@ -18,7 +18,16 @@ from app.core.rate_limit import enforce
 log = structlog.get_logger(__name__)
 
 #: Paths that must never be rate-limited or noisily logged.
-_EXEMPT_PATHS = {"/health", "/api/v1/health", "/favicon.ico"}
+#: Behind the site's proxy every sitemap request arrives from one Vercel
+#: egress IP, so the 240/min global ceiling would 429 it for every crawler at
+#: once during a busy period.
+_EXEMPT_PATHS = {
+    "/health",
+    "/api/v1/health",
+    "/favicon.ico",
+    "/sitemap-listings.xml",
+    "/api/v1/meta/seo-facets",
+}
 
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
@@ -89,6 +98,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Never let a browser or CDN cache an authenticated API response.
         if request.url.path.startswith(settings.API_PREFIX):
             response.headers.setdefault("Cache-Control", "no-store")
+            # Error messages and a few payloads are localised from the
+            # X-Language header. Without this a shared cache in front of the
+            # API could hand a Russian visitor an Uzbek response, or worse,
+            # the reverse for an error that names a field.
+            response.headers["Vary"] = "Origin, X-Language"
         if settings.is_production:
             response.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains; preload"

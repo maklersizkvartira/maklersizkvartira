@@ -79,6 +79,7 @@ export const layout = {
     terms: 'Terms of use',
     privacy: 'Privacy policy',
     safety: 'Safety rules',
+    guides: 'Guides',
     contact: 'Contact',
     support: 'Support',
     faq: 'Frequently asked questions',

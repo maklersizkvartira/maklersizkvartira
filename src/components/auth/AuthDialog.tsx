@@ -29,6 +29,7 @@ import {
   getGoogleIdToken,
   isGoogleAuthConfigured,
   isPopupClosed,
+  preloadGoogleAuth,
 } from '../../config/firebase';
 import { useTranslation } from '../../i18n';
 import { AuthApi, type ApiUser } from '../../services/authApi';
@@ -165,6 +166,10 @@ export const AuthDialog: React.FC = () => {
   }, [setShowAuth, reset]);
 
   useEffect(() => {
+    // The Firebase SDK is a lazy chunk now, so start fetching it as the
+    // dialog opens: the download overlaps with the user reading the form
+    // instead of beginning after they press the Google button.
+    if (showAuth) preloadGoogleAuth();
     if (showAuth) {
       setStep(authModalTab === 'REGISTER' ? 'ROLE' : 'LOGIN');
       reset();

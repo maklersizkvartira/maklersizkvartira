@@ -12,30 +12,36 @@
  *    are localised like everything else.
  */
 
-import { create } from 'zustand';
+import { useStore } from 'zustand';
+import { createStore, type StoreApi } from 'zustand/vanilla';
 
-import { detectInitialLanguage as getStoredLanguage } from '../i18n/storage';
-import type { Language } from '../i18n/types';
+import {
+  detectInitialLanguage as getStoredLanguage,
+  storedLanguage,
+} from '../i18n/storage';
+import { DEFAULT_LANGUAGE, type Language } from '../i18n/types';
+import type { ViewState } from '../router/views';
+import {
+  localisedPath,
+  matchUrl,
+  routeForListing,
+  routeForView,
+  type RouteMatch,
+} from '../seo/routes';
 import { AuthApi, type ApiUser } from '../services/authApi';
-import { ApiError, clearTokens, getAccessToken, purgeLegacyStorage } from '../services/http';
+import {
+  ApiError,
+  clearTokens,
+  getAccessToken,
+  http,
+  purgeLegacyStorage,
+} from '../services/http';
+import { isAutomatedAgent } from '../services/crawler';
 import { ListingsApi, type ListingQuery } from '../services/listingsApi';
 import type { Listing } from '../types';
 import { canPublishListings } from '../types/roles';
 
-export type ViewState =
-  | 'HOME'
-  | 'LISTINGS'
-  | 'MAP'
-  | 'LISTING_DETAIL'
-  | 'VERIFICATION'
-  | 'CREATE_LISTING'
-  | 'MY_LISTINGS'
-  | 'PROFILE'
-  | 'CHAT'
-  | 'REFERRAL'
-  | 'STUDENT_PROGRAM'
-  | 'ECOSYSTEM_PREVIEW'
-  | 'FAVORITES';
+export type { ViewState };
 
 export type SignupRole = 'STUDENT' | 'OWNER';
 
@@ -110,7 +116,20 @@ interface AppState {
   // -- Navigation ----------------------------------------------------------
   currentView: ViewState;
   selectedListingId: string | null;
+  /**
+   * The resolved route, including the facet a landing page filters by. The
+   * URL is a projection of this, never the other way round.
+   */
+  route: RouteMatch;
   setCurrentView: (view: ViewState, listingId?: string | null) => void;
+  /** Navigates to a path, pushing (or replacing) a history entry. */
+  navigate: (path: string, options?: { replace?: boolean }) => void;
+  /**
+   * Adopts the browser's current address without touching history. Used on
+   * mount and from the `popstate` listener, where the URL is already correct
+   * and pushing again would add a phantom entry.
+   */
+  adoptLocation: (pathname: string, search?: string) => void;
 
   // -- Listings ------------------------------------------------------------
   listings: Listing[];
@@ -150,6 +169,42 @@ interface AppState {
 
 let toastSequence = 0;
 
+// ---------------------------------------------------------------------------
+// History
+// ---------------------------------------------------------------------------
+function currentAddress(): string {
+  if (typeof window === 'undefined') return '/';
+  return `${window.location.pathname}${window.location.search}`;
+}
+
+/**
+ * Writes a path into the address bar.
+ *
+ * Navigating to the address you are already at replaces instead of pushes:
+ * the mount-time adoption of a deep link used to push a second, identical
+ * entry, so the visitor's first Back press appeared to do nothing.
+ */
+function pushPath(path: string, replace = false): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const same = path === currentAddress();
+    window.history[replace || same ? 'replaceState' : 'pushState']({}, '', path);
+    if (!same) window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch {
+    /* history unavailable */
+  }
+}
+
+function replacePath(path: string, scroll = true): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.history.replaceState({}, '', path);
+    if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch {
+    /* history unavailable */
+  }
+}
+
 function toQuery(filters: Filters, page: number, pageSize: number): ListingQuery {
   return {
     search: filters.search || undefined,
@@ -172,7 +227,7 @@ function toQuery(filters: Filters, page: number, pageSize: number): ListingQuery
   };
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
+const store = createStore<AppState>((set, get) => ({
   // -- Session -------------------------------------------------------------
   currentUser: null,
   authReady: false,
@@ -183,15 +238,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Wipe anything the previous build stored, including plaintext passwords.
     purgeLegacyStorage();
 
-    try {
-      const settingsRes = await fetch('/api/v1/settings');
-      if (settingsRes.ok) {
-        const data = await settingsRes.json();
-        set({ isMonetizationEnabled: data.is_monetization_enabled });
-      }
-    } catch (e) {
-      console.warn('Failed to load settings', e);
-    }
+    // Not awaited, and no longer a bare relative fetch.
+    //
+    // `fetch('/api/v1/settings')` went to the Vercel origin in production,
+    // where the SPA catch-all answered with index.html — a 200 whose body is
+    // HTML, so `res.json()` threw and the flag silently stayed false. Worse,
+    // awaiting it held `authReady` false, which meant every visitor stared at
+    // a spinner until a request that could never succeed had finished.
+    void http
+      .get<{ is_monetization_enabled: boolean }>('/settings', { anonymous: true })
+      .then((data) => set({ isMonetizationEnabled: Boolean(data.is_monetization_enabled) }))
+      .catch(() => {
+        /* the flag defaults to false, which hides the paid surfaces */
+      });
 
     if (!getAccessToken()) {
       set({ authReady: true });
@@ -235,11 +294,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     await AuthApi.logout();
     set({
       currentUser: null,
-      currentView: 'HOME',
       myListings: [],
       favorites: [],
       favoriteIds: new Set(),
     });
+    // Through the navigator, so the address bar leaves the private page too.
+    // Setting `currentView` directly left the URL on `/profil` after signing
+    // out, which is a noindex page the visitor could then bookmark or share.
+    get().setCurrentView('HOME');
   },
 
   setShowAuth: (open, tab = 'LOGIN') => set({ showAuth: open, authModalTab: tab }),
@@ -266,6 +328,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   registerLanguageApplier: (apply) => set({ applyLanguage: apply }),
   setLanguage: (language) => {
     get().applyLanguage(language);
+    // Each language has its own URL, so switching languages is a navigation.
+    // Without this the address would keep claiming to be the Uzbek page while
+    // showing Russian, and every hreflang tag on the site would be a lie.
+    replacePath(localisedPath(get().route.path, language), false);
     // Persist to the account too, so the choice follows the user's devices.
     if (get().currentUser) {
       void AuthApi.updateProfile({ language }).catch(() => undefined);
@@ -278,21 +344,56 @@ export const useAppStore = create<AppState>((set, get) => ({
   // -- Navigation ----------------------------------------------------------
   currentView: 'HOME',
   selectedListingId: null,
+  route: routeForView('HOME'),
+
   setCurrentView: (view, listingId = null) => {
-    set({ currentView: view, selectedListingId: listingId ?? get().selectedListingId });
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      try {
-        const target =
-          view === 'LISTING_DETAIL' && listingId
-            ? `/?listing=${encodeURIComponent(listingId)}`
-            : view === 'HOME'
-              ? '/'
-              : `/?view=${view.toLowerCase()}`;
-        window.history.pushState({}, '', target);
-      } catch {
-        /* history unavailable */
-      }
+    // The id is scoped to the detail view. Leaving it set across navigations
+    // meant a later "open the listing" with no id reopened whichever flat was
+    // last viewed, which is how a stale listing could appear under a fresh URL.
+    const nextId =
+      view === 'LISTING_DETAIL' ? (listingId ?? get().selectedListingId) : null;
+    const route =
+      view === 'LISTING_DETAIL' && nextId ? routeForListing(nextId) : routeForView(view);
+
+    set({ currentView: view, selectedListingId: nextId, route });
+    pushPath(localisedPath(route.path, get().language));
+  },
+
+  navigate: (path, options = {}) => {
+    const match = matchUrl(path);
+    if (match.language !== get().language) get().applyLanguage(match.language);
+    set({
+      currentView: match.route.view,
+      selectedListingId: match.route.listingId ?? null,
+      route: match.route,
+    });
+    pushPath(match.redirectTo ?? path, options.replace);
+  },
+
+  adoptLocation: (pathname, search = '') => {
+    const match = matchUrl(pathname, search);
+
+    // A returning visitor who chose Russian lands on the Uzbek address of
+    // whatever they clicked. Move them to their own language's URL rather
+    // than rendering Russian at a URL that calls itself Uzbek. A crawler has
+    // no stored preference, so it stays exactly where it asked to be.
+    const preferred = match.languageFromUrl
+      ? match.language
+      : (storedLanguage() ?? match.language);
+
+    if (preferred !== get().language) get().applyLanguage(preferred);
+    set({
+      currentView: match.route.view,
+      selectedListingId: match.route.listingId ?? null,
+      route: match.route,
+    });
+
+    // A legacy `/?listing=…` link or a trailing slash resolves to the same
+    // page at a different address; replacing it keeps one URL per page in the
+    // address bar and out of the index.
+    const canonical = localisedPath(match.route.path, preferred);
+    if (match.route.kind !== 'NOT_FOUND' && canonical !== `${pathname}${search}`) {
+      replacePath(canonical, false);
     }
   },
 
@@ -411,6 +512,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   recordView: (listingId) => {
+    // A crawler rendering every listing URL would otherwise bias the POPULAR
+    // sort towards whatever it fetched first.
+    if (isAutomatedAgent()) return;
     void ListingsApi.recordStat(listingId, 'views').catch(() => undefined);
   },
 
@@ -461,3 +565,34 @@ export const useAppStore = create<AppState>((set, get) => ({
   isMonetizationEnabled: false,
   setMonetizationEnabled: (enabled: boolean) => set({ isMonetizationEnabled: enabled }),
 }));
+
+/**
+ * The hook, built from an explicit vanilla store rather than `create()`.
+ *
+ * `create()` closes over a store object this module cannot reach, and that
+ * object's `getInitialState` is what `useSyncExternalStore` calls for its
+ * *server* snapshot. During the build-time prerender that meant every
+ * component read the store's defaults no matter what the renderer had seeded
+ * into it — so all three hundred generated pages rendered the home route, in
+ * Uzbek. Owning the store object is what makes `pinServerSnapshot` below
+ * possible.
+ */
+export type UseAppStore = {
+  <T>(selector: (state: AppState) => T): T;
+} & StoreApi<AppState>;
+
+export const useAppStore: UseAppStore = Object.assign(
+  <T,>(selector: (state: AppState) => T): T => useStore(store, selector),
+  store,
+) as UseAppStore;
+
+/**
+ * Makes the server snapshot follow the live state.
+ *
+ * Called by the prerenderer after it seeds a route, and by nothing else: in a
+ * browser the server snapshot is never read, and in the build there is no
+ * hydration to keep consistent with.
+ */
+export function pinServerSnapshot(): void {
+  store.getInitialState = store.getState;
+}

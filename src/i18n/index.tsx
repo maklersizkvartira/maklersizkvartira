@@ -22,9 +22,9 @@ import React, {
 } from 'react';
 
 import { useAppStore } from '../stores/useAppStore';
-import { en } from './locales/en';
-import { ru } from './locales/ru';
-import { uz, type Dictionary, type UzDictionary } from './locales/uz';
+import { dictionaryFor, isDictionaryLoaded, loadDictionary } from './dictionaries';
+import { isCopyLoaded, loadCopy } from '../seo/content';
+import { uz, type UzDictionary } from './locales/uz';
 import { detectInitialLanguage, persistLanguage } from './storage';
 import {
   DEFAULT_LANGUAGE,
@@ -36,8 +36,6 @@ import {
 } from './types';
 
 export type TranslationKey = DotKeys<UzDictionary>;
-
-const DICTIONARIES: Record<Language, Dictionary> = { uz, ru, en };
 
 // ---------------------------------------------------------------------------
 // Lookup + interpolation
@@ -69,9 +67,10 @@ export function translate(
   params?: TranslationParams,
 ): string {
   const template =
-    resolve(DICTIONARIES[language], key) ??
-    // Fall back to Uzbek rather than rendering the raw key at the user.
-    resolve(DICTIONARIES[DEFAULT_LANGUAGE], key);
+    resolve(dictionaryFor(language), key) ??
+    // Fall back to Uzbek rather than rendering the raw key at the user. This
+    // also covers the window before a lazily-loaded dictionary has arrived.
+    resolve(uz, key);
 
   if (template === undefined) {
     if (import.meta.env.DEV) {
@@ -100,8 +99,19 @@ interface I18nContextValue {
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
-export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [language, setLanguageState] = useState<Language>(detectInitialLanguage);
+export const I18nProvider: React.FC<{
+  children: React.ReactNode;
+  /**
+   * Forces the starting language. Only the build-time prerenderer passes it:
+   * it renders every page once per language in a Node process where
+   * `detectInitialLanguage` can only ever answer "Uzbek", and a Russian page
+   * rendered in Uzbek is worse than no prerendered page at all.
+   */
+  initialLanguage?: Language;
+}> = ({ children, initialLanguage }) => {
+  const [language, setLanguageState] = useState<Language>(
+    () => initialLanguage ?? detectInitialLanguage(),
+  );
 
   // Keep <html lang> in sync: it drives screen-reader pronunciation, browser
   // translation prompts and CSS `:lang()` rules.
@@ -110,9 +120,23 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
     document.documentElement.lang = language;
   }, [language]);
 
+  /**
+   * Bumped when a lazily-loaded dictionary arrives. `translate` reads the
+   * registry rather than React state, so without this the tree would keep
+   * rendering the Uzbek fallback after the Russian chunk had landed.
+   */
+  const [revision, setRevision] = useState(0);
+
   const setLanguage = useCallback((next: Language) => {
     setLanguageState(next);
     persistLanguage(next);
+    // The SEO copy pack is per-language too, and the head builder reads it
+    // synchronously — so it has to arrive with the dictionary, not after.
+    if (!isDictionaryLoaded(next) || !isCopyLoaded(next)) {
+      void Promise.all([loadDictionary(next), loadCopy(next)]).then(() =>
+        setRevision((value) => value + 1),
+      );
+    }
   }, []);
 
   // The store holds the account's saved preference but cannot re-render the
@@ -165,7 +189,10 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date);
       },
     };
-  }, [language, setLanguage]);
+    // `revision` is a dependency on purpose: it is the signal that the
+    // dictionary behind `translate` has changed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language, setLanguage, revision]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 };

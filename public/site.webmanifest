@@ -1,7 +1,8 @@
 {
-  "name": "Maklersiz Uy",
+  "id": "/",
+  "name": "Maklersiz Uy — maklersiz uy va kvartira ijarasi",
   "short_name": "Maklersiz Uy",
-  "description": "Uy egasidan to‘g‘ridan-to‘g‘ri, komissiyasiz ijara. O‘zbekistonda maklersiz kvartira topish platformasi.",
+  "description": "Uy egasidan to‘g‘ridan-to‘g‘ri, komissiyasiz ijara. O‘zbekistonda maklersiz kvartira va uy topish platformasi.",
   "lang": "uz",
   "dir": "ltr",
   "start_url": "/",
@@ -35,13 +36,19 @@
     {
       "name": "E'lonlar",
       "short_name": "E'lonlar",
-      "url": "/?view=listings",
+      "url": "/elonlar",
       "icons": [{ "src": "/brand/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "E'lon berish",
       "short_name": "E'lon berish",
-      "url": "/?view=create_listing",
+      "url": "/elon-berish",
+      "icons": [{ "src": "/brand/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Toshkentda kvartira",
+      "short_name": "Toshkent",
+      "url": "/toshkent/kvartira-ijaraga",
       "icons": [{ "src": "/brand/icon-192.png", "sizes": "192x192" }]
     }
   ]

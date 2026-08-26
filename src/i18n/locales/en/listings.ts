@@ -37,6 +37,8 @@ export const listings = {
     title: 'Featured listings',
     subtitle: 'The most trusted and popular offers',
     badge: 'Ad',
+    vipTitle: 'VIP listings',
+    topBadge: 'Top',
     empty: 'No featured listings yet',
   },
 
@@ -85,6 +87,7 @@ export const listings = {
     videoTitle: 'Listing video tour',
     videoUnsupported: 'Your browser does not support video playback.',
     showImage: 'Show photo {index}',
+    photoOf: '{title} — photo {index}',
     viewOnMap: 'Show on map',
     ownerRentals: '{count} successful rentals',
     utilitiesExcluded: 'Utilities billed separately',

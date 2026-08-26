@@ -5,6 +5,8 @@ import { Heart, Home, Plus, Search, User as UserIcon } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { useAppStore, type ViewState } from '../../stores/useAppStore';
+import { AppLink } from '../../router/AppLink';
+import { REQUIRES_AUTH } from '../../router/views';
 
 interface Tab {
   view: ViewState;
@@ -40,9 +42,11 @@ export const BottomNav: React.FC = () => {
   const setShowAuth = useAppStore((state) => state.setShowAuth);
   const favorites = useAppStore((state) => state.favoriteIds);
 
+  /** True when tapping this tab should open the auth dialog instead. */
+  const isGated = (tab: Tab) => REQUIRES_AUTH.has(tab.view) && !currentUser;
+
   const open = (tab: Tab) => {
-    const needsAuth = tab.view === 'CREATE_LISTING' || tab.view === 'FAVORITES' || tab.view === 'PROFILE';
-    if (needsAuth && !currentUser) {
+    if (isGated(tab)) {
       setShowAuth(true, tab.view === 'CREATE_LISTING' ? 'REGISTER' : 'LOGIN');
       return;
     }
@@ -75,26 +79,46 @@ export const BottomNav: React.FC = () => {
               </li>
             );
           }
+          const className = `relative flex w-full flex-col items-center gap-0.5 py-2.5 text-[10px] font-bold transition-colors ${
+            active ? 'text-brand-text' : 'text-subtle hover:text-content'
+          }`;
+          const body = (
+            <>
+              <span className="relative">
+                <tab.icon className="h-5 w-5" aria-hidden="true" />
+                {tab.view === 'FAVORITES' && favorites.size > 0 && (
+                  <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-black text-white">
+                    {favorites.size}
+                  </span>
+                )}
+              </span>
+              {t(tab.labelKey as never)}
+            </>
+          );
+
           return (
             <li key={tab.view} className="flex-1">
-              <button
-                type="button"
-                onClick={() => open(tab)}
-                aria-current={active ? 'page' : undefined}
-                className={`relative flex w-full flex-col items-center gap-0.5 py-2.5 text-[10px] font-bold transition-colors ${
-                  active ? 'text-brand-text' : 'text-subtle hover:text-content'
-                }`}
-              >
-                <span className="relative">
-                  <tab.icon className="h-5 w-5" aria-hidden="true" />
-                  {tab.view === 'FAVORITES' && favorites.size > 0 && (
-                    <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-black text-white">
-                      {favorites.size}
-                    </span>
-                  )}
-                </span>
-                {t(tab.labelKey as never)}
-              </button>
+              {/* A gated tab opens the sign-in dialog rather than navigating,
+                  so it stays a button — an anchor whose href never loads is
+                  worse than no anchor at all. */}
+              {isGated(tab) ? (
+                <button
+                  type="button"
+                  onClick={() => open(tab)}
+                  aria-current={active ? 'page' : undefined}
+                  className={className}
+                >
+                  {body}
+                </button>
+              ) : (
+                <AppLink
+                  view={tab.view}
+                  aria-current={active ? 'page' : undefined}
+                  className={className}
+                >
+                  {body}
+                </AppLink>
+              )}
             </li>
           );
         })}

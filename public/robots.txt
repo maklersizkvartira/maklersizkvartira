@@ -1,3 +1,21 @@
+# Fallback only.
+#
+# The real robots.txt is written into dist/ by scripts/generate-sitemap.mjs
+# during `npm run build`, together with the sitemaps it points at. This copy
+# exists so that a bare `vite build`, without the SEO steps, still ships
+# something correct rather than nothing.
+
 User-agent: *
 Allow: /
+
+Disallow: /profil
+Disallow: /saqlanganlar
+Disallow: /mening-elonlarim
+Disallow: /elon-berish
+Disallow: /tasdiqlash
+Disallow: /dostni-taklif-qilish
+Disallow: /xabarlar
+Disallow: /admin
+Disallow: /api/
+
 Sitemap: https://maklersizuy.uz/sitemap.xml

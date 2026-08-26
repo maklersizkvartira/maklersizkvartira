@@ -23,6 +23,9 @@ import {
 import { useTranslation } from '../../i18n';
 import { useAppStore } from '../../stores/useAppStore';
 import type { Listing } from '../../types';
+import { AppLink } from '../../router/AppLink';
+import { listingPath } from '../../seo/routes';
+import { listingSlug } from '../../seo/slugs';
 
 interface ListingCardProps {
   listing: Listing;
@@ -56,6 +59,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
   const isFavorite = favoriteIds.has(listing.id);
   const cover = listing.images?.[0];
   const trust = trustTone(listing.trustScore ?? 0);
+  const href = listingPath({ id: listing.id, slug: listingSlug(listing) });
 
   const open = () => {
     if (onOpen) onOpen(listing);
@@ -76,10 +80,15 @@ export const ListingCard: React.FC<ListingCardProps> = ({
       }`}
     >
       {cover && !imageError ? (
+        /* The property photo is the content, not decoration: an empty alt told
+           Google Images and every screen reader to ignore it. */
         <img
           src={cover}
-          alt=""
+          alt={listing.title}
+          width={isList ? 208 : 800}
+          height={isList ? 176 : 600}
           loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : 'auto'}
           decoding="async"
           onError={() => setImageError(true)}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -155,8 +164,18 @@ export const ListingCard: React.FC<ListingCardProps> = ({
         </span>
       </div>
 
+      {/* The one real anchor on the card. The whole tile stays clickable, but
+          a `<div onClick>` is invisible to a crawler — without this there is
+          no link from any grid to any listing, and nothing below the home
+          page is discoverable. */}
       <h3 className="line-clamp-2 text-sm font-bold leading-snug text-content">
-        {listing.title}
+        <AppLink
+          to={href}
+          onClick={(event) => event.stopPropagation()}
+          className="transition-colors hover:text-brand-text"
+        >
+          {listing.title}
+        </AppLink>
       </h3>
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">

@@ -2,62 +2,98 @@
 <html lang="uz">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/brand/mark-32.png" />
-    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
-    <link rel="manifest" href="/site.webmanifest" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
-    <title>Maklersiz Uy — Uy egasidan to‘g‘ridan-to‘g‘ri, komissiyasiz ijara</title>
-    <meta
-      name="description"
-      content="Maklersiz Uy — O‘zbekistonda uy-joy ijarasini maklersiz, vositachisiz va to‘g‘ridan-to‘g‘ri egasidan topish platformasi. Komissiya 0%."
-    />
-    <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://maklersizuy.uz/" />
+
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/brand/mark-32.png" />
+    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
 
     <meta name="theme-color" content="#f6f8fb" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#080d18" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-title" content="Maklersiz Uy" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
 
-    <!-- Alternate language versions for search engines -->
-    <link rel="alternate" hreflang="uz" href="https://maklersizuy.uz/?lang=uz" />
-    <link rel="alternate" hreflang="ru" href="https://maklersizuy.uz/?lang=ru" />
-    <link rel="alternate" hreflang="en" href="https://maklersizuy.uz/?lang=en" />
-    <link rel="alternate" hreflang="x-default" href="https://maklersizuy.uz/" />
+    <!--
+      Everything between these markers is rewritten per page by
+      scripts/prerender.mjs, and by src/seo/useSeoHead.ts once the app is
+      running. Both build it from the same `buildHead()` call, so the head a
+      crawler fetches and the head it renders after JavaScript can never
+      disagree — which is what stops an SPA from looking like it is cloaking.
 
-    <meta property="og:type" content="website" />
-    <meta property="og:locale" content="uz_UZ" />
-    <meta property="og:locale:alternate" content="ru_RU" />
-    <meta property="og:locale:alternate" content="en_US" />
+      The values here are the Uzbek home page's, so an unprerendered build
+      (`vite build` on its own, or the dev server) is still correct at "/".
+    -->
+    <!--seo-head-start-->
+    <title>Maklersiz uy va kvartira ijarasi | Maklersizuy.uz</title>
     <meta
-      property="og:title"
-      content="Maklersiz Uy — Uy egasidan to‘g‘ridan-to‘g‘ri, komissiyasiz"
+      name="description"
+      content="Uy egasidan to‘g‘ridan-to‘g‘ri, maklersiz ijara. O‘zbekiston bo‘ylab tekshirilgan kvartira, uy va xona e’lonlari. Komissiya 0%."
     />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+    <link rel="canonical" href="https://maklersizuy.uz/" />
+    <link rel="alternate" hreflang="uz" href="https://maklersizuy.uz/" />
+    <link rel="alternate" hreflang="ru" href="https://maklersizuy.uz/ru" />
+    <link rel="alternate" hreflang="en" href="https://maklersizuy.uz/en" />
+    <link rel="alternate" hreflang="x-default" href="https://maklersizuy.uz/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Maklersiz Uy" />
+    <meta property="og:locale" content="uz_UZ" />
+    <meta property="og:title" content="Maklersiz uy va kvartira ijarasi" />
     <meta
       property="og:description"
-      content="Makler yo‘q. Komissiya 0%. Uy egasi va ijarachini to‘g‘ridan-to‘g‘ri bog‘laydi."
+      content="Uy egasidan to‘g‘ridan-to‘g‘ri, maklersiz ijara. Komissiya 0%."
     />
-    <meta property="og:image" content="/brand/og-image.png" />
+    <meta property="og:url" content="https://maklersizuy.uz/" />
+    <!-- Absolute, because the Open Graph protocol requires it: a root-relative
+         path leaves Telegram, WhatsApp and Slack with no preview image. -->
+    <meta property="og:image" content="https://maklersizuy.uz/brand/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:site_name" content="Maklersiz Uy" />
-    <meta property="og:url" content="https://maklersizuy.uz/" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Maklersiz uy va kvartira ijarasi" />
+    <meta
+      name="twitter:description"
+      content="Uy egasidan to‘g‘ridan-to‘g‘ri, maklersiz ijara. Komissiya 0%."
+    />
+    <meta name="twitter:image" content="https://maklersizuy.uz/brand/og-image.png" />
+    <!--seo-head-end-->
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!--seo-preconnect-->
+
+    <!--
+      The font stylesheet is fetched at high priority but does not block the
+      first paint: `media="print"` makes it non-render-blocking, and the load
+      handler promotes it once it has arrived. Nine faces from a third-party
+      origin used to sit directly in front of every visitor's first paint.
+    -->
     <link
+      rel="preload"
+      as="style"
       href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
     />
+    <link
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all';this.onload=null"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+      />
+    </noscript>
 
     <script>
       /*
-       * Theme bootstrap — must run before first paint.
+       * Theme and language bootstrap — must run before first paint.
        *
        * Without this the page renders in light mode and then snaps to dark
        * once React mounts, which reads as a white flash on every load for
@@ -76,7 +112,22 @@
             var meta = document.querySelector('meta[name="theme-color"]');
             if (meta) meta.setAttribute('content', '#080d18');
           }
-          var lang = localStorage.getItem('maklersiz.language');
+
+          /*
+           * The URL decides the language, and only falls back to the stored
+           * choice when the address carries no prefix. Reading storage first
+           * meant a visitor who had once picked Uzbek was served Uzbek at
+           * /ru/toshkent — a page whose own canonical and hreflang tags said
+           * it was Russian.
+           */
+          var path = location.pathname;
+          var fromPath =
+            path === '/ru' || path.indexOf('/ru/') === 0
+              ? 'ru'
+              : path === '/en' || path.indexOf('/en/') === 0
+                ? 'en'
+                : null;
+          var lang = fromPath || localStorage.getItem('maklersiz.language');
           if (lang === 'uz' || lang === 'ru' || lang === 'en') {
             document.documentElement.lang = lang;
           }
@@ -87,7 +138,7 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><!--seo-body-start--><!--seo-body-end--></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

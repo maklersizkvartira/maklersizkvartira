@@ -5,6 +5,9 @@ import { Mail, Phone, Send } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { useAppStore, type ViewState } from '../../stores/useAppStore';
+import { AppLink } from '../../router/AppLink';
+import { hubLinks } from '../../seo/links';
+import { BLOG_PATH, HELP_PATH, helpPath, viewPath } from '../../seo/routes';
 import { Logo } from '../brand/Logo';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ThemeToggle } from './ThemeToggle';
@@ -26,11 +29,18 @@ const InstagramIcon: React.FC<{ className?: string }> = ({ className = 'h-4 w-4'
   </svg>
 );
 
+interface FooterLink {
+  labelKey: string;
+  view?: ViewState;
+  /** A content path, for destinations that are not app views. */
+  to?: string;
+}
+
 export const Footer: React.FC = () => {
   const { t } = useTranslation();
-  const setCurrentView = useAppStore((state) => state.setCurrentView);
+  const language = useAppStore((state) => state.language);
 
-  const columns: Array<{ titleKey: string; links: Array<{ labelKey: string; view?: ViewState }> }> = [
+  const columns: Array<{ titleKey: string; links: FooterLink[] }> = [
     {
       titleKey: 'layout.footer.forTenants',
       links: [
@@ -50,15 +60,25 @@ export const Footer: React.FC = () => {
       ],
     },
     {
+      // These four used to have no destination at all: the handler read
+      // `link.view && …`, so every legal link was a button that did nothing.
+      // They now point at the help centre, which is where the text lives.
       titleKey: 'layout.footer.legal',
       links: [
-        { labelKey: 'layout.footer.terms' },
-        { labelKey: 'layout.footer.privacy' },
-        { labelKey: 'layout.footer.safety' },
-        { labelKey: 'layout.footer.faq' },
+        { labelKey: 'layout.footer.terms', to: helpPath('foydalanish-shartlari') },
+        { labelKey: 'layout.footer.privacy', to: helpPath('maxfiylik-siyosati') },
+        { labelKey: 'layout.footer.safety', to: helpPath('xavfsizlik') },
+        { labelKey: 'layout.footer.faq', to: helpPath('savol-javob') },
+        { labelKey: 'layout.footer.guides', to: BLOG_PATH },
+        { labelKey: 'layout.nav.help', to: HELP_PATH },
+        { labelKey: 'layout.nav.ecosystem', view: 'ECOSYSTEM_PREVIEW' },
       ],
     },
   ];
+
+  // The geography and category hubs, so every landing page is two clicks from
+  // anywhere on the site rather than reachable only through the sitemap.
+  const hubs = hubLinks(language);
 
   return (
     <footer className="mt-auto border-t border-line bg-surface">
@@ -111,19 +131,41 @@ export const Footer: React.FC = () => {
                 <ul className="space-y-2">
                   {column.links.map((link) => (
                     <li key={link.labelKey}>
-                      <button
-                        type="button"
-                        onClick={() => link.view && setCurrentView(link.view)}
+                      <AppLink
+                        to={link.to ?? (link.view ? viewPath(link.view) : '/')}
+                        view={link.to ? undefined : link.view}
                         className="cursor-pointer text-xs text-muted transition-colors hover:text-brand-text"
                       >
                         {t(link.labelKey as never)}
-                      </button>
+                      </AppLink>
                     </li>
                   ))}
                 </ul>
               </nav>
             ))}
           </div>
+        </div>
+
+        <div className="mt-8 space-y-5 border-t border-line pt-6">
+          {hubs.map((group) => (
+            <nav key={group.heading} aria-label={group.heading}>
+              <h2 className="mb-2 text-[11px] font-black uppercase tracking-wider text-subtle">
+                {group.heading}
+              </h2>
+              <ul className="flex flex-wrap gap-x-3 gap-y-1.5">
+                {group.links.map((link) => (
+                  <li key={link.path}>
+                    <AppLink
+                      to={link.path}
+                      className="text-[11px] text-muted transition-colors hover:text-brand-text hover:underline"
+                    >
+                      {link.label}
+                    </AppLink>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
         </div>
 
         <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-line pt-6 sm:flex-row">

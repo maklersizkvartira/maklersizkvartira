@@ -48,6 +48,12 @@ import { ListingsApi } from '../../services/listingsApi';
 import { useAppStore } from '../../stores/useAppStore';
 import type { Listing } from '../../types';
 import { Button, SelectInput } from '../ui/Field';
+import { localisedPath } from '../../router/language';
+import { listingPath } from '../../seo/routes';
+import { listingSlug } from '../../seo/slugs';
+import { useSeoHead } from '../../seo/useSeoHead';
+import { Breadcrumbs } from '../seo/Breadcrumbs';
+import { buildPageCopy } from '../../seo/meta';
 
 type LoadStatus = 'loading' | 'ready' | 'notFound' | 'error';
 
@@ -162,6 +168,9 @@ export const ListingDetailPage: React.FC = () => {
   const recordView = useAppStore((state) => state.recordView);
   const recordContact = useAppStore((state) => state.recordContact);
   const pushToast = useAppStore((state) => state.pushToast);
+  const route = useAppStore((state) => state.route);
+  const language = useAppStore((state) => state.language);
+  const navigate = useAppStore((state) => state.navigate);
 
   const [listing, setListing] = useState<Listing | null>(null);
   const [status, setStatus] = useState<LoadStatus>('loading');
@@ -220,6 +229,22 @@ export const ListingDetailPage: React.FC = () => {
     viewedIdRef.current = listing.id;
     recordView(listing.id);
   }, [status, listing, recordView]);
+
+  // The readable address needs the title, which only exists once the listing
+  // has loaded. Replacing rather than pushing keeps one history entry per
+  // listing, and moves `/e/<uuid>` onto the same canonical URL that the
+  // sitemap and every internal link use.
+  useEffect(() => {
+    if (status !== 'ready' || !listing) return;
+    const canonical = listingPath({ id: listing.id, slug: listingSlug(listing) });
+    if (canonical !== route.path) navigate(canonical, { replace: true });
+  }, [status, listing, route.path, navigate]);
+
+  useSeoHead(route, language, {
+    listing: status === 'ready' ? listing : null,
+    noindex: status === 'notFound' || status === 'error',
+    formatPrice,
+  });
 
   useEffect(
     () => () => {
@@ -407,6 +432,13 @@ export const ListingDetailPage: React.FC = () => {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-5 sm:px-6 sm:py-6">
+      {/* The trail doubles as BreadcrumbList structured data, which is what
+          Google shows under the result instead of a bare UUID URL. */}
+      <Breadcrumbs
+        crumbs={buildPageCopy(route, language, { listing }).crumbs}
+        label={t('common.a11y.menu')}
+      />
+
       {/* ------------------------------------------------------------------ */}
       {/* Toolbar                                                             */}
       {/* ------------------------------------------------------------------ */}
@@ -710,7 +742,16 @@ export const ListingDetailPage: React.FC = () => {
                     : 'border-transparent opacity-70 hover:opacity-100'
                 }`}
               >
-                <img src={image} alt="" className="h-full w-full object-cover" loading="lazy" />
+                <img
+                  src={image}
+                  alt={t('listings.detail.photoOf', {
+                    title: listing.title,
+                    index: index + 1,
+                  })}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
               </button>
             ))}
           </div>

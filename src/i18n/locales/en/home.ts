@@ -7,7 +7,7 @@
 export const home = {
   hero: {
     badge: '0% commission · rent directly',
-    title: 'Find a home without a broker',
+    title: 'Rent a home or flat, no agents',
     subtitle: 'Verified homes across {regions} regions and {districts} districts of Uzbekistan.',
     searchTitle: 'Where are you looking?',
     searchHintShort: 'Tap to search',

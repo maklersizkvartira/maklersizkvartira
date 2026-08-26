@@ -123,3 +123,6 @@ backend_python/.env
 
 # Browser verification output
 ui-verification/
+
+# Build artefact of the SSR pass that feeds scripts/prerender.mjs.
+.prerender/
