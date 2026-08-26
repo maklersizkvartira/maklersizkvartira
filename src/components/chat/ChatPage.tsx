@@ -6,7 +6,8 @@ import {
   MessageSquare,
   PlusCircle,
   Send,
-  Loader2
+  Loader2,
+  User as UserIcon
 } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
@@ -21,6 +22,31 @@ const QUICK_QUESTION_KEYS = [
   'chat.composer.quick.contract',
   'chat.composer.quick.phone',
 ] as const;
+
+const playNotificationSound = () => {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.1);
+    
+    gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+    
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.1);
+  } catch (e) {
+    // Ignore audio errors
+  }
+};
 
 export const ChatPage: React.FC = () => {
   const { t } = useTranslation();
@@ -98,6 +124,7 @@ export const ChatPage: React.FC = () => {
     try {
       const newMsg = await chatApi.sendMessage(activeConversationId, draft.trim());
       setDraft('');
+      playNotificationSound();
       setDetail(prev => prev ? { ...prev, messages: [...prev.messages, newMsg] } : prev);
     } catch {
       pushToast('common.error.generic', 'error');
@@ -153,19 +180,26 @@ export const ChatPage: React.FC = () => {
             {conversations.map(conv => {
               const isOwner = conv.owner_id === currentUser.id;
               const otherPerson = isOwner ? conv.user : conv.owner;
+              const avatarFallback = `https://ui-avatars.com/api/?name=${otherPerson?.name || 'U'}&background=random`;
+              
               return (
                 <button
                   key={conv.id}
                   onClick={() => setCurrentView('CHAT', null, conv.id)}
-                  className="w-full text-left bg-surface border border-line rounded-xl p-4 shadow-sm hover:border-brand/50 transition-colors flex items-center justify-between"
+                  className="w-full text-left bg-surface border border-line rounded-xl p-4 shadow-sm hover:border-brand/50 transition-colors flex items-center gap-3"
                 >
-                  <div className="min-w-0">
+                  <img 
+                    src={otherPerson?.avatar || avatarFallback}
+                    alt={otherPerson?.name}
+                    className="w-12 h-12 rounded-full object-cover shrink-0 border border-line bg-surface-2"
+                  />
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-content truncate">
-                      {isOwner ? "Xaridor/Ijarachi" : "Uy egasi"}: {otherPerson?.name || "Foydalanuvchi"}
+                      {otherPerson?.name || "Foydalanuvchi"} {isOwner ? "(Xaridor/Ijarachi)" : "(Uy egasi)"}
                     </p>
                     <p className="text-xs text-muted mt-1">Suhbat sanasi: {new Date(conv.updated_at).toLocaleDateString()}</p>
                   </div>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-2 text-muted">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted">
                     <MessageSquare className="h-4 w-4" />
                   </div>
                 </button>
@@ -178,17 +212,25 @@ export const ChatPage: React.FC = () => {
   }
 
   // DETAIL VIEW
+  const otherPerson = detail?.owner_id === currentUser.id ? detail?.user : detail?.owner;
+  const avatarFallback = `https://ui-avatars.com/api/?name=${otherPerson?.name || 'U'}&background=random`;
+  
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] max-w-3xl mx-auto px-4 py-4">
       <header className="flex items-center gap-3 pb-4 border-b border-line shrink-0">
         <button 
           onClick={() => setCurrentView('CHAT', null, null)}
-          className="p-2 -ml-2 rounded-lg hover:bg-surface-2 text-muted"
+          className="p-2 -ml-2 rounded-lg hover:bg-surface-2 text-muted transition-colors"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <div className="min-w-0">
-          <h1 className="text-lg font-black text-content">{t('layout.nav.chat')}</h1>
+        <div className="flex items-center gap-2 min-w-0">
+          <img 
+            src={otherPerson?.avatar || avatarFallback}
+            alt="Avatar"
+            className="w-8 h-8 rounded-full object-cover shrink-0 border border-line"
+          />
+          <h1 className="text-lg font-black text-content truncate">{otherPerson?.name || t('layout.nav.chat')}</h1>
         </div>
       </header>
       
@@ -200,7 +242,16 @@ export const ChatPage: React.FC = () => {
             const isMe = msg.sender_id === currentUser.id;
             return (
               <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${
+                {!isMe && (
+                  <div className="mr-2 shrink-0 self-end">
+                    <img 
+                      src={otherPerson?.avatar || avatarFallback} 
+                      alt="avatar" 
+                      className="w-7 h-7 rounded-full object-cover bg-surface-2 border border-line"
+                    />
+                  </div>
+                )}
+                <div className={`max-w-[75%] rounded-2xl px-4 py-2 ${
                   isMe ? 'bg-brand text-on-brand rounded-br-sm' : 'bg-surface border border-line text-content rounded-bl-sm'
                 }`}>
                   <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.text}</p>
