@@ -3,7 +3,7 @@
 from datetime import datetime
 import uuid
 from pydantic import BaseModel, ConfigDict
-from app.schemas.user import UserPublic
+from app.schemas.auth import UserOut
 
 
 class ChatMessageCreate(BaseModel):
@@ -30,8 +30,8 @@ class ConversationOut(BaseModel):
     updated_at: datetime
     
     # We can include user/owner objects for UI convenience
-    user: UserPublic | None = None
-    owner: UserPublic | None = None
+    user: UserOut | None = None
+    owner: UserOut | None = None
     
     model_config = ConfigDict(from_attributes=True)
 
