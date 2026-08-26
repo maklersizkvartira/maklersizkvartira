@@ -65,6 +65,17 @@ const readers = {
 
 const stripTags = (value) => (value ?? '').replace(/<[^>]*>/g, '').trim();
 
+/** Readable text only: script bodies are not prose and skew every ratio. */
+const bodyText = (html) =>
+  html
+    .slice(html.indexOf('<body'))
+    .replace(/<script[\s\S]*?<\/script>/g, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const countOf = (text, pattern) => (text.match(pattern) || []).length;
+
 // ---------------------------------------------------------------------------
 async function walk(dir, out = []) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -214,6 +225,25 @@ async function main() {
     // -- Images -----------------------------------------------------------
     for (const attrs of readers.imgs(html)) {
       if (!/\balt=/.test(attrs)) fail(url, 'an <img> has no alt attribute');
+    }
+
+    // -- Is the page actually in the language it claims? -------------------
+    //
+    // The copy packs load per language, and a page rendered before its pack
+    // arrives falls back to another language's prose while its `lang`,
+    // canonical and hreflang all still say otherwise. That bug shipped once
+    // and neither the type checker nor any of the checks above saw it: every
+    // tag was present, unique and well-formed. Only the words were wrong.
+    const prose = bodyText(html);
+    if (prose.length >= 200) {
+      const cyrillic = countOf(prose, /[Ѐ-ӿ]/g);
+      const ratio = cyrillic / prose.length;
+      if (expected === 'ru' && ratio < 0.15) {
+        fail(url, `declares Russian but its text is ${(ratio * 100).toFixed(1)}% Cyrillic — the pack probably fell back`);
+      }
+      if (expected !== 'ru' && cyrillic > 20) {
+        fail(url, `declares ${expected} but contains ${cyrillic} Cyrillic characters`);
+      }
     }
 
     // -- Links ------------------------------------------------------------
