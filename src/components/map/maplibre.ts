@@ -1,24 +1,17 @@
 import * as maplibregl from 'maplibre-gl';
+// Bundled with this chunk rather than pulled from unpkg at runtime: the CDN
+// copy was pinned to 4.7.1 while the package here is 6.x, and it carried no
+// integrity hash on a page Google crawls.
+import 'maplibre-gl/dist/maplibre-gl.css';
 import type { EngineOptions, LatLng, MapEngine } from './engine';
 
 const STYLE_URL_LIGHT = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
 const STYLE_URL_DARK = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
-function loadStyle(id: string, href: string): void {
-  if (document.getElementById(id)) return;
-  const link = document.createElement('link');
-  link.id = id;
-  link.rel = 'stylesheet';
-  link.href = href;
-  document.head.appendChild(link);
-}
-
 export async function createMapLibre(
   element: HTMLElement,
   options: EngineOptions,
 ): Promise<MapEngine> {
-  loadStyle('maplibre-css', 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css');
-
   const map = new maplibregl.Map({
     container: element,
     style: options.dark ? STYLE_URL_DARK : STYLE_URL_LIGHT,

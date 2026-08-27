@@ -851,6 +851,735 @@ export const EN_ARTICLES: Article[] = [
       },
     ],
   },
+
+  {
+    slug: 'zakladka-va-depozit',
+    title: 'The deposit: when you get all of it back',
+    summary:
+      'What the zakladka is for, what a landlord may lawfully withhold, and how photographs '
+      + 'taken on move-in day become your evidence on the day you leave.',
+    publishedAt: '2026-03-05',
+    updatedAt: '2026-08-11',
+    readingMinutes: 8,
+    h1: 'The rental deposit: how it is paid, what it covers and how it comes back',
+    intro:
+      'The most argued-over money in any tenancy is the deposit — the zakladka, as it is called '
+      + 'in Uzbekistan. It is neither rent nor an agent’s fee, yet it is the payment that hurts '
+      + 'most in the month you move in, and it is the one that turns into a row on the day you '
+      + 'move out. The reason is almost always the same: the zakladka is agreed verbally. "I will '
+      + 'give it back if you do not damage anything," someone says, both sides nod — and a year '
+      + 'later it emerges that they understood the word "damage" entirely differently. For the '
+      + 'landlord it covers the mark on the wall and the scrape on the door; for the tenant it '
+      + 'covers only things that are actually broken. What follows sets out why a deposit is '
+      + 'taken, how to write it into the contract, what to do on the day you get the keys, and '
+      + 'what to do if the money does not come back. This is general practical guidance rather '
+      + 'than legal advice: where the situation is tangled or the sum is large, talk to a lawyer.',
+    sections: [
+      {
+        heading: 'What the deposit is, and what it is not',
+        paragraphs: [
+          'The zakladka is the landlord’s security. It is money held in advance against damage '
+            + 'that may happen, an unpaid utility bill, or a flat abandoned before the term is '
+            + 'up. The important part is that it is not the landlord’s income. If the flat is '
+            + 'undamaged and nothing is owed, it has to come back in full — that is not a favour, '
+            + 'it is an ordinary condition of the deal.',
+          'The first misunderstanding starts here. Many tenants treat the deposit as "the last '
+            + 'month’s rent" and stop paying a month before they leave. The landlord treats it as '
+            + 'untouchable security and expects that month to be paid like any other. Each of '
+            + 'them is right in their own terms, because nobody ever wrote it down. One sentence '
+            + 'in the contract — does the deposit count as the final month, or is it returned '
+            + 'separately — closes the argument entirely.',
+          'The second misunderstanding comes from confusing the deposit with an agent’s '
+            + 'commission. What a broker takes is a fee for a service and it does not come back; '
+            + 'the zakladka is returnable money and it is handed to the owner of the flat and to '
+            + 'nobody else. If the person asking you for a "deposit" is not the owner and holds '
+            + 'no written authority from them, that is already a completely different '
+            + 'conversation.',
+        ],
+        bullets: [
+          'The deposit is returnable security, not part of the rent.',
+          'It goes only to the owner, or to a representative holding a power of attorney.',
+          'The amount and the terms of its return belong in the contract.',
+          'When you hand the money over, take a receipt or a signed note on the contract itself.',
+        ],
+      },
+      {
+        heading: 'How the deposit clause should be written',
+        paragraphs: [
+          'The clause does not need to be long — four or five sentences will do, provided each of '
+            + 'them is precise. A general phrase such as "withheld in the event of damage" means '
+            + 'nothing in practice, because nothing marks where damage begins. List instead what '
+            + 'money may be withheld for, and add a separate sentence saying that fair wear and '
+            + 'tear does not count as damage.',
+          'The second essential is timing. "Returned after you leave" can stretch into months '
+            + 'without anyone having broken the agreement. Put a number on it: how many days from '
+            + 'the day you hand the flat back, and by what method. If it is coming by transfer, '
+            + 'the card or account number belongs in the contract too.',
+          'If a ready-made contract is missing one of these clauses, you can write it in by hand '
+            + 'and have both parties sign in the margin. The rest of the contract is dealt with '
+            + 'in the separate guide to checking a rental agreement before you sign.',
+        ],
+        bullets: [
+          'The amount of the deposit, in figures and in words.',
+          'Whether it counts as the final month’s rent or is returned separately.',
+          'The circumstances in which it may be withheld, set out as a list.',
+          'A separate sentence stating that fair wear and tear is not damage.',
+          'How many days after handover it is returned, and by what method.',
+          'A requirement that every sum withheld be justified in writing.',
+        ],
+      },
+      {
+        heading: 'Move-in day decides the argument in advance',
+        paragraphs: [
+          'The outcome of the argument on the day you leave is settled on the day you arrive. '
+            + 'When you take the keys, photograph every room on your phone — not attractively, '
+            + 'but completely: the walls, the corners of the ceiling, the floor, the marks beside '
+            + 'the doors, the seals in the bathroom, the inside of the kitchen cupboards, the '
+            + 'window frames. Phone photographs carry the date automatically, and that date is '
+            + 'what makes them evidence later. Add a short video as well: one walk through the '
+            + 'flat, room by room, is enough.',
+          'Alongside the photographs, draw up an inventory. List the furniture and appliances by '
+            + 'name and write a word or two on the condition of each: fridge works, door seal '
+            + 'worn; air conditioner works, no remote; edge of the kitchen table chipped. Print '
+            + 'two copies, have both sides sign, and attach it to the contract.',
+          'The third job is the meters. Write down the water, gas and electricity readings and '
+            + 'photograph them so the digits are legible: an outgoing tenant’s debt is very often '
+            + 'taken out of the next tenant’s deposit.',
+        ],
+        bullets: [
+          'A dated photograph of every room, the bathroom and the kitchen.',
+          'One walk-through video — a minute or two is plenty.',
+          'A signed inventory showing the condition of the appliances.',
+          'All three meter readings — written down and photographed.',
+          'Separate photographs of existing faults and damage, with nothing left out.',
+        ],
+      },
+      {
+        heading: 'What a landlord may withhold',
+        paragraphs: [
+          'The list of things that can justify keeping part of the deposit is shorter than people '
+            + 'expect. Real damage, meaning something broken rather than ordinary wear from use; '
+            + 'unpaid rent, or unpaid kommunal — the utility bills for electricity, gas, water '
+            + 'and refuse; leaving before the term in breach of the notice the contract sets out; '
+            + 'and failing to hand the flat back in the state agreed, for instance leaving it '
+            + 'uncleaned or full of things you did not take with you.',
+          'Fair wear and tear is not damage. Paint that has dulled with time, a thin patch in the '
+            + 'flooring where people walk, a tap washer that has given up, a blown bulb, a door '
+            + 'lock that has loosened naturally — none of that is the tenant’s fault. This '
+            + 'boundary is the one that gets argued about, which is exactly why it is worth '
+            + 'writing into the contract.',
+          'The sum withheld has to be justified as well. Not a rough "that will cost something to '
+            + 'repair", but something specific: which item, what repairing or replacing it cost, '
+            + 'and a receipt or at least a written estimate from a tradesman. Asking for that '
+            + 'account is entirely reasonable and it is not rude.',
+        ],
+        bullets: [
+          'Counts as damage: a broken window, a holed door, a burnt surface, a missing appliance.',
+          'Does not count: dulled paint, worn flooring, a perished tap washer.',
+          'Debts: unpaid rent, an open utility account, the building-management fee.',
+          'A written justification for every sum withheld, with a receipt where possible.',
+        ],
+      },
+      {
+        heading: 'Handover day: how to give the flat back',
+        paragraphs: [
+          'Prepare for the handover a day in advance. Clean the flat and put the small things '
+            + 'right yourself — changing a blown bulb or taking out a nail you hammered in costs '
+            + 'you an hour, and costs considerably more on the landlord’s account. Do not leave '
+            + 'things behind: to the landlord they are rubbish, and taking rubbish away is '
+            + 'another expense.',
+          'Hand the flat back with the landlord present. Take the inventory, walk through room by '
+            + 'room together and check the entries one by one. Write down and photograph the '
+            + 'final meter readings, and show the paid utility receipts. At the moment you hand '
+            + 'over the keys, get a short receipt from the landlord: the flat was accepted on '
+            + 'this date, in this condition, with no claims outstanding.',
+          'If the deposit is returned the same day, confirm in writing that you received it; if '
+            + 'it is to be transferred later, the receipt should state how much is coming back '
+            + 'and by what date.',
+        ],
+      },
+      {
+        heading: 'What to do if the deposit does not come back',
+        paragraphs: [
+          'The first step is not a row but a written approach. Message the landlord: the date you '
+            + 'handed the flat back, the clause of the contract the money is due under, the '
+            + 'amount, and the date by which you expect it. It matters that it is in writing, '
+            + 'because a phone call cannot be evidence afterwards. Most cases are settled at this '
+            + 'stage.',
+          'If there is no answer, or money continues to be withheld without justification, gather '
+            + 'everything in one place: the contract, the inventory, the move-in and move-out '
+            + 'photographs, the meter readings, payment receipts and the correspondence. From '
+            + 'there you can send a formal written claim and, if it comes to it, go to court. '
+            + 'This is the moment when those dated photographs from move-in day decide how strong '
+            + 'your case is.',
+          'It is worth saying again: this article is general practical guidance, not legal '
+            + 'advice. If the sum is significant or the two sides cannot agree, take advice from '
+            + 'a lawyer before you start — one consultation usually costs less than months of '
+            + 'correspondence.',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'How much is a deposit usually?',
+        a:
+          'That is a matter of agreement and it varies with the flat, the term and the '
+          + 'conditions — we quote no figures. What matters is that the amount is written into '
+          + 'the contract and the terms of its return are spelt out.',
+      },
+      {
+        q: 'Can I live out the last month against the deposit?',
+        a:
+          'Only if the contract says so. Otherwise the landlord counts it as unpaid rent, and '
+          + 'this is one of the commonest disputes there is. Settle that clause before you sign.',
+      },
+      {
+        q: 'What if the landlord withholds money for an old mark on the wall?',
+        a:
+          'Dated photographs from the day you moved in answer that in a minute. If the mark was '
+          + 'there when you arrived, it is either fair wear and tear or a pre-existing condition, '
+          + 'and it is no grounds for withholding anything.',
+      },
+    ],
+  },
+
+  {
+    slug: 'kvartirani-korish-checklist',
+    title: 'Viewing a flat: a thirty-minute checklist',
+    summary:
+      'What to check in your first half hour inside a flat: water pressure, the fuse board, '
+      + 'heating, damp, mobile signal — and which documents to ask for.',
+    publishedAt: '2026-04-22',
+    updatedAt: '2026-07-29',
+    readingMinutes: 7,
+    h1: 'Viewing a flat: a checklist for the half hour you spend inside',
+    intro:
+      'A viewing is usually over very quickly. The landlord opens the door, says "living room, '
+      + 'kitchen", you nod, you are out in ten minutes and you sit in the car saying it seemed '
+      + 'fine. Three months later you discover that the flat is cold in winter, that the water '
+      + 'pressure drops in the evening, and that the damp patch in the bathroom grows a little '
+      + 'every week. Nearly all of that could have been established in that same half hour — you '
+      + 'only needed to know what to look at, and to turn a few taps on yourself. The list below '
+      + 'is written for exactly that: copy it onto your phone and open it when you go to view. '
+      + 'Asking questions is not impertinent — a normal landlord sees it every day and thinks '
+      + 'nothing of it.',
+    sections: [
+      {
+        heading: 'Three minutes of preparation before you go',
+        paragraphs: [
+          'Take three things with you: a phone with a full battery, a phone charger and a small '
+            + 'torch. The charger is for testing sockets — you plug it into one socket in each '
+            + 'room and watch that it charges. The torch is for looking behind cupboards, into '
+            + 'the ventilation shafts and under the pipes in the bathroom; damp usually starts in '
+            + 'exactly those places you cannot see.',
+          'Choose your time as well. Go in daylight if you can — artificial light hides the state '
+            + 'of the walls and the ceiling. If the flat is a serious candidate, a second visit '
+            + 'in the evening is worth the journey: whether the stairwell is lit, what goes on in '
+            + 'the courtyard, whether you hear the neighbours — those questions only answer '
+            + 'themselves after dark.',
+        ],
+        bullets: [
+          'A charger — for testing the sockets.',
+          'A torch — for under the pipes, behind cupboards and into the ceiling corners.',
+          'This list on your phone, and an empty note to write the answers into.',
+          'Someone with you, rather than going alone, if you can arrange it.',
+        ],
+      },
+      {
+        heading: 'Water, drains and the bathroom',
+        paragraphs: [
+          'Water comes first, because it is the most expensive and the most disruptive thing to '
+            + 'put right. Go into the bathroom and open the tap fully: what is the pressure, is '
+            + 'the flow steady, how many seconds until the hot water arrives. Then open the '
+            + 'kitchen tap at the same time — how far the pressure falls with both running '
+            + 'matters especially on upper floors. Look at the colour too: a yellowish first few '
+            + 'seconds means old pipework.',
+          'Testing the drains is easy: fill the basin and let it out. If the water goes slowly or '
+            + 'gurgles back, that is the sign of a standing problem. Flush the lavatory, wait for '
+            + 'the cistern to fill and check that it is not running. Take the torch under the '
+            + 'pipes: a dried stain, a white salt trace or rust tells you there is a slow leak.',
+          'The water heater is a question of its own. If the flat has a gas water heater — a '
+            + 'kolonka, as they are known here — light it and ask when it was last serviced. Be '
+            + 'careful with anything involving gas appliances: a suspicious smell, or an old unit '
+            + 'that has never been maintained, is more than an inconvenience.',
+        ],
+        bullets: [
+          'Open the bathroom and kitchen taps together and watch the pressure.',
+          'How many seconds the hot water takes, and whether it stays steady.',
+          'Fill the basin and let it out — see how quickly it drains.',
+          'Is the cistern running, and is there damp or rust under the pipes.',
+          'If there is a gas water heater — does it work, and when was it last checked.',
+        ],
+      },
+      {
+        heading: 'Electricity: the fuse board, the sockets and the capacity',
+        paragraphs: [
+          'Ask to see the fuse board. It is not an odd request: one look at it tells you a great '
+            + 'deal about the state of the flat. New breakers, tidy wiring and labelled circuits '
+            + 'are a good sign. A tangle of wires, old-fashioned fuses and joints wrapped in '
+            + 'insulating tape will become your problem later.',
+          'Test the sockets with your charger — at least one in every room. While you are at it, '
+            + 'count them: in older buildings one socket to a room is normal, and in daily life '
+            + 'that turns into a forest of extension leads. Press the light switches too, and '
+            + 'check that there are bulbs in the fittings and that they work.',
+          'The most important question is capacity. In older buildings it is common for the '
+            + 'breaker to trip when an air conditioner, a washing machine and an electric heater '
+            + 'run at once. Ask the landlord directly: can those three run together, and when was '
+            + 'the wiring last renewed. The tone of the answer often tells you more than the '
+            + 'answer itself.',
+        ],
+      },
+      {
+        heading: 'Heating, windows and damp',
+        paragraphs: [
+          'Heating is a subject of its own in Uzbekistan, because it changes the winter kommunal '
+            + '— the utility bills — completely. Establish whether the building is on central '
+            + 'heating, heated by a gas boiler, or reliant on electric heaters, even if you are '
+            + 'viewing in July. Then ask the second question straight away: what the bills came '
+            + 'to for this flat last winter. It is not an awkward thing to ask; it is your own '
+            + 'future expense.',
+          'Open and close the windows. Do they shut without sticking, are the seals intact, does '
+            + 'a draught come through the frames. Old wooden windows hold heat badly and you feel '
+            + 'it in the first cold week. Look carefully at the wall beside the window and the '
+            + 'sill below it: dark speckled patches, bubbled paint or lifting wallpaper are signs '
+            + 'of damp.',
+          'You can smell damp as well. If you notice a musty smell in the first seconds inside, '
+            + 'do not ignore it — especially on the ground floor and on the top floor. A freshly '
+            + 'painted patch of ceiling, or one room with new wallpaper, is often a covered-up '
+            + 'leak. Do not be shy about asking: has water come through here, and when was it '
+            + 'repaired.',
+        ],
+        bullets: [
+          'The type of heating, and last winter’s bills for this flat.',
+          'Do the windows shut tightly, and are the seals intact.',
+          'Damp in the ceiling corners, under the window and on the bathroom wall.',
+          'Freshly painted single patches — ask what is underneath them.',
+          'The smell of the flat — the first few seconds tell you most.',
+        ],
+      },
+      {
+        heading: 'Signal, the stairwell and the neighbours',
+        paragraphs: [
+          'Check the mobile signal there and then, on your own phone, in each room and '
+            + 'particularly in the bedroom and the bathroom. In thick-walled buildings and in '
+            + 'semi-basement flats the signal can disappear where you least expect it. Settle the '
+            + 'internet question on the same visit: which provider reaches the building, is the '
+            + 'cable already in or are you bringing your own, and what speed is available.',
+          'Step out into the stairwell and stand there for a minute. Is it kept clean, does the '
+            + 'light work, does the entrance door lock, does the lift run and what state is it '
+            + 'in. Then go out into the courtyard: is there somewhere to park, where are the '
+            + 'bins, what is the playground like. None of this ever appears in a listing, and you '
+            + 'live with all of it every day.',
+          'If you can, exchange a word with a neighbour. Asking someone on the stairs whether the '
+            + 'water is good in this building and whether it gets cold in winter is completely '
+            + 'normal, and it usually produces the most honest answer you will get. At the same '
+            + 'time you find out whether the person showing you the flat really is from this '
+            + 'building.',
+        ],
+      },
+      {
+        heading: 'Documents, and the questions to put to the landlord',
+        paragraphs: [
+          'If you like the flat, raise the paperwork before you leave. Ask to see the ownership '
+            + 'document and the landlord’s passport, and check that the name is the same on both. '
+            + 'If a relative or an acquaintance is showing the flat on the owner’s behalf, they '
+            + 'should hold a power of attorney. That check takes a minute and stops most fraud '
+            + 'schemes right there in the hallway.',
+          'Ask the money questions at the same time: what the price includes, who pays the '
+            + 'utilities, how much the zakladka — the security deposit — is and in what '
+            + 'circumstances it comes back in full, how many months the contract runs and whether '
+            + 'the rent can change inside that term. Write the answers into the note on your '
+            + 'phone: after three viewings in one day, the terms blur together by the evening.',
+          'And the last rule, which is never broken: on the day of the viewing, without seeing '
+            + 'the ownership document and without a signed contract, you give nobody money. '
+            + 'However convincing the offer to "hold it for you" sounds, the answer is the same.',
+        ],
+        bullets: [
+          'The ownership document and the passport — do the names match.',
+          'If the owner is not there in person — is there a power of attorney.',
+          'What the price includes, and who pays the utilities.',
+          'The amount of the deposit and the terms of its return.',
+          'The term, whether the rent is fixed, and the notice required to leave.',
+          'The date the flat is free from, and when the keys are handed over.',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'How many times should I view a flat?',
+        a:
+          'Twice, if it is a serious candidate: once in daylight and once in the evening. '
+          + 'Daylight shows you the light, the damp and the condition of the place; the evening '
+          + 'shows you the stairwell, the noise and what the courtyard is like.',
+      },
+      {
+        q: 'Is it rude to turn the taps on myself?',
+        a:
+          'No, it is completely ordinary practice and landlords are used to it. If anything, '
+          + 'resistance to being checked is itself a warning sign.',
+      },
+      {
+        q: 'I like it but I want to think — can I reserve it?',
+        a:
+          'Only by signing a contract. Transferring money on the day of the viewing to "reserve" '
+          + 'a flat is the single most common fraud request, so do not agree to it.',
+      },
+    ],
+  },
+
+  {
+    slug: 'sherik-bilan-yashash',
+    title: 'Sharing a flat: what to agree before you move in',
+    summary:
+      'How rent and utilities get split, the rules on guests and cleaning, whose name goes on '
+      + 'the contract, and what happens when a flatmate leaves halfway through.',
+    publishedAt: '2026-06-03',
+    updatedAt: '2026-08-14',
+    readingMinutes: 6,
+    h1: 'Sharing a flat: the things to settle before you move in',
+    intro:
+      'Moving in with a flatmate usually starts very easily. Two people who know each other '
+      + 'halve the rent, say they are sure they will get along, take the keys, and for a week '
+      + 'everything is excellent. The trouble starts in the second month, and it is almost never '
+      + 'about anything large: who did not wash up, who brought a guest to stay for three days, '
+      + 'why the kommunal — the utility bills — did not come out evenly this time. Each of those '
+      + 'is trivial on its own, but they accumulate until people can no longer live together. '
+      + 'The cause is always the same: nobody sat down and talked at the beginning. What follows '
+      + 'is a list of the questions worth spending an hour on before you move in. The '
+      + 'conversation can feel awkward, but it goes far more easily than the argument three '
+      + 'months later.',
+    sections: [
+      {
+        heading: 'Choosing a flatmate: knowing someone is not enough',
+        paragraphs: [
+          'Being friends and living together are two different things. Someone who is excellent '
+            + 'company in a café may turn out to play music at two in the morning, leave the '
+            + 'washing-up until tomorrow, or have six people round every week. The reverse is '
+            + 'equally true: to somebody else, you are that person. So base the choice on whether '
+            + 'your daily habits fit together, not on how much you like each other.',
+          'The simplest test is one calm conversation before you move. Get three things straight: '
+            + 'who sleeps and wakes when, how often guests come, and how money will be handled. '
+            + 'As the student guide on this site puts it, those same three questions account for '
+            + 'most of the conflicts in shared flats.',
+          'If you are moving in with someone you do not know, hold the first meeting somewhere '
+            + 'other than the flat, and invite them to a viewing with you if you can. How a '
+            + 'person inspects a flat, what they ask and how they talk to the landlord tells you '
+            + 'more about living with them than an hour of conversation.',
+        ],
+      },
+      {
+        heading: 'Money: how the rent and the utilities are split',
+        paragraphs: [
+          'The commonest way to split the rent is straight down the middle. That is fair when the '
+            + 'rooms are the same, but in most flats they are not. A large room with a balcony '
+            + 'costing exactly what a small one looking onto the courtyard costs feels odd, and '
+            + 'by the second month that equality has turned into resentment. Discuss the '
+            + 'difference openly at the outset: paying a little more for the bigger room is '
+            + 'entirely ordinary practice.',
+          'Utilities work differently, and splitting them evenly is usually right, because you '
+            + 'both use the water, the gas and the electricity. Agree one thing only: who '
+            + 'collects and who pays. The arrangement that works best is for one person to pay '
+            + 'all the bills each month and post the receipts in a shared chat, with the other '
+            + 'transferring their share the same day. That is a great deal healthier than the fog '
+            + 'of "we will settle up later".',
+          'Fix the payment date as well, and set it a day or two before the rent is due to the '
+            + 'landlord. If your flatmate is paid after the rent falls due, find that out in '
+            + 'advance: it is not an insoluble problem, but it becomes one if it is a surprise '
+            + 'every month.',
+        ],
+        bullets: [
+          'How the rent is split: evenly, or by the size of the room.',
+          'Who collects, who pays, and where the receipts are kept.',
+          'Which day of the month the money changes hands.',
+          'Who paid the deposit, and who gets it back at the end.',
+          'Shared purchases — cleaning things, bulbs, the internet — who buys them.',
+          'What happens if one of you is late: agree that in advance too.',
+        ],
+      },
+      {
+        heading: 'Whose name is on the contract',
+        paragraphs: [
+          'This is the question that gets overlooked most often. Usually one person signs the '
+            + 'contract and the other simply lives there. That leaves every responsibility — '
+            + 'payment, damage, the term — with the person who signed, and the other with no '
+            + 'rights at all: the landlord can say at any point that this person is not on the '
+            + 'contract.',
+          'The right approach is for both flatmates to be named. Then you are tenants on equal '
+            + 'terms and each of you can deal with the landlord directly. Landlords know '
+            + 'perfectly well that the contract should state who lives in the flat, and this '
+            + 'usually meets no resistance at all.',
+          'If for some reason only one person is signing, at least get the landlord’s written '
+            + 'consent to the second person living there, and put your own money arrangement in '
+            + 'writing separately. That arrangement does not bind the landlord, but it makes '
+            + 'matters clear between the two of you.',
+        ],
+      },
+      {
+        heading: 'Daily life: guests, cleaning and quiet hours',
+        paragraphs: [
+          'Most disputes come not from big questions but from small habits, so a handful of '
+            + 'simple rules are worth agreeing at the start. Guests come first: is staying the '
+            + 'night normal, how many people can be invited, can a relative from the regions stay '
+            + 'for a week. Without an answer agreed in advance, the very first instance turns '
+            + 'into a tense conversation.',
+          'Make a cleaning rota — written down, not verbal. Be clear who cleans the shared areas, '
+            + 'meaning the kitchen, the bathroom and the hallway, and in which week. Washing-up '
+            + 'works the same way: the simplest and most effective rule is that everyone washes '
+            + 'up after themselves straight away. "I will do it later" has never worked anywhere.',
+          'Talk about quiet hours too, particularly if one of you leaves for work in the morning '
+            + 'and the other has evening classes. After what time music and phone calls happen '
+            + 'through headphones — that one sentence saves a great deal of sleep. And finally, '
+            + 'food: is everything in the fridge shared, or does everyone keep their own. Say it '
+            + 'out loud, because that is a source of arguments as well.',
+        ],
+        bullets: [
+          'Guests: for how long, how often, and is notice given.',
+          'The cleaning rota and the list of shared areas.',
+          'The washing-up rule — the simplest one is the best one.',
+          'Quiet hours and the headphone rule.',
+          'The fridge: a shared shelf and a personal shelf.',
+          'Smoking, pets, and habits that reach beyond the flat.',
+        ],
+      },
+      {
+        heading: 'If one of you leaves mid-term',
+        paragraphs: [
+          'This is the most painful situation in a flatshare and it happens more often than '
+            + 'people expect: a job changes, family circumstances change, a student transfers to '
+            + 'another city. If it has not been discussed in advance, the person left behind is '
+            + 'alone with the whole rent and has a week to find a new flatmate — on the worst '
+            + 'possible terms.',
+          'So agree three things beforehand. First, notice: how many days ahead the person '
+            + 'leaving has to say so. Second, who finds the replacement, and whether you both '
+            + 'have to approve them. Third, who covers the rent on the empty room until someone '
+            + 'is found. Those three remove most of the uncomfortable conversations entirely.',
+          'Settle the deposit here as well. If one person put the money up and that is the person '
+            + 'leaving, how does their share come back: is it collected from the new flatmate, or '
+            + 'set against the sum the landlord returns at the end. The general rules on deposits '
+            + 'are covered in detail in a separate article.',
+        ],
+      },
+      {
+        heading: 'Write the agreement down',
+        paragraphs: [
+          'Put everything you agree in one place. It does not have to be a formal document: a '
+            + 'shared note on your phones, or a single message in the chat, is enough. What '
+            + 'matters is that you have both seen the same words, so that six months later there '
+            + 'is no argument about what was agreed.',
+          'This arrangement does not replace the contract with the landlord — it only governs '
+            + 'things between the two of you. Responsibility towards the landlord still rests '
+            + 'with the people named in the contract. Where money or liability are involved, '
+            + 'remember that what is described here is common practice rather than legal advice, '
+            + 'and take a lawyer’s view on your own situation.',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'Where can I find a flatmate?',
+        a:
+          'There is a section built for flatshares: both people looking for someone to share '
+          + 'with and owners looking for a flatmate for a room post there. It is also possible '
+          + 'to filter by gender.',
+      },
+      {
+        q: 'Do we both have to sign the contract?',
+        a:
+          'You do not have to, but it is the right way to do it. Otherwise all the '
+          + 'responsibility sits with whoever signed, and the other person has no formally '
+          + 'recognised right to live in the flat.',
+      },
+      {
+        q: 'If my flatmate stops paying, who does the landlord chase?',
+        a:
+          'The person named in the contract. If they signed alone, the whole sum is theirs to '
+          + 'find. That is precisely why both names belong on the contract.',
+      },
+    ],
+  },
+
+  {
+    slug: 'kommunal-tolovlar',
+    title: 'Utility bills in a rented flat: who pays for what',
+    summary:
+      'Which services are metered, which are charged per person, what "utilities separate" '
+      + 'actually means, and how not to inherit somebody else’s debt.',
+    publishedAt: '2026-02-11',
+    updatedAt: '2026-08-18',
+    readingMinutes: 7,
+    h1: 'Utility bills in a rented flat: how they are calculated and divided',
+    intro:
+      'Everyone talks about the rent; almost nobody talks about the kommunal — the utility bills '
+      + '— until the first winter statement arrives. That is the point at which many tenants '
+      + 'realise that the short phrase "utilities separate" in the advert looked a great deal '
+      + 'more innocent than it was. In Uzbekistan utilities are calculated by several different '
+      + 'mechanisms: part of it by meter reading, part by the number of people living in the '
+      + 'flat, part by floor area. Without knowing that difference you cannot even check the '
+      + 'figure that turns up at the end of the month. No tariffs appear below — they change, '
+      + 'and they differ by location. What is set out instead is how the system works, what to '
+      + 'agree with the landlord, and what to do so that the previous tenant’s debt does not '
+      + 'become yours.',
+    sections: [
+      {
+        heading: 'Metered and unmetered services',
+        paragraphs: [
+          'The easiest way to look at utility charges is in two groups. The first is what you pay '
+            + 'by meter: electricity, natural gas and mains water each have their own meter, and '
+            + 'the bill follows what you used. In this group, using less shows up directly on the '
+            + 'statement, which is exactly why it is worth making sure the meter is working.',
+          'The second group is the charges that have nothing to do with consumption. Refuse '
+            + 'collection is usually calculated by the number of people living in the flat, while '
+            + 'the shared services in a block — cleaning the stairwell, the lift, the upkeep of '
+            + 'the courtyard — are normally charged by floor area and collected through the '
+            + 'building management or the residents’ association. These arrive whether you are '
+            + 'living in the flat or away for a month.',
+          'The distinction matters in practice, because the two groups are negotiated '
+            + 'differently. Metered services almost always fall to the tenant, since the tenant '
+            + 'is the one consuming them. Standing charges attached to the property itself more '
+            + 'often stay with the landlord. In reality each agreement settles this for itself, '
+            + 'which is why it needs to be pinned down in writing rather than by word of mouth.',
+        ],
+        bullets: [
+          'By meter: electricity, gas, mains water.',
+          'Per person: refuse collection, as a rule.',
+          'By floor area: the building-management or association fee, the lift, shared areas.',
+          'Separate contracts of their own: internet, cable television, security.',
+          'Heating — central, from a gas boiler, or on the electricity bill, by building type.',
+        ],
+      },
+      {
+        heading: 'What "utilities separate" actually means',
+        paragraphs: [
+          'It is the most ambiguous phrase in any advert. Some landlords use it to mean that only '
+            + 'the electricity and the water are on your account; others fold the '
+            + 'building-management fee, the refuse charge, the internet and the winter heating '
+            + 'into it as well. Both have written the truth as they see it, because the phrase is '
+            + 'not a standard — it is only a habit.',
+          'So open the phrase up on the very first call. "What do you include in the utilities?" '
+            + 'is an entirely reasonable question and a normal landlord answers it in a minute. '
+            + 'Then take the answer service by service: electricity, gas, water, refuse, building '
+            + 'management, internet, heating. Seven names, seven answers, and the subject is '
+            + 'closed.',
+          'The split you agree should go into the contract service by service. A single sentence '
+            + 'saying "utilities are the tenant’s responsibility" turns into an unexpected bill '
+            + 'in winter, particularly in buildings without central heating, where the heating '
+            + 'lands on the electricity account and the winter statement looks nothing like the '
+            + 'summer one.',
+        ],
+      },
+      {
+        heading: 'Reading the meters and submitting the figures',
+        paragraphs: [
+          'Reading a meter looks simple, but there are a few catches. On most meters the last '
+            + 'digit or digits are a different colour — usually in a red frame — and they are the '
+            + 'decimal part. Only the whole number is submitted. Most electricity meters are '
+            + 'digital now and cycle through several figures on the display; if the tariff is '
+            + 'split into time zones, there is a separate figure for each zone.',
+          'There are several ways to submit a reading: through the supplier’s mobile app or '
+            + 'online account, at payment terminals and in payment apps, or through the building '
+            + 'management. Some modern meters transmit the reading themselves, in which case '
+            + 'nothing is asked of you at all. Ask the landlord which arrangement applies here — '
+            + 'it differs from flat to flat.',
+          'A good habit: photograph all three meters on the same day each month. It takes a '
+            + 'minute, and if a dispute arises you have a year of history in your hand. Keep the '
+            + 'photographs in their own album on your phone, and post them in the shared chat '
+            + 'with the landlord as you go.',
+        ],
+        bullets: [
+          'The digits in the red frame are decimals — they are not submitted.',
+          'Three separate readings: electricity, gas and water.',
+          'Which channel the reading goes through, and on which days of the month.',
+          'A photograph on the same day each month — the easiest protection against a dispute.',
+          'The meter seals intact — check that on the day you move in.',
+        ],
+      },
+      {
+        heading: 'How landlords and tenants usually divide it',
+        paragraphs: [
+          'Common practice in Uzbekistan is that the tenant pays for what the tenant consumes: '
+            + 'electricity, gas, water and refuse. Charges that belong to the property and arrive '
+            + 'regardless of who lives there — the building-management or residents’ association '
+            + 'fee, contributions to a major-repairs fund and the like — more often stay with the '
+            + 'landlord. But this is custom rather than law: the parties can agree otherwise, and '
+            + 'that is entirely normal.',
+          'The internet stands apart. In some flats the cable is already in and the contract is '
+            + 'in the landlord’s name, in which case the tenant usually reimburses the monthly '
+            + 'charge. In others the tenant brings in a provider of their own. The second case '
+            + 'may involve installation work, so get the landlord’s permission in advance.',
+          'Heating is a conversation of its own. In buildings on central heating the charge is '
+            + 'usually calculated on a different basis and may not sit inside what the advert '
+            + 'calls "utilities" at all. In flats with a gas boiler the heating lands on the gas '
+            + 'bill; in flats with electric heaters it lands entirely on the electricity bill, '
+            + 'and you notice it in winter. That is why asking about last winter’s bills is one '
+            + 'of the most useful questions at a viewing.',
+        ],
+      },
+      {
+        heading: 'Not inheriting somebody else’s debt',
+        paragraphs: [
+          'This is the commonest unpleasant surprise: you move in, the first bill arrives, and '
+            + 'the figure has nothing to do with what you used, because it carries a debt left by '
+            + 'the previous tenant. Formally the debt attaches to the account, which is to say to '
+            + 'the flat, and who ran it up is of no interest to the supplier.',
+          'To avoid it, do two things before you move in. First, ask the landlord to show you the '
+            + 'most recent receipts for each service, or the account balance in the app: a clear '
+            + 'account is visible on the screen. Second, on the day you take the keys, write down '
+            + 'all three meter readings, photograph them, and attach them to the contract or at '
+            + 'the very least confirm them in writing with the landlord.',
+          'One short sentence in the contract helps too: that any utility debt accrued up to the '
+            + 'date of signature remains the landlord’s. That sentence settles the question of '
+            + 'who owes what in a moment.',
+        ],
+        bullets: [
+          'Check that each service is clear of debt before you move in.',
+          'All three readings on the day you get the keys — written down and photographed.',
+          'A clause in the contract drawing the line by date.',
+          'The meter seals intact and the meters working.',
+          'Ask about the internet and cable accounts as well.',
+        ],
+      },
+      {
+        heading: 'Moving out: closing the accounts behind you',
+        paragraphs: [
+          'Closing the utilities when you leave is in your own interest, because an unpaid debt '
+            + 'is usually taken out of the deposit. On the last day, write down and photograph '
+            + 'all three meter readings again, pay the final bills and keep the receipts. Send '
+            + 'the landlord a copy as well.',
+          'Go through those readings together when you hand the flat back, and write them into '
+            + 'the receipt: these figures on this date, nothing owed. Any bill that arrives after '
+            + 'that is not yours, and you hold the document that proves it.',
+          'The absence of tariffs in this article is deliberate: they change, and the right place '
+            + 'to get a current figure is the supplier’s own source. The divisions and procedures '
+            + 'described here are common practice, and they are not a substitute for legal '
+            + 'advice.',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'Who normally pays the utilities — the landlord or the tenant?',
+        a:
+          'In common practice the tenant pays for the services they consume — electricity, gas, '
+          + 'water and refuse — while the building-management fee more often stays with the '
+          + 'landlord. It is not a legal obligation but a matter of agreement, so put it in the '
+          + 'contract.',
+      },
+      {
+        q: 'What do I do if an old debt surfaces after I move in?',
+        a:
+          'Photographs of the meters on the day you took the keys, and the contract clause '
+          + 'drawing the line by date, settle it. Without them the matter becomes a written '
+          + 'negotiation with the landlord and the proof is harder to assemble.',
+      },
+      {
+        q: 'Can I find out in advance what the utilities will cost in winter?',
+        a:
+          'Not exactly, but you can ask the landlord to show you last winter’s bills, and that '
+          + 'is the most reliable guide there is. The type of heating matters a great deal too: '
+          + 'a flat that relies on electric heaters has a noticeably higher winter bill.',
+      },
+    ],
+  },
 ];
 
 export const EN_HELP: HelpArticle[] = [

@@ -65,6 +65,17 @@ const readers = {
 
 const stripTags = (value) => (value ?? '').replace(/<[^>]*>/g, '').trim();
 
+/** Readable text only: script bodies are not prose and skew every ratio. */
+const bodyText = (html) =>
+  html
+    .slice(html.indexOf('<body'))
+    .replace(/<script[\s\S]*?<\/script>/g, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const countOf = (text, pattern) => (text.match(pattern) || []).length;
+
 // ---------------------------------------------------------------------------
 async function walk(dir, out = []) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -114,6 +125,8 @@ async function main() {
   const descriptions = new Map();
   const canonicals = new Map();
   const linkedTo = new Set();
+  /** Header navigation labels per URL, for the chrome-language check below. */
+  const chrome = new Map();
 
   for (const [url, page] of pages) {
     const { html } = page;
@@ -149,7 +162,11 @@ async function main() {
 
     // -- Robots and canonical ---------------------------------------------
     if (!robots) fail(url, 'no robots meta');
-    if (!canonical && !isListingShell) fail(url, 'no canonical');
+    // Two documents legitimately declare none: the listing shell, which is
+    // served for thousands of different URLs, and the 404 document, whose
+    // address is whatever the visitor mistyped. In both cases the requested
+    // URL is the right canonical and naming one would be a lie.
+    if (!canonical && !isListingShell && !is404) fail(url, 'no canonical');
     if (canonical && indexable) {
       if (!canonicals.has(canonical)) canonicals.set(canonical, []);
       canonicals.get(canonical).push(url);
@@ -216,6 +233,31 @@ async function main() {
       if (!/\balt=/.test(attrs)) fail(url, 'an <img> has no alt attribute');
     }
 
+    // -- Is the page actually in the language it claims? -------------------
+    //
+    // The copy packs load per language, and a page rendered before its pack
+    // arrives falls back to another language's prose while its `lang`,
+    // canonical and hreflang all still say otherwise. That bug shipped once
+    // and neither the type checker nor any of the checks above saw it: every
+    // tag was present, unique and well-formed. Only the words were wrong.
+    const prose = bodyText(html);
+    if (prose.length >= 200) {
+      const cyrillic = countOf(prose, /[Ѐ-ӿ]/g);
+      const ratio = cyrillic / prose.length;
+      if (expected === 'ru' && ratio < 0.15) {
+        fail(url, `declares Russian but its text is ${(ratio * 100).toFixed(1)}% Cyrillic — the pack probably fell back`);
+      }
+      if (expected !== 'ru' && cyrillic > 20) {
+        fail(url, `declares ${expected} but contains ${cyrillic} Cyrillic characters`);
+      }
+    }
+
+    // Header navigation, kept for the cross-language comparison after the loop.
+    const nav = one(html, /(<nav[^>]*class="ml-2[\s\S]*?<\/nav>)/i);
+    if (nav) {
+      chrome.set(url, all(nav, />([^<>]{2,40})<\/a>/g).map((t) => t.trim()).join('|'));
+    }
+
     // -- Links ------------------------------------------------------------
     for (const href of readers.hrefs(html)) {
       const target = href.replace(/\/$/, '') || '/';
@@ -240,6 +282,26 @@ async function main() {
   for (const [canonical, urls] of canonicals) {
     if (urls.length > 1) {
       fail(urls[0], `${urls.length} indexable pages share the canonical ${canonical}`);
+    }
+  }
+
+  // -- Is the CHROME translated, not just the prose? -----------------------
+  //
+  // The language-ratio check above passes on a page whose headings and body
+  // are Russian but whose navigation, footer and buttons are Uzbek: the prose
+  // outweighs the labels. That is exactly what shipped when the prerenderer
+  // registered the SEO copy packs and forgot the i18n dictionaries.
+  //
+  // Comparing a page against its own translation needs no language detection:
+  // if `/toshkent` and `/ru/toshkent` render the same navigation labels, one
+  // of the two is not translated.
+  for (const [url, labels] of chrome) {
+    if (url.startsWith('/ru') || url.startsWith('/en') || !labels) continue;
+    for (const prefix of ['/ru', '/en']) {
+      const other = chrome.get(url === '/' ? prefix : `${prefix}${url}`);
+      if (other && other === labels) {
+        fail(url, `its navigation is identical to ${prefix}${url === '/' ? '' : url} — one of them is untranslated chrome`);
+      }
     }
   }
 

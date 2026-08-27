@@ -122,6 +122,10 @@ export function useSeoHead(
   enabled = true,
 ): void {
   const { listing, resultCount, noindex } = data;
+  // Identity, not the array: `sample` is rebuilt on every render, so
+  // depending on it directly would rewrite the head forever, and leaving it
+  // out let a landing page keep the ItemList from its first fetch.
+  const sampleKey = (data.sample ?? []).map((item) => item.id).join(',');
   // Subscribing to the pack is what makes the head correct itself once a
   // lazily-loaded language arrives, rather than keeping the fallback title.
   const copy = useSeoCopy(language);
@@ -133,5 +137,5 @@ export function useSeoHead(
     // object itself would re-run on every render, because callers build it
     // inline.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [route, language, copy, listing, resultCount, noindex, enabled]);
+  }, [route, language, copy, listing, resultCount, sampleKey, noindex, enabled]);
 }

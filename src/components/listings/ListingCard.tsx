@@ -171,7 +171,17 @@ export const ListingCard: React.FC<ListingCardProps> = ({
       <h3 className="line-clamp-2 text-sm font-bold leading-snug text-content">
         <AppLink
           to={href}
-          onClick={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            // Where a caller owns what "open" means — the assistant overlay
+            // closes itself on the way — the anchor defers to it instead of
+            // navigating out from under it. Preventing the default is what
+            // tells AppLink to stand down.
+            if (onOpen) {
+              event.preventDefault();
+              onOpen(listing);
+            }
+          }}
           className="transition-colors hover:text-brand-text"
         >
           {listing.title}

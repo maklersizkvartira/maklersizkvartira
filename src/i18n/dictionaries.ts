@@ -29,6 +29,19 @@ export function isDictionaryLoaded(language: Language): boolean {
   return Boolean(loaded[language]);
 }
 
+/**
+ * Used by the build-time prerenderer, which has every dictionary in memory and
+ * no way to await a dynamic import inside a synchronous render.
+ *
+ * Without it the renderer registered the SEO copy packs but not these, so the
+ * headings on a Russian page were Russian while every label that goes through
+ * `t()` — the navigation, the footer, the buttons — fell back to Uzbek. Two
+ * hundred static pages shipped in two languages at once.
+ */
+export function registerDictionary(language: Language, dictionary: Dictionary): void {
+  loaded[language] = dictionary;
+}
+
 export function dictionaryFor(language: Language): Dictionary {
   return loaded[language] ?? loaded[DEFAULT_LANGUAGE] ?? uz;
 }

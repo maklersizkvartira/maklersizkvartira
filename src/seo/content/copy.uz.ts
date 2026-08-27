@@ -232,6 +232,7 @@ export const UZ_COPY: CopyPack = {
   },
 
   placeWords: (name) => placeWords(name),
+  country: { name: 'O‘zbekiston', short: 'O‘zbekiston', inPlace: 'O‘zbekistonda' },
 
   home: {
     title: `Maklersiz uy va kvartira ijarasi${SUFFIX}`,

@@ -28,17 +28,29 @@ const SUFFIX = ' | Maklersizuy.uz';
 export function displayPlaceName(name: string): string {
   if (name === 'Toshkent shahri') return 'Tashkent';
   if (name === 'Toshkent viloyati') return 'Tashkent Region';
+  // The one region with an established English name of its own. Left as the
+  // Uzbek string it was unreadable to the audience these pages are for, and
+  // long enough on its own to push a title past what a result shows.
+  if (name === 'Qoraqalpogʻiston Respublikasi') return 'Karakalpakstan';
   return name
     .replace(/\s+sh\.$/i, '')
     .replace(/\s+t\.$/i, ' District')
     .replace(/\s+viloyati$/i, ' Region');
 }
 
-/** The part of a place name a headline should use. */
+/**
+ * The part of a place name a headline should use.
+ *
+ * "Region" is dropped here but kept in `displayPlaceName`: a heading reads
+ * better as "flats to rent in Samarqand" than "in Samarqand Region", and it is
+ * also what somebody searching in English types. Tashkent Region keeps the
+ * word, because without it the region and the city are the same string.
+ */
 function shortName(name: string): string {
-  if (name === 'Toshkent shahri') return 'Tashkent';
   if (name === 'Toshkent viloyati') return 'Tashkent Region';
-  return displayPlaceName(name).replace(/\s+District$/i, '');
+  return displayPlaceName(name)
+    .replace(/\s+District$/i, '')
+    .replace(/\s+Region$/i, '');
 }
 
 /**
@@ -253,6 +265,7 @@ export const EN_COPY: CopyPack = {
   },
 
   placeWords: (name) => placeWords(name),
+  country: { name: 'Uzbekistan', short: 'Uzbekistan', inPlace: 'in Uzbekistan' },
 
   home: {
     title: `Apartments and houses for rent, no agent${SUFFIX}`,

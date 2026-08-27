@@ -334,6 +334,7 @@ export const RU_COPY: CopyPack = {
   },
 
   placeWords: (name, kind) => placeWords(name, kind),
+  country: { name: 'Узбекистан', short: 'Узбекистан', inPlace: 'в Узбекистане' },
 
   home: {
     title: `Аренда квартир и домов без посредников${SUFFIX}`,

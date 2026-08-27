@@ -20,13 +20,20 @@ log = structlog.get_logger(__name__)
 #: Paths that must never be rate-limited or noisily logged.
 #: Behind the site's proxy every sitemap request arrives from one Vercel
 #: egress IP, so the 240/min global ceiling would 429 it for every crawler at
-#: once during a busy period.
+#: once during a busy period. It is safe to exempt because the response
+#: carries `s-maxage=3600` and is served from the edge, so the origin sees it
+#: about once an hour rather than once per crawler.
+#:
+#: The facet endpoint is deliberately NOT here. It sits under the API prefix,
+#: which means `Cache-Control: no-store`, so nothing absorbs repeat calls —
+#: and it runs five full-table aggregations. Exempt, it was an unlogged,
+#: unlimited way to make the database work. The build calls it once per
+#: deploy; the ordinary ceiling is not in its way.
 _EXEMPT_PATHS = {
     "/health",
     "/api/v1/health",
     "/favicon.ico",
     "/sitemap-listings.xml",
-    "/api/v1/meta/seo-facets",
 }
 
 

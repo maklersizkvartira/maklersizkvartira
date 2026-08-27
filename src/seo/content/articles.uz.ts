@@ -856,6 +856,763 @@ export const UZ_ARTICLES: Article[] = [
       },
     ],
   },
+
+  {
+    slug: 'zakladka-va-depozit',
+    title: 'Zakladka: qachon to‘liq qaytariladi',
+    summary:
+      'Zakladka nima uchun olinadi, uy egasi nimani qonuniy ushlab qolishi mumkin va ko‘chib '
+      + 'kirgan kundagi suratlar chiqish kunida qanday dalilga aylanadi.',
+    publishedAt: '2026-03-05',
+    updatedAt: '2026-08-11',
+    readingMinutes: 8,
+    h1: 'Zakladka: qanday qo‘yiladi, nima uchun ushlab qolinadi va qanday qaytariladi',
+    intro:
+      'Ijarada eng ko‘p bahs chiqadigan pul — bu zakladka. U ijara haqi ham emas, vositachilik '
+      + 'haqi ham emas, lekin ko‘chib o‘tadigan oyda cho‘ntakdan aynan u og‘ir chiqadi va '
+      + 'ko‘chib chiqadigan kuni aynan u janjalga aylanadi. Sababi deyarli har doim bitta: '
+      + 'zakladka og‘zaki kelishib qo‘yiladi. "Uyga zarar yetkazmasangiz qaytaraman" deyiladi, '
+      + 'ikkala tomon bosh irg‘aydi — va bir yildan keyin ma’lum bo‘ladiki, "zarar" so‘zini '
+      + 'ular butunlay boshqacha tushunar ekan. Uy egasi uchun bu devordagi dog‘ va eshikdagi '
+      + 'chizilgan iz, ijarachi uchun esa bu faqat singan narsa. Quyida zakladka nima uchun '
+      + 'olinishi, uni shartnomada qanday yozish, ko‘chib kirgan kuni nima qilib qo‘yish va '
+      + 'pul qaytarilmasa qanday yo‘l tutish mumkinligi ko‘rib chiqilgan. Bu umumiy amaliy '
+      + 'maslahat, yuridik xulosa emas: chalkash yoki katta summali holatlarda yuristga '
+      + 'murojaat qilgan ma’qul.',
+    sections: [
+      {
+        heading: 'Zakladka nima va nima emas',
+        paragraphs: [
+          'Zakladka — uy egasining garovi. U kelajakda yuzaga kelishi mumkin bo‘lgan zarar, '
+            + 'to‘lanmay qolgan kommunal hisob yoki muddatidan oldin tashlab ketilgan uy uchun '
+            + 'oldindan qo‘yilgan xavfsizlik puli. Eng muhim jihati shundaki, bu pul uy '
+            + 'egasining daromadi emas. Agar uyga zarar yetmasa va qarz qolmasa, u to‘liq '
+            + 'qaytarilishi kerak — bu iltifot emas, kelishuvning oddiy sharti.',
+          'Birinchi tushunmovchilik shu yerdan boshlanadi. Ko‘p ijarachi zakladkani "oxirgi '
+            + 'oyning ijarasi" deb hisoblaydi va chiqishdan bir oy oldin to‘lovni to‘xtatadi. '
+            + 'Uy egasi esa uni tegilmaydigan garov deb biladi va oxirgi oy uchun alohida pul '
+            + 'kutadi. Ikkalasi ham o‘zicha haq, chunki bu masala hech qachon yozib '
+            + 'qo‘yilmagan. Shartnomadagi bitta jumla — zakladka oxirgi oy ijarasi o‘rniga '
+            + 'o‘tadimi yoki alohida qaytariladimi — bu bahsni butunlay yopadi.',
+          'Ikkinchi tushunmovchilik zakladkani vositachilik haqi bilan chalkashtirishdan '
+            + 'kelib chiqadi. Makler oladigan pul xizmat haqi va u qaytarilmaydi; zakladka '
+            + 'esa qaytariladigan pul va u faqat uyning egasiga topshiriladi. Agar sizdan '
+            + '"zakladka" deb pul so‘rayotgan odam uyning egasi bo‘lmasa yoki uning yozma '
+            + 'vakolati bo‘lmasa, bu allaqachon butunlay boshqa suhbat.',
+        ],
+        bullets: [
+          'Zakladka — qaytariladigan garov, ijara haqining bir qismi emas.',
+          'U faqat uy egasiga yoki uning ishonchnomasi bor vakiliga beriladi.',
+          'Miqdori va qaytarish sharti shartnomada yozilgan bo‘lishi kerak.',
+          'Pul topshirilganda tilxat yoki shartnomadagi imzolangan yozuv olinadi.',
+        ],
+      },
+      {
+        heading: 'Shartnomadagi zakladka bandi qanday yozilishi kerak',
+        paragraphs: [
+          'Zakladka bandi uzun bo‘lishi shart emas — to‘rt-besh jumla yetadi, faqat har biri '
+            + 'aniq bo‘lsin. "Zarar yetkazilsa ushlab qolinadi" degan umumiy ibora amalda hech '
+            + 'narsani anglatmaydi, chunki zararning chegarasi ko‘rsatilmagan. Uning o‘rniga '
+            + 'nimalar ushlab qolinishi mumkinligini sanab o‘tish va tabiiy eskirish zarar '
+            + 'hisoblanmasligini alohida yozib qo‘yish kerak.',
+          'Ikkinchi muhim narsa — muddat. "Chiqqandan keyin qaytariladi" degan jumla amalda '
+            + 'oylab cho‘zilishi mumkin va uni hech kim buzgan bo‘lib chiqmaydi. Uyni '
+            + 'topshirgan kundan boshlab necha kun ichida va qaysi usulda qaytarilishi aniq '
+            + 'son bilan yozilsin. Agar to‘lov o‘tkazma orqali bo‘lsa, karta yoki hisob '
+            + 'raqami ham shartnomaga kirsin.',
+          'Agar tayyor shartnomada bu bandlardan biri yo‘q bo‘lsa, uni qo‘lda yozib qo‘shish '
+            + 'va yon tomoniga ikkala tomon imzo qo‘yishi mumkin. Shartnomaning qolgan '
+            + 'bandlari alohida qo‘llanmada batafsil ko‘rilgan.',
+        ],
+        bullets: [
+          'Zakladka miqdori — raqam va yozuv bilan.',
+          'U oxirgi oy ijarasi o‘rniga o‘tadimi yoki alohida qaytariladimi.',
+          'Qaysi holatlarda ushlab qolinishi mumkin — ro‘yxat ko‘rinishida.',
+          'Tabiiy eskirish zarar hisoblanmasligi haqidagi alohida jumla.',
+          'Uy topshirilgandan keyin necha kun ichida va qanday usulda qaytariladi.',
+          'Ushlab qolingan har bir summa yozma asoslanishi sharti.',
+        ],
+      },
+      {
+        heading: 'Ko‘chib kirgan kun butun bahsni oldindan hal qiladi',
+        paragraphs: [
+          'Chiqish kunidagi bahsning natijasi kirish kunida hal bo‘ladi. Kalitni olgan kuni '
+            + 'uyning har bir xonasini telefoningizga suratga oling — chiroyli qilib emas, '
+            + 'to‘liq qilib: devorlar, shift burchaklari, pol, eshik yonidagi izlar, '
+            + 'hammomdagi choklar, oshxona shkaflarining ichi, deraza ramkalari. Telefon '
+            + 'suratlarida sana avtomatik saqlanadi va aynan shu sana keyinchalik dalil '
+            + 'bo‘ladi. Ustiga qisqa video ham oling: bir marta xonama-xona yurib chiqish '
+            + 'yetarli.',
+          'Suratlar bilan birga inventarizatsiya ro‘yxati tuzing. Mebel va texnikani '
+            + 'nomma-nom yozing va har birining yonida holatini bir-ikki so‘z bilan '
+            + 'ko‘rsating: muzlatgich ishlaydi, eshigining rezinasi eskirgan; kondisioner '
+            + 'ishlaydi, pulti yo‘q; oshxona stolining qirrasi ko‘chgan. Ro‘yxatni ikki '
+            + 'nusxada chop eting, ikkala tomon imzolasin va u shartnomaga ilova bo‘lsin.',
+          'Uchinchi ish — hisoblagichlar. Suv, gaz va elektr ko‘rsatkichlarini yozib oling '
+            + 'va raqamlar aniq ko‘rinadigan qilib suratga tushiring: oldingi ijarachining '
+            + 'qarzi ko‘pincha aynan zakladkadan ushlab qolinadi.',
+        ],
+        bullets: [
+          'Har bir xona, hammom va oshxonaning sanali surati.',
+          'Bir martalik yurib chiqish videosi — bir-ikki daqiqa yetadi.',
+          'Imzolangan inventarizatsiya ro‘yxati, texnikaning holati ko‘rsatilgan holda.',
+          'Uch hisoblagich ko‘rsatkichi — yozma va surat bilan.',
+          'Mavjud nuqson va shikastlarning alohida surati, hech biri yashirilmasin.',
+        ],
+      },
+      {
+        heading: 'Uy egasi nimani ushlab qolishi mumkin',
+        paragraphs: [
+          'Zakladkadan ushlab qolish uchun asos bo‘lishi mumkin bo‘lgan narsalar aslida '
+            + 'unchalik ko‘p emas. Bular — haqiqiy shikast, ya’ni foydalanish natijasidagi '
+            + 'oddiy eskirish emas, balki buzilish; to‘lanmagan ijara yoki kommunal qarz; '
+            + 'shartnomada ko‘rsatilgan tartibni buzib chiqib ketish; va uyning topshirish '
+            + 'holatiga keltirilmagani, masalan tozalanmagani yoki ortiqcha buyumlar tashlab '
+            + 'ketilgani.',
+          'Tabiiy eskirish esa zarar emas. Devor bo‘yog‘ining vaqt o‘tishi bilan '
+            + 'xiralashuvi, linoleumning yurilgan joyi yupqalashgani, kran prokladkasining '
+            + 'ishdan chiqishi, kuygan lampochka, eshik qulfining tabiiy bo‘shashishi — '
+            + 'bularning hech biri ijarachining aybi emas. Bu chegara ko‘pincha muhokamaga '
+            + 'sabab bo‘ladi, shuning uchun uni shartnomaga yozib qo‘yish shunchalik muhim.',
+          'Ushlab qolinadigan summa ham asoslangan bo‘lishi kerak. "Ta’mirga ketadi" degan '
+            + 'taxminiy raqam emas, aniq narsa: qaysi buyum, uni tuzatish yoki almashtirish '
+            + 'qancha turgani va buni tasdiqlovchi chek yoki hech bo‘lmasa ustaning yozma '
+            + 'bahosi. Bunday hisobni so‘rash to‘liq o‘rinli va odobsizlik emas.',
+        ],
+        bullets: [
+          'Zarar deb hisoblanadi: singan oyna, teshilgan eshik, kuydirilgan sirt, yo‘qolgan texnika.',
+          'Zarar hisoblanmaydi: bo‘yoq xiralashuvi, yupqalashgan qoplama, eskirgan prokladka.',
+          'Qarzlar: to‘lanmagan ijara, yopilmagan kommunal hisob, uy boshqaruvi to‘lovi.',
+          'Har bir ushlab qolingan summa uchun yozma asos va imkon bo‘lsa chek.',
+        ],
+      },
+      {
+        heading: 'Chiqish kuni: uyni qanday topshirish kerak',
+        paragraphs: [
+          'Uyni topshirishga bir kun oldindan tayyorlaning. Uyni tozalang, kichik narsalarni '
+            + 'o‘zingiz tuzatib qo‘ying — kuygan lampochkani almashtirish yoki qoqib qo‘yilgan '
+            + 'mixni olib tashlash sizga bir soat, uy egasining hisobida esa ancha ko‘p pul '
+            + 'turadi. Ortiqcha buyumlarni tashlab ketmang: uy egasi uchun ular chiqindi va '
+            + 'uni chiqarish ham xarajat.',
+          'Topshirish uy egasi ishtirokida bo‘lsin. Ikkalangiz inventarizatsiya ro‘yxatini '
+            + 'qo‘lga olib xonama-xona yuring va har bandni birga tekshiring. Oxirgi '
+            + 'hisoblagich ko‘rsatkichlarini yozing va suratga oling, to‘langan kommunal '
+            + 'kvitansiyalarini ko‘rsating. Kalitni topshirgan daqiqada uy egasidan qisqa '
+            + 'tilxat oling: uy shu sanada, shu holatda qabul qilindi va da’vo yo‘q.',
+          'Agar zakladka o‘sha kuniyoq qaytarilsa, pul olinganini ham yozma tasdiqlang; '
+            + 'keyinroq o‘tkaziladigan bo‘lsa, tilxatda qaysi sanagacha va qancha summa '
+            + 'qaytarilishi ko‘rsatilsin.',
+        ],
+      },
+      {
+        heading: 'Zakladka qaytarilmasa nima qilish kerak',
+        paragraphs: [
+          'Birinchi qadam — janjal emas, yozma murojaat. Uy egasiga xabar yozing: qaysi '
+            + 'sanada uyni topshirganingiz, shartnomaning qaysi bandi bo‘yicha qancha summa '
+            + 'qaytarilishi kerakligi va uni qaysi sanagacha kutayotganingiz. Xabar yozma '
+            + 'bo‘lgani muhim, chunki telefon suhbati keyin dalil bo‘lolmaydi. Ko‘p holatda '
+            + 'masala shu bosqichda hal bo‘ladi.',
+          'Agar javob bo‘lmasa yoki asossiz ushlab qolish davom etsa, barcha hujjatni bir '
+            + 'joyga yig‘ing: shartnoma, inventarizatsiya ro‘yxati, kirish va chiqish '
+            + 'suratlari, hisoblagich ko‘rsatkichlari, to‘lov cheklari va yozishmalar. Shundan '
+            + 'keyin rasmiy yozma da’vo yuborish va kerak bo‘lsa sudga murojaat qilish yo‘li '
+            + 'ochiladi. Aynan shu paytda ko‘chib kirgan kunidagi sanali suratlar butun '
+            + 'ishning og‘irligini belgilaydi.',
+          'Yana bir bor takrorlash o‘rinli: bu maqola umumiy amaliy yo‘riqnoma, huquqiy '
+            + 'maslahat emas. Summa katta bo‘lsa yoki tomonlar kelisha olmasa, ish '
+            + 'boshlanishidan oldin yuristga murojaat qiling — bir marta olingan maslahat '
+            + 'ko‘pincha oylab davom etadigan yozishmadan arzonroq tushadi.',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'Zakladka odatda qancha bo‘ladi?',
+        a:
+          'Bu kelishuv masalasi va uy, muddat hamda shartlarga qarab o‘zgaradi — biz aniq '
+          + 'raqam aytmaymiz. Muhimi, miqdor shartnomada yozilgan va uni qaytarish sharti '
+          + 'aniq ko‘rsatilgan bo‘lsin.',
+      },
+      {
+        q: 'Zakladka hisobidan oxirgi oyni yashasa bo‘ladimi?',
+        a:
+          'Faqat shartnomada shunday yozilgan bo‘lsa. Aks holda uy egasi buni to‘lanmagan '
+          + 'ijara deb hisoblaydi va bu eng ko‘p uchraydigan nizolardan biri. Bu bandni '
+          + 'imzolashdan oldin aniqlashtiring.',
+      },
+      {
+        q: 'Uy egasi devordagi eski dog‘ uchun pul ushlab qolsa-chi?',
+        a:
+          'Ko‘chib kirgan kundagi sanali suratlar bu savolga bir daqiqada javob beradi. '
+          + 'Agar dog‘ siz kirgan kuni ham bo‘lgan bo‘lsa, u tabiiy eskirish yoki oldingi '
+          + 'holat hisoblanadi va ushlab qolishga asos bo‘lmaydi.',
+      },
+    ],
+  },
+
+  {
+    slug: 'kvartirani-korish-checklist',
+    title: 'Kvartirani ko‘rish: yarim soatlik ro‘yxat',
+    summary:
+      'Uyga kirgan yarim soat ichida nimani tekshirish kerak: suv bosimi, elektr shchiti, '
+      + 'isitish, namlik, uyali aloqa va qaysi hujjatni so‘rash kerakligi.',
+    publishedAt: '2026-04-22',
+    updatedAt: '2026-07-29',
+    readingMinutes: 7,
+    h1: 'Kvartirani ko‘rish: uyda o‘tkaziladigan yarim soatning ro‘yxati',
+    intro:
+      'Uy ko‘rish odatda juda tez o‘tadi. Uy egasi eshikni ochadi, "mana zal, mana oshxona" '
+      + 'deydi, siz bosh irg‘aysiz, o‘n daqiqada chiqasiz va mashinada o‘tirib "yaxshi ekan" '
+      + 'deysiz. Uch oydan keyin esa qishda uy sovuqligi, kechqurun suv bosimi tushib '
+      + 'ketishi va hammomdagi nam dog‘ har hafta kattalashib borishi ma’lum bo‘ladi. '
+      + 'Aslida bu narsalarning deyarli hammasini o‘sha yarim soat ichida bilib olish '
+      + 'mumkin edi — faqat nimaga qarash kerakligini bilish va bir necha kranni o‘zingiz '
+      + 'ochib ko‘rish kerak edi. Quyidagi ro‘yxat aynan shu uchun tuzilgan: uni telefonga '
+      + 'ko‘chirib oling va uyni ko‘rgani borganda ochib qo‘ying. Savol berish uyalchoqlik '
+      + 'emas — normal uy egasi buni har kuni ko‘radi va bunga xotirjam qaraydi.',
+    sections: [
+      {
+        heading: 'Borishdan oldin: uch daqiqalik tayyorgarlik',
+        paragraphs: [
+          'Uyni ko‘rgani ketayotganda uch narsani oling: zaryadi to‘la telefon, telefon '
+            + 'zaryadlagichi va kichkina fonar. Zaryadlagich rozetkalarni tekshirish uchun — '
+            + 'har bir xonada bittasini sanchib ko‘rasiz va zaryad borayotganini ko‘rasiz. '
+            + 'Fonar esa shkaf ortiga, mo‘rilarga va sanuzeldagi quvurlar tagiga qarash '
+            + 'uchun kerak bo‘ladi; namlik ko‘pincha aynan o‘sha ko‘rinmaydigan joylarda '
+            + 'boshlanadi.',
+          'Vaqtni ham tanlang. Imkon bo‘lsa kunduzi boring — sun’iy yorug‘lik devor va shift '
+            + 'holatini yashiradi. Agar uy jiddiy ko‘rilayotgan bo‘lsa, ikkinchi marta '
+            + 'kechqurun borish arziydi: podyezd yoritilganmi, hovlida qanday hayot bor, '
+            + 'qo‘shnilardan shovqin keladimi — bularning javobi faqat kechqurun ko‘rinadi.',
+        ],
+        bullets: [
+          'Zaryadlagich — rozetkalarni tekshirish uchun.',
+          'Fonar — quvur tagi, shkaf orti va shift burchaklari uchun.',
+          'Telefonda shu ro‘yxat va yozib olish uchun bo‘sh eslatma.',
+          'Imkoni bo‘lsa yolg‘iz emas, bir kishi bilan boring.',
+        ],
+      },
+      {
+        heading: 'Suv, kanalizatsiya va sanuzel',
+        paragraphs: [
+          'Suv — birinchi tekshiriladigan narsa, chunki uni tuzatish eng qimmat va eng '
+            + 'noqulay. Hammomga kiring va kranni to‘liq oching: bosim qanday, oqim tekismi, '
+            + 'issiq suv necha soniyada keladi. Keyin oshxonadagi kranni ham bir vaqtda '
+            + 'oching — ikkalasi birga ishlaganda bosim qanchalik tushishi yuqori qavatlarda '
+            + 'ayniqsa muhim. Suv rangiga ham qarang: birinchi soniyalarda sarg‘ish oqim '
+            + 'kelsa, quvurlar eski degani.',
+          'Kanalizatsiyani tekshirish oson: rakovinani suvga to‘ldiring va bo‘shating. Suv '
+            + 'sekin ketsa yoki g‘uldirab qaytsa, bu doimiy muammoning belgisi. Unitazni '
+            + 'yuvib ko‘ring, bachokning to‘lishini kuting va oqmayotganini ko‘ring. '
+            + 'Quvurlar tagiga fonar bilan qarang: quruq dog‘, oq tuz izi yoki zang '
+            + 'sekin oqish borligini aytadi.',
+          'Isitgich va suv isitgich alohida savol. Uyda kolonka bo‘lsa, uni yoqib ko‘ring '
+            + 'va oxirgi marta qachon xizmat ko‘rsatilganini so‘rang. Gaz asbobi bilan '
+            + 'bog‘liq har qanday narsada ehtiyot bo‘ling: shubhali hid yoki eski, '
+            + 'ta’mirlanmagan qurilma bo‘lsa, bu shunchaki noqulaylik emas.',
+        ],
+        bullets: [
+          'Hammom va oshxona kranini birga ochib bosimni ko‘ring.',
+          'Issiq suv necha soniyada keladi va u barqarormi.',
+          'Rakovinani to‘ldirib bo‘shating — suv qanchalik tez ketadi.',
+          'Bachok oqmayaptimi, quvurlar tagida nam yoki zang izi bormi.',
+          'Kolonka bo‘lsa — ishlaydimi va oxirgi tekshiruv qachon bo‘lgan.',
+        ],
+      },
+      {
+        heading: 'Elektr: shchit, rozetkalar va quvvat',
+        paragraphs: [
+          'Elektr shchitini ko‘rishni so‘rang. Bu g‘alati iltimos emas: shchitga bir qarash '
+            + 'uyning holati haqida ko‘p narsa aytadi. Yangi avtomatlar, tartibli simlar va '
+            + 'belgilangan liniyalar — yaxshi belgi. Chalkash simlar, eski probkalar va '
+            + 'izolentali ulanishlar esa keyinchalik sizning muammoyingizga aylanadi.',
+          'Rozetkalarni zaryadlagich bilan tekshiring — har bir xonada kamida bittasini. '
+            + 'Ayni paytda ularning soniga ham qarang: eski uylarda bitta xonada bitta '
+            + 'rozetka bo‘lishi odatiy hol va bu kundalik hayotda uzatgichlar o‘rmoniga '
+            + 'aylanadi. Yorug‘lik o‘chirgichlarini ham bosib chiqing, chiroqlar borligini '
+            + 'va ishlashini ko‘ring.',
+          'Eng muhim savol — quvvat. Eski uylarda kondisioner, kir yuvish mashinasi va '
+            + 'elektr isitgich bir vaqtda ishlaganda avtomat tushib qolishi keng tarqalgan. '
+            + 'Uy egasidan to‘g‘ridan-to‘g‘ri so‘rang: shu uch qurilmani birga yoqsa bo‘ladimi '
+            + 'va oxirgi marta simlar qachon yangilangan. Javobning ohangi ko‘pincha '
+            + 'javobning o‘zidan ko‘proq narsani aytadi.',
+        ],
+      },
+      {
+        heading: 'Isitish, derazalar va namlik',
+        paragraphs: [
+          'Isitish O‘zbekistonda alohida turadigan masala, chunki u qishki kommunal hisobni '
+            + 'butunlay o‘zgartiradi. Uy markaziy isitishdami, kolonka orqali isitiladimi '
+            + 'yoki elektr isitgichlarga tayanadimi — buni yozda ko‘rayotgan bo‘lsangiz ham '
+            + 'aniqlang. Va darhol ikkinchi savolni bering: o‘tgan qishda bu uy uchun '
+            + 'kommunal qanday chiqqan. Aniq raqam so‘rash noqulay tuyulmasin, bu sizning '
+            + 'kelgusi xarajatingiz.',
+          'Derazalarni ochib-yopib ko‘ring. Ular qiyshaymay yopiladimi, rezinalari butunmi, '
+            + 'ramkalar orasidan shamol o‘tadimi. Yog‘ochli eski derazalar issiqlikni yomon '
+            + 'ushlaydi va bu qishda darhol seziladi. Deraza yonidagi devor va deraza tagi '
+            + 'ham diqqat bilan ko‘rilsin: qora nuqtali dog‘lar, ko‘pikli bo‘yoq yoki '
+            + 'ko‘chgan oboy namlikning belgisi.',
+          'Namlikni hidlab ham bilish mumkin. Uyga kirgan birinchi soniyada zax hidini '
+            + 'sezsangiz, buni e’tiborsiz qoldirmang — ayniqsa birinchi qavatda va oxirgi '
+            + 'qavatda. Yangi bo‘yalgan bir bo‘lak shift yoki bitta xonada yangilangan '
+            + 'oboy ko‘pincha yopib qo‘yilgan oqish izi bo‘ladi. So‘rashdan tortinmang: '
+            + 'bu yerda oqib ketganmi, qachon tuzatilgan.',
+        ],
+        bullets: [
+          'Isitish turi va o‘tgan qishdagi kommunal hisob.',
+          'Derazalar zich yopiladimi, rezinalari butunmi.',
+          'Shift burchaklari, deraza tagi va hammom devorida nam dog‘lar.',
+          'Yangi bo‘yalgan yakka bo‘laklar — nima yopilgani so‘ralsin.',
+          'Uyning zax hidi — birinchi soniyalarda eng yaxshi sezilgan.',
+        ],
+      },
+      {
+        heading: 'Aloqa, podyezd va qo‘shnilar',
+        paragraphs: [
+          'Uyali aloqa signalini o‘sha yerda, o‘z telefoningizda tekshiring — xonalarning '
+            + 'har birida, ayniqsa yotoqxonada va hammomda. Qalin devorli uylarda va yerto‘la '
+            + 'darajasidagi kvartiralarda signal kutilmaganda yo‘qolishi mumkin. Internet '
+            + 'masalasini ham shu yerda hal qiling: uyga qaysi provayder tortilgan, kabel '
+            + 'kirganmi yoki uni o‘zingiz olib kirasizmi, tezlik qanday.',
+          'Podyezdga chiqib bir daqiqa turing. Zinapoya toza saqlanganmi, chiroq yonadimi, '
+            + 'kirish eshigi qulflanadimi, lift ishlaydimi va u qanday holatda. Hovliga '
+            + 'chiqing: mashina qo‘yish joyi bormi, chiqindi konteynerlari qayerda, bolalar '
+            + 'maydonchasi qanday. Bu narsalar e’londa hech qachon yozilmaydi, lekin siz '
+            + 'ular bilan har kuni yashaysiz.',
+          'Imkoni bo‘lsa qo‘shnilardan biriga bir og‘iz so‘z tashlang. Podyezddagi '
+            + 'odamdan "bu uyda suv yaxshi keladimi, qishda sovuq bo‘lmaydimi" deb so‘rash '
+            + 'butunlay normal va ko‘pincha eng halol javobni beradi. Ayni paytda bu uyni '
+            + 'ko‘rsatayotgan odam haqiqatan shu yerdanmi yoki yo‘qmi — buni ham bilib '
+            + 'qo‘yasiz.',
+        ],
+      },
+      {
+        heading: 'Hujjatlar va uy egasiga beriladigan savollar',
+        paragraphs: [
+          'Uy yoqqan bo‘lsa, ketishdan oldin hujjat masalasini oching. Mulk hujjatini va '
+            + 'uy egasining pasportini ko‘rishni so‘rang, ikkalasidagi ism bir xilligiga '
+            + 'ishonch hosil qiling. Agar uyni egasining qarindoshi yoki tanishi '
+            + 'topshirayotgan bo‘lsa, uning ishonchnomasi bo‘lishi kerak. Bu tekshiruv bir '
+            + 'daqiqa oladi va firibgarlik sxemalarining aksariyatini shu yerdayoq '
+            + 'to‘xtatadi.',
+          'Shu yerda pul haqidagi savollarni ham bering: narxga nimalar kiradi, kommunal '
+            + 'kimning zimmasida, zakladka qancha va qaysi holatda to‘liq qaytariladi, '
+            + 'shartnoma necha oyga tuziladi va shu muddatda narx o‘zgaradimi. Javoblarni '
+            + 'telefondagi eslatmaga yozib qo‘ying — bir kunda uch uy ko‘rsangiz, kechqurun '
+            + 'ularning shartlari xotirada aralashib ketadi.',
+          'Va oxirgi qoida, u hech qachon buzilmaydi: uyni ko‘rgan kuniyoq, hujjatni '
+            + 'ko‘rmasdan va shartnoma imzolanmasdan hech kimga pul bermang. "Band qilib '
+            + 'turaman" degan taklif qanchalik ishonarli eshitilmasin, javob bir xil bo‘ladi.',
+        ],
+        bullets: [
+          'Mulk hujjati va pasport — ismlar bir xilmi.',
+          'Egasi o‘zi kelmasa — ishonchnoma bormi.',
+          'Narxga nimalar kiradi va kommunal kimning zimmasida.',
+          'Zakladka miqdori va qaytarish sharti.',
+          'Muddat, narxning barqarorligi va uydan chiqish tartibi.',
+          'Uy qachondan bo‘shaydi va kalit qachon topshiriladi.',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'Uyni necha marta ko‘rish kerak?',
+        a:
+          'Jiddiy variant bo‘lsa ikki marta: bir marta kunduzi, bir marta kechqurun. '
+          + 'Kunduzi yorug‘lik, namlik va uyning holati ko‘rinadi; kechqurun podyezd, '
+          + 'shovqin va hovlidagi vaziyat ma’lum bo‘ladi.',
+      },
+      {
+        q: 'Kranlarni o‘zim ochib ko‘rishim odobsizlik emasmi?',
+        a:
+          'Yo‘q, bu butunlay odatiy amaliyot va uy egalari bunga o‘rgangan. Aksincha, '
+          + 'tekshirishga qarshilik ko‘rsatilishi o‘zi ogohlantiruvchi belgi bo‘ladi.',
+      },
+      {
+        q: 'Uy yoqdi, lekin o‘ylab ko‘rmoqchiman — band qilib turishim mumkinmi?',
+        a:
+          'Faqat shartnoma imzolash orqali. Uyni ko‘rgan kuni "band qilish" uchun oldindan '
+          + 'pul o‘tkazish eng keng tarqalgan firibgarlik so‘rovi, shuning uchun bunday '
+          + 'taklifga rozi bo‘lmang.',
+      },
+    ],
+  },
+
+  {
+    slug: 'sherik-bilan-yashash',
+    title: 'Sherik bilan yashash: oldindan nimani kelishish kerak',
+    summary:
+      'Ijara va kommunal qanday bo‘linadi, mehmon va tozalik qoidalari, shartnomada kimning '
+      + 'ismi turadi va sherik yarim yo‘lda chiqib ketsa nima bo‘ladi.',
+    publishedAt: '2026-06-03',
+    updatedAt: '2026-08-14',
+    readingMinutes: 6,
+    h1: 'Sherik bilan yashash: ko‘chib o‘tishdan oldin kelishib olinadigan narsalar',
+    intro:
+      'Sheriklikka ko‘chib o‘tish odatda juda oson boshlanadi. Ikki tanish odam narxni '
+      + 'ikkiga bo‘ladi, "biz til topishamiz-ku" deydi, kalitni oladi va bir hafta davomida '
+      + 'hammasi ajoyib ketadi. Muammolar ikkinchi oyda boshlanadi va ular deyarli hech '
+      + 'qachon katta narsalar emas: kim idishni yuvmagani, kim mehmonini uch kunga olib '
+      + 'kelgani, kommunal hisob nega bu safar teng bo‘linmagani. Bularning har biri '
+      + 'alohida arzimas, lekin ular yig‘ilganda odamlar birga yashay olmay qoladi. Sabab '
+      + 'esa bitta: hech kim boshida o‘tirib gaplashmagan. Quyida ko‘chib o‘tishdan oldin '
+      + 'bir soat vaqt ajratib hal qilib qo‘yish kerak bo‘lgan masalalar ro‘yxati. Bu '
+      + 'suhbat noqulay tuyulishi mumkin, lekin u uch oydan keyingi janjaldan ancha oson '
+      + 'kechadi.',
+    sections: [
+      {
+        heading: 'Sherikni tanlash: tanishlik yetarli emas',
+        paragraphs: [
+          'Do‘st bo‘lish va birga yashash — ikki xil narsa. Kafedagi suhbatda ajoyib '
+            + 'ko‘ringan odam kechasi ikkida musiqa qo‘yadigan, kir idishni ertaga qoldiradigan '
+            + 'yoki har hafta oltita mehmon chaqiradigan odam bo‘lib chiqishi mumkin. Buning '
+            + 'aksi ham to‘g‘ri: siz ham kimningdir uchun shunday odamsiz. Shuning uchun '
+            + 'tanlovni odamning yaxshiligiga emas, kundalik odatlarning bir-biriga '
+            + 'mosligiga qurish kerak.',
+          'Eng oddiy tekshiruv — ko‘chishdan oldin bir marta xotirjam o‘tirib gaplashish. '
+            + 'Uch narsa aniq bo‘lsin: kim qachon uxlaydi va turadi, mehmon qanchalik '
+            + 'tez-tez keladi, pul masalasi qanday hal qilinadi. Talabalar uchun uy tanlash '
+            + 'haqidagi qo‘llanmada aytilganidek, aynan shu uch masala sheriklikdagi '
+            + 'nizolarning katta qismini tashkil qiladi.',
+          'Notanish odam bilan sheriklikka kirayotgan bo‘lsangiz, birinchi uchrashuvni uyda '
+            + 'emas, uydan tashqarida o‘tkazing va imkon bo‘lsa uni birga uy ko‘rishga '
+            + 'taklif qiling. Odam uyni qanday ko‘zdan kechirishi, nimani so‘rashi va uy '
+            + 'egasi bilan qanday gaplashishi — bu birga yashash haqida bir soatlik '
+            + 'suhbatdan ko‘proq narsani aytadi.',
+        ],
+      },
+      {
+        heading: 'Pul: ijara va kommunal qanday bo‘linadi',
+        paragraphs: [
+          'Ijarani bo‘lishning eng ko‘p uchraydigan usuli — teng bo‘lish. Bu xonalar bir '
+            + 'xil bo‘lganda adolatli, lekin ko‘p kvartirada xonalar teng emas. Balkonli '
+            + 'katta xona bilan derazasi hovliga qaragan kichkina xona bir xil turishi '
+            + 'g‘alati bo‘ladi, va aynan shu tenglik ikkinchi oyda xafagarchilikka '
+            + 'aylanadi. Farqni boshidayoq ochiq muhokama qiling: katta xonaga bir oz '
+            + 'ko‘proq to‘lash butunlay odatiy amaliyot.',
+          'Kommunal esa boshqacha ishlaydi va uni teng bo‘lish odatda to‘g‘ri bo‘ladi, '
+            + 'chunki suv, gaz va elektrni ikkalangiz ham foydalanasiz. Faqat bitta shartni '
+            + 'kelishing: kim to‘playdi va kim to‘laydi. Eng yaxshi tartib — har oyda bitta '
+            + 'odam barcha hisoblarni to‘lasin va cheklarni umumiy chatga tashlasin, '
+            + 'ikkinchisi esa o‘z qismini o‘sha kuniyoq o‘tkazsin. Bu "keyin hisoblashamiz" '
+            + 'degan tumanli holatdan ancha sog‘lom.',
+          'To‘lov sanasini ham qat’iy belgilang, va u ijara topshiriladigan sanadan bir-ikki '
+            + 'kun oldin bo‘lsin. Sherigingiz maoshni ijaradan keyin oladigan bo‘lsa, buni '
+            + 'oldindan biling: bu hal qilib bo‘lmaydigan muammo emas, lekin har oyda '
+            + 'kutilmagan bo‘lib chiqsa, muammoga aylanadi.',
+        ],
+        bullets: [
+          'Ijara qanday bo‘linadi: teng yoki xonaning kattaligiga qarab.',
+          'Kim to‘playdi, kim to‘laydi va cheklar qayerda saqlanadi.',
+          'Har oyning qaysi sanasida pul topshiriladi.',
+          'Zakladkani kim qo‘ygan va chiqishda u kimga qaytadi.',
+          'Umumiy xaridlar — tozalash vositalari, chiroq, internet — kim oladi.',
+          'Bir kishi kechiksa nima bo‘ladi: shu haqda ham oldindan gaplashing.',
+        ],
+      },
+      {
+        heading: 'Shartnomada kimning ismi turadi',
+        paragraphs: [
+          'Bu eng ko‘p e’tibordan chetda qoladigan masala. Ko‘pincha shartnomani bitta '
+            + 'odam imzolaydi, ikkinchisi esa shunchaki u bilan yashaydi. Bunda barcha '
+            + 'javobgarlik — to‘lov, zarar, muddat — imzolagan odamning zimmasida bo‘ladi, '
+            + 'ikkinchisining esa hech qanday huquqi yo‘q: uy egasi istagan payt "bu odam '
+            + 'shartnomada yo‘q" deya olishi mumkin.',
+          'To‘g‘ri yo‘l — ikkala sherikning ismi shartnomada bo‘lishi. Shunda ikkalangiz '
+            + 'ham teng huquqli ijarachi bo‘lasiz va uy egasi bilan har biringiz alohida '
+            + 'gaplasha olasiz. Uyda kim yashashi shartnomada ko‘rsatilishi kerakligini uy '
+            + 'egalari ham yaxshi biladi va bu odatda hech qanday qarshilikka uchramaydi.',
+          'Agar biror sababga ko‘ra shartnomani faqat bitta odam imzolayotgan bo‘lsa, hech '
+            + 'bo‘lmasa uy egasidan ikkinchi odamning shu uyda yashashi haqidagi yozma '
+            + 'roziligini oling, va o‘zaro pul kelishuvini alohida yozib qo‘ying. Bu '
+            + 'kelishuv uy egasiga taalluqli emas, lekin sizlarning oralaringizda aniq '
+            + 'bo‘ladi.',
+        ],
+      },
+      {
+        heading: 'Kundalik hayot: mehmon, tozalik va tinchlik',
+        paragraphs: [
+          'Nizolarning aksariyati katta masalalardan emas, mayda odatlardan chiqadi. '
+            + 'Shuning uchun bir necha oddiy qoidani boshida kelishib olish arziydi. Mehmon '
+            + 'masalasi birinchi o‘rinda: bir kechaga qolish normalmi, necha kishi '
+            + 'chaqirish mumkin, viloyatdan kelgan qarindosh bir hafta turishi mumkinmi. '
+            + 'Bu savollarga oldindan javob bo‘lmasa, birinchi holatning o‘zi keskin '
+            + 'suhbatga aylanadi.',
+          'Tozalik uchun navbat tuzing — og‘zaki emas, yozib. Umumiy joylar, ya’ni oshxona, '
+            + 'hammom va yo‘lak, haftada kim tomonidan tozalanishi aniq bo‘lsin. Idish '
+            + 'yuvish qoidasi ham shunga o‘xshash: eng oddiy va eng ishlaydigan variant — '
+            + 'har kim o‘zidan keyin darhol yuvadi. "Keyin yuvaman" degan tartib hech qayerda '
+            + 'ishlamagan.',
+          'Tinchlik soatlari haqida ham gaplashing, ayniqsa biringiz ertalab ishga, '
+            + 'ikkinchingiz kechqurun o‘qishga borsangiz. Kechasi soat nechadan keyin '
+            + 'musiqa va telefon suhbati quloqchin bilan bo‘ladi — shu bitta jumla ko‘p '
+            + 'uyquni saqlab qoladi. Va oxirgisi: umumiy oziq-ovqat masalasi. Muzlatgichda '
+            + 'hamma narsa umumiymi yoki har kim o‘zinikini oladimi — buni ham aytib '
+            + 'qo‘ying, chunki bu ham janjal sababi bo‘la oladi.',
+        ],
+        bullets: [
+          'Mehmon: qancha vaqtga, qanchalik tez-tez, oldindan aytiladimi.',
+          'Tozalash navbati va umumiy joylar ro‘yxati.',
+          'Idish-tovoq qoidasi — eng oddiysi eng yaxshisi.',
+          'Tinchlik soatlari va quloqchin qoidasi.',
+          'Muzlatgich: umumiy javon va shaxsiy javon.',
+          'Chekish, uy hayvoni va uydan tashqaridagi odatlar.',
+        ],
+      },
+      {
+        heading: 'Kimdir muddat o‘rtasida chiqib ketsa',
+        paragraphs: [
+          'Bu sheriklikning eng og‘riqli holati va u kutilganidan ko‘ra tez-tez sodir '
+            + 'bo‘ladi: ish o‘zgaradi, oila sharoiti o‘zgaradi, talaba boshqa shaharga '
+            + 'o‘tadi. Agar bu haqda oldindan gaplashilmagan bo‘lsa, qolgan odam butun ijara '
+            + 'bilan yolg‘iz qoladi va bir hafta ichida yangi sherik topishga majbur '
+            + 'bo‘ladi — eng yomon shartlarda.',
+          'Shuning uchun uchta narsani oldindan kelishing. Birinchisi — ogohlantirish '
+            + 'muddati: chiqmoqchi bo‘lgan odam necha kun oldin aytishi shart. Ikkinchisi — '
+            + 'yangi sherikni kim topadi va uni ikkalangiz ham ma’qullashi kerakmi. '
+            + 'Uchinchisi — yangi odam topilgunicha bo‘sh xonaning ijarasi kimning '
+            + 'zimmasida bo‘ladi. Bu uchtasi ko‘pincha eng noqulay suhbatlarni butunlay '
+            + 'yo‘q qiladi.',
+          'Zakladka masalasi ham shu yerda hal qilinsin. Agar pulni bitta odam qo‘ygan '
+            + 'bo‘lsa va chiqayotgan odam aynan o‘sha bo‘lsa, uning ulushi qanday '
+            + 'qaytariladi: yangi sherikdan olinadimi yoki chiqish paytida uy egasidan '
+            + 'kelgan summadan hisoblanadimi. Zakladka bo‘yicha umumiy qoidalar alohida '
+            + 'maqolada batafsil yozilgan.',
+        ],
+      },
+      {
+        heading: 'Kelishuvni yozib qo‘ying',
+        paragraphs: [
+          'Barcha kelishuvni bitta joyda yozib qo‘yish kerak. Bu rasmiy hujjat bo‘lishi '
+            + 'shart emas: telefondagi umumiy eslatma yoki chatdagi bitta xabar ham '
+            + 'yetarli. Muhimi shundaki, ikkalangiz ham bir xil matnni ko‘rgan bo‘lasiz va '
+            + 'olti oydan keyin "biz bunday kelishmagan edik" degan bahs chiqmaydi.',
+          'Bu kelishuv uy egasi bilan tuzilgan shartnomani almashtirmaydi — u faqat sizlar '
+            + 'o‘rtangizdagi tartib. Uy egasi oldida javobgarlik baribir shartnomada ismi '
+            + 'turgan odamlarda qoladi. Pul yoki javobgarlik masalasi jiddiy bo‘lsa, bu '
+            + 'yerdagi maslahatlar umumiy amaliyot ekanini yodda tuting va aniq holatingiz '
+            + 'uchun yuristdan maslahat oling.',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'Sherikni qayerdan topsa bo‘ladi?',
+        a:
+          'Sheriklikka mo‘ljallangan alohida bo‘lim bor: unda sherik izlayotgan odam ham, '
+          + 'kvartirasiga sherik qidirayotgan uy egasi ham e’lon joylashi mumkin. Jins '
+          + 'bo‘yicha tanlash imkoniyati ham mavjud.',
+      },
+      {
+        q: 'Ikkalamiz ham shartnomani imzolashimiz shartmi?',
+        a:
+          'Shart emas, lekin bu eng to‘g‘ri yo‘l. Aks holda barcha javobgarlik imzolagan '
+          + 'odamda qoladi, ikkinchisining esa uyda yashash huquqi rasman tasdiqlanmagan '
+          + 'bo‘ladi.',
+      },
+      {
+        q: 'Sherik to‘lamay qo‘ysa, uy egasi kimdan talab qiladi?',
+        a:
+          'Shartnomada ismi turgan odamdan. Agar u yolg‘iz imzolagan bo‘lsa, butun summa '
+          + 'uning zimmasida bo‘ladi. Aynan shuning uchun ikkala ism shartnomada bo‘lgani '
+          + 'ma’qul.',
+      },
+    ],
+  },
+
+  {
+    slug: 'kommunal-tolovlar',
+    title: 'Kommunal to‘lovlar: kim nimani to‘laydi',
+    summary:
+      'Qaysi xizmat hisoblagich bo‘yicha, qaysi biri jon boshiga hisoblanadi, "kommunal '
+      + 'alohida" nimani anglatadi va birovning qarzidan qanday saqlanish kerak.',
+    publishedAt: '2026-02-11',
+    updatedAt: '2026-08-18',
+    readingMinutes: 7,
+    h1: 'Ijarada kommunal to‘lovlar: mexanizmi, taqsimoti va hisoblagichlar',
+    intro:
+      'Ijara narxi haqida hamma gaplashadi, kommunal haqida esa deyarli hech kim — toki '
+      + 'birinchi qishki hisob kelmaguncha. Aynan shu yerda ko‘p ijarachi tushunadiki, '
+      + '"kommunal alohida" degan qisqa ibora e’londa juda beg‘ubor ko‘ringan ekan. '
+      + 'O‘zbekistonda kommunal to‘lovlar bir necha xil mexanizm bo‘yicha hisoblanadi: '
+      + 'bir qismi hisoblagich ko‘rsatkichiga, bir qismi uyda yashovchilar soniga, yana '
+      + 'bir qismi kvartira maydoniga bog‘liq. Bu farqni bilmasdan turib, oy oxirida '
+      + 'kelgan raqamni tekshirib ham bo‘lmaydi. Quyida hech qanday tarif keltirilmagan — '
+      + 'ular o‘zgarib turadi va joylashuvga qarab farq qiladi. Buning o‘rniga tizim '
+      + 'qanday ishlashi, uy egasi bilan nimani kelishish kerakligi va oldingi '
+      + 'ijarachining qarzi sizga o‘tib qolmasligi uchun nima qilish lozimligi '
+      + 'tushuntirilgan.',
+    sections: [
+      {
+        heading: 'Hisoblagichli va hisoblagichsiz xizmatlar',
+        paragraphs: [
+          'Kommunal to‘lovlarni ikki guruhga bo‘lib qarash eng osoni. Birinchi guruh — '
+            + 'hisoblagich bo‘yicha to‘lanadiganlar. Bularga elektr energiyasi, tabiiy gaz '
+            + 'va ichimlik suvi kiradi: har birining o‘z hisoblagichi bor va to‘lov siz '
+            + 'sarflagan hajmga bog‘liq. Bu guruhda tejash bevosita hisobda aks etadi, va '
+            + 'aynan shuning uchun hisoblagichning ishlayotganiga ishonch hosil qilish '
+            + 'muhim.',
+          'Ikkinchi guruh — sarfga bog‘liq bo‘lmagan to‘lovlar. Chiqindi olib ketish odatda '
+            + 'uyda yashovchilar soniga qarab hisoblanadi, ko‘p qavatli uydagi umumiy '
+            + 'xizmatlar — podyezd tozalash, lift, hovlini obodonlashtirish — esa odatda '
+            + 'kvartira maydoni bo‘yicha, uy boshqaruvi yoki turar joy mulkdorlari shirkati '
+            + 'orqali undiriladi. Bu to‘lovlar siz uyda yashaysizmi yoki bir oy yo‘q '
+            + 'bo‘lasizmi — baribir keladi.',
+          'Bu bo‘linish amaliy jihatdan muhim, chunki muzokara nuqtalari boshqa-boshqa. '
+            + 'Hisoblagichli xizmatlar deyarli har doim ijarachining zimmasida bo‘ladi, '
+            + 'chunki ularni ijarachi sarflaydi. Uy va uning mulkiga tegishli doimiy '
+            + 'to‘lovlar esa ko‘pincha uy egasida qoladi. Amalda esa bu har bir kelishuvda '
+            + 'alohida hal qilinadi, shuning uchun uni og‘zaki emas, yozma tarzda '
+            + 'aniqlashtirish kerak.',
+        ],
+        bullets: [
+          'Hisoblagich bo‘yicha: elektr, gaz, ichimlik suvi.',
+          'Jon boshiga: odatda chiqindi olib ketish xizmati.',
+          'Maydon bo‘yicha: uy boshqaruvi yoki shirkat to‘lovi, lift, umumiy joylar.',
+          'Alohida shartnomalar: internet, kabel televidenie, qo‘riqlash.',
+          'Isitish — uy turiga qarab markaziy, kolonkali yoki elektr hisobidan.',
+        ],
+      },
+      {
+        heading: '"Kommunal alohida" aslida nimani anglatadi',
+        paragraphs: [
+          'E’lonlardagi eng chalkash ibora shu. Ba’zi uy egalari uni "faqat svet va suv '
+            + 'sizning hisobingizdan" degan ma’noda ishlatadi, boshqalari esa uy '
+            + 'boshqaruvi to‘lovi, chiqindi, internet va qishki isitishni ham shu iboraga '
+            + 'kiritadi. Ikkalasi ham o‘zicha to‘g‘ri yozgan bo‘ladi, chunki bu ibora '
+            + 'standart emas — u shunchaki odat.',
+          'Shuning uchun birinchi qo‘ng‘iroqdayoq iborani ochib bering. "Kommunal alohida '
+            + 'deganda nimani nazarda tutyapsiz?" degan savol butunlay o‘rinli va normal uy '
+            + 'egasi unga bir daqiqada javob beradi. So‘ng javobni xizmatma-xizmat '
+            + 'aniqlashtiring: svet, gaz, suv, chiqindi, uy boshqaruvi, internet, isitish. '
+            + 'Yetti nom, yetti javob — shu bilan mavzu yopiladi.',
+          'Kelishilgan taqsimot shartnomada nomma-nom yozilishi kerak. "Kommunal to‘lovlar '
+            + 'ijarachi zimmasida" degan bitta jumla qishda kutilmagan hisobga aylanadi, '
+            + 'ayniqsa markaziy isitishsiz uylarda, u yerda isitish elektr hisobiga tushadi '
+            + 'va qishki hisob yozgidan keskin farq qiladi.',
+        ],
+      },
+      {
+        heading: 'Ko‘rsatkichlarni o‘qish va topshirish',
+        paragraphs: [
+          'Hisoblagichni o‘qish ko‘rinishidan oddiy, lekin bir necha nozik joyi bor. '
+            + 'Ko‘pchilik hisoblagichda oxirgi raqam yoki raqamlar boshqa rangda — odatda '
+            + 'qizil ramkada — bo‘ladi va ular kasr qismini bildiradi. Topshirishda faqat '
+            + 'butun qism yoziladi. Elektr hisoblagichlarning ko‘pchiligi bugun raqamli va '
+            + 'ekranda bir necha ko‘rsatkichni navbat bilan ko‘rsatadi; agar tarif zonalarga '
+            + 'bo‘lingan bo‘lsa, har bir zona uchun alohida raqam bo‘ladi.',
+          'Ko‘rsatkichni topshirishning bir necha yo‘li bor: xizmat ko‘rsatuvchi '
+            + 'korxonaning mobil ilovasi yoki shaxsiy kabineti orqali, to‘lov terminallari '
+            + 'va ilovalarida, yoki uy boshqaruvi orqali. Zamonaviy hisoblagichlarning bir '
+            + 'qismi ko‘rsatkichni o‘zi uzatadi va bu holda sizdan hech narsa talab '
+            + 'qilinmaydi. Qaysi tartib amal qilishini uy egasidan aniq so‘rab oling — bu '
+            + 'har bir uyda har xil.',
+          'Yaxshi odat: har oyning bir xil kunida uch hisoblagichni suratga olib qo‘yish. '
+            + 'Bu bir daqiqalik ish, lekin nizo chiqqanda butun bir yillik tarix qo‘lingizda '
+            + 'bo‘ladi. Suratlarni telefonda alohida albomga yig‘ing va uy egasi bilan '
+            + 'umumiy chatga tashlab boring.',
+        ],
+        bullets: [
+          'Qizil ramkadagi oxirgi raqamlar kasr qismi — ular topshirilmaydi.',
+          'Elektr, gaz va suv uchun uchta alohida ko‘rsatkich.',
+          'Ko‘rsatkich qaysi kanal orqali va oyning qaysi kunlarida topshiriladi.',
+          'Har oyda bir xil kunda suratga olish — nizoga qarshi eng oson himoya.',
+          'Hisoblagich plombasi butunligi — buni ko‘chib kirgan kuni ko‘ring.',
+        ],
+      },
+      {
+        heading: 'Uy egasi va ijarachi o‘rtasidagi odatiy taqsimot',
+        paragraphs: [
+          'O‘zbekistonda keng tarqalgan amaliyotga ko‘ra, ijarachi o‘zi sarflaydigan '
+            + 'narsalarni to‘laydi: elektr, gaz, suv va chiqindi. Uyning o‘ziga tegishli, '
+            + 'yashovchidan qat’i nazar keladigan to‘lovlar — uy boshqaruvi yoki shirkat '
+            + 'badali, kapital ta’mir jamg‘armasi kabilar — ko‘pincha uy egasida qoladi. '
+            + 'Ammo bu qonun emas, bu odat: tomonlar boshqacha kelishishi ham mumkin va bu '
+            + 'butunlay normal.',
+          'Internet alohida turadi. Ba’zi uylarda kabel allaqachon tortilgan va shartnoma '
+            + 'uy egasi nomida bo‘ladi — bunda odatda ijarachi oylik to‘lovni qoplaydi. '
+            + 'Boshqa uylarda ijarachi o‘z provayderini o‘zi olib kiradi. Ikkinchi holatda '
+            + 'ulanish uchun texnik ishlar kerak bo‘lishi mumkin, shuning uchun uy egasidan '
+            + 'ruxsat oldindan olinsin.',
+          'Isitish esa alohida suhbat mavzusi. Markaziy isitishli uylarda to‘lov odatda '
+            + 'boshqa tartibda hisoblanadi va e’londa aytilgan "kommunal" ichiga kirmasligi '
+            + 'mumkin. Kolonkali uylarda isitish gaz hisobiga, elektr isitgichli uylarda esa '
+            + 'to‘liq elektr hisobiga tushadi va bu qishda seziladi. Shuning uchun uy '
+            + 'ko‘rayotganda o‘tgan qishdagi hisob haqida so‘rash eng foydali savollardan '
+            + 'biri hisoblanadi.',
+        ],
+      },
+      {
+        heading: 'Birovning qarzini meros qilib olmaslik',
+        paragraphs: [
+          'Bu eng ko‘p uchraydigan noxush kutilmagan hol: ko‘chib kirasiz, birinchi hisob '
+            + 'keladi va undagi summa siz sarflagan narsaga umuman mos kelmaydi, chunki '
+            + 'unda oldingi ijarachidan qolgan qarz ham bor. Rasman qarz shaxsiy hisob '
+            + 'raqamiga, ya’ni uyga bog‘langan bo‘ladi va uni kim to‘lagani xizmat '
+            + 'ko‘rsatuvchi korxona uchun ahamiyatsiz.',
+          'Buning oldini olish uchun ko‘chib kirishdan oldin ikki narsani qiling. '
+            + 'Birinchidan, uy egasidan har bir xizmat bo‘yicha oxirgi to‘lov '
+            + 'kvitansiyalarini yoki ilovadagi hisob holatini ko‘rsatishni so‘rang: qarz '
+            + 'yo‘qligi ekranda ko‘rinadi. Ikkinchidan, kalitni olgan kuni uch '
+            + 'hisoblagichning ko‘rsatkichini yozib oling, suratga tushiring va ularni '
+            + 'shartnomaga ilova qiling yoki hech bo‘lmasa uy egasi bilan yozishmada '
+            + 'tasdiqlang.',
+          'Shartnomaga bitta qisqa jumla qo‘shish ham foydali: shartnoma imzolangan sanagacha '
+            + 'yig‘ilgan barcha kommunal qarz uy egasining zimmasida qoladi. Bu jumla '
+            + 'keyinchalik kim nimani to‘lashi haqidagi bahsni bir zumda hal qiladi.',
+        ],
+        bullets: [
+          'Har bir xizmat bo‘yicha qarz yo‘qligini ko‘chib kirishdan oldin ko‘ring.',
+          'Kalit olingan kundagi uch ko‘rsatkich — yozma va surat bilan.',
+          'Shartnomada sana bo‘yicha qarz chegarasini belgilovchi jumla.',
+          'Hisoblagichlar plombasi va ishlayotgani tekshirilgan bo‘lsin.',
+          'Internet va kabel bo‘yicha ham qarz yo‘qligi so‘ralsin.',
+        ],
+      },
+      {
+        heading: 'Chiqish kuni: hisobni yopib ketish',
+        paragraphs: [
+          'Uydan chiqayotganda kommunalni yopib ketish sizning manfaatingizda, chunki '
+            + 'to‘lanmagan qarz ko‘pincha zakladkadan ushlab qolinadi. Oxirgi kunda uch '
+            + 'hisoblagichning ko‘rsatkichini yana yozib oling va suratga tushiring, '
+            + 'so‘nggi hisoblarni to‘lang va cheklarni saqlang. Uy egasiga ham nusxasini '
+            + 'yuboring.',
+          'Uyni topshirish paytida bu ko‘rsatkichlarni birga ko‘rib chiqing va tilxatga '
+            + 'yozib qo‘ying: shu sanada shunday ko‘rsatkich, qarz yo‘q. Shundan keyin '
+            + 'kelgan har qanday hisob sizga tegishli emas va buni isbotlash uchun '
+            + 'qo‘lingizda hujjat bo‘ladi.',
+          'Bu maqolada tariflar keltirilmagani ataylab: ular o‘zgarib turadi va aniq '
+            + 'raqamni faqat xizmat ko‘rsatuvchi korxonaning o‘z manbasidan olish to‘g‘ri '
+            + 'bo‘ladi. Bu yerda tasvirlangan taqsimot va tartiblar esa umumiy amaliyot '
+            + 'bo‘lib, huquqiy maslahat o‘rnini bosmaydi.',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'Kommunalni odatda kim to‘laydi — uy egasimi yoki ijarachimi?',
+        a:
+          'Keng tarqalgan amaliyotda ijarachi o‘zi sarflagan xizmatlarni — svet, gaz, suv '
+          + 'va chiqindini — to‘laydi, uy boshqaruvi badali esa ko‘pincha uy egasida '
+          + 'qoladi. Bu qonuniy majburiyat emas, kelishuv masalasi, shuning uchun '
+          + 'shartnomada yozilsin.',
+      },
+      {
+        q: 'Ko‘chib kirganimda eski qarz chiqib qolsa nima qilaman?',
+        a:
+          'Kalit olingan kundagi hisoblagich suratlari va shartnomadagi qarz chegarasi '
+          + 'haqidagi jumla shu holatni hal qiladi. Ular bo‘lmasa, masala uy egasi bilan '
+          + 'yozma muzokaraga aylanadi va isbot og‘irroq bo‘ladi.',
+      },
+      {
+        q: 'Qishda kommunal qancha chiqishini oldindan bilsa bo‘ladimi?',
+        a:
+          'Aniq raqamni yo‘q, lekin uy egasidan o‘tgan qishdagi hisoblarni ko‘rsatishni '
+          + 'so‘rash mumkin va bu eng ishonchli mo‘ljal. Isitish turi ham katta ahamiyatga '
+          + 'ega: elektr isitgichga tayangan uyda qishki hisob sezilarli yuqori bo‘ladi.',
+      },
+    ],
+  },
 ];
 
 export const UZ_HELP: HelpArticle[] = [

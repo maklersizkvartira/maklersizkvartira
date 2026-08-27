@@ -52,11 +52,11 @@ hreflang tags true.
 | `/toshkent/chilonzor` (12) | Tashkent district hubs |
 | `/toshkent/chilonzor/kvartira-ijaraga` (12 × 2) | District × property type |
 | `/e/<slug>-<uuid>` | One listing |
-| `/blog`, `/blog/<slug>` (6) | Guides |
+| `/blog`, `/blog/<slug>` (10) | Guides |
 | `/yordam`, `/yordam/<slug>` (4) | Help centre, terms, privacy, safety |
 | `/profil`, `/saqlanganlar`, `/elon-berish`, … | Signed-in screens — `noindex`, disallowed in robots.txt |
 
-**103 indexable pages × 3 languages = 309 URLs**, plus every listing.
+**107 indexable pages × 3 languages = 321 URLs**, plus every listing.
 
 The route table lives in `src/seo/routes.ts` and the facet taxonomy in
 `src/seo/taxonomy.ts`. `findSlugCollisions()` proves a district slug can never
@@ -98,7 +98,7 @@ language to real HTML with `react-dom/server` — no new package; it ships with
 `react-dom`. It composes its own shell from direct imports rather than
 rendering `App.tsx`, because twelve of `App`'s thirteen views are `React.lazy`
 and `renderToStaticMarkup` is synchronous: prerendering the real app would have
-produced 334 pages that each said "Yuklanmoqda".
+produced 346 pages that each said "Yuklanmoqda".
 
 The client mounts with `createRoot`, not `hydrateRoot`, so React discards the
 static markup and re-renders. That is the intended trade — no hydration
@@ -123,8 +123,14 @@ needs a line there too.
 titles or descriptions, a missing or non-absolute canonical, a missing or
 duplicated `<h1>`, a missing `alt`, a broken internal link, malformed JSON-LD,
 an `<html lang>` that disagrees with the URL, an hreflang pointing at a page
-that was never generated, a sitemap listing a `noindex` page, and more. It
-currently reports **zero errors** and one cosmetic long-title warning.
+that was never generated, a sitemap listing a `noindex` page, and more.
+
+Two of its checks exist because the bug they catch actually shipped, and
+neither the type checker nor any tag-level check saw it: a page whose prose is
+one language while its `lang` and canonical claim another, and a page whose
+navigation is byte-identical to its own translation — which is what an
+untranslated chrome looks like when the headings are translated and the labels
+are not. It currently reports **zero errors**.
 
 ---
 
@@ -133,7 +139,7 @@ currently reports **zero errors** and one cosmetic long-title warning.
 `dist/sitemap.xml` is a sitemap **index** with two children, split by how often
 they change:
 
-- `sitemap-pages.xml` — generated at build time, 309 URLs, each with the full
+- `sitemap-pages.xml` — generated at build time, 321 URLs, each with the full
   `xhtml:link` hreflang set.
 - `sitemap-listings.xml` — served by FastAPI (`backend_python/app/routers/seo.py`)
   and proxied onto `maklersizuy.uz` by a Vercel rewrite, because listings
@@ -287,7 +293,7 @@ Ordered by how much they are worth.
 5. **`Maklersizuy.Admin/` is an orphaned gitlink** with no `.gitmodules`. It
    will warn on a fresh clone, including Vercel's. `git rm --cached Maklersizuy.Admin`
    fixes it. Unrelated to SEO; noticed while auditing the deploy.
-6. **The blog needs a second wave.** Six guides is a start, not a content
+6. **The blog needs a third wave.** Ten guides is a foundation, not a content
    strategy — see §9.
 
 ---

@@ -203,8 +203,16 @@ export const App: React.FC = () => {
   }, [adoptLocation]);
 
   // -- Analytics -----------------------------------------------------------
+  const reportedPath = React.useRef<string | null>(null);
+
   useEffect(() => {
     if (isAutomatedAgent()) return;
+    // `adoptLocation` canonicalises the address on mount — a legacy link or a
+    // language redirect changes `route.path` a moment after the first render —
+    // so without this every deep-linked visit was counted twice.
+    const path = window.location.pathname || '/';
+    if (reportedPath.current === path) return;
+    reportedPath.current = path;
     try {
       let sessionId = sessionStorage.getItem('maklersiz.session');
       if (!sessionId) {

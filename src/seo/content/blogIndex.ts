@@ -13,6 +13,10 @@ export const BLOG_SLUGS = [
   'ijarada-firibgarlikdan-saqlanish',
   'talabalar-uchun-kvartira-tanlash',
   'uy-egasi-uchun-elon-yozish',
+  'zakladka-va-depozit',
+  'kvartirani-korish-checklist',
+  'sherik-bilan-yashash',
+  'kommunal-tolovlar',
 ] as const;
 
 export type BlogSlug = (typeof BLOG_SLUGS)[number];

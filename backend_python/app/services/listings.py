@@ -40,11 +40,28 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _visible_clause():
+def visible_clause():
+    """What "publicly visible" means, for the whole application.
+
+    Exported rather than private because the sitemap has to publish exactly
+    the set of listings the site serves. When the two had their own copies of
+    this, they drifted: the sitemap also excluded expired listings, which the
+    catalogue and the detail page do not, so a listing a visitor could open
+    was silently missing from the sitemap.
+
+    Note that `expires_at` is deliberately NOT tested here. Nothing else in
+    the product enforces it either — `Listing.is_public` does not — so adding
+    it in one place only would hide live pages rather than retire them. If
+    expiry is ever enforced, it belongs here, and both callers get it at once.
+    """
     return and_(
         Listing.deleted_at.is_(None),
         Listing.status == ListingStatus.APPROVED.value,
     )
+
+
+#: Kept for the call sites inside this module.
+_visible_clause = visible_clause
 
 
 def apply_filters(stmt: Select, filters: ListingFilters) -> Select:

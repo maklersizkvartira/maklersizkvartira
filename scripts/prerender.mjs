@@ -78,6 +78,15 @@ function renderHead(head, language) {
       ? [`<meta property="og:url" content="${attr(head.canonicalUrl)}" />`]
       : []),
     `<meta property="og:image" content="${attr(head.ogImage)}" />`,
+    // Only for the brand card, whose size is known. A listing photo's
+    // dimensions are not, and a wrong width is worse than none: unfurlers
+    // trust it and crop to it.
+    ...(head.ogImage.endsWith('/brand/og-image.png')
+      ? [
+          `<meta property="og:image:width" content="1200" />`,
+          `<meta property="og:image:height" content="630" />`,
+        ]
+      : []),
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${attr(head.title)}" />`,
     `<meta name="twitter:description" content="${attr(head.description)}" />`,

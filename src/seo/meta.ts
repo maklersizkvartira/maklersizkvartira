@@ -29,9 +29,11 @@ import {
   BLOG_PATH,
   HELP_PATH,
   alternatePaths,
+  listingPath,
   localisedPath,
   type RouteMatch,
 } from './routes';
+import { listingSlug } from './slugs';
 import { LANGUAGES, type Language } from '../i18n/types';
 import { VIEW_PATHS } from '../router/views';
 import type { Listing } from '../types';
@@ -195,8 +197,11 @@ function rawPageCopy(
         description: copy.landing.categoryDescription(category),
         h1: copy.landing.categoryH1(category),
         intro: copy.landing.categoryIntro(category),
+        // A category page is about a kind of home, not a place, so the FAQ
+        // asks about the country. It used to be handed the brand name here,
+        // and asked how to find a flat "in Maklersiz Uy".
         faq: copy.landing.placeFaq(
-          { name: '', short: '', inPlace: copy.brand.name },
+          copy.country ?? { name: '', short: '', inPlace: copy.brand.name },
           category,
         ),
         crumbs: [home, crumb(category.label, route.path)],
@@ -464,11 +469,13 @@ export function buildHead(
   let ogType: HeadTags['ogType'] = 'website';
   let ogImage = absoluteUrl(OG_IMAGE_PATH);
 
+  // The publisher/provider nodes are referenced by `@id` from the listing,
+  // article and collection nodes below. A reference that resolves to nothing
+  // on the page it appears on is a dangling one, so the organisation ships
+  // with every page rather than only with the home page.
+  nodes.push(ld.organisation(copy.brand.about));
   if (route.kind === 'HOME') {
-    nodes.push(ld.organisation(copy.brand.about));
-    nodes.push(
-      ld.website(copy.brand.about, language, VIEW_PATHS.LISTINGS ?? '/elonlar'),
-    );
+    nodes.push(ld.website(copy.brand.about, language));
   }
 
   if (page.crumbs.length > 1) {
@@ -525,7 +532,14 @@ export function buildHead(
           page.h1,
           sample.map((listing) => ({
             name: listing.title,
-            url: absoluteUrl(localisedPath(`/e/${listing.id}`, language)),
+            // The canonical form, slug and all — the slug-less variant
+            // redirects, and a sitemap-grade reference should not.
+            url: absoluteUrl(
+              localisedPath(
+                listingPath({ id: listing.id, slug: listingSlug(listing) }),
+                language,
+              ),
+            ),
           })),
         ),
       );

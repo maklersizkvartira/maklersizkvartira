@@ -66,7 +66,15 @@ export function organisation(description: string): JsonLd {
   };
 }
 
-export function website(description: string, language: string, searchPath: string): JsonLd {
+/**
+ * The site itself.
+ *
+ * No `potentialAction`/`SearchAction`: it would have advertised a `?q=` search
+ * endpoint the router strips on the way in, and Google retired the sitelinks
+ * searchbox it fed. Describing a search that does not answer is worse than
+ * describing none.
+ */
+export function website(description: string, language: string): JsonLd {
   return {
     '@type': 'WebSite',
     '@id': SITE_ID,
@@ -75,14 +83,6 @@ export function website(description: string, language: string, searchPath: strin
     description,
     inLanguage: language,
     publisher: { '@id': ORG_ID },
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: {
-        '@type': 'EntryPoint',
-        urlTemplate: `${absoluteUrl(searchPath)}?q={search_term_string}`,
-      },
-      'query-input': 'required name=search_term_string',
-    },
   };
 }
 
