@@ -282,19 +282,16 @@ Ordered by how much they are worth.
    built because it would triple the page count before there is inventory to
    fill it.
 4. **A Content-Security-Policy.** The other security headers are set in
-   `vercel.json`. CSP is not, because the map view reaches `api-maps.yandex.ru`
-   and pulls MapLibre's stylesheet from `unpkg.com` at runtime
-   (`src/components/map/maplibre.ts`), map tiles come from a third host, and
-   Firebase auth touches several Google origins. Shipping a policy without
-   testing every one would white-screen the map. Self-host the MapLibre CSS
-   first — an un-pinned `unpkg.com` link with no integrity hash on an indexable
-   public view is a supply-chain exposure in its own right — then add CSP in
-   report-only mode for a week before enforcing it.
-5. **`Maklersizuy.Admin/` is an orphaned gitlink** with no `.gitmodules`. It
-   will warn on a fresh clone, including Vercel's. `git rm --cached Maklersizuy.Admin`
-   fixes it. Unrelated to SEO; noticed while auditing the deploy.
-6. **The blog needs a third wave.** Ten guides is a foundation, not a content
-   strategy — see §9.
+   `vercel.json`. CSP is not, because the map view reaches `api-maps.yandex.ru`,
+   map tiles come from a third host, Leaflet is still loaded from `unpkg.com`
+   (pinned, with SRI hashes — `src/components/map/engine.ts`), and Firebase auth
+   touches several Google origins. Shipping a policy without testing every one
+   would white-screen the map. The MapLibre stylesheet is no longer among them:
+   it used to come from `unpkg.com` un-pinned against the installed version and
+   with no integrity hash, and is now bundled into the map chunk from the npm
+   package. Next: add CSP in report-only mode for a week before enforcing it.
+5. **The blog needs a third wave.** Eleven guides plus three policy pages is a
+   foundation, not a content strategy — see §9.
 
 ---
 

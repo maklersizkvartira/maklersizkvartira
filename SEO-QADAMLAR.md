@@ -3,79 +3,97 @@
 Bu hujjat **faqat siz qo'lda qiladigan** ishlar uchun. Kodda nima qilingani va
 nima uchun qilingani — `SEO.md` da (inglizcha, texnik).
 
-Tartib muhim: 1-bosqichsiz qolganlarining hech biri ishlamaydi.
+Tartib muhim: 0-bosqichsiz qolganlarining hech biri to'liq ishlamaydi.
 
 ---
 
 ## Hozirgi holat
 
-Kod tayyor: **346 ta sahifa**, 321 ta sitemap URL, SEO audit **0 xato**.
+Kod tayyor va **jonli saytda turibdi**: 346 ta prerender qilingan sahifa,
+SEO audit 0 xato. `seo-ssr` `main` ga merge qilinib push qilingan.
 
-Lekin **jonli saytda hali eski versiya turibdi.** Hamma ish `seo-ssr`
-brenchida turibdi va GitHub'ga push qilingan; `main` esa tegilmagan, chunki
-`main` ga qo'shish — bu production'ga chiqarish, va undan oldin quyidagi
-o'zgaruvchilar qo'yilishi kerak. Google hali bu ishning bitta baytini ham
-ko'rmagan.
+Sitemapda hozir **87 ta URL** bor (29 sahifa × 3 til), 321 emas — chunki
+`VITE_API_URL` qo'yilgani uchun generator **e'loni yo'q tuman sahifalarini
+sitemapdan chiqarib tashlayapti**. Bu to'g'ri xatti-harakat: bo'sh sahifani
+Google'ga tiqishtirish "Crawled – currently not indexed" beradi, foyda emas.
+Hozir e'lonlar faqat Uchtepada bor, shuning uchun sitemapda faqat Uchtepa
+turibdi. **E'lon qo'shilgan tuman avtomat sitemapga qo'shiladi** — qo'lda
+hech narsa qilish shart emas. Qolgan 300+ sahifa o'chib ketgani yo'q,
+hammasi ochiladi va ichki linklar orqali topiladi.
+
+Tekshirilgan (2026-08-27):
+
+| Nima | Holat |
+|---|---|
+| Sahifa matni HTML ichida (prerender) | ✅ ishlayapti |
+| Noma'lum manzil → 404 | ✅ |
+| `sitemap.xml`, `sitemap-pages.xml` | ✅ |
+| `sitemap-listings.xml` (Railway) | ✅ ishlayapti |
+| `robots.txt` | ✅ |
+| canonical / hreflang / ru-uz ajralishi | ✅ |
+| Vercel `VITE_API_URL` | ✅ qo'yilgan |
+| Railway `SITE_URL` | ✅ qo'yilgan |
+| **Domen: apex vs www** | ❌ **teskari — pastda** |
+| Google Search Console | ❓ tasdiqlanmagan (pastda) |
+| Bing / Yandex | ❌ qilinmagan |
+| Google Analytics 4 | ❌ ID qo'yilmagan |
 
 ---
 
-## 1-BOSQICH — Deploy (~15 daqiqa)
+## 0-BOSQICH — ⚠️ ENG SHOSHILINCH: domen teskari ulangan
 
-### 1.1. Avval Vercel va Railway o'zgaruvchilari
+Hozir sayt shunday ishlayapti:
 
-Bu `main` ga merge qilishdan **oldin** bo'lishi kerak: merge production
-deploy'ni ishga tushiradi, va `VITE_API_URL` bo'lmasa e'lonlar yuklanmaydi.
-
-### 1.1b. Vercel'da 2 ta sozlama
-
-Vercel → loyihangiz → **Settings**:
-
-**a) Environment Variables** bo'limida qo'shing:
-
-| Nomi | Qiymati |
-|---|---|
-| `VITE_API_URL` | `https://maklersizkvartira-production.up.railway.app/api/v1` |
-
-> Bu **majburiy**. Busiz sitemap bo'sh sahifalarni ham qo'shib yuboradi va API
-> ga preconnect ishlamaydi. Qo'shgandan keyin **Redeploy** qiling.
-
-**b) Domains** bo'limida:
-
-- `maklersizuy.uz` ni **Primary** qilib belgilang
-- `www.maklersizuy.uz` **Redirect to maklersizuy.uz** bo'lsin
-
-> Ikkalasi ham ochilaversa, Google ularni ikki xil sayt deb biladi va kuchni
-> ikkiga bo'ladi.
-
-### 1.2. Railway (backend) — 1 ta o'zgaruvchi
-
-Railway → servis → **Variables**:
-
-| Nomi | Qiymati |
-|---|---|
-| `SITE_URL` | `https://maklersizuy.uz` |
-
-> Bu e'lonlar sitemapidagi manzillar uchun. Qo'ymasangiz ham default shu, lekin
-> domen o'zgarsa shu yerdan o'zgartirasiz.
-
-### 1.3. Endi `main` ga qo'shing
-
-GitHub'da `seo-ssr` → `main` uchun Pull Request oching va merge qiling, yoki:
-
-```bash
-cd C:/Users/karim/OneDrive/Desktop/maklersiz-uy/maklersizkvartira
-git checkout main
-git pull
-git merge seo-ssr
-git push origin main
+```
+https://maklersizuy.uz/…      →  308 redirect  →  https://www.maklersizuy.uz/…
 ```
 
-Vercel avtomatik deploy qiladi. Build oxirida `seo:audit` ishlaydi — SEO
-buzilgan bo'lsa deploy o'zi to'xtaydi.
+Ya'ni **www asosiy**, apex esa unga yo'naltiryapti. Lekin kodda hamma narsa
+teskarisini aytyapti — canonical, hreflang, sitemap, robots.txt, og:image,
+hammasi `https://maklersizuy.uz` (www'siz) deb yozilgan.
+
+Natijada Google'ga shunday ko'rinadi: "www sahifasi menga o'zimni emas,
+apex'ni asosiy deb bil deyapti — apex'ga borsam, u meni yana www'ga
+qaytaryapti." Bu **"Duplicate without user-selected canonical"** degan
+xatoni beradi va indekslashni sekinlashtiradi.
+
+**Tuzatish (2 daqiqa, Vercel'da):**
+
+Vercel → loyiha → **Settings → Domains**:
+
+1. `maklersizuy.uz` yonidagi **⋯** → **Set as Primary Domain**
+2. `www.maklersizuy.uz` **Redirect to → maklersizuy.uz** bo'lib qolsin
+
+Keyin tekshiring — endi teskarisi bo'lishi kerak:
+
+```bash
+curl -s -o /dev/null -w "%{http_code} -> %{redirect_url}\n" https://www.maklersizuy.uz/
+# Kutilgan: 308 -> https://maklersizuy.uz/
+curl -s -o /dev/null -w "%{http_code}\n" https://maklersizuy.uz/robots.txt
+# Kutilgan: 200
+```
+
+> **Muhim:** Search Console'ga saytni qo'shishdan **oldin** shuni tuzating.
+> Aks holda Google noto'g'ri manzilni o'rganib oladi.
 
 ---
 
-## 2-BOSQICH — Deploy to'g'ri ketganini tekshirish (5 daqiqa)
+## 1-BOSQICH — Deploy ✅ BAJARILGAN
+
+Quyidagilar allaqachon qilingan, qayta qilish shart emas:
+
+- Vercel `VITE_API_URL` — qo'yilgan (sitemap-listings jonli ishlayapti)
+- Railway `SITE_URL` — qo'yilgan
+- `seo-ssr` → `main` merge va push — qilingan, Vercel deploy qilgan
+
+Qolgani faqat yuqoridagi **0-BOSQICH** (domen).
+
+---
+
+## 2-BOSQICH — Deploy to'g'ri ketganini tekshirish ✅ BAJARILGAN
+
+Quyidagi 4 ta tekshiruv 2026-08-27 da o'tkazildi va hammasi o'tdi. Keyingi
+deploydan so'ng qayta ishlatish uchun saqlanyapti.
 
 Terminalda quyidagi 4 ta buyruqni bajaring. Har birining kutilgan natijasi
 yozilgan.
@@ -153,17 +171,22 @@ kiriting va har birida **Request indexing** bosing:
 https://maklersizuy.uz/
 https://maklersizuy.uz/elonlar
 https://maklersizuy.uz/kvartira-ijaraga
-https://maklersizuy.uz/uy-ijaraga
 https://maklersizuy.uz/toshkent
 https://maklersizuy.uz/toshkent/kvartira-ijaraga
-https://maklersizuy.uz/toshkent/chilonzor/kvartira-ijaraga
-https://maklersizuy.uz/sheriklikka-ijara
+https://maklersizuy.uz/toshkent/uchtepa/kvartira-ijaraga
 https://maklersizuy.uz/talabalar-uchun-ijara
+https://maklersizuy.uz/blog
+https://maklersizuy.uz/blog/toshkent-ijara-narxlari
 https://maklersizuy.uz/ru/toshkent/kvartira-ijaraga
 ```
 
-> Kuniga ~10 tadan cheklov bor. Qolgan 300 ta sahifani qo'lda kiritish
+> Kuniga ~10 tadan cheklov bor. Qolgan sahifalarni qo'lda kiritish
 > **shart emas** — Google sitemap va ichki linklar orqali o'zi topadi.
+
+> **Nega Chilonzor ro'yxatda yo'q?** Unda hali e'lon yo'q, shuning uchun
+> sitemapga ham kirmagan. Bo'sh sahifani indekslashga berish — Google
+> ko'zida saytning sifatini tushiradi. Chilonzorga birinchi e'lon
+> qo'shilishi bilan u sitemapga o'zi tushadi.
 
 ### 3.4. Google haqiqatan matnni ko'ryaptimi? (eng muhim qadam)
 
@@ -237,8 +260,27 @@ ko'rsatadigan yagona raqam.
 | 4–6 oy+ | Asosiy so'rovlar: "maklersiz kvartira" |
 
 Bu jadval **e'lonlar soni o'sib borsa** amal qiladi. Kod Google'ga saytni
-ko'rsatadi; nimani ko'rsatishni e'lonlar hal qiladi. 50 ta e'lon bilan
-"maklersiz kvartira" so'rovida birinchi o'ringa chiqib bo'lmaydi.
+ko'rsatadi; nimani ko'rsatishni e'lonlar hal qiladi.
+
+**Ochig'ini aytganda: hozir saytda 1 ta e'lon bor.** Bu SEO'ning emas,
+biznesning muammosi, va hozir eng katta to'siq aynan shu — kodda emas.
+Yuqoridagi 346 sahifa Google uchun tayyor idish; idish bo'sh bo'lsa Google
+uni ko'rsatmaydi. 1 ta e'lon bilan hech qanday SEO "maklersiz kvartira"
+so'rovida birinchi o'ringa chiqara olmaydi.
+
+Amaliy chegara:
+
+| E'lon soni | Nima kutish mumkin |
+|---|---|
+| 1–10 | Faqat brend so'rovi: "maklersizuy" |
+| 20–50 | Uzun so'rovlar: "Chilonzorda maklersiz kvartira" |
+| 100–300 | O'rta so'rovlar: "Toshkentda kvartira ijaraga" |
+| 500+ | Asosiy so'rovlar bo'yicha kurashish mumkin |
+
+Shuning uchun keyingi oyda eng foydali ish — SEO kodi emas, **e'lon
+yig'ish**: Telegram kanallaridan uy egalarini taklif qilish, birinchi 50 ta
+e'lonni qo'lda bo'lsa ham kiritish. Har bir yangi tumandagi e'lon o'sha
+tuman sahifasini avtomat sitemapga qo'shadi va uni jonlantiradi.
 
 ---
 
@@ -246,7 +288,7 @@ ko'rsatadi; nimani ko'rsatishni e'lonlar hal qiladi. 50 ta e'lon bilan
 
 1. **Search Console → Performance** ni oching, qaysi so'rovlar ishlayotganini
    ko'ring. Yaxshi ishlayotgan sahifaga kontent qo'shing.
-2. **Oyiga 2 ta maqola** yozing (hozir 10 tasi bor) — odamlar haqiqatan so'raydigan savolga:
+2. **Oyiga 2 ta maqola** yozing (hozir 11 ta qo'llanma + 3 ta hujjat sahifasi bor) — odamlar haqiqatan so'raydigan savolga:
    zakladka qaytariladimi, kadastrni qanday tekshirish kerak, shartnomada
    nima bo'lishi shart. `src/seo/content/articles.uz.ts` ichida.
 3. **Telegram** — har bir maqolani kanalga tashlang, orqasiga link bilan.
