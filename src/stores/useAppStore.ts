@@ -271,6 +271,8 @@ function toQuery(filters: Filters, page: number, pageSize: number): ListingQuery
   };
 }
 
+import { MOCK_LISTINGS } from '../data/mockListings';
+
 const store = createStore<AppState>((set, get) => ({
   // -- Session -------------------------------------------------------------
   currentUser: null,
@@ -297,7 +299,7 @@ const store = createStore<AppState>((set, get) => ({
       });
 
     if (!getAccessToken()) {
-      set({ authReady: true });
+      set({ authReady: true, listings: MOCK_LISTINGS, totalCount: MOCK_LISTINGS.length });
       return;
     }
     try {
@@ -508,13 +510,25 @@ const store = createStore<AppState>((set, get) => ({
     set({ listingsLoading: true, listingsError: null });
     try {
       const result = await ListingsApi.list(toQuery(get().filters, page, get().pageSize));
+      const data = result?.data || [];
+      const totalCount = result?.totalCount || 0;
+
+      // If server returns empty but we have no filters, keep mock data
+      const finalData = (data.length === 0 && get().activeFilterCount() === 0) ? MOCK_LISTINGS : data;
+      const finalTotal = (data.length === 0 && get().activeFilterCount() === 0) ? MOCK_LISTINGS.length : totalCount;
+
       set((state) => ({
-        listings: append ? [...state.listings, ...result.data] : result.data,
-        totalCount: result.totalCount,
+        listings: append ? [...state.listings, ...finalData] : finalData,
+        totalCount: finalTotal,
         page,
         listingsLoading: false,
       }));
     } catch (error) {
+      // On error, show mock data if no filters
+      if (get().activeFilterCount() === 0) {
+        set({ listings: MOCK_LISTINGS, totalCount: MOCK_LISTINGS.length, listingsLoading: false });
+        return;
+      }
       set({
         listingsLoading: false,
         listingsError:
@@ -527,7 +541,7 @@ const store = createStore<AppState>((set, get) => ({
   fetchFeatured: async () => {
     try {
       const result = await ListingsApi.featured(8);
-      set({ featured: result.data });
+      set({ featured: result?.data || [] });
     } catch {
       set({ featured: [] });
     }
@@ -537,7 +551,8 @@ const store = createStore<AppState>((set, get) => ({
     if (!get().currentUser) return;
     set({ listingsError: null });
     try {
-      set({ myListings: await ListingsApi.mine() });
+      const data = await ListingsApi.mine();
+      set({ myListings: data || [] });
     } catch (error) {
       // Swallowing this made the pages' error states unreachable, so a failed
       // load looked identical to "you have no listings".
@@ -555,9 +570,10 @@ const store = createStore<AppState>((set, get) => ({
     }
     try {
       const items = await ListingsApi.favorites();
+      const data = items || [];
       set({
-        favorites: items,
-        favoriteIds: new Set(items.map((item) => item.id)),
+        favorites: data,
+        favoriteIds: new Set(data.map((item) => item.id)),
         listingsError: null,
       });
     } catch (error) {

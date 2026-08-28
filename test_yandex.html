@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://api-maps.yandex.ru/v3/?apikey=67c7e937-290c-43f1-b8cd-86a0b73c4e36&lang=en_US"></script>
+</head>
+<body>
+  <div id="map" style="width: 100vw; height: 100vh;"></div>
+  <script>
+    initMap();
+    async function initMap() {
+      await ymaps3.ready;
+      const {YMap, YMapDefaultSchemeLayer, YMapDefaultFeaturesLayer} = ymaps3;
+      const map = new YMap(document.getElementById('map'), {
+        location: { center: [69.279, 41.311], zoom: 15, tilt: 45 * Math.PI / 180 }
+      });
+      map.addChild(new YMapDefaultSchemeLayer());
+      map.addChild(new YMapDefaultFeaturesLayer());
+    }
+  </script>
+</body>
+</html>

@@ -49,7 +49,7 @@ export const AIRecommended: React.FC = () => {
         pageSize: POOL_SIZE,
         audience,
       });
-      setPool(result.data);
+      setPool(result?.data || []);
       setStart(0);
     } catch {
       setPool([]);
@@ -65,14 +65,15 @@ export const AIRecommended: React.FC = () => {
   }, [load]);
 
   useEffect(() => {
-    if (pool.length <= VISIBLE || paused) return;
+    if (!pool || pool.length <= VISIBLE || paused) return;
     const id = window.setInterval(() => {
-      setStart((current) => (current + 1) % pool.length);
+      setStart((current) => (current + 1) % (pool.length || 1));
     }, ROTATE_MS);
     return () => window.clearInterval(id);
-  }, [pool.length, paused]);
+  }, [pool?.length, paused]);
 
   const visible = useMemo(() => {
+    if (!pool || pool.length === 0) return [];
     if (pool.length <= VISIBLE) return pool;
     return Array.from({ length: VISIBLE }, (_, offset) => pool[(start + offset) % pool.length]);
   }, [pool, start]);
@@ -126,7 +127,7 @@ export const AIRecommended: React.FC = () => {
 
       {loading ? (
         <div
-          className="grid w-full grid-cols-2 gap-2.5 sm:gap-6 lg:grid-cols-4"
+          className="grid w-full grid-cols-2 gap-2.5 sm:gap-6 md:grid-cols-3 lg:grid-cols-4"
           aria-label={t('common.a11y.loading')}
           aria-busy="true"
         >
@@ -144,7 +145,7 @@ export const AIRecommended: React.FC = () => {
             {t('common.action.retry')}
           </Button>
         </div>
-      ) : pool.length === 0 ? (
+      ) : !pool || pool.length === 0 ? (
         <div className="space-y-3 rounded-3xl border border-line bg-surface p-8 text-center">
           <p className="text-xs font-bold text-muted sm:text-sm">{t('home.recommended.empty')}</p>
           {canPost && (
@@ -157,7 +158,7 @@ export const AIRecommended: React.FC = () => {
         <>
           <ul
             aria-label={t('home.recommended.listLabel')}
-            className="grid w-full grid-cols-2 gap-2.5 sm:gap-6 lg:grid-cols-4"
+            className="grid w-full grid-cols-2 gap-2.5 sm:gap-6 md:grid-cols-3 lg:grid-cols-4"
             // Rotation stops while the visitor is reading or tabbing through.
             onMouseEnter={() => setPaused(true)}
             onMouseLeave={() => setPaused(false)}
@@ -172,7 +173,7 @@ export const AIRecommended: React.FC = () => {
             ))}
           </ul>
 
-          {pool.length > VISIBLE && (
+          {pool && pool.length > VISIBLE && (
             <div className="mt-4 flex items-center justify-center gap-1.5">
               {pool.map((listing, index) => (
                 <button
@@ -180,9 +181,9 @@ export const AIRecommended: React.FC = () => {
                   type="button"
                   onClick={() => setStart(index)}
                   aria-label={t('common.a11y.goToPage', { page: index + 1 })}
-                  aria-current={index === start % pool.length}
+                  aria-current={index === start % (pool.length || 1)}
                   className={`h-1.5 rounded-full transition-all ${
-                    index === start % pool.length ? 'w-5 bg-brand' : 'w-1.5 bg-surface-3'
+                    index === start % (pool.length || 1) ? 'w-5 bg-brand' : 'w-1.5 bg-surface-3'
                   }`}
                 />
               ))}

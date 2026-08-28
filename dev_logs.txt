@@ -1,0 +1,10 @@
+
+> maklersiz.uz@1.0.0 dev
+> vite --port 3000
+
+Port 3000 is in use, trying another one...
+
+  VITE v8.2.1  ready in 499 ms
+
+  ➜  Local:   http://localhost:3001/
+  ➜  Network: use --host to expose

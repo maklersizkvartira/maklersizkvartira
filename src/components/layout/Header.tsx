@@ -147,22 +147,28 @@ export const Header: React.FC = () => {
               </div>
             )}
 
-            <nav className="flex-1 px-2 py-3">
-              {[...PRIMARY_NAV, ...ACCOUNT_NAV].filter(visible).map((item) => (
-                <AppLink
-                  key={item.view}
-                  view={item.view}
-                  onNavigate={() => setDrawerOpen(false)}
-                  aria-current={currentView === item.view ? 'page' : undefined}
-                  className={`w-full rounded-xl px-3 py-3 text-left text-sm font-bold transition-colors ${
-                    currentView === item.view
-                      ? 'bg-brand-soft text-brand-text'
-                      : 'text-muted hover:bg-surface-2 hover:text-content'
-                  }`}
-                >
-                  {t(item.labelKey as never)}
-                </AppLink>
-              ))}
+            <nav className="flex-1 px-3 py-4 space-y-1">
+              {[...PRIMARY_NAV, ...ACCOUNT_NAV].filter(visible).map((item) => {
+                const active = currentView === item.view;
+                return (
+                  <AppLink
+                    key={item.view}
+                    view={item.view}
+                    onNavigate={() => setDrawerOpen(false)}
+                    aria-current={active ? 'page' : undefined}
+                    className={`group flex items-center gap-3 w-full rounded-xl px-4 py-3 text-left transition-all duration-200 ${
+                      active
+                        ? 'bg-brand/10 text-brand-text shadow-sm'
+                        : 'text-muted hover:bg-surface-2 hover:text-content'
+                    }`}
+                  >
+                    <span className={`text-sm font-bold ${active ? 'translate-x-0.5' : 'group-hover:translate-x-0.5'} transition-transform`}>
+                      {t(item.labelKey as never)}
+                    </span>
+                    {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-brand" />}
+                  </AppLink>
+                );
+              })}
             </nav>
 
             <div className="space-y-3 border-t border-line px-4 py-4">
@@ -214,7 +220,7 @@ export const Header: React.FC = () => {
             </span>
           </AppLink>
 
-          <nav className="ml-2 hidden items-center gap-1 lg:flex">
+          <nav className="ml-2 hidden items-center gap-1 md:flex">
             {PRIMARY_NAV.map((item) => (
               <AppLink
                 key={item.view}
@@ -268,7 +274,7 @@ export const Header: React.FC = () => {
               <button
                 type="button"
                 onClick={() => go('PROFILE')}
-                className="hidden items-center gap-2 rounded-xl border border-line bg-surface px-2.5 py-1.5 lg:inline-flex"
+                className="hidden items-center gap-2 rounded-xl border border-line bg-surface px-2.5 py-1.5 md:inline-flex"
               >
                 <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-brand-soft-2 text-brand-text">
                   {currentUser.avatar ? (
@@ -285,7 +291,7 @@ export const Header: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowAuth(true, 'LOGIN')}
-                className="hidden rounded-xl border border-line bg-surface px-3.5 py-2 text-xs font-bold text-content transition-colors hover:border-brand lg:inline-block"
+                className="hidden rounded-xl border border-line bg-surface px-3.5 py-2 text-xs font-bold text-content transition-colors hover:border-brand md:inline-block"
               >
                 {t('common.action.signIn')}
               </button>
@@ -296,7 +302,7 @@ export const Header: React.FC = () => {
               onClick={() => setDrawerOpen(true)}
               aria-label={t('layout.header.openMenu')}
               aria-expanded={drawerOpen}
-              className="rounded-xl border border-line bg-surface p-2 text-muted transition-colors hover:text-content lg:hidden"
+              className="rounded-xl border border-line bg-surface p-2 text-muted transition-colors hover:text-content md:hidden"
             >
               <Menu className="h-5 w-5" aria-hidden="true" />
             </button>

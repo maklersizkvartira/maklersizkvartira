@@ -60,15 +60,12 @@ export const Footer: React.FC = () => {
       ],
     },
     {
-      // These four used to have no destination at all: the handler read
-      // `link.view && …`, so every legal link was a button that did nothing.
-      // They now point at the help centre, which is where the text lives.
       titleKey: 'layout.footer.legal',
       links: [
         { labelKey: 'layout.footer.terms', to: helpPath('foydalanish-shartlari') },
         { labelKey: 'layout.footer.privacy', to: helpPath('maxfiylik-siyosati') },
         { labelKey: 'layout.footer.safety', to: helpPath('xavfsizlik') },
-        { labelKey: 'layout.footer.faq', to: helpPath('savol-javob') },
+        // Ko'p beriladigan savollar (FAQ) olib tashlandi
         { labelKey: 'layout.footer.guides', to: BLOG_PATH },
         { labelKey: 'layout.nav.help', to: HELP_PATH },
         { labelKey: 'layout.nav.ecosystem', view: 'ECOSYSTEM_PREVIEW' },
@@ -76,8 +73,6 @@ export const Footer: React.FC = () => {
     },
   ];
 
-  // The geography and category hubs, so every landing page is two clicks from
-  // anywhere on the site rather than reachable only through the sitemap.
   const hubs = hubLinks(language);
 
   return (
@@ -86,9 +81,7 @@ export const Footer: React.FC = () => {
         <div className="flex flex-col gap-8 lg:grid lg:grid-cols-4">
           <div className="space-y-4">
             <Logo size="md" tagline={t('common.brand.shortTagline')} />
-            <p className="text-xs leading-relaxed text-muted">
-              {t('layout.footer.aboutText')}
-            </p>
+            {/* Maklersiz uy va kvartira ijarasi matni olib tashlandi */}
 
             <div className="space-y-2 rounded-2xl border border-line bg-surface-2/60 p-3.5 backdrop-blur-xs transition-colors hover:border-brand/40">
               <div className="flex items-center gap-2">
@@ -107,13 +100,6 @@ export const Footer: React.FC = () => {
                   <span className="font-semibold text-content">+998 93 718 88 85</span>
                   <span className="text-[10px] font-bold text-brand group-hover:underline">Qo‘ng‘iroq</span>
                 </a>
-                <a
-                  href="tel:+998777850737"
-                  className="group flex cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-surface hover:text-brand-text"
-                >
-                  <span className="font-semibold text-content">+998 77 785 07 37</span>
-                  <span className="text-[10px] font-bold text-brand group-hover:underline">Qo‘ng‘iroq</span>
-                </a>
               </div>
             </div>
           </div>
@@ -123,7 +109,6 @@ export const Footer: React.FC = () => {
               <nav
                 key={column.titleKey}
                 aria-label={t(column.titleKey as never)}
-                className={column.titleKey === 'layout.footer.legal' ? 'hidden sm:block' : ''}
               >
                 <h2 className="mb-3 text-xs font-black uppercase tracking-wide text-content">
                   {t(column.titleKey as never)}
@@ -146,6 +131,7 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
+        {/* Hududlar va Kategoriyalar bo'limi - bu qismi "juda uzun" qilayotgan bo'lishi mumkin */}
         <div className="mt-8 space-y-5 border-t border-line pt-6">
           {hubs.map((group) => (
             <nav key={group.heading} aria-label={group.heading}>
@@ -172,7 +158,7 @@ export const Footer: React.FC = () => {
           <p className="text-[11px] text-subtle">
             {t('layout.footer.rights', { year: new Date().getFullYear() })}
           </p>
-          <div className="flex flex-wrap items-center gap-3 sm:pr-48">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <a
                 href="https://www.instagram.com/maklersizuy.uz/"
@@ -194,7 +180,6 @@ export const Footer: React.FC = () => {
               </a>
               <a
                 href="mailto:support@maklersizuy.uz"
-                aria-label={t('layout.footer.contact')}
                 className="group flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface-2/80 text-muted transition-all duration-200 hover:scale-105 hover:border-transparent hover:bg-brand hover:text-white hover:shadow-md hover:shadow-brand/25 active:scale-95"
               >
                 <Mail className="h-4 w-4 transition-transform group-hover:scale-110" aria-hidden="true" />

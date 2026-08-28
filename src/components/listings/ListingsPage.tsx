@@ -405,7 +405,7 @@ export const ListingsPage: React.FC = () => {
           <div
             className={
               view === 'grid'
-                ? 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                ? 'grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4'
                 : 'space-y-3'
             }
           >
@@ -443,7 +443,7 @@ export const ListingsPage: React.FC = () => {
             <div
               className={
                 view === 'grid'
-                  ? 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                  ? 'grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4'
                   : 'space-y-3'
               }
             >
