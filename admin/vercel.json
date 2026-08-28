@@ -1,6 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
+
+  "//": "These three are null on purpose, which Vercel reads as 'detect it'. They are here to OVERRIDE the dashboard, not to configure anything: a project created before its Root Directory was set to `admin` auto-detects the site at the repository root, saves Vite's settings — outputDirectory `dist`, buildCommand `npm run build` — and keeps them after the Root Directory is corrected. The build then succeeds and fails at the very last step with 'The Next.js output directory dist was not found', because Next writes .next. vercel.json wins over the dashboard, so pinning them to null makes this deployment reproducible from the repository whatever state the project settings are in.",
+  "buildCommand": null,
+  "installCommand": null,
+  "outputDirectory": null,
+
   "headers": [
     {
       "source": "/(.*)",

@@ -67,6 +67,16 @@ Note that the repository-root `.vercelignore` deliberately does **not** list
 `admin/`: it can be applied to the upload before Vercel descends into the Root
 Directory, which would delete this app out of its own deployment.
 
+`vercel.json` also pins `buildCommand`, `installCommand` and `outputDirectory`
+to `null`, which Vercel reads as "detect it". They are there to override the
+dashboard rather than to configure anything: a project created *before* its Root
+Directory was corrected auto-detects the Vite site at the repository root and
+saves its settings — `outputDirectory: dist` among them. Those overrides survive
+the Root Directory fix, so the build then runs correctly all the way through and
+fails on the last step with `The Next.js output directory "dist" was not found`.
+Since `vercel.json` takes precedence over the dashboard, keeping them null makes
+the deployment reproducible whatever state the project settings are in.
+
 `vercel.json` sends `X-Robots-Tag: noindex, nofollow` along with `X-Frame-Options`,
 `X-Content-Type-Options` and `Referrer-Policy` on every response. A staff console
 has nothing to gain from search traffic and leaks user and listing identifiers
