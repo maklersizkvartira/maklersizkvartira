@@ -345,10 +345,58 @@ interface ProvidersProps {
 
 import { ConfirmProvider } from './confirm-provider';
 
-export function Providers({ children, locale, messages }: ProvidersProps) {
+/**
+ * Everything that needs next-intl's navigation, which is everything below
+ * `NextIntlClientProvider`.
+ *
+ * `useRouter` and `usePathname` from `@/i18n/routing` are locale-aware, and
+ * they get the locale from next-intl's own context — so calling them in
+ * `Providers`, the component that *renders* that context, throws on every
+ * server render. The split is not cosmetic: it is what puts these hooks below
+ * the provider they depend on.
+ */
+function IntlAwareProviders({
+  children,
+  currentLocale,
+  setCurrentLocale,
+}: {
+  children: ReactNode;
+  currentLocale: Locale;
+  setCurrentLocale: (l: Locale) => void;
+}) {
   const queryClient = getQueryClient();
   const router = useRouter();
   const pathname = usePathname();
+
+  const handleSetLocale = (l: Locale) => {
+    if (!LOCALES.includes(l)) return;
+    setCurrentLocale(l);
+    // `pathname` here is next-intl's locale-FREE pathname, and its router takes
+    // the target locale as an option. The version this replaces spliced the
+    // segment by hand off next/navigation's raw pathname, which meant every
+    // string in this function had to stay in step with `localePrefix` — and it
+    // also wrote NEXT_LOCALE, a cookie `i18n/request.ts` deliberately no longer
+    // reads (the URL segment is the single source of truth for the bundle).
+    router.replace(pathname, { locale: l });
+  };
+
+  return (
+    <LocaleContext.Provider value={{ locale: currentLocale, setLocale: handleSetLocale }}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider pathname={pathname} locale={currentLocale}>
+          <RoleProvider>
+            <ConfirmProvider>
+              {children}
+              <Toaster />
+            </ConfirmProvider>
+          </RoleProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </LocaleContext.Provider>
+  );
+}
+
+export function Providers({ children, locale, messages }: ProvidersProps) {
   const [currentLocale, setCurrentLocale] = useState<Locale>(locale as Locale);
 
   // The API localises its error `message` from the X-Language header, so the
@@ -450,32 +498,14 @@ export function Providers({ children, locale, messages }: ProvidersProps) {
     );
   });
 
-  const handleSetLocale = (l: Locale) => {
-    if (!LOCALES.includes(l)) return;
-    setCurrentLocale(l);
-    // `pathname` here is next-intl's locale-FREE pathname, and its router takes
-    // the target locale as an option. The version this replaces spliced the
-    // segment by hand off next/navigation's raw pathname, which meant every
-    // string in this function had to stay in step with `localePrefix` — and it
-    // also wrote NEXT_LOCALE, a cookie `i18n/request.ts` deliberately no longer
-    // reads (the URL segment is the single source of truth for the bundle).
-    router.replace(pathname, { locale: l });
-  };
-
   return (
-    <LocaleContext.Provider value={{ locale: currentLocale, setLocale: handleSetLocale }}>
-      <NextIntlClientProvider locale={currentLocale} messages={messages}>
-        <QueryClientProvider client={queryClient}>
-          <ThemeProvider pathname={pathname} locale={currentLocale}>
-            <RoleProvider>
-              <ConfirmProvider>
-                {children}
-                <Toaster />
-              </ConfirmProvider>
-            </RoleProvider>
-          </ThemeProvider>
-        </QueryClientProvider>
-      </NextIntlClientProvider>
-    </LocaleContext.Provider>
+    <NextIntlClientProvider locale={currentLocale} messages={messages}>
+      <IntlAwareProviders
+        currentLocale={currentLocale}
+        setCurrentLocale={setCurrentLocale}
+      >
+        {children}
+      </IntlAwareProviders>
+    </NextIntlClientProvider>
   );
 }
