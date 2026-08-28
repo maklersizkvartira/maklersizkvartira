@@ -261,6 +261,11 @@ class ListingOut(ORMCamelModel):
     views_count: int
     favorites_count: int
     contact_count: int
+    #: How many different people opened a chat about this listing. Derived
+    #: from the conversations table rather than stored on the row, so it can
+    #: never drift from the threads that actually exist. Only populated on
+    #: the owner's own listings; it stays 0 everywhere else.
+    conversation_count: int = 0
 
     created_at: datetime
     updated_at: datetime

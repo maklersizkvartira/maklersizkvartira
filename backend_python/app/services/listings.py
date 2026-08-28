@@ -421,6 +421,29 @@ async def list_favorites(db: AsyncSession, user: User) -> list[Listing]:
     return list((await db.execute(stmt)).unique().scalars().all())
 
 
+async def conversation_counts(
+    db: AsyncSession, listing_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, int]:
+    """How many people opened a chat about each listing.
+
+    One grouped query for the whole page. Counting per listing in a loop is
+    the same answer and N round trips, which on an owner with twenty listings
+    is the difference between a page that loads and one that does not.
+    """
+    if not listing_ids:
+        return {}
+    from app.models.chat import Conversation
+
+    rows = (
+        await db.execute(
+            select(Conversation.listing_id, func.count(Conversation.id))
+            .where(Conversation.listing_id.in_(listing_ids))
+            .group_by(Conversation.listing_id)
+        )
+    ).all()
+    return {listing_id: int(count) for listing_id, count in rows}
+
+
 async def count_recent_by_owner(db: AsyncSession, user: User, hours: int = 1) -> int:
     since = _now() - timedelta(hours=hours)
     return int(

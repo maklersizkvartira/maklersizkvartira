@@ -1,12 +1,22 @@
 /** Mobile tab bar. */
 
 import React from 'react';
-import { Heart, Home, Plus, Search, User as UserIcon, Map as MapIcon, MessageSquare } from 'lucide-react';
+import {
+  Heart,
+  Home,
+  Plus,
+  Search,
+  User as UserIcon,
+  Map as MapIcon,
+  MessageSquare,
+  BarChart3,
+} from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { useAppStore, type ViewState } from '../../stores/useAppStore';
 import { AppLink } from '../../router/AppLink';
 import { REQUIRES_AUTH } from '../../router/views';
+import { canPublishListings } from '../../types/roles';
 
 interface Tab {
   view: ViewState;
@@ -25,6 +35,21 @@ const TABS: Tab[] = [
   { view: 'PROFILE', labelKey: 'layout.nav.profile', icon: UserIcon },
 ];
 
+/**
+ * The owner's tab bar.
+ *
+ * Seven slots is already one more than a phone comfortably holds, so an
+ * eighth is not available — an owner gets "my listings" in place of the map.
+ * The map is a way to *find* somewhere to live, which is not what someone
+ * with listings of their own opened the app to do; their own performance
+ * numbers are. The map is still one tap away in the header and the footer.
+ */
+const OWNER_TABS: Tab[] = TABS.map((tab) =>
+  tab.view === 'MAP'
+    ? { view: 'MY_LISTINGS', labelKey: 'layout.nav.myListings', icon: BarChart3 }
+    : tab,
+);
+
 export const BottomNav: React.FC = () => {
   const { t } = useTranslation();
   const currentView = useAppStore((state) => state.currentView);
@@ -33,6 +58,8 @@ export const BottomNav: React.FC = () => {
   const setShowAuth = useAppStore((state) => state.setShowAuth);
   const favorites = useAppStore((state) => state.favoriteIds);
   const unreadChatCount = useAppStore((state) => state.unreadChatCount);
+
+  const tabs = canPublishListings(currentUser?.role) ? OWNER_TABS : TABS;
 
   /** True when tapping this tab should open the auth dialog instead. */
   const isGated = (tab: Tab) => REQUIRES_AUTH.has(tab.view) && !currentUser;
@@ -51,7 +78,7 @@ export const BottomNav: React.FC = () => {
       className="pb-safe fixed inset-x-0 bottom-0 z-[80] border-t border-line bg-surface/95 backdrop-blur lg:hidden"
     >
       <ul className="mx-auto flex max-w-lg items-stretch justify-around">
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const active = currentView === tab.view;
           if (tab.primary) {
             return (

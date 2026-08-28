@@ -99,7 +99,14 @@ export interface Listing {
   createdAt: string;
   viewsCount: number;
   favoritesCount: number;
+  /** People who revealed the owner's phone number — the intent to call. */
   contactCount: number;
+  /**
+   * People who opened a chat about this listing — the intent to message.
+   * Server-side it is counted from the conversations that exist, not stored
+   * on the row, and it is only filled in on the owner's own listings.
+   */
+  conversationCount?: number;
   isRoommate?: boolean; // True if listing is for Sherikchilikka (Roommate sharing)
   roommateGender?: 'BOYS' | 'GIRLS' | 'ANY'; // Sherik jinsi: Yigitlar / Qizlar / Farqi yo'q
   roommateSpotsAvailable?: number; // Qancha sherik kerak

@@ -4,11 +4,17 @@
  * Uzbek strings. Keys are added as the matching components are
  * migrated; the Uzbek file is the source of truth for the key shape.
  *
- * There is no messaging backend, so this namespace describes the honest
- * state of the feature — a notice plus the contact routes that do work —
- * rather than the copy of an inbox that never delivered anything.
+ * The messaging backend exists now, so this namespace covers a working
+ * inbox: who the thread is with, which listing it is about, and what was
+ * said last.
  */
 export const chat = {
+  list: {
+    unknownPerson: 'Foydalanuvchi',
+    roleTenant: 'Ijarachi',
+    roleOwner: 'Uy egasi',
+    youPrefix: 'Siz:',
+  },
   page: {
     subtitle: 'Uy egasi bilan to‘g‘ridan-to‘g‘ri bog‘laning — maklersiz va komissiyasiz.',
   },

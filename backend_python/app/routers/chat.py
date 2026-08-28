@@ -19,15 +19,86 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 @router.get("/conversations", response_model=list[ConversationOut])
 async def list_conversations(db: DbSession, user: CurrentUser) -> list[ConversationOut]:
-    """List all conversations involving the current user."""
-    stmt = (
-        select(Conversation)
-        .where(or_(Conversation.user_id == user.id, Conversation.owner_id == user.id))
-        .order_by(Conversation.updated_at.desc())
+    """Every conversation this user is part of, ready to render as a list.
+
+    The rows carry the listing, the last message and an unread count, because
+    the alternative is a list of bare names: an owner with four apartments
+    could not tell which one a message was about without opening each thread,
+    and had no way to see which threads were waiting on them.
+
+    The two aggregates are one query each for the whole page rather than one
+    per row — twenty conversations should not be forty-one round trips.
+    """
+    conversations = list(
+        (
+            await db.execute(
+                select(Conversation)
+                .options(selectinload(Conversation.listing))
+                .where(
+                    or_(
+                        Conversation.user_id == user.id,
+                        Conversation.owner_id == user.id,
+                    )
+                )
+                .order_by(Conversation.updated_at.desc())
+            )
+        )
+        .unique()
+        .scalars()
+        .all()
     )
-    result = await db.execute(stmt)
-    conversations = result.scalars().all()
-    return list(conversations)
+    if not conversations:
+        return []
+
+    ids = [c.id for c in conversations]
+
+    # Unread: messages from the other person that have not been opened.
+    unread = dict(
+        (
+            await db.execute(
+                select(ChatMessage.conversation_id, func.count(ChatMessage.id))
+                .where(
+                    ChatMessage.conversation_id.in_(ids),
+                    ChatMessage.sender_id != user.id,
+                    ChatMessage.read_at.is_(None),
+                )
+                .group_by(ChatMessage.conversation_id)
+            )
+        ).all()
+    )
+
+    # The newest message per conversation, via its timestamp. DISTINCT ON is
+    # Postgres-specific and this app has no other database.
+    latest = {
+        row.conversation_id: row
+        for row in (
+            await db.execute(
+                select(ChatMessage)
+                .where(ChatMessage.conversation_id.in_(ids))
+                .distinct(ChatMessage.conversation_id)
+                .order_by(
+                    ChatMessage.conversation_id,
+                    ChatMessage.created_at.desc(),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    }
+
+    out: list[ConversationOut] = []
+    for conversation in conversations:
+        item = ConversationOut.model_validate(conversation)
+        item.unread_count = int(unread.get(conversation.id, 0))
+        message = latest.get(conversation.id)
+        if message is not None:
+            # Truncated: the list shows one line, and a pasted essay in the
+            # preview costs bandwidth nobody reads.
+            item.last_message = message.text[:160]
+            item.last_message_at = message.created_at
+            item.last_message_is_mine = message.sender_id == user.id
+        out.append(item)
+    return out
 
 
 @router.post("/conversations/{listing_id}", response_model=ConversationDetailOut)
@@ -42,11 +113,18 @@ async def start_or_get_conversation(
     if listing.owner_id == user.id:
         raise BadRequest("cannot_chat_with_self")
 
-    stmt = select(Conversation).options(selectinload(Conversation.messages)).where(
-        Conversation.listing_id == listing_id,
-        Conversation.user_id == user.id
+    stmt = (
+        select(Conversation)
+        .options(
+            selectinload(Conversation.messages),
+            selectinload(Conversation.listing),
+        )
+        .where(
+            Conversation.listing_id == listing_id,
+            Conversation.user_id == user.id,
+        )
     )
-    conversation = (await db.execute(stmt)).scalar_one_or_none()
+    conversation = (await db.execute(stmt)).unique().scalar_one_or_none()
 
     if not conversation:
         conversation = Conversation(
@@ -69,7 +147,16 @@ async def get_messages(
     conversation_id: uuid.UUID, db: DbSession, user: CurrentUser
 ) -> ConversationDetailOut:
     """Get all messages for a specific conversation."""
-    conversation = (await db.execute(select(Conversation).options(selectinload(Conversation.messages)).where(Conversation.id == conversation_id))).scalar_one_or_none()
+    conversation = (
+        await db.execute(
+            select(Conversation)
+            .options(
+                selectinload(Conversation.messages),
+                selectinload(Conversation.listing),
+            )
+            .where(Conversation.id == conversation_id)
+        )
+    ).unique().scalar_one_or_none()
     if not conversation:
         raise BadRequest("conversation_not_found")
         

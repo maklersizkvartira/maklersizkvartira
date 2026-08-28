@@ -5,6 +5,12 @@
  * migrated; the Uzbek file is the source of truth for the key shape.
  */
 export const chat = {
+  list: {
+    unknownPerson: 'Пользователь',
+    roleTenant: 'Арендатор',
+    roleOwner: 'Владелец',
+    youPrefix: 'Вы:',
+  },
   page: {
     subtitle: 'Связывайтесь с владельцем напрямую — без посредников и без комиссии.',
   },

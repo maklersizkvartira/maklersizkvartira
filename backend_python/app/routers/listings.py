@@ -28,7 +28,13 @@ from app.services.moderation import scan_listing
 router = APIRouter(prefix="/listings", tags=["listings"])
 
 
-def _serialise(listing, *, viewer, favorite_ids: set[uuid.UUID] | None = None) -> dict:
+def _serialise(
+    listing,
+    *,
+    viewer,
+    favorite_ids: set[uuid.UUID] | None = None,
+    conversation_counts: dict[uuid.UUID, int] | None = None,
+) -> dict:
     """Render a listing, exposing the owner's phone only where appropriate.
 
     A stranger browsing the catalogue does not need the owner's number; it is
@@ -42,6 +48,8 @@ def _serialise(listing, *, viewer, favorite_ids: set[uuid.UUID] | None = None) -
         payload.owner.phone = None
     if favorite_ids is not None:
         payload.is_favorite = listing.id in favorite_ids
+    if conversation_counts is not None:
+        payload.conversation_count = conversation_counts.get(listing.id, 0)
     return payload.model_dump(by_alias=True)
 
 
@@ -87,9 +95,14 @@ async def featured(
 @router.get("/my", summary="Listings owned by the signed-in user")
 async def my_listings(db: DbSession, user: CurrentUser) -> dict:
     rows = await listing_service.list_for_owner(db, user)
+    # The owner's page is the only place this number is shown, so it is the
+    # only place worth the extra query.
+    chats = await listing_service.conversation_counts(db, [r.id for r in rows])
     return {
         "status": "success",
-        "data": [_serialise(r, viewer=user) for r in rows],
+        "data": [
+            _serialise(r, viewer=user, conversation_counts=chats) for r in rows
+        ],
     }
 
 

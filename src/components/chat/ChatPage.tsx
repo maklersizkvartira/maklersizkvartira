@@ -49,7 +49,7 @@ const playNotificationSound = () => {
 };
 
 export const ChatPage: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, formatPrice, formatRelativeTime } = useTranslation();
 
   const currentUser = useAppStore((state) => state.currentUser);
   const setCurrentView = useAppStore((state) => state.setCurrentView);
@@ -181,26 +181,75 @@ export const ChatPage: React.FC = () => {
               const isOwner = conv.owner_id === currentUser.id;
               const otherPerson = isOwner ? conv.user : conv.owner;
               const avatarFallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(otherPerson?.name || 'U')}&background=random`;
-              
+              const unread = conv.unread_count ?? 0;
+
               return (
                 <button
                   key={conv.id}
                   onClick={() => setCurrentView('CHAT', null, conv.id)}
-                  className="w-full text-left bg-surface border border-line rounded-xl p-4 shadow-sm hover:border-brand/50 transition-colors flex items-center gap-3"
+                  className={`flex w-full items-start gap-3 rounded-xl border bg-surface p-4 text-left shadow-sm transition-colors hover:border-brand/50 ${
+                    unread > 0 ? 'border-brand/40 bg-brand-soft/30' : 'border-line'
+                  }`}
                 >
-                  <img 
-                    src={otherPerson?.avatar || avatarFallback}
-                    alt={otherPerson?.name}
-                    className="w-12 h-12 rounded-full object-cover shrink-0 border border-line bg-surface-2"
-                  />
+                  <span className="relative shrink-0">
+                    <img
+                      src={otherPerson?.avatar || avatarFallback}
+                      alt=""
+                      className="h-12 w-12 rounded-full border border-line bg-surface-2 object-cover"
+                    />
+                    {unread > 0 && (
+                      <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-black text-white">
+                        {unread}
+                      </span>
+                    )}
+                  </span>
+
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-content truncate">
-                      {otherPerson?.name || "Foydalanuvchi"} {isOwner ? "(Xaridor/Ijarachi)" : "(Uy egasi)"}
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="truncate text-sm font-bold text-content">
+                        {otherPerson?.name || t('chat.list.unknownPerson')}
+                      </p>
+                      {conv.last_message_at && (
+                        <time
+                          dateTime={conv.last_message_at}
+                          className="shrink-0 text-[10px] text-subtle"
+                        >
+                          {formatRelativeTime(conv.last_message_at)}
+                        </time>
+                      )}
+                    </div>
+
+                    <p className="text-[11px] font-semibold text-muted">
+                      {isOwner ? t('chat.list.roleTenant') : t('chat.list.roleOwner')}
                     </p>
-                    <p className="text-xs text-muted mt-1">Suhbat sanasi: {new Date(conv.updated_at).toLocaleDateString()}</p>
-                  </div>
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted">
-                    <MessageSquare className="h-4 w-4" />
+
+                    {/* Which apartment this is about. An owner with four
+                        listings could not tell before, and the thread is the
+                        only place the answer used to exist. */}
+                    {conv.listing && (
+                      <span className="mt-1.5 flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-2 py-1 text-[11px] text-content">
+                        <Building2 className="h-3 w-3 shrink-0 text-brand" aria-hidden="true" />
+                        <span className="truncate font-semibold">{conv.listing.title}</span>
+                        {conv.listing.price != null && (
+                          <span className="shrink-0 text-muted">
+                            · {formatPrice(conv.listing.price)}
+                          </span>
+                        )}
+                      </span>
+                    )}
+
+                    {conv.last_message && (
+                      <p
+                        className={`mt-1.5 truncate text-xs ${
+                          unread > 0 ? 'font-semibold text-content' : 'text-muted'
+                        }`}
+                      >
+                        {conv.last_message_is_mine && (
+                          <span className="text-subtle">{t('chat.list.youPrefix')} </span>
+                        )}
+                        {conv.last_message}
+                      </p>
+                    )}
                   </div>
                 </button>
               );
@@ -227,13 +276,29 @@ export const ChatPage: React.FC = () => {
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <div className="flex items-center gap-2 min-w-0">
-          <img 
+        <div className="flex min-w-0 items-center gap-2">
+          <img
             src={otherPerson?.avatar || getAvatarFallback(otherPerson?.name)}
-            alt="Avatar"
-            className="w-8 h-8 rounded-full object-cover shrink-0 border border-line"
+            alt=""
+            className="h-9 w-9 shrink-0 rounded-full border border-line object-cover"
           />
-          <h1 className="text-lg font-black text-content truncate">{otherPerson?.name || t('layout.nav.chat')}</h1>
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-black text-content">
+              {otherPerson?.name || t('layout.nav.chat')}
+            </h1>
+            {/* The subject of the thread, and a way into it. Without this the
+                conversation is a name with no context on either side. */}
+            {detail?.listing && (
+              <button
+                type="button"
+                onClick={() => setCurrentView('LISTING_DETAIL', detail.listing!.id)}
+                className="flex min-w-0 items-center gap-1 text-[11px] text-muted transition-colors hover:text-brand-text"
+              >
+                <Building2 className="h-3 w-3 shrink-0" aria-hidden="true" />
+                <span className="truncate font-semibold">{detail.listing.title}</span>
+              </button>
+            )}
+          </div>
         </div>
       </header>
       

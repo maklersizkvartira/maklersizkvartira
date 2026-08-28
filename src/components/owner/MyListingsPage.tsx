@@ -166,6 +166,10 @@ export const MyListingsPage: React.FC = () => {
   const totalViews = myListings.reduce((sum, item) => sum + (item.viewsCount ?? 0), 0);
   const totalFavorites = myListings.reduce((sum, item) => sum + (item.favoritesCount ?? 0), 0);
   const totalContacts = myListings.reduce((sum, item) => sum + (item.contactCount ?? 0), 0);
+  const totalMessages = myListings.reduce(
+    (sum, item) => sum + (item.conversationCount ?? 0),
+    0,
+  );
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-3 py-6 pb-24 sm:px-6 sm:pb-12">
@@ -200,7 +204,7 @@ export const MyListingsPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
         <StatCard
           label={t('owner.my.stats.views')}
           hint={t('owner.my.stats.viewsHint')}
@@ -223,6 +227,13 @@ export const MyListingsPage: React.FC = () => {
           className="bg-brand-soft"
         />
         <StatCard
+          label={t('owner.my.stats.messages')}
+          hint={t('owner.my.stats.messagesHint')}
+          value={formatNumber(totalMessages)}
+          icon={<MessageSquare className="h-5 w-5 text-success" aria-hidden="true" />}
+          className="bg-success-soft"
+        />
+        <StatCard
           label={t('owner.my.stats.listings')}
           hint={t('owner.my.stats.listingsHint')}
           value={formatNumber(myListings.length)}
@@ -230,13 +241,6 @@ export const MyListingsPage: React.FC = () => {
           className="bg-warning-soft"
         />
       </div>
-
-      {/* Chat volume used to be the fourth metric; the messaging backend is not
-          wired up yet, so the tile is replaced rather than faked. */}
-      <p className="flex items-center gap-2 rounded-2xl border border-line bg-surface-2 px-4 py-3 text-xs font-medium text-muted">
-        <MessageSquare className="h-4 w-4 shrink-0 text-subtle" aria-hidden="true" />
-        {t('owner.my.chatMetricUnavailable')}
-      </p>
 
       {loading ? (
         <div className="space-y-4" aria-busy="true" aria-label={t('common.a11y.loading')}>
@@ -294,7 +298,12 @@ export const MyListingsPage: React.FC = () => {
               const views = listing.viewsCount ?? 0;
               const favorites = listing.favoritesCount ?? 0;
               const contacts = listing.contactCount ?? 0;
-              const conversion = views > 0 ? ((contacts / views) * 100).toFixed(1) : '0.0';
+              const messages = listing.conversationCount ?? 0;
+              // Both routes to the owner count as interest, so conversion is
+              // measured against either — counting only revealed numbers made
+              // a listing people message rather than ring look dead.
+              const conversion =
+                views > 0 ? (((contacts + messages) / views) * 100).toFixed(1) : '0.0';
               const status = moderationTone(listing.aiCheckStatus);
               const cover = listing.images?.[0];
               const reasons = listing.aiRiskReasons ?? [];
@@ -386,7 +395,7 @@ export const MyListingsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
                     <MetricTile
                       label={t('owner.my.metrics.views')}
                       hint={t('owner.my.metrics.viewsHint')}
@@ -404,6 +413,12 @@ export const MyListingsPage: React.FC = () => {
                       hint={t('owner.my.metrics.contactsHint')}
                       value={formatNumber(contacts)}
                       icon={<Phone className="h-4 w-4 text-brand" aria-hidden="true" />}
+                    />
+                    <MetricTile
+                      label={t('owner.my.metrics.messages')}
+                      hint={t('owner.my.metrics.messagesHint')}
+                      value={formatNumber(messages)}
+                      icon={<MessageSquare className="h-4 w-4 text-success" aria-hidden="true" />}
                     />
                     <MetricTile
                       label={t('common.filters.trustScore')}
