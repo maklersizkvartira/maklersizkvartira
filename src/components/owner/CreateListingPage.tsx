@@ -13,7 +13,7 @@
  *    fails at the gateway, long after the owner has done the work.
  */
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -22,6 +22,7 @@ import {
   Building2,
   Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Home,
   Navigation,
@@ -111,6 +112,11 @@ export const CreateListingPage: React.FC = () => {
   const [address, setAddress] = useState('');
   const [metro, setMetro] = useState('Yunusobod');
   const [metroMinutes, setMetroMinutes] = useState(5);
+  const [metroOpen, setMetroOpen] = useState(false);
+  const [metroQuery, setMetroQuery] = useState('');
+  // Only consulted below `lg`, where the tips panel collapses. Above that the
+  // panel is always shown and its toggle is not reachable.
+  const [tipsOpen, setTipsOpen] = useState(false);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [gpsBusy, setGpsBusy] = useState(false);
@@ -156,6 +162,30 @@ export const CreateListingPage: React.FC = () => {
 
   const activeRegion =
     UZBEKISTAN_REGIONS.find((item) => item.name === region) ?? UZBEKISTAN_REGIONS[0];
+
+  // Tashkent is the only city in the country with a metro, so everywhere else
+  // the question is noise — and a station left selected from a previous region
+  // would be a false claim on the listing. The province is included because
+  // the line now reaches Sergeli and Yangihayot, which border it.
+  const hasMetro = region.startsWith('Toshkent');
+
+  const visibleMetroLines = useMemo(() => {
+    const query = metroQuery.trim().toLowerCase();
+    if (!query) return TASHKENT_METRO_LINES;
+    return TASHKENT_METRO_LINES.map((line) => ({
+      ...line,
+      stations: line.stations.filter((station) =>
+        station.toLowerCase().includes(query),
+      ),
+    })).filter((line) => line.stations.length > 0);
+  }, [metroQuery]);
+
+  useEffect(() => {
+    if (!hasMetro && metro !== METRO_NONE) {
+      setMetro(METRO_NONE);
+      setMetroOpen(false);
+    }
+  }, [hasMetro, metro]);
 
   const payloadBytes = useMemo(
     () =>
@@ -475,8 +505,8 @@ export const CreateListingPage: React.FC = () => {
 
   return (
     <div className="mx-auto w-full min-h-[85vh] max-w-6xl space-y-6 overflow-x-hidden px-4 py-6 pb-24 sm:space-y-8 sm:px-6 sm:py-10 sm:pb-16">
-      <div className="space-y-4 border-b border-line pb-5">
-        <nav aria-label={t('owner.create.breadcrumb')}>
+      <div className="space-y-3 border-b border-line pb-4 sm:space-y-4 sm:pb-5">
+        <nav aria-label={t('owner.create.breadcrumb')} className="hidden sm:block">
           <ol className="flex items-center gap-2 text-xs font-semibold text-subtle">
             <li>
               <button
@@ -496,7 +526,7 @@ export const CreateListingPage: React.FC = () => {
 
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-content sm:text-3xl">
+            <h1 className="text-xl font-black tracking-tight text-content sm:text-3xl">
               {t('owner.create.title')}
             </h1>
             <p className="mt-1 text-xs font-medium text-muted sm:text-sm">
@@ -514,8 +544,54 @@ export const CreateListingPage: React.FC = () => {
         </div>
       </div>
 
+      {/*
+        Step navigation, in two forms.
+
+        On a phone the four cards below stacked into a 2x2 block that pushed
+        the first field most of a screen down — on every step, so the form was
+        the thing you had to scroll to reach. The compact bar shows the same
+        state in one row: which step, how many are left, and how far along the
+        page is. The cards return from `sm:` up, where the width is free.
+      */}
+      <div className="space-y-2.5 sm:hidden">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="text-sm font-black text-content">
+            {stepMeta[step - 1]?.title}
+          </p>
+          <p className="shrink-0 text-[11px] font-bold text-muted">
+            {t('owner.create.stepCounter', { current: step, total: TOTAL_STEPS })}
+          </p>
+        </div>
+
+        <ol className="flex items-center gap-1.5">
+          {stepMeta.map((item) => {
+            const isDone = step > item.num;
+            const isActive = step === item.num;
+            return (
+              <li key={item.num} className="flex-1">
+                {/* A finished step stays tappable — going back to fix the
+                    district should not mean walking forward through the form
+                    again. A future one is not a link to anywhere yet. */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (item.num <= step) setStep(item.num);
+                  }}
+                  disabled={item.num > step}
+                  aria-current={isActive ? 'step' : undefined}
+                  aria-label={`${item.num}. ${item.title}`}
+                  className={`h-1.5 w-full rounded-full transition-colors disabled:cursor-not-allowed ${
+                    isActive || isDone ? 'bg-brand' : 'bg-line'
+                  }`}
+                />
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+
       {/* Step navigation. Completed steps stay reachable; future ones do not. */}
-      <ol className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
+      <ol className="hidden gap-2.5 sm:grid sm:grid-cols-4 sm:gap-3">
         {stepMeta.map((item) => {
           const isActive = step === item.num;
           const isDone = step > item.num;
@@ -702,59 +778,118 @@ export const CreateListingPage: React.FC = () => {
                 )}
               </Field>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label={t('owner.create.location.metroLabel')}>
-                  {() => (
-                    <div className="max-h-60 overflow-y-auto rounded-xl border border-divider p-2 bg-surface">
-                      {TASHKENT_METRO_LINES.map((line) => (
-                        <div key={line.id} className="mb-2 last:mb-0">
-                          <div className="px-2 py-1 text-xs font-bold text-muted uppercase tracking-wider sticky top-0 bg-surface/90 backdrop-blur-sm z-10">
-                            {line.name}
-                          </div>
-                          <div className="space-y-1 mt-1">
+              {/* Only Tashkent has a metro, so outside it this asked a question
+                  with no answer. Inside it, every station was listed open by
+                  default: a 240px nested scroll area sitting between the
+                  address and the button that leaves the step. It is now a row
+                  that states the choice and opens on demand. */}
+              {hasMetro && (
+                <div className="space-y-3 rounded-2xl border border-line bg-surface-2 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold uppercase tracking-wider text-muted">
+                        {t('owner.create.location.metroLabel')}
+                      </p>
+                      <p className="mt-0.5 truncate text-sm font-black text-content">
+                        {metro === METRO_NONE ? t('owner.create.location.metroNone') : metro}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMetroOpen((open) => !open)}
+                      aria-expanded={metroOpen}
+                      className="shrink-0 rounded-xl border border-line bg-surface px-3 py-2 text-xs font-extrabold text-brand-text transition-colors hover:bg-surface-3"
+                    >
+                      {metroOpen
+                        ? t('common.action.close')
+                        : metro === METRO_NONE
+                          ? t('owner.create.location.metroChoose')
+                          : t('common.action.edit')}
+                    </button>
+                  </div>
+
+                  {metroOpen && (
+                    <div className="space-y-2">
+                      <TextInput
+                        value={metroQuery}
+                        onChange={(event) => setMetroQuery(event.target.value)}
+                        placeholder={t('owner.create.location.metroSearch')}
+                        aria-label={t('owner.create.location.metroSearch')}
+                      />
+
+                      <div className="max-h-56 overflow-y-auto rounded-xl border border-line bg-surface p-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMetro(METRO_NONE);
+                            setMetroOpen(false);
+                            setMetroQuery('');
+                          }}
+                          className="w-full rounded-lg px-3 py-2 text-left text-sm text-muted transition-colors hover:bg-surface-2"
+                        >
+                          {t('owner.create.location.metroNone')}
+                        </button>
+
+                        {visibleMetroLines.map((line) => (
+                          <div key={line.id} className="mt-2 first:mt-0">
+                            <p className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-muted">
+                              {line.name}
+                            </p>
                             {line.stations.map((station) => {
                               const isSelected = metro === station;
                               return (
                                 <button
                                   key={station}
                                   type="button"
-                                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                                    isSelected 
-                                      ? 'bg-blue-600 text-white font-medium'
-                                      : 'hover:bg-hover active:bg-divider text-content'
+                                  onClick={() => {
+                                    setMetro(isSelected ? METRO_NONE : station);
+                                    setMetroOpen(false);
+                                    setMetroQuery('');
+                                  }}
+                                  className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                                    isSelected
+                                      ? 'bg-brand font-bold text-on-brand'
+                                      : 'text-content hover:bg-surface-2'
                                   }`}
-                                  onClick={() => setMetro(isSelected ? METRO_NONE : station)}
                                 >
-                                  {t('owner.create.location.metroOption', { station })}
+                                  {station}
                                 </button>
                               );
                             })}
                           </div>
-                        </div>
-                      ))}
+                        ))}
+
+                        {visibleMetroLines.length === 0 && (
+                          <p className="px-3 py-4 text-center text-xs text-subtle">
+                            {t('owner.create.location.metroNoMatch')}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   )}
-                </Field>
 
-                <Field
-                  label={t('owner.create.location.metroMinutesLabel')}
-                  error={formErrors.metroMinutes ? tRaw(formErrors.metroMinutes) : undefined}
-                >
-                  {({ id, describedBy, invalid }) => (
-                    <TextInput
-                      id={id}
-                      aria-describedby={describedBy}
-                      invalid={invalid}
-                      type="number"
-                      min={1}
-                      max={60}
-                      disabled={metro === METRO_NONE}
-                      value={metroMinutes}
-                      onChange={(event) => setMetroMinutes(Number(event.target.value))}
-                    />
+                  {/* Minutes only mean something once a station is named. */}
+                  {metro !== METRO_NONE && (
+                    <Field
+                      label={t('owner.create.location.metroMinutesLabel')}
+                      error={formErrors.metroMinutes ? tRaw(formErrors.metroMinutes) : undefined}
+                    >
+                      {({ id, describedBy, invalid }) => (
+                        <TextInput
+                          id={id}
+                          aria-describedby={describedBy}
+                          invalid={invalid}
+                          type="number"
+                          min={1}
+                          max={60}
+                          value={metroMinutes}
+                          onChange={(event) => setMetroMinutes(Number(event.target.value))}
+                        />
+                      )}
+                    </Field>
                   )}
-                </Field>
-              </div>
+                </div>
+              )}
 
               <Button fullWidth onClick={() => goToStep(2)}>
                 <span>{t('owner.create.next.toDetails')}</span>
@@ -911,8 +1046,14 @@ export const CreateListingPage: React.FC = () => {
 
               {/* The in-browser copywriter and price estimator ran on a Gemini
                   key shipped to every visitor. They are disabled until the
-                  server exposes the same helpers. */}
-              <div className="space-y-2 rounded-2xl border border-line bg-surface-2 p-4">
+                  server exposes the same helpers.
+
+                  Hidden on phones rather than removed: two buttons that cannot
+                  be pressed are a screenful of nothing in the middle of the
+                  longest step, and on a narrow screen that is the difference
+                  between reaching the price field and giving up. They stay on
+                  desktop so the feature is not forgotten. */}
+              <div className="hidden space-y-2 rounded-2xl border border-line bg-surface-2 p-4 sm:block">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <Button variant="secondary" type="button" disabled>
                     <Sparkles className="h-4 w-4" aria-hidden="true" />
@@ -1510,59 +1651,86 @@ export const CreateListingPage: React.FC = () => {
           )}
         </div>
 
-        {/* Side rail: what makes a listing rent quickly. */}
+        {/*
+          Side rail: what makes a listing rent quickly.
+
+          There is no rail on a phone — the column stacks, so this advice sat
+          between the last field and the bottom of the page on every one of the
+          four steps. Below `lg` it collapses to its header and opens on a tap;
+          from `lg` up the column exists, so the toggle is hidden and the body
+          is always shown regardless of the toggle's state.
+        */}
         <aside className="space-y-4">
-          <div className="sticky top-24 space-y-5 rounded-3xl border border-line bg-surface p-6 shadow-card">
-            <div className="flex items-center gap-3 border-b border-line pb-4">
+          <div className="sticky top-24 space-y-5 rounded-3xl border border-line bg-surface p-4 shadow-card sm:p-6">
+            <button
+              type="button"
+              onClick={() => setTipsOpen((open) => !open)}
+              aria-expanded={tipsOpen}
+              className="flex w-full items-center gap-3 text-left lg:pointer-events-none lg:border-b lg:border-line lg:pb-4"
+            >
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand-soft text-brand-text">
                 <ShieldCheck className="h-5 w-5" aria-hidden="true" />
               </span>
-              <div>
-                <h2 className="text-base font-extrabold text-content">
+              <span className="min-w-0 flex-1">
+                <span className="block text-base font-extrabold text-content">
                   {t('owner.create.rules.title')}
-                </h2>
-                <p className="text-xs text-subtle">{t('owner.create.rules.subtitle')}</p>
-              </div>
-            </div>
-
-            <ul className="space-y-4 text-xs font-medium text-muted">
-              {(['photos', 'price', 'address', 'terms'] as const).map((rule) => (
-                <li key={rule} className="flex items-start gap-3">
-                  <span
-                    className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-text"
-                    aria-hidden="true"
-                  >
-                    <Check className="h-3.5 w-3.5" />
-                  </span>
-                  <span className="leading-relaxed">{tRaw(`owner.create.rules.${rule}`)}</span>
-                </li>
-              ))}
-            </ul>
-
-            <div className="space-y-1 rounded-2xl border border-brand/30 bg-brand-soft p-4 text-xs">
-              <p className="flex items-center gap-1.5 font-extrabold text-brand-text">
-                <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{t('owner.create.rules.freeTitle')}</span>
-              </p>
-              <p className="text-[11px] font-medium leading-relaxed text-muted">
-                {t('owner.create.rules.freeBody')}
-              </p>
-            </div>
-
-            <div className="border-t border-line pt-2">
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-warning-soft text-warning">
-                  <Award className="h-5 w-5" aria-hidden="true" />
                 </span>
-                <div className="text-xs">
-                  <p className="font-bold text-content">{t('owner.create.rules.badgeTitle')}</p>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentView('VERIFICATION')}
-                    className="mt-0.5 inline-block text-[11px] font-extrabold text-brand-text underline transition-colors hover:text-brand"
-                  >
-                    {t('owner.create.rules.badgeCta')}
-                  </button>
+                <span className="block truncate text-xs text-subtle">
+                  {t('owner.create.rules.subtitle')}
+                </span>
+              </span>
+              <ChevronDown
+                className={`h-5 w-5 shrink-0 text-subtle transition-transform lg:hidden ${
+                  tipsOpen ? 'rotate-180' : ''
+                }`}
+                aria-hidden="true"
+              />
+            </button>
+
+            <div className={`space-y-5 ${tipsOpen ? 'block' : 'hidden lg:block'}`}>
+              <ul className="space-y-4 text-xs font-medium text-muted">
+                {(['photos', 'price', 'address', 'terms'] as const).map((rule) => (
+                  <li key={rule} className="flex items-start gap-3">
+                    <span
+                      className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-text"
+                      aria-hidden="true"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="leading-relaxed">
+                      {tRaw(`owner.create.rules.${rule}`)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="space-y-1 rounded-2xl border border-brand/30 bg-brand-soft p-4 text-xs">
+                <p className="flex items-center gap-1.5 font-extrabold text-brand-text">
+                  <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>{t('owner.create.rules.freeTitle')}</span>
+                </p>
+                <p className="text-[11px] font-medium leading-relaxed text-muted">
+                  {t('owner.create.rules.freeBody')}
+                </p>
+              </div>
+
+              <div className="border-t border-line pt-2">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-warning-soft text-warning">
+                    <Award className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div className="text-xs">
+                    <p className="font-bold text-content">
+                      {t('owner.create.rules.badgeTitle')}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentView('VERIFICATION')}
+                      className="mt-0.5 inline-block text-[11px] font-extrabold text-brand-text underline transition-colors hover:text-brand"
+                    >
+                      {t('owner.create.rules.badgeCta')}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

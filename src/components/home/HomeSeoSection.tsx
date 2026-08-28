@@ -11,6 +11,12 @@
  * Tashkent district and every prominent region exactly one click from the
  * root. Without it the generated landing pages would be reachable only
  * through the sitemap, and would be crawled accordingly.
+ *
+ * Hidden on phones. Its link groups render as columns, which directly above
+ * the real footer read as a second one — on a narrow screen the page appeared
+ * to end twice. It is hidden rather than dropped: prerendering puts the whole
+ * section in the HTML either way, so a crawler still reads the prose and still
+ * follows every hub link. Only the phone viewport loses it.
  */
 
 import React from 'react';
@@ -25,7 +31,7 @@ export const HomeSeoSection: React.FC = () => {
   const copy = useSeoCopy(language);
 
   return (
-    <section className="mx-auto w-full max-w-7xl px-4 pb-14 pt-4 sm:px-6">
+    <section className="mx-auto hidden w-full max-w-7xl px-4 pb-14 pt-4 sm:px-6 lg:block">
       <div className="max-w-3xl space-y-3">
         <h2 className="text-lg font-black text-content sm:text-xl">{copy.home.h1}</h2>
         <Prose paragraphs={copy.home.intro} />

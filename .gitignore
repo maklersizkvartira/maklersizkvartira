@@ -126,3 +126,10 @@ ui-verification/
 
 # Build artefact of the SSR pass that feeds scripts/prerender.mjs.
 .prerender/
+
+# ─── Admin panel — alohida repo ──────────────────────────────────────────────
+# `maklersizuy-admin` o'zining mustaqil repositoriysi va shu yerga qulaylik
+# uchun klonlangan. Ignore qilinmasa git uni `.gitmodules`siz submodule deb
+# ko'radi: toza klonda — Vercel'nikida ham — ogohlantirish beradi va bir kun
+# tasodifan gitlink bo'lib commit'ga tushadi. Kod o'z repositoriysida turadi.
+Maklersizuy.Admin/
