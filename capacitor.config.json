@@ -1,0 +1,9 @@
+{
+  "appId": "uz.maklersizuy.app",
+  "appName": "Maklersiz Uy",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}

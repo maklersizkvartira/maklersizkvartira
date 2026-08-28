@@ -9,6 +9,33 @@ import { loadCopy } from './seo/content';
 import { ThemeProvider } from './theme/ThemeProvider';
 import './index.css';
 
+import { Capacitor } from '@capacitor/core';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { SplashScreen } from '@capacitor/splash-screen';
+
+/**
+ * Entry point.
+ */
+
+const initMobile = async () => {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await SplashScreen.hide();
+      const isDark = document.documentElement.classList.contains('dark');
+      await StatusBar.setStyle({
+        style: isDark ? Style.Dark : Style.Light,
+      });
+      if (Capacitor.getPlatform() === 'android') {
+        await StatusBar.setBackgroundColor({ color: isDark ? '#080d18' : '#f6f8fb' });
+      }
+    } catch (e) {
+      console.warn('Capacitor plugin initialization failed', e);
+    }
+  }
+};
+
+void initMobile();
+
 /**
  * A stale chunk reference survives a deploy in an open tab: the HTML it has
  * points at hashed files that no longer exist. Reloading once fixes it; the

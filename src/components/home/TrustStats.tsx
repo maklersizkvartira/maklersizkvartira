@@ -50,8 +50,8 @@ export const TrustStats: React.FC = () => {
     if (requested.current) return;
     requested.current = true;
     if (totalCount === 0) void fetchListings({ page: 1 });
-    if (featured.length === 0) void fetchFeatured();
-  }, [totalCount, featured.length, fetchListings, fetchFeatured]);
+    if (!featured || featured.length === 0) void fetchFeatured();
+  }, [totalCount, featured?.length, fetchListings, fetchFeatured]);
 
   const retry = () => {
     void fetchListings({ page: 1 });

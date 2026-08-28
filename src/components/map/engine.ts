@@ -243,8 +243,7 @@ const LEAFLET_VERSION = '1.9.4';
 const TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; ' +
   '<a href="https://carto.com/attributions">CARTO</a>';
-const TILE_URL_LIGHT =
-  'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+const TILE_URL_LIGHT = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const TILE_URL_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 
 
@@ -375,15 +374,20 @@ export async function createMapEngine(
   element: HTMLElement,
   options: EngineOptions,
 ): Promise<MapEngine> {
-  if (YANDEX_KEY) {
-    try {
-      return await createYandex(element, options);
-    } catch {
-      // A bad or over-quota key must not cost the visitor their map.
-      const { createMapLibre } = await import('./maplibre');
-      return createMapLibre(element, options);
+  // We try Leaflet first as it's the most reliable for mobile/emulator environments
+  // without requiring specialized GL drivers or API keys that might be domain-locked.
+  try {
+    return await createLeaflet(element, options);
+  } catch (e) {
+    console.warn('Leaflet failed, trying Yandex...', e);
+    if (YANDEX_KEY) {
+      try {
+        return await createYandex(element, options);
+      } catch (err) {
+        console.error('Yandex failed too:', err);
+        throw err;
+      }
     }
+    throw e;
   }
-  const { createMapLibre } = await import('./maplibre');
-  return createMapLibre(element, options);
 }
