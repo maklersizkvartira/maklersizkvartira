@@ -16,6 +16,76 @@ export const listings = {
     },
   },
 
+  /**
+   * The filter bar and the filter sheet.
+   *
+   * Separate from `common.filters` on purpose: those are the words a filter
+   * is called anywhere in the app, these are the ones the listings surface
+   * puts on its own chips, its sort menu and its "show results" button.
+   */
+  filters: {
+    title: 'Фильтры',
+    subtitle: 'Настройте поиск под себя',
+    openAria: 'Открыть фильтры',
+    closeAria: 'Закрыть фильтры',
+    activeCount: 'Активных фильтров: {count}',
+    activeNone: 'Фильтры не выбраны',
+    clearAll: 'Очистить всё',
+    clearOne: 'Убрать фильтр «{label}»',
+    apply: 'Применить',
+    showResults: 'Показать {count} объявлений',
+    showResultsNone: 'Подходящих объявлений нет',
+    more: 'Больше фильтров',
+    less: 'Свернуть фильтры',
+
+    quickLabel: 'Быстрые фильтры',
+    quick: {
+      all: 'Все',
+      roommate: 'Подселение',
+      student: 'Студентам',
+      family: 'Семьям',
+      metro: 'Рядом с метро',
+      budget: 'Недорого',
+      premium: 'Высокое доверие',
+      qizlarga: 'Для девушек',
+      komfort: 'Комфорт',
+      center: 'В центре',
+      verified: 'Проверенные',
+      noDeposit: 'Без залога',
+      newest: 'Самые новые',
+      withVideo: 'С видео',
+      petsAllowed: 'Можно с животными',
+    },
+
+    priceTitle: 'Цена за месяц',
+    minPrice: 'Минимальная цена (сум)',
+    maxPrice: 'Максимальная цена (сум)',
+    minPricePlaceholder: '1 000 000',
+    maxPricePlaceholder: '10 000 000',
+    priceHint: 'Оставьте пустым, чтобы не ограничивать цену.',
+
+    areaTitle: 'Площадь',
+    minArea: 'Минимальная площадь (м²)',
+    maxArea: 'Максимальная площадь (м²)',
+    minAreaPlaceholder: '30',
+    maxAreaPlaceholder: '120',
+
+    roomsTitle: 'Количество комнат',
+    amenitiesTitle: 'Удобства',
+    locationTitle: 'Расположение',
+
+    sortBy: 'Сортировка',
+    sort: {
+      recommended: 'Рекомендуемые',
+      newest: 'Сначала новые',
+      priceLow: 'Сначала дешёвые',
+      priceHigh: 'Сначала дорогие',
+      trust: 'По рейтингу доверия',
+      areaLarge: 'Сначала большие',
+      popular: 'Популярные',
+    },
+  },
+
   hero: {
     eyebrow: 'Платформа без посредников',
     title: 'Найдите квартиру от собственника',
@@ -61,6 +131,15 @@ export const listings = {
     savedListing: 'Сохранено',
     shareListing: 'Поделиться',
     shareText: '{title} — {price}. На Maklersiz Uy, без комиссии!',
+    // The card carousel. Dots are buttons, so each one needs a name a screen
+    // reader can read; the live region reads the position after a swipe.
+    photoCarousel: '{title} — фото объявления',
+    photoDot: 'Перейти к фото {index}',
+    photoPosition: '{current} / {total}',
+    photoNext: 'Следующее фото',
+    photoPrev: 'Предыдущее фото',
+    photoNone: 'Фото нет',
+    photoCount: '{count} фото',
   },
 
   detail: {

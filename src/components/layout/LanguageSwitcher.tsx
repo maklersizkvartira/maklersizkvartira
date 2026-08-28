@@ -51,9 +51,9 @@ export const LanguageSwitcher: React.FC<{ compact?: boolean }> = ({ compact = fa
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('common.a11y.selectLanguage')}
-        className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface px-2.5 py-2 text-xs font-bold text-muted transition-colors hover:border-brand hover:text-content"
+        className="press inline-flex h-11 min-w-11 shrink-0 touch-manipulation items-center justify-center gap-1.5 rounded-xl border border-line bg-surface px-2.5 text-xs font-bold text-muted transition-colors hover:border-brand hover:text-content"
       >
-        <Globe className="h-4 w-4" aria-hidden="true" />
+        <Globe className="h-5 w-5" aria-hidden="true" />
         {!compact && <span className="uppercase">{language}</span>}
       </button>
 
@@ -69,7 +69,7 @@ export const LanguageSwitcher: React.FC<{ compact?: boolean }> = ({ compact = fa
               role="menuitemradio"
               aria-checked={entry.code === language}
               onClick={() => choose(entry.code)}
-              className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm font-semibold transition-colors hover:bg-surface-2 ${
+              className={`press flex min-h-11 w-full touch-manipulation items-center justify-between gap-2 px-3 text-left text-sm font-semibold transition-colors hover:bg-surface-2 ${
                 entry.code === language ? 'text-brand-text' : 'text-content'
               }`}
             >

@@ -2,21 +2,28 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, status
+import uuid
+
+from fastapi import APIRouter, Request, status
 from sqlalchemy import select
 
 from app.core import audit as audit_log
 from app.core.config import settings
 from app.core.database import commit_then_raise
 from app.core.deps import CurrentUser, DbSession, Lang, RequestCtx
-from app.core.errors import Unauthorized, translate
+from app.core.errors import NotFound, Unauthorized, translate
 from app.core.phone import mask_phone
 from app.core.rate_limit import enforce
 from app.core.security import PasswordPolicyError, password_strength, validate_password
-from app.core.tokens import TokenError, rotate_token_pair
+from app.core.tokens import (
+    TokenError,
+    decode_access_token,
+    issue_token_pair,
+    revoke_family,
+    rotate_token_pair,
+)
 from app.models.auth import RefreshToken
 from app.models.enums import AuditAction, OtpPurpose, SIGNUP_ROLES
-from app.core.tokens import issue_token_pair
 from app.schemas.auth import (
     ChangePasswordRequest,
     ForgotPasswordRequest,
@@ -280,9 +287,37 @@ async def update_profile(
     return MeResponse(user=UserOut.model_validate(user))
 
 
+def _presented_session_id(request: Request) -> uuid.UUID | None:
+    """The refresh-token family the caller's access token belongs to.
+
+    Read from the bearer token rather than passed down from the dependency,
+    because ``CurrentUser`` resolves to the account and deliberately says
+    nothing about which of its devices is asking. Anything unreadable comes
+    back as None: a token minted before ``sid`` existed simply has no current
+    session to point at, and "we could not tell" must never be an error on a
+    read-only listing.
+    """
+    header = request.headers.get("authorization") or ""
+    if not header.lower().startswith("bearer "):
+        return None
+    try:
+        return decode_access_token(header[7:].strip()).session_id
+    except TokenError:
+        return None
+
+
 @router.get("/sessions", response_model=list[SessionOut])
-async def list_sessions(user: CurrentUser, db: DbSession) -> list[SessionOut]:
-    """Active sessions, so a user can see and revoke logins they don't recognise."""
+async def list_sessions(
+    request: Request, user: CurrentUser, db: DbSession
+) -> list[SessionOut]:
+    """Active sessions, so a user can see and revoke logins they don't recognise.
+
+    ``expires_at`` is part of the filter, not decoration: a refresh token that
+    simply aged out has neither ``revoked_at`` nor ``used_at`` set, so without
+    it every login the user ever ended by closing the browser is still listed
+    as a live device — with a sign-out button that does nothing anyone needs.
+    Nothing deletes those rows, so this predicate is the source of truth.
+    """
     rows = (
         await db.execute(
             select(RefreshToken)
@@ -290,12 +325,86 @@ async def list_sessions(user: CurrentUser, db: DbSession) -> list[SessionOut]:
                 RefreshToken.user_id == user.id,
                 RefreshToken.revoked_at.is_(None),
                 RefreshToken.used_at.is_(None),
+                RefreshToken.expires_at > _utcnow(),
             )
             .order_by(RefreshToken.created_at.desc())
             .limit(50)
         )
     ).scalars().all()
-    return [SessionOut.model_validate(row) for row in rows]
+
+    # Compared against family_id, not the row id: refreshing rotates the row
+    # but keeps the family, and the family is what the token's `sid` names —
+    # so "this device" survives every rotation. None matches nothing, which is
+    # the right outcome when the claim could not be read.
+    current_session = _presented_session_id(request)
+
+    sessions = []
+    for row in rows:
+        out = SessionOut.model_validate(row)
+        out.current = row.family_id == current_session
+        sessions.append(out)
+    return sessions
+
+
+@router.delete("/sessions/{session_id}", response_model=MessageResponse)
+async def revoke_session(
+    session_id: uuid.UUID,
+    user: CurrentUser,
+    db: DbSession,
+    lang: Lang,
+) -> MessageResponse:
+    """Sign one device out, leaving every other session alone.
+
+    Deliberately narrower than ``/logout`` with ``allDevices``: it revokes one
+    refresh family and does NOT bump ``token_version``, because that counter is
+    global to the account and bumping it would log the user out everywhere —
+    the exact opposite of dropping one unrecognised device.
+
+    Somebody else's session id answers 404 rather than 403, so the response
+    cannot be used to learn that a given session exists.
+    """
+    # Keyed on the account rather than the IP, and NOT on the shared "auth_ip"
+    # bucket: this is authenticated housekeeping, and charging it to the IP made
+    # a user tidying up a long session list spend the login/refresh allowance of
+    # every other person behind the same NAT. Still enforced before the
+    # ownership check below, or the 404 branch becomes an unlimited probe for
+    # other people's session ids.
+    await enforce("session_revoke", str(user.id))
+
+    row = (
+        await db.execute(select(RefreshToken).where(RefreshToken.id == session_id))
+    ).scalar_one_or_none()
+    if row is None or row.user_id != user.id:
+        raise NotFound("not_found")
+
+    # Revoke by family, not by row id. A device is a family: every refresh
+    # rotates its live row and leaves the spent one behind, and `/sessions`
+    # only ever lists the live one. If a client posts back an id it read a
+    # rotation ago, revoking that single row would mark an already-spent row
+    # revoked and answer "signed out" while the device kept working. The
+    # family is still the caller's own — it was reached through a row already
+    # checked against `user.id`, and a family belongs to exactly one subject.
+    await revoke_family(db, row.family_id, reason="user_revoked")
+    await db.flush()
+
+    await audit_log.record(
+        db,
+        AuditAction.AUTH_LOGOUT,
+        entity_type="session",
+        entity_id=row.id,
+        entity_label=f"{user.name} {mask_phone(user.phone)}",
+        summary=f"{user.name} revoked one session",
+        meta={"reason": "user_revoked", "ip": str(row.ip) if row.ip else None},
+    )
+    return MessageResponse(message=_session_revoked_message(lang))
+
+
+def _session_revoked_message(lang: str) -> str:
+    return {
+        "uz": "Sessiya bekor qilindi.",
+        "ru": "Сессия завершена.",
+        "en": "That session was signed out.",
+    }.get(lang, "Sessiya bekor qilindi.")
 
 
 # ---------------------------------------------------------------------------
@@ -346,7 +455,7 @@ async def change_password(
     )
     return MessageResponse(
         message={
-            "uz": "Parol o'zgartirildi. Boshqa qurilmalardan chiqarildingiz.",
+            "uz": "Parol o‘zgartirildi. Boshqa qurilmalardan chiqarildingiz.",
             "ru": "Пароль изменён. Вы вышли на других устройствах.",
             "en": "Password changed. You were signed out on other devices.",
         }.get(lang, "Parol o'zgartirildi.")

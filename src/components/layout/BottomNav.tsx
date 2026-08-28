@@ -12,15 +12,16 @@ import {
   BarChart3,
 } from 'lucide-react';
 
-import { useTranslation } from '../../i18n';
+import { useTranslation, type TranslationKey } from '../../i18n';
 import { useAppStore, type ViewState } from '../../stores/useAppStore';
 import { AppLink } from '../../router/AppLink';
-import { REQUIRES_AUTH } from '../../router/views';
+import { REQUIRES_AUTH, authTabForView } from '../../router/views';
+import { useIsAuthenticated, useRequireAuth } from '../../hooks/useRequireAuth';
 import { canPublishListings } from '../../types/roles';
 
 interface Tab {
   view: ViewState;
-  labelKey: string;
+  labelKey: TranslationKey;
   icon: React.ComponentType<{ className?: string }>;
   primary?: boolean;
 }
@@ -55,27 +56,32 @@ export const BottomNav: React.FC = () => {
   const currentView = useAppStore((state) => state.currentView);
   const setCurrentView = useAppStore((state) => state.setCurrentView);
   const currentUser = useAppStore((state) => state.currentUser);
-  const setShowAuth = useAppStore((state) => state.setShowAuth);
   const favorites = useAppStore((state) => state.favoriteIds);
   const unreadChatCount = useAppStore((state) => state.unreadChatCount);
+
+  const requireAuth = useRequireAuth();
+  const authenticated = useIsAuthenticated();
 
   const tabs = canPublishListings(currentUser?.role) ? OWNER_TABS : TABS;
 
   /** True when tapping this tab should open the auth dialog instead. */
-  const isGated = (tab: Tab) => REQUIRES_AUTH.has(tab.view) && !currentUser;
+  const isGated = (tab: Tab) => REQUIRES_AUTH.has(tab.view) && !authenticated;
 
-  const open = (tab: Tab) => {
-    if (isGated(tab)) {
-      setShowAuth(true, tab.view === 'CREATE_LISTING' ? 'REGISTER' : 'LOGIN');
-      return;
-    }
-    setCurrentView(tab.view);
-  };
+  // The gate itself lives in `useRequireAuth`, and the tab it opens on comes
+  // from the same table App.tsx's route guard reads. Before that, this file
+  // decided both for itself and disagreed with the header about which tab
+  // "post a listing" should land on.
+  const open = (tab: Tab) =>
+    requireAuth(() => setCurrentView(tab.view), authTabForView(tab.view));
 
   return (
     <nav
       aria-label={t('common.a11y.menu')}
-      className="pb-safe fixed inset-x-0 bottom-0 z-[80] border-t border-line bg-surface/95 backdrop-blur lg:hidden"
+      // `pb-safe-plus`, not `pb-safe`: the bare utility is unlayered and so
+      // *replaces* any Tailwind `pb-*` on the same element, and on a phone
+      // with no home indicator it resolves to zero — which put the row's last
+      // pixel on the screen's last pixel.
+      className="pb-safe-plus px-safe fixed inset-x-0 bottom-0 z-[80] border-t border-line bg-surface/95 backdrop-blur lg:hidden"
     >
       <ul className="mx-auto flex max-w-lg items-stretch justify-around">
         {tabs.map((tab) => {
@@ -86,8 +92,8 @@ export const BottomNav: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => open(tab)}
-                  aria-label={t(tab.labelKey as never)}
-                  className="-mt-5 flex h-13 w-13 items-center justify-center rounded-2xl bg-brand text-on-brand shadow-brand transition-transform active:scale-95"
+                  aria-label={t(tab.labelKey)}
+                  className="press -mt-5 flex h-14 w-14 touch-manipulation items-center justify-center rounded-2xl bg-brand text-on-brand shadow-brand"
                 >
                   <tab.icon className="h-6 w-6" aria-hidden="true" />
                 </button>
@@ -98,7 +104,7 @@ export const BottomNav: React.FC = () => {
           // label that used to sit under each one no longer fits a narrow
           // phone. `aria-label` is what keeps the tab named for a screen
           // reader once the visible text is gone.
-          const className = `relative flex h-full w-full items-center justify-center py-4 transition-colors ${
+          const className = `press relative flex h-full min-h-12 w-full touch-manipulation items-center justify-center py-3 transition-colors ${
             active ? 'text-brand-text' : 'text-subtle hover:text-content'
           }`;
           const badge =
@@ -128,7 +134,7 @@ export const BottomNav: React.FC = () => {
                   type="button"
                   onClick={() => open(tab)}
                   aria-current={active ? 'page' : undefined}
-                  aria-label={t(tab.labelKey as never)}
+                  aria-label={t(tab.labelKey)}
                   className={className}
                 >
                   {body}
@@ -137,7 +143,7 @@ export const BottomNav: React.FC = () => {
                 <AppLink
                   view={tab.view}
                   aria-current={active ? 'page' : undefined}
-                  aria-label={t(tab.labelKey as never)}
+                  aria-label={t(tab.labelKey)}
                   className={className}
                 >
                   {body}

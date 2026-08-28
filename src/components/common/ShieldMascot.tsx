@@ -298,11 +298,15 @@ export const ShieldMascot: React.FC = () => {
   };
 
   const openListing = (listing: Listing) => {
-    // The detail view reads from the store, so a listing that so far exists
-    // only inside this conversation has to be seeded before we navigate.
-    if (!useAppStore.getState().listings.some((item) => item.id === listing.id)) {
-      useAppStore.setState((state) => ({ listings: [listing, ...state.listings] }));
-    }
+    // No seeding into `store.listings` on the way out.
+    //
+    // That was written for a detail view that read the listing out of the
+    // catalogue array; it loads by id from the API instead, and has for some
+    // time. So the prepend bought nothing and cost something: it pushed a row
+    // into the array without touching `totalCount`, which is the catalogue's
+    // count of what the *query* matched — leaving the results footer claiming
+    // "showing 1–25 of 24" and hiding the load-more button a page early. The
+    // very next filter or page request replaced the array anyway.
     setCurrentView('LISTING_DETAIL', listing.id);
     setOpen(false);
   };
@@ -608,7 +612,12 @@ export const ShieldMascot: React.FC = () => {
                     ? t('assistant.chat.inputThinking')
                     : t('assistant.chat.inputPlaceholder')
               }
-              className="min-w-0 flex-1 rounded-2xl border border-line bg-surface-2 px-3.5 py-2.5 text-xs font-medium text-content transition-colors placeholder:text-subtle focus:border-brand focus:bg-surface focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+              // 16px is not a density choice here. At the 12px this box used
+              // to be, iOS Safari zooms to about 133% the moment the composer
+              // takes focus and does not zoom back — so asking the assistant
+              // one question left the whole app scaled up and scrolling
+              // sideways. Field.tsx spells the rule out for the shared input.
+              className="min-w-0 flex-1 rounded-2xl border border-line bg-surface-2 px-3.5 py-2.5 text-base font-medium text-content transition-colors placeholder:text-subtle focus:border-brand focus:bg-surface focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
             />
             <Button
               type="submit"

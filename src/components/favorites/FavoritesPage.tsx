@@ -20,30 +20,40 @@ export const FavoritesPage: React.FC = () => {
 
   const favorites = useAppStore((state) => state.favorites);
   const fetchFavorites = useAppStore((state) => state.fetchFavorites);
+  // The request state is the store's, not this component's.
+  //
+  // It used to be local `loading`/`failed` flags set from a try/catch around
+  // `fetchFavorites()`. That action handles its own failure and resolves —
+  // it never rejects — so the catch arm never ran and `failed` was never
+  // true: a favourites request that had actually errored fell through to the
+  // "nothing saved yet" empty state and told a signed-in visitor their saved
+  // listings were gone, with no retry offered.
+  const favoritesLoading = useAppStore((state) => state.favoritesLoading);
+  const favoritesError = useAppStore((state) => state.favoritesError);
   const currentUser = useAppStore((state) => state.currentUser);
   const setCurrentView = useAppStore((state) => state.setCurrentView);
   const setShowAuth = useAppStore((state) => state.setShowAuth);
 
-  // The store keeps the last good list on failure, so the request state lives
-  // here where it can drive the skeleton and the retry button.
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
+  // The store cannot be loading before the first effect runs, and an empty
+  // list at that instant is indistinguishable from "nothing saved" — so the
+  // skeleton is held until the first fetch has settled.
+  const [settled, setSettled] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setFailed(false);
-    try {
-      await fetchFavorites();
-    } catch {
-      setFailed(true);
-    } finally {
-      setLoading(false);
-    }
+  const load = useCallback(() => {
+    setSettled(false);
+    let cancelled = false;
+    void fetchFavorites().finally(() => {
+      if (!cancelled) setSettled(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [fetchFavorites]);
 
-  useEffect(() => {
-    void load();
-  }, [load, currentUser]);
+  useEffect(() => load(), [load, currentUser]);
+
+  const loading = Boolean(currentUser) && (!settled || favoritesLoading);
+  const failed = !loading && Boolean(favoritesError);
 
   return (
     <div className="min-h-screen bg-canvas">

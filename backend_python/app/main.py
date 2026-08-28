@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -21,8 +19,6 @@ from app.core.config import settings
 from app.core.database import dispose_engine
 from app.core.errors import APIError, MESSAGES, translate
 from app.routers import admin, ai, auth, chat, listings, meta, seo
-
-ADMIN_DIR = Path(__file__).resolve().parent / "admin"
 
 
 def configure_logging() -> None:
@@ -124,31 +120,11 @@ def create_app() -> FastAPI:
     async def root_health() -> dict:
         return {"status": "ok"}
 
-    # -- Admin panel (static SPA) -------------------------------------------
-    if ADMIN_DIR.is_dir():
-        app.mount(
-            "/admin/assets",
-            StaticFiles(directory=str(ADMIN_DIR / "assets"), check_dir=False),
-            name="admin-assets",
-        )
-
-        # The panel's asset paths are relative, so it can also be served from
-        # its own domain. Relative paths resolve against the *directory* of the
-        # current URL, so "/admin" without the trailing slash would look for
-        # "/assets/..." at the site root. The redirect is what makes one set of
-        # paths work in both places.
-        @app.get("/admin", include_in_schema=False)
-        async def admin_root() -> RedirectResponse:
-            return RedirectResponse("/admin/", status_code=308)
-
-        @app.get("/admin/", include_in_schema=False)
-        @app.get("/admin/{path:path}", include_in_schema=False)
-        async def admin_panel(path: str = "") -> FileResponse:
-            # config.js sits beside index.html rather than under assets/,
-            # because it is the one file a deployment is expected to change.
-            if path == "config.js":
-                return FileResponse(ADMIN_DIR / "config.js")
-            return FileResponse(ADMIN_DIR / "index.html")
+    # The admin panel is no longer served from here. It is a Next.js app in
+    # `admin/`, deployed as its own Vercel project, and reaches this service
+    # over CORS like any other browser client — so its origin has to be in
+    # CORS_ORIGINS, and nothing under /admin belongs to the API but the
+    # /api/v1/admin routes above.
 
     _install_exception_handlers(app)
     return app

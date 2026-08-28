@@ -112,6 +112,16 @@ export const auth = {
     subtitle: 'Enter the SMS code and choose a new password',
     submit: 'Update password',
     success: 'Password updated. Now sign in with the new password.',
+    // One fused screen became three: phone, then the SMS code, then the new
+    // password twice. Each step needs its own heading, and the code step
+    // needs a way to say the code was wrong without blaming the password.
+    codeTitle: 'Enter the SMS code',
+    codeSubtitle: 'Enter the 6-digit code we sent to {phone}.',
+    passwordTitle: 'Choose a new password',
+    passwordSubtitle: 'Type the password twice — the second one confirms the first.',
+    continue: 'Continue',
+    codeInvalid: 'That code is wrong or has expired. Request a new one.',
+    stepOf: 'Step {current} of {total}',
   },
 
   changePassword: {

@@ -1,47 +1,69 @@
 /**
- * The six shortcut categories.
+ * The shortcut categories.
  *
  * Titles and descriptions come from `layout.categories.*` — the header
- * dropdown shows the same six sections, and a second copy of the strings
- * would drift the moment one of them is reworded.
+ * dropdown shows the same sections, and a second copy of the strings would
+ * drift the moment one of them is reworded.
  *
  * Each card commits a full filter set (defaults + its own patch) in a single
  * `setFilters` call, because reset-then-patch would fire two list requests.
+ *
+ * There are nine of them now, which is what ended the horizontal rail: nine
+ * tiles in a rail means six of them live off the right edge of a phone, and
+ * the three that are visible are the three nobody chose. A two-column grid
+ * shows six without a scroll and the last three one thumb-flick away.
  */
 
 import React from 'react';
 import {
   ArrowRight,
+  Flower2,
   GraduationCap,
   Handshake,
+  Landmark,
   ShieldCheck,
+  Sofa,
   TrainFront,
   TrendingDown,
   Users,
 } from 'lucide-react';
 
 import { useTranslation, type TranslationKey } from '../../i18n';
-import { DEFAULT_FILTERS, useAppStore, type Filters } from '../../stores/useAppStore';
+import { cn } from '../../lib/cn';
+import { useHaptics } from '../../hooks/useHaptics';
+import { quickFilterState, useAppStore, type QuickFilterId } from '../../stores/useAppStore';
 import { AppLink } from '../../router/AppLink';
 import { VIEW_PATHS } from '../../router/views';
 
+/**
+ * What each card opens is not defined here.
+ *
+ * `QUICK_FILTER_DELTAS` in the store is the one definition of "what 'for
+ * families' means", and the catalogue's chips read the same map. When the two
+ * had their own literals they had already drifted — the card set `rooms: 2`
+ * and the chip did not — so the same word gave two different result counts
+ * depending on where you tapped it.
+ */
 interface HomeCategory {
-  id: string;
+  /** Names a delta in the store's quick-filter map. */
+  id: Exclude<QuickFilterId, 'all'>;
   titleKey: TranslationKey;
   descriptionKey: TranslationKey;
   tagKeys: readonly [TranslationKey, TranslationKey];
   icon: React.ComponentType<{ className?: string }>;
   /** Icon micro-animation, chosen per category to hint at what it does. */
   iconMotion: string;
+  /** The icon tile. */
   tone: string;
-  patch: Partial<Filters>;
+  /** The corner wash behind it — the gradient's `from-` stop. */
+  wash: string;
   /**
    * The landing page this shortcut belongs to, when there is one.
    *
    * These cards used to commit a filter and swap the view, so six of the
    * site's most prominent entry points led to the same URL and passed no
-   * signal to the pages built for exactly those searches. Metro and trust
-   * have no landing page — no keyword worth a page — and keep the old
+   * signal to the pages built for exactly those searches. The five without a
+   * landing page have no keyword worth a page of their own and keep the old
    * filter behaviour.
    */
   landing?: string;
@@ -57,7 +79,7 @@ const CATEGORIES: HomeCategory[] = [
     icon: Handshake,
     iconMotion: 'group-hover:scale-110',
     tone: 'bg-warning-soft text-warning',
-    patch: { rentalType: 'ROOMMATE' },
+    wash: 'from-warning/25',
   },
   {
     id: 'student',
@@ -71,7 +93,7 @@ const CATEGORIES: HomeCategory[] = [
     icon: GraduationCap,
     iconMotion: 'group-hover:-rotate-12',
     tone: 'bg-info-soft text-info',
-    patch: { audience: 'STUDENT' },
+    wash: 'from-info/25',
   },
   {
     id: 'family',
@@ -82,7 +104,37 @@ const CATEGORIES: HomeCategory[] = [
     icon: Users,
     iconMotion: 'group-hover:rotate-6',
     tone: 'bg-brand-soft text-brand-text',
-    patch: { audience: 'FAMILY', rentalType: 'FULL', rooms: 2 },
+    wash: 'from-brand/25',
+  },
+  {
+    id: 'qizlarga',
+    titleKey: 'layout.categories.qizlarga.title',
+    descriptionKey: 'layout.categories.qizlarga.description',
+    tagKeys: ['home.categories.tags.qizlargaOnlyGirls', 'home.categories.tags.qizlargaRoommate'],
+    icon: Flower2,
+    iconMotion: 'group-hover:rotate-12',
+    tone: 'bg-danger-soft text-danger',
+    wash: 'from-danger/25',
+  },
+  {
+    id: 'komfort',
+    titleKey: 'layout.categories.komfort.title',
+    descriptionKey: 'layout.categories.komfort.description',
+    tagKeys: ['home.categories.tags.komfortFurnished', 'home.categories.tags.komfortAppliances'],
+    icon: Sofa,
+    iconMotion: 'group-hover:-translate-y-0.5',
+    tone: 'bg-success-soft text-success',
+    wash: 'from-success/25',
+  },
+  {
+    id: 'center',
+    titleKey: 'layout.categories.center.title',
+    descriptionKey: 'layout.categories.center.description',
+    tagKeys: ['home.categories.tags.centerWalkable', 'home.categories.tags.centerDistricts'],
+    icon: Landmark,
+    iconMotion: 'group-hover:scale-110',
+    tone: 'bg-brand-soft-2 text-brand-text',
+    wash: 'from-brand/20',
   },
   {
     id: 'metro',
@@ -92,9 +144,7 @@ const CATEGORIES: HomeCategory[] = [
     icon: TrainFront,
     iconMotion: 'group-hover:translate-x-1',
     tone: 'bg-info-soft text-info',
-    // The API has no "near any metro" flag, so the shortcut opens the busiest
-    // interchange and leaves the station dropdown for the rest.
-    patch: { metroStation: 'Yunusobod' },
+    wash: 'from-info/20',
   },
   {
     id: 'budget',
@@ -105,8 +155,7 @@ const CATEGORIES: HomeCategory[] = [
     icon: TrendingDown,
     iconMotion: 'group-hover:translate-y-0.5',
     tone: 'bg-danger-soft text-danger',
-    // Matches the "up to 3 mln" promise in the shared category description.
-    patch: { maxPrice: 3_000_000, sortBy: 'PRICE_LOW' },
+    wash: 'from-danger/20',
   },
   {
     id: 'premium',
@@ -118,18 +167,28 @@ const CATEGORIES: HomeCategory[] = [
     ],
     icon: ShieldCheck,
     iconMotion: 'group-hover:scale-110',
-    tone: 'bg-brand-soft-2 text-brand-text',
-    patch: { onlyVerified: true, minTrustScore: 80, sortBy: 'TRUST' },
+    tone: 'bg-brand-soft text-brand-text',
+    wash: 'from-brand/20',
   },
 ];
 
+const cardClass =
+  'press group relative flex h-full w-full flex-col gap-2.5 overflow-hidden rounded-3xl ' +
+  'border border-line bg-surface p-3 text-left transition-all duration-300 ' +
+  'hover:-translate-y-1 hover:border-brand/40 hover:shadow-raised sm:gap-3 sm:p-4';
+
 export const QuickCategories: React.FC = () => {
   const { t } = useTranslation();
+  const haptics = useHaptics();
   const setFilters = useAppStore((state) => state.setFilters);
   const setCurrentView = useAppStore((state) => state.setCurrentView);
 
-  const openCategory = (patch: Partial<Filters>) => {
-    setFilters({ ...DEFAULT_FILTERS, ...patch });
+  const openCategory = (id: HomeCategory['id']) => {
+    haptics.select();
+    // A whole filter set in one commit: reset-then-patch would fire two list
+    // requests, and patching alone would leave the previous card's audience
+    // standing next to this card's rental type.
+    setFilters(quickFilterState(id));
     setCurrentView('LISTINGS');
   };
 
@@ -137,9 +196,9 @@ export const QuickCategories: React.FC = () => {
     <section
       id="kategoriyalar"
       aria-labelledby="home-categories-title"
-      className="mx-auto max-w-7xl space-y-6 px-0 py-8 sm:px-6 sm:py-14"
+      className="gutter-safe mx-auto max-w-7xl space-y-5 py-8 sm:py-14"
     >
-      <div className="flex flex-col justify-between gap-3 px-4 pb-2 sm:flex-row sm:items-end sm:px-0">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
           <h2
             id="home-categories-title"
@@ -154,7 +213,7 @@ export const QuickCategories: React.FC = () => {
 
         <AppLink
           to={VIEW_PATHS.LISTINGS ?? '/elonlar'}
-          className="group inline-flex items-center gap-2 self-start rounded-2xl bg-brand px-4 py-2.5 text-xs font-extrabold text-on-brand shadow-brand transition-colors hover:bg-brand-hover sm:self-auto sm:text-sm"
+          className="press group inline-flex items-center gap-2 self-start rounded-2xl bg-brand px-4 py-2.5 text-xs font-extrabold text-on-brand shadow-brand hover:bg-brand-hover sm:self-auto sm:text-sm"
         >
           <span>{t('home.categories.viewAll')}</span>
           <ArrowRight
@@ -164,34 +223,71 @@ export const QuickCategories: React.FC = () => {
         </AppLink>
       </div>
 
-      <ul className="hide-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 sm:px-0">
+      <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4">
         {CATEGORIES.map((category) => {
           const Icon = category.icon;
-            const Tile = category.landing ? AppLink : 'button';
-            const tileProps = category.landing
-              ? ({ to: category.landing } as const)
-              : ({ type: 'button', onClick: () => openCategory(category.patch) } as const);
-            return (
-            <li key={category.id} className="flex w-[140px] shrink-0 snap-start sm:w-[160px]">
-              <Tile
-                {...tileProps}
-                className="group relative flex w-full flex-col items-center justify-center gap-3 rounded-2xl border border-line bg-surface p-4 text-center transition-all duration-300 hover:border-brand hover:shadow-card"
-              >
-                <span
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-line transition-transform duration-300 group-hover:scale-105 ${category.tone}`}
-                >
-                  <Icon className={`h-6 w-6 transition-transform duration-300 ${category.iconMotion}`} />
-                </span>
+          const inner = (
+            <>
+              {/* The accent wash. Decorative, and behind everything else, which
+                  is why every real child below carries `relative`. */}
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full',
+                  'bg-gradient-to-br to-transparent opacity-60 blur-2xl',
+                  'transition-opacity duration-300 group-hover:opacity-100',
+                  category.wash,
+                )}
+              />
 
-                <span className="min-w-0 w-full">
-                  <span className="block truncate text-[13px] font-black text-content transition-colors group-hover:text-brand-text">
-                    {t(category.titleKey)}
-                  </span>
-                  <span className="mt-1 hidden text-[11px] font-medium leading-snug text-subtle sm:block">
-                    {t(category.descriptionKey)}
-                  </span>
+              <span
+                className={cn(
+                  'relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl',
+                  'border border-line/60 transition-transform duration-300 group-hover:scale-105',
+                  category.tone,
+                )}
+              >
+                <Icon
+                  className={cn('h-6 w-6 transition-transform duration-300', category.iconMotion)}
+                />
+              </span>
+
+              <span className="relative block min-w-0">
+                <span className="block truncate text-sm font-black text-content transition-colors group-hover:text-brand-text">
+                  {t(category.titleKey)}
                 </span>
-              </Tile>
+                <span className="mt-1 line-clamp-2 block text-[11px] font-medium leading-snug text-subtle">
+                  {t(category.descriptionKey)}
+                </span>
+              </span>
+
+              {/* The tags were declared and never rendered. They are the part
+                  that says what the category actually contains, which is what
+                  "chunarliroq" was asking for. */}
+              <span className="relative mt-auto flex flex-wrap gap-1 pt-0.5">
+                {category.tagKeys.map((tagKey) => (
+                  <span
+                    key={tagKey}
+                    className="max-w-full truncate rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-bold text-muted"
+                  >
+                    {t(tagKey)}
+                  </span>
+                ))}
+              </span>
+            </>
+          );
+
+          return (
+            <li key={category.id} className="min-w-0">
+              {category.landing ? (
+                <AppLink to={category.landing} onClick={() => haptics.select()} className={cardClass}>
+                  {inner}
+                </AppLink>
+              ) : (
+                <button type="button" onClick={() => openCategory(category.id)} className={cardClass}>
+                  {inner}
+                </button>
+              )}
             </li>
           );
         })}

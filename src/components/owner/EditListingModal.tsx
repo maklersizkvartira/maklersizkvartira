@@ -9,10 +9,11 @@
  */
 
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { Edit3, Save, Trash2, Video, X } from 'lucide-react';
+import { Edit3, Save, Video, X } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { UZBEKISTAN_REGIONS, TASHKENT_METRO_LINES } from '../../data/mockLocations';
+import { AMENITIES, amenityStateFrom, type AmenityState } from '../../data/amenities';
 import { ListingsApi } from '../../services/listingsApi';
 import { useAppStore } from '../../stores/useAppStore';
 import type { Listing } from '../../types';
@@ -22,11 +23,13 @@ import { Button, Field, FormError, SelectInput, TextInput } from '../ui/Field';
 const METRO_NONE = 'NONE';
 
 const checkboxClass =
-  'h-4 w-4 rounded border-line-2 text-brand accent-[var(--color-brand)] focus:ring-brand';
+  'h-4 w-4 shrink-0 rounded border-line-2 text-brand accent-[var(--color-brand)] focus:ring-brand';
 
 const checkboxRowClass =
-  'flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-surface-2 p-2.5 ' +
-  'text-xs font-bold text-content transition-colors hover:bg-surface-3';
+  'press flex min-h-12 cursor-pointer touch-manipulation items-center gap-2.5 rounded-2xl ' +
+  'border border-line bg-surface-2 p-3 text-xs font-bold text-content transition-colors ' +
+  'hover:bg-surface-3 has-[:checked]:border-brand has-[:checked]:bg-brand-soft ' +
+  'has-[:checked]:text-brand-text';
 
 interface EditListingModalProps {
   listing: Listing;
@@ -40,11 +43,10 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
   onClose,
   onSaved,
 }) => {
-  const { t } = useTranslation();
+  const { t, tRaw } = useTranslation();
   const pushToast = useAppStore((state) => state.pushToast);
 
   const titleId = useId();
-  const videoInputId = useId();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const [title, setTitle] = useState(listing.title);
@@ -61,10 +63,10 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
   const [metro, setMetro] = useState(listing.metroStation ?? METRO_NONE);
   const [metroMinutes, setMetroMinutes] = useState(listing.metroDistanceMinutes ?? 5);
   const [videoUrl, setVideoUrl] = useState(listing.videoUrl ?? '');
-  const [furnished, setFurnished] = useState(listing.furnished);
-  const [utilities, setUtilities] = useState(listing.utilitiesIncluded);
-  const [pets, setPets] = useState(listing.petsAllowed);
-  const [parking, setParking] = useState(listing.parking);
+  // All seven, from the shared list. This form used to expose four, so the
+  // three it left out — air conditioning, a washing machine, internet — could
+  // be switched on while posting and never switched off again.
+  const [amenities, setAmenities] = useState<AmenityState>(() => amenityStateFrom(listing));
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -83,19 +85,17 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
-  const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') setVideoUrl(reader.result);
-    };
-    reader.readAsDataURL(file);
-  };
-
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault();
+
+    // The API stores an https link and rejects anything else with a 422 that
+    // takes the whole edit with it, so the check happens before the round trip.
+    const video = videoUrl.trim();
+    if (video && !/^https:\/\/\S+$/i.test(video)) {
+      setSaveError(t('common.error.validation'));
+      return;
+    }
+
     setSaving(true);
     setSaveError(null);
 
@@ -115,11 +115,8 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
       address: address.trim(),
       metroStation: metro === METRO_NONE ? null : metro,
       metroDistanceMinutes: metro === METRO_NONE ? null : metroMinutes,
-      videoUrl: videoUrl.trim() || null,
-      furnished,
-      utilitiesIncluded: utilities,
-      petsAllowed: pets,
-      parking,
+      videoUrl: video || null,
+      ...amenities,
     };
 
     try {
@@ -217,21 +214,18 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
 
             <Field label={t('common.filters.rooms')}>
               {({ id }) => (
-                <div className="relative">
-                  <SelectInput
-                    id={id}
-                    value={rooms}
-                    onChange={(event) => setRooms(Number(event.target.value))}
-                   
-                  >
-                    {[1, 2, 3].map((count) => (
-                      <option key={count} value={count}>
-                        {t('common.filters.roomsValue', { count })}
-                      </option>
-                    ))}
-                    <option value={4}>{t('common.filters.roomsPlus', { count: 4 })}</option>
-                  </SelectInput>
-                </div>
+                <SelectInput
+                  id={id}
+                  value={rooms}
+                  onChange={(event) => setRooms(Number(event.target.value))}
+                >
+                  {[1, 2, 3].map((count) => (
+                    <option key={count} value={count}>
+                      {t('common.filters.roomsValue', { count })}
+                    </option>
+                  ))}
+                  <option value={4}>{t('common.filters.roomsPlus', { count: 4 })}</option>
+                </SelectInput>
               )}
             </Field>
           </div>
@@ -275,44 +269,38 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label={t('owner.create.location.regionLabel')}>
               {({ id }) => (
-                <div className="relative">
-                  <SelectInput
-                    id={id}
-                    value={region}
-                    onChange={(event) => {
-                      const nextRegion = event.target.value;
-                      setRegion(nextRegion);
-                      const match = UZBEKISTAN_REGIONS.find((item) => item.name === nextRegion);
-                      if (match) setDistrict(match.districts[0]);
-                    }}
-                   
-                  >
-                    {UZBEKISTAN_REGIONS.map((item) => (
-                      <option key={item.id} value={item.name}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </SelectInput>
-                </div>
+                <SelectInput
+                  id={id}
+                  value={region}
+                  onChange={(event) => {
+                    const nextRegion = event.target.value;
+                    setRegion(nextRegion);
+                    const match = UZBEKISTAN_REGIONS.find((item) => item.name === nextRegion);
+                    if (match) setDistrict(match.districts[0]);
+                  }}
+                >
+                  {UZBEKISTAN_REGIONS.map((item) => (
+                    <option key={item.id} value={item.name}>
+                      {item.name}
+                    </option>
+                  ))}
+                </SelectInput>
               )}
             </Field>
 
             <Field label={t('owner.create.location.districtLabel')}>
               {({ id }) => (
-                <div className="relative">
-                  <SelectInput
-                    id={id}
-                    value={district}
-                    onChange={(event) => setDistrict(event.target.value)}
-                   
-                  >
-                    {activeRegion.districts.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </SelectInput>
-                </div>
+                <SelectInput
+                  id={id}
+                  value={district}
+                  onChange={(event) => setDistrict(event.target.value)}
+                >
+                  {activeRegion.districts.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </SelectInput>
               )}
             </Field>
           </div>
@@ -331,25 +319,22 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label={t('owner.create.location.metroLabel')}>
               {({ id }) => (
-                <div className="relative">
-                  <SelectInput
-                    id={id}
-                    value={metro}
-                    onChange={(event) => setMetro(event.target.value)}
-                   
-                  >
-                    <option value={METRO_NONE}>{t('owner.create.location.metroNone')}</option>
-                    {TASHKENT_METRO_LINES.map((line) => (
-                      <optgroup key={line.id} label={line.name}>
-                        {line.stations.map((station) => (
-                          <option key={station} value={station}>
-                            {t('owner.create.location.metroOption', { station })}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </SelectInput>
-                </div>
+                <SelectInput
+                  id={id}
+                  value={metro}
+                  onChange={(event) => setMetro(event.target.value)}
+                >
+                  <option value={METRO_NONE}>{t('owner.create.location.metroNone')}</option>
+                  {TASHKENT_METRO_LINES.map((line) => (
+                    <optgroup key={line.id} label={line.name}>
+                      {line.stations.map((station) => (
+                        <option key={station} value={station}>
+                          {t('owner.create.location.metroOption', { station })}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </SelectInput>
               )}
             </Field>
 
@@ -391,91 +376,46 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
               </span>
             </div>
 
-            <input
-              id={videoInputId}
-              type="file"
-              accept="video/*"
-              className="sr-only"
-              onChange={handleVideoUpload}
-            />
-
-            {videoUrl ? (
-              <div className="space-y-2">
-                <div className="relative overflow-hidden rounded-2xl border border-line bg-[#0b1220]">
-                  {/* eslint-disable-next-line jsx-a11y/media-has-caption -- owner-recorded tour, no caption track exists */}
-                  <video controls src={videoUrl} className="max-h-56 w-full object-contain" />
-                  <button
-                    type="button"
-                    onClick={() => setVideoUrl('')}
-                    className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-xl bg-danger px-3 py-1.5 text-xs font-extrabold text-white shadow-raised transition-transform active:scale-95"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>{t('owner.create.photos.videoRemove')}</span>
-                  </button>
-                </div>
-                <p className="text-[11px] font-bold text-brand-text">
-                  {t('owner.create.photos.videoUploaded')}
-                </p>
-              </div>
-            ) : (
-              <label
-                htmlFor={videoInputId}
-                className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-line-2 p-4 text-center transition-colors hover:border-brand"
-              >
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-danger-soft text-danger">
-                  <Video className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <span className="text-xs font-bold text-content">
-                  {t('owner.create.photos.videoDropTitle')}
-                </span>
-                <span className="text-[11px] text-subtle">
-                  {t('owner.create.photos.videoDropBody')}
-                </span>
-              </label>
-            )}
+            {/* A file picker here produced a `data:` URL, which the API
+                refuses outright — so the control could only ever fail. It
+                takes the https link the API actually stores. */}
+            <Field
+              label={t('owner.create.photos.videoDropTitle')}
+              hint={t('owner.create.photos.videoUploadUnsupported')}
+            >
+              {({ id, describedBy }) => (
+                <TextInput
+                  id={id}
+                  aria-describedby={describedBy}
+                  type="url"
+                  inputMode="url"
+                  value={videoUrl}
+                  onChange={(event) => setVideoUrl(event.target.value)}
+                  placeholder="https://youtu.be/..."
+                />
+              )}
+            </Field>
           </div>
 
           <fieldset className="space-y-2">
             <legend className="text-xs font-bold uppercase tracking-wider text-muted">
               {t('owner.create.details.amenitiesLabel')}
             </legend>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <label className={checkboxRowClass}>
-                <input
-                  type="checkbox"
-                  checked={furnished}
-                  onChange={(event) => setFurnished(event.target.checked)}
-                  className={checkboxClass}
-                />
-                <span>{t('listings.amenities.furnished')}</span>
-              </label>
-              <label className={checkboxRowClass}>
-                <input
-                  type="checkbox"
-                  checked={utilities}
-                  onChange={(event) => setUtilities(event.target.checked)}
-                  className={checkboxClass}
-                />
-                <span>{t('listings.amenities.utilitiesIncluded')}</span>
-              </label>
-              <label className={checkboxRowClass}>
-                <input
-                  type="checkbox"
-                  checked={pets}
-                  onChange={(event) => setPets(event.target.checked)}
-                  className={checkboxClass}
-                />
-                <span>{t('listings.amenities.petsAllowed')}</span>
-              </label>
-              <label className={checkboxRowClass}>
-                <input
-                  type="checkbox"
-                  checked={parking}
-                  onChange={(event) => setParking(event.target.checked)}
-                  className={checkboxClass}
-                />
-                <span>{t('listings.amenities.parking')}</span>
-              </label>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+              {AMENITIES.map(({ key, labelKey, Icon }) => (
+                <label key={key} className={checkboxRowClass}>
+                  <input
+                    type="checkbox"
+                    checked={amenities[key]}
+                    onChange={(event) =>
+                      setAmenities((current) => ({ ...current, [key]: event.target.checked }))
+                    }
+                    className={checkboxClass}
+                  />
+                  <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span className="min-w-0">{tRaw(labelKey)}</span>
+                </label>
+              ))}
             </div>
           </fieldset>
 

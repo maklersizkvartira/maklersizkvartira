@@ -185,7 +185,7 @@ async def delete_listing(
     await listing_service.delete_listing(db, listing=listing, user=user)
     return MessageResponse(
         message={
-            "uz": "E'lon o'chirildi.",
+            "uz": "E’lon o‘chirildi.",
             "ru": "Объявление удалено.",
             "en": "The listing has been deleted.",
         }.get(lang, "E'lon o'chirildi.")
@@ -260,7 +260,7 @@ async def report_listing(
     )
     return MessageResponse(
         message={
-            "uz": "Shikoyatingiz qabul qilindi. Tez orada ko'rib chiqamiz.",
+            "uz": "Shikoyatingiz qabul qilindi. Tez orada ko‘rib chiqamiz.",
             "ru": "Ваша жалоба принята. Мы рассмотрим её в ближайшее время.",
             "en": "Your report has been received. We will review it shortly.",
         }.get(lang, "Shikoyatingiz qabul qilindi.")

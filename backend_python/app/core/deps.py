@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import ipaddress
+import uuid
 from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import Depends, Request
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.context import RequestContext, get_context
@@ -15,10 +16,34 @@ from app.core.database import get_db
 from app.core.errors import Forbidden, Unauthorized
 from app.core.phone import mask_phone
 from app.core.tokens import TokenError, decode_access_token
+from app.models.auth import RefreshToken
 from app.models.enums import ActorType, AdminRole, UserRole, UserStatus
 from app.models.user import AdminUser, User
 
 DbSession = Annotated[AsyncSession, Depends(get_db)]
+
+
+def _session_is_live(session_id: uuid.UUID):
+    """Does the refresh family this access token was minted with still exist?
+
+    Revoking one device (``DELETE /auth/sessions/{id}``, a single-device
+    ``/logout``, replay detection) deliberately does NOT bump ``token_version``,
+    because that counter is global and would sign every other device out too.
+    Without this probe nothing on the request path retires the revoked device's
+    already-minted access token, so it kept working for the rest of its TTL —
+    15 minutes for a user, 30 for an admin — after the owner was told the
+    session had been signed out.
+
+    Selected as a column beside the account row so the check costs no extra
+    round trip, and it filters on ``revoked_at`` ONLY: a rotated row keeps
+    ``revoked_at`` NULL while ``used_at`` and eventually ``expires_at`` are set,
+    so folding either of those in would sign everyone out on their first
+    refresh.
+    """
+    return exists().where(
+        RefreshToken.family_id == session_id,
+        RefreshToken.revoked_at.is_(None),
+    )
 
 
 def _bearer(request: Request) -> str | None:
@@ -58,11 +83,18 @@ async def _load_user_from_token(request: Request, db: AsyncSession) -> User | No
     if claims.subject_type != "user":
         raise Unauthorized("token_invalid")
 
-    user = (
-        await db.execute(select(User).where(User.id == claims.subject_id))
-    ).scalar_one_or_none()
+    row = (
+        await db.execute(
+            select(User, _session_is_live(claims.session_id).label("session_live"))
+            .where(User.id == claims.subject_id)
+        )
+    ).first()
 
-    if user is None or user.deleted_at is not None:
+    if row is None:
+        raise Unauthorized("token_invalid")
+    user, session_live = row
+
+    if user.deleted_at is not None:
         raise Unauthorized("token_invalid")
 
     # Account state is checked first so a blocked user gets the real reason.
@@ -80,6 +112,11 @@ async def _load_user_from_token(request: Request, db: AsyncSession) -> User | No
     # A password change or forced logout bumps token_version, which retires
     # every access token minted before it without a per-token lookup.
     if claims.token_version != user.token_version:
+        raise Unauthorized("token_expired")
+
+    # ...and revoking one device retires only that device, which token_version
+    # cannot express. See _session_is_live.
+    if not session_live:
         raise Unauthorized("token_expired")
 
     ctx = getattr(request.state, "ctx", None) or get_context()
@@ -167,13 +204,24 @@ async def get_current_admin(request: Request, db: DbSession) -> AdminUser:
         # string it happens to carry.
         raise Unauthorized("admin_unauthorized")
 
-    admin = (
-        await db.execute(select(AdminUser).where(AdminUser.id == claims.subject_id))
-    ).scalar_one_or_none()
+    row = (
+        await db.execute(
+            select(AdminUser, _session_is_live(claims.session_id).label("session_live"))
+            .where(AdminUser.id == claims.subject_id)
+        )
+    ).first()
 
-    if admin is None or not admin.is_active:
+    if row is None:
+        raise Unauthorized("admin_unauthorized")
+    admin, session_live = row
+
+    if not admin.is_active:
         raise Unauthorized("admin_unauthorized")
     if claims.token_version != admin.token_version:
+        raise Unauthorized("token_expired")
+    # A revoked admin family must not keep working for the rest of the 30-minute
+    # admin access-token TTL. See _session_is_live.
+    if not session_live:
         raise Unauthorized("token_expired")
     if admin.locked_until and admin.locked_until > datetime.now(timezone.utc):
         raise Forbidden("account_locked")

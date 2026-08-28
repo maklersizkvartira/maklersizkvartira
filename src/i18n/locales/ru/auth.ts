@@ -112,6 +112,16 @@ export const auth = {
     subtitle: 'Введите код из SMS и выберите новый пароль',
     submit: 'Обновить пароль',
     success: 'Пароль обновлён. Теперь войдите с новым паролем.',
+    // One fused screen became three: phone, then the SMS code, then the new
+    // password twice. Each step needs its own heading, and the code step
+    // needs a way to say the code was wrong without blaming the password.
+    codeTitle: 'Введите код из SMS',
+    codeSubtitle: 'Введите 6-значный код, отправленный на номер {phone}.',
+    passwordTitle: 'Выберите новый пароль',
+    passwordSubtitle: 'Введите пароль дважды — второй раз подтверждает первый.',
+    continue: 'Продолжить',
+    codeInvalid: 'Код неверный или истёк. Запросите новый код.',
+    stepOf: 'Шаг {current} из {total}',
   },
 
   changePassword: {

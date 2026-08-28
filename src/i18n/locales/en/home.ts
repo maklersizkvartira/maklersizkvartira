@@ -8,7 +8,12 @@ export const home = {
   hero: {
     badge: '0% commission · rent directly',
     title: 'Rent a home or flat, no agents',
-    subtitle: 'Verified homes across {regions} regions and {districts} districts of Uzbekistan.',
+    // Not "{regions} provinces": Uzbekistan has 12 viloyats plus the Republic
+    // of Karakalpakstan plus the city of Tashkent, so the number the page
+    // counts is 14 and the word for it is "region", not "province".
+    subtitle:
+      'No agents, no commission — verified homes across {regions} regions '
+      + 'and {districts} districts and cities.',
     searchTitle: 'Where are you looking?',
     searchHintShort: 'Tap to search',
     searchHintLong: 'District, street, landmark or metro station',
@@ -33,6 +38,12 @@ export const home = {
       budgetLowPrice: 'Low price',
       premiumVerifiedOwner: 'Verified owner',
       premiumHighTrust: 'High trust score',
+      qizlargaOnlyGirls: 'Women only',
+      qizlargaRoommate: 'Female roommate',
+      komfortFurnished: 'Furnished',
+      komfortAppliances: 'AC and washing machine',
+      centerWalkable: 'Walk to the centre',
+      centerDistricts: 'Central districts',
     },
   },
 
@@ -52,6 +63,34 @@ export const home = {
     commission: 'Broker commission',
     commissionHint: 'Straight from the homeowner',
     unavailable: 'The figures could not be loaded right now.',
+
+    /**
+     * Geography, stated truthfully.
+     *
+     * The old line promised "{regions} provinces" while the number behind it
+     * counted 12 viloyats + the Republic of Karakalpakstan + the city of
+     * Tashkent. "Region" is the word that covers all three, and the second-
+     * level unit is a "district or city", not a district alone.
+     *
+     * `geoSublineActive` is the honest variant: how many places actually have
+     * listings, not how many sit in the dropdown.
+     */
+    geoHeadline: 'No agents, no commission — straight from the owner',
+    geoSubheadline: '0% commission. You talk to the homeowner yourself.',
+    geoSubline:
+      'Verified homes across {regions} regions and {districts} districts and cities of Uzbekistan.',
+    geoSublineActive:
+      'Right now there are active listings in {regions} regions and {districts} districts and cities.',
+    regionsLabel: 'Regions',
+    regionsHint: '12 provinces, the Republic of Karakalpakstan and the city of Tashkent',
+    districtsLabel: 'Districts and cities',
+    districtsHint: 'Districts and cities inside the regions',
+    regionsWithListings: 'Regions with listings',
+    regionsWithListingsHint: 'Regions with at least one active listing',
+    districtsWithListings: 'Districts and cities with listings',
+    districtsWithListingsHint: 'Districts and cities with at least one active listing',
+    coverageTitle: 'Coverage',
+    coverageSubtitle: 'These are the places that actually have listings, not the whole directory.',
   },
 
   recommended: {
@@ -75,5 +114,23 @@ export const home = {
     metroStation: '{station} station',
     rentalTypeLabel: 'Rental type',
     submit: 'Show results',
+    regionLabel: 'Region',
+    districtLabel: 'District or city',
+    metroLabel: 'Metro station',
+    roomsLabel: 'Number of rooms',
+    audienceLabel: 'Who it is for',
+    priceLabel: 'Monthly price (so‘m)',
+    priceMinPlaceholder: 'from — 1,000,000',
+    priceMaxPlaceholder: 'up to — 10,000,000',
+    priceAny: 'Any price',
+    areaLabel: 'Minimum area (m²)',
+    areaPlaceholder: 'For example: 40',
+    sortLabel: 'Sort by',
+    amenitiesLabel: 'Amenities',
+    amenitiesHint: 'Only homes that have every amenity you pick are shown.',
+    advancedShow: 'More options',
+    advancedHide: 'Hide the extra options',
+    reset: 'Reset the options',
+    resultsHint: '{count} listings match these options',
   },
 } as const;

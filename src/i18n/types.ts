@@ -23,7 +23,10 @@ export interface LanguageMeta {
 }
 
 export const LANGUAGE_META: Record<Language, LanguageMeta> = {
-  uz: { code: 'uz', nativeName: "O'zbekcha", englishName: 'Uzbek', flag: '🇺🇿', locale: 'uz-UZ' },
+  // `O‘zbekcha` with U+2018, the same apostrophe every string in
+  // locales/uz uses. The straight typewriter quote made the language menu
+  // the one place on the site that spelled Uzbek against its own orthography.
+  uz: { code: 'uz', nativeName: 'O‘zbekcha', englishName: 'Uzbek', flag: '🇺🇿', locale: 'uz-UZ' },
   ru: { code: 'ru', nativeName: 'Русский', englishName: 'Russian', flag: '🇷🇺', locale: 'ru-RU' },
   en: { code: 'en', nativeName: 'English', englishName: 'English', flag: '🇬🇧', locale: 'en-US' },
 };

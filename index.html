@@ -109,8 +109,28 @@
           if (dark) {
             document.documentElement.classList.add('dark');
             document.documentElement.style.colorScheme = 'dark';
-            var meta = document.querySelector('meta[name="theme-color"]');
-            if (meta) meta.setAttribute('content', '#080d18');
+          } else if (stored === 'light') {
+            /* Explicit light on a dark-mode OS: without this the class is
+               already absent and looks handled, but colorScheme and the
+               theme-color pair below still say dark. */
+            document.documentElement.style.colorScheme = 'light';
+          }
+          /*
+           * Both theme-color tags, not the first one.
+           *
+           * The pair above is media-scoped so a no-JavaScript load still
+           * matches the OS. Once a choice has been read back, the OS is no
+           * longer the answer — and writing to `querySelector`'s single hit
+           * left the browser applying the *other* tag whenever the two
+           * disagreed, which is every explicit choice that opposes the system
+           * setting. Giving both the same colour makes whichever one the
+           * media query selects the correct one.
+           */
+          if (stored === 'dark' || stored === 'light') {
+            var metas = document.querySelectorAll('meta[name="theme-color"]');
+            for (var i = 0; i < metas.length; i++) {
+              metas[i].setAttribute('content', dark ? '#080d18' : '#f6f8fb');
+            }
           }
 
           /*

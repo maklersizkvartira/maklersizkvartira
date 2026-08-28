@@ -15,6 +15,11 @@ export const layout = {
     ecosystem: 'Ecosystem',
     admin: 'Admin',
     help: 'Help',
+    search: 'Search',
+    more: 'More',
+    settings: 'Settings',
+    notifications: 'Notifications',
+    support: 'Support',
   },
 
   header: {
@@ -26,6 +31,18 @@ export const layout = {
     searchPlaceholder: 'Search...',
     openMenu: 'Open menu',
     closeMenu: 'Close menu',
+    // The header drawer is a Sheet now, so it has a real heading instead of
+    // an unlabelled panel that a screen reader announced as “dialog”.
+    menuTitle: 'Menu',
+    menuSubtitle: 'Sections, categories and your account',
+    drawerCategories: 'Categories',
+    drawerQuickLinks: 'Quick links',
+    drawerAccount: 'My account',
+    drawerSettings: 'Settings',
+    skipToContent: 'Skip to main content',
+    searchAria: 'Search the listings',
+    notificationsAria: 'Open notifications',
+    backAria: 'Go back',
   },
 
   categories: {
@@ -55,6 +72,18 @@ export const layout = {
     premium: {
       title: 'Highly trusted',
       description: 'From verified homeowners',
+    },
+    qizlarga: {
+      title: 'For women',
+      description: 'Rooms and shared homes for female tenants only',
+    },
+    komfort: {
+      title: 'Comfort',
+      description: 'Furnished, with AC, a washing machine and internet',
+    },
+    center: {
+      title: 'Central',
+      description: 'Homes in the central districts of the city',
     },
   },
 
@@ -86,6 +115,16 @@ export const layout = {
     followUs: 'Social media',
     rights: '© {year} Maklersiz Uy. All rights reserved.',
     madeIn: 'Made in Uzbekistan',
+    // The helpline is a separate group from the `support` link above it: that
+    // one goes to a page, this one is the number somebody can dial now. It is
+    // `supportBlock` rather than `support` because `support` is already the
+    // footer's link label and the footer still renders it.
+    supportBlock: {
+      title: 'Need help?',
+      phoneLabel: '+998 77 785 07 37',
+      phoneAria: 'Call +998 77 785 07 37',
+      hours: 'Every day 09:00 – 21:00',
+    },
   },
 
   splash: {

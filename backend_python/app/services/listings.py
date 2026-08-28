@@ -25,6 +25,7 @@ from app.models.enums import (
     STAFF_ROLE_VALUES,
     AuditAction,
     ListingStatus,
+    RoommateGender,
     UserRole,
 )
 from app.models.listing import Favorite, Listing
@@ -99,6 +100,21 @@ def apply_filters(stmt: Select, filters: ListingFilters) -> Select:
         stmt = stmt.where(Listing.is_roommate.is_(True))
     elif filters.rental_type == "FULL":
         stmt = stmt.where(Listing.is_roommate.is_(False))
+    if filters.roommate_gender and filters.roommate_gender != RoommateGender.ANY:
+        # An owner who left the field empty meant "anyone", so NULL belongs in
+        # the same bucket as ANY. But NULL is also what every listing that is
+        # not a roommate offer at all carries, so the NULL arm only makes sense
+        # once the row is known to be a roommate offer: without is_roommate the
+        # filter excluded BOYS-only rooms and passed the entire rest of the
+        # catalogue, which reads as no filter at all.
+        stmt = stmt.where(
+            Listing.is_roommate.is_(True),
+            or_(
+                Listing.roommate_gender == filters.roommate_gender.value,
+                Listing.roommate_gender == RoommateGender.ANY.value,
+                Listing.roommate_gender.is_(None),
+            ),
+        )
     if filters.audience == "STUDENT":
         stmt = stmt.where(
             or_(

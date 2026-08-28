@@ -409,15 +409,29 @@ async def complete_registration(
 async def resend_registration_code(
     db: AsyncSession, *, phone: str, purpose: OtpPurpose, language: str
 ) -> tuple[str | None, int]:
-    if purpose == OtpPurpose.REGISTER:
-        pending = (
-            await db.execute(
-                select(PendingRegistration).where(PendingRegistration.phone == phone)
-            )
-        ).scalar_one_or_none()
-        if pending is None or pending.expires_at <= _now():
-            raise BadRequest("registration_not_found")
-        language = pending.language or language
+    if purpose == OtpPurpose.PASSWORD_RESET:
+        # Delegated rather than reimplemented: the forgot-password endpoint is
+        # careful to send nothing to a number with no account (or a Google-only
+        # one), and to swallow cooldown errors that would otherwise reveal which
+        # numbers are registered. Resending is the same request pressed twice,
+        # so it has to inherit the same guards - otherwise a mistyped number on
+        # the reset screen bills a real SMS to a stranger, and the property the
+        # forgot-password route documents is voidable through its sibling.
+        return await request_password_reset(db, phone=phone, language=language)
+
+    if purpose != OtpPurpose.REGISTER:
+        # LOGIN and PHONE_CHANGE codes are not issued by any flow that reaches
+        # here; falling through would make this an open SMS sender.
+        raise BadRequest("validation_error")
+
+    pending = (
+        await db.execute(
+            select(PendingRegistration).where(PendingRegistration.phone == phone)
+        )
+    ).scalar_one_or_none()
+    if pending is None or pending.expires_at <= _now():
+        raise BadRequest("registration_not_found")
+    language = pending.language or language
 
     code, _ = await issue_otp(db, phone=phone, purpose=purpose, language=language)
     await audit_log.record(

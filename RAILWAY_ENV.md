@@ -67,7 +67,11 @@ PASSWORD_REVEAL_KEY=PASTE_GENERATED_REVEAL_KEY
 PASSWORD_REVEAL_ENABLED=true
 
 # ── CORS — exact origins only, never "*" ─────────────────────────────────
-CORS_ORIGINS=https://maklersizuy.uz,https://www.maklersizuy.uz
+# Every browser origin that calls this API. That is BOTH deployments: the
+# site, and the admin panel, which is its own Vercel project on its own
+# domain and has no proxy in front of it. Leave the admin origin out and the
+# panel loads fine and then fails on every request. See the section below.
+CORS_ORIGINS=https://maklersizuy.uz,https://www.maklersizuy.uz,https://admin.maklersizuy.uz
 
 # ── Auth policy ──────────────────────────────────────────────────────────
 ACCESS_TOKEN_TTL_MINUTES=15
@@ -152,6 +156,40 @@ your public git history or were shipped to browsers, so they are compromised.
 Also revoke the **Gemini** key (`AQ.Ab8RN6Ka…`) — it was shipped to every
 visitor in the old JS bundle. Nothing needs it any more; AI moderation runs
 server-side through `OPENAI_API_KEY`.
+
+---
+
+## CORS: the admin panel needs its own entry
+
+`CORS_ORIGINS` is a comma-separated allowlist of **browser origins**, matched
+exactly. Scheme and host, no path, no trailing slash, no wildcards — `*` is
+refused outright in production, because the API answers with credentials and
+the two together are a standing invitation.
+
+Two deployments call this API from a browser, and both must be listed:
+
+| Origin | What it is |
+|---|---|
+| `https://maklersizuy.uz` (and the `www.` host, if you serve it) | the site — the Vite SPA on Vercel |
+| `https://admin.<your domain>` | the admin panel — the Next.js app in `admin/`, a **separate** Vercel project with Root Directory `admin` |
+
+The admin panel used to be served by this API itself, at `/admin`, which is
+why it never needed an entry. It is its own deployment now, on its own
+origin, with no proxy in front of it — so every request it makes is
+cross-origin, and an origin that is not on this list is refused by the
+browser before the API is even reached.
+
+That failure looks like this: the panel loads and renders, then every call
+fails with a network error and the console says the response is missing
+`Access-Control-Allow-Origin`. The API's own logs show nothing wrong, because
+nothing was wrong at the API. Add the origin and redeploy.
+
+While Vercel's preview deployments each get a fresh URL, they are **not**
+covered by this list — matching is exact, not by pattern. Test against the
+production admin domain, or add the specific preview origin while you need it.
+
+Locally nothing has to be set: the development default already allows
+`localhost` (and `127.0.0.1`) on ports 3000 and 3001 for the panel, plus 5173.
 
 ---
 
@@ -258,8 +296,9 @@ daily limit.
    python -m scripts.create_admin --username admin --name "Bosh administrator"
    ```
 
-   It prints the password **once**. Save it, then sign in at
-   `https://<your-service>.up.railway.app/admin` and change it.
+   It prints the password **once**. Save it, then sign in on the admin panel
+   — its own Vercel deployment, not a path on this service — and change it.
+   The API only exposes `/api/v1/admin/*`; there is no UI on this host.
 
 4. If you have existing users/listings in the old Prisma tables:
 
@@ -284,6 +323,17 @@ VITE_FIREBASE_APP_ID=<your firebase app id>
 # Yandex — optional, but this is what makes the map and the GPS button good
 VITE_YANDEX_MAPS_API_KEY=<JavaScript API and Geocoder key>
 ```
+
+## Admin panel (Vercel, separate project)
+
+Same repository, **Root Directory `admin`**, its own domain. One variable:
+
+```env
+NEXT_PUBLIC_API_URL=https://<your-service>.up.railway.app/api/v1
+```
+
+The `/api/v1` suffix belongs to the base URL. Whatever domain this project
+ends up on must also appear in the API's `CORS_ORIGINS` above.
 
 ## Yandex maps and geocoding
 

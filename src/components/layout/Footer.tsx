@@ -4,9 +4,8 @@ import React from 'react';
 import { Mail, Phone, Send } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
-import { useAppStore, type ViewState } from '../../stores/useAppStore';
+import { type ViewState } from '../../stores/useAppStore';
 import { AppLink } from '../../router/AppLink';
-import { hubLinks } from '../../seo/links';
 import { BLOG_PATH, HELP_PATH, helpPath, viewPath } from '../../seo/routes';
 import { Logo } from '../brand/Logo';
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -38,7 +37,6 @@ interface FooterLink {
 
 export const Footer: React.FC = () => {
   const { t } = useTranslation();
-  const language = useAppStore((state) => state.language);
 
   const columns: Array<{ titleKey: string; links: FooterLink[] }> = [
     {
@@ -73,34 +71,50 @@ export const Footer: React.FC = () => {
     },
   ];
 
-  const hubs = hubLinks(language);
-
   return (
-    <footer className="mt-auto border-t border-line bg-surface">
+    // The trailing padding is the bottom nav's clearance, and it belongs
+    // here: `main`'s `pb-20` stops at `main`, and the footer is its sibling,
+    // so the last row — the copyright, the social buttons, the language and
+    // theme switchers — sat underneath a fixed bar that covers it. The figure
+    // is what the nav actually occupies (BottomNav.tsx): a 48px row, its
+    // `pb-safe-plus` 12px and the 1px top border, plus the home indicator.
+    // Padding the footer rather than the shell keeps the gap `bg-surface`, so
+    // the nav's translucent blur still has the footer behind it.
+    <footer className="mt-auto border-t border-line bg-surface pb-[calc(env(safe-area-inset-bottom,0px)+3.75rem)] lg:pb-0">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
         <div className="flex flex-col gap-8 lg:grid lg:grid-cols-4">
           <div className="space-y-4">
             <Logo size="md" tagline={t('common.brand.shortTagline')} />
             {/* Maklersiz uy va kvartira ijarasi matni olib tashlandi */}
 
-            <div className="space-y-2 rounded-2xl border border-line bg-surface-2/60 p-3.5 backdrop-blur-xs transition-colors hover:border-brand/40">
-              <div className="flex items-center gap-2">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-soft text-brand-text">
-                  <Phone className="h-3 w-3" aria-hidden="true" />
+            {/*
+              The helpline, written as a column like the ones beside it: a
+              heading, then one thing to press.
+
+              The `tel:` href is not optional. index.html carries
+              `format-detection: telephone=no`, which is what stops iOS from
+              turning every price and area figure on the site into a phone
+              link — and it stops this number from linkifying too. Without an
+              explicit anchor the support line is text a visitor has to copy
+              by hand.
+            */}
+            <div>
+              <h2 className="mb-3 text-xs font-black uppercase tracking-wide text-content">
+                {t('layout.footer.supportBlock.title')}
+              </h2>
+              <a
+                href="tel:+998777850737"
+                aria-label={t('layout.footer.supportBlock.phoneAria')}
+                className="press inline-flex min-h-11 items-center gap-2.5 rounded-xl border border-line bg-surface-2/60 px-3 py-2 text-sm font-black text-content transition-colors hover:border-brand/40 hover:text-brand-text"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-text">
+                  <Phone className="h-4 w-4" aria-hidden="true" />
                 </span>
-                <p className="text-[11px] font-black uppercase tracking-wider text-content">
-                  {t('layout.footer.support')}
-                </p>
-              </div>
-              <div className="flex flex-col gap-1.5 pt-1 text-xs font-semibold text-muted">
-                <a
-                  href="tel:+998937188885"
-                  className="group flex cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-surface hover:text-brand-text"
-                >
-                  <span className="font-semibold text-content">+998 93 718 88 85</span>
-                  <span className="text-[10px] font-bold text-brand group-hover:underline">Qo‘ng‘iroq</span>
-                </a>
-              </div>
+                {t('layout.footer.supportBlock.phoneLabel')}
+              </a>
+              <p className="mt-2 text-[11px] text-subtle">
+                {t('layout.footer.supportBlock.hours')}
+              </p>
             </div>
           </div>
 
@@ -113,13 +127,16 @@ export const Footer: React.FC = () => {
                 <h2 className="mb-3 text-xs font-black uppercase tracking-wide text-content">
                   {t(column.titleKey as never)}
                 </h2>
-                <ul className="space-y-2">
+                {/* The rows are 44px tall rather than the height of their own
+                    text: a footer link is the smallest thing on the page and
+                    was the hardest thing on it to hit with a thumb. */}
+                <ul className="space-y-0.5">
                   {column.links.map((link) => (
                     <li key={link.labelKey}>
                       <AppLink
                         to={link.to ?? (link.view ? viewPath(link.view) : '/')}
                         view={link.to ? undefined : link.view}
-                        className="cursor-pointer text-xs text-muted transition-colors hover:text-brand-text"
+                        className="press inline-flex min-h-11 cursor-pointer items-center text-xs text-muted transition-colors hover:text-brand-text"
                       >
                         {t(link.labelKey as never)}
                       </AppLink>
@@ -131,28 +148,19 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        {/* Hududlar va Kategoriyalar bo'limi - bu qismi "juda uzun" qilayotgan bo'lishi mumkin */}
-        <div className="mt-8 space-y-5 border-t border-line pt-6">
-          {hubs.map((group) => (
-            <nav key={group.heading} aria-label={group.heading}>
-              <h2 className="mb-2 text-[11px] font-black uppercase tracking-wider text-subtle">
-                {group.heading}
-              </h2>
-              <ul className="flex flex-wrap gap-x-3 gap-y-1.5">
-                {group.links.map((link) => (
-                  <li key={link.path}>
-                    <AppLink
-                      to={link.path}
-                      className="text-[11px] text-muted transition-colors hover:text-brand-text hover:underline"
-                    >
-                      {link.label}
-                    </AppLink>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          ))}
-        </div>
+        {/*
+          The three `hubLinks` groups — categories, Tashkent districts and
+          regions — used to sit here. They were removed at the user's request:
+          a hundred and some links under every page made the footer longer
+          than most of the pages it ended.
+
+          Worth knowing for whoever reads this next: the home page's SEO
+          section rendered the same groups and has been removed too, so the
+          generated landing pages now have no internal links pointing at them
+          from the shell. They are reachable through the sitemap, through
+          `relatedLinks` on the landing pages themselves, and from nowhere
+          else.
+        */}
 
         <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-line pt-6 sm:flex-row">
           <p className="text-[11px] text-subtle">
@@ -165,7 +173,7 @@ export const Footer: React.FC = () => {
                 target="_blank"
                 rel="noreferrer noopener"
                 aria-label="Instagram"
-                className="group flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface-2/80 text-muted transition-all duration-200 hover:scale-105 hover:border-transparent hover:bg-gradient-to-tr hover:from-[#f09433] hover:via-[#dc2743] hover:to-[#bc1888] hover:text-white hover:shadow-md hover:shadow-pink-500/25 active:scale-95"
+                className="press group flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface-2/80 text-muted transition-all duration-200 hover:scale-105 hover:border-transparent hover:bg-gradient-to-tr hover:from-[#f09433] hover:via-[#dc2743] hover:to-[#bc1888] hover:text-white hover:shadow-md hover:shadow-pink-500/25 active:scale-95"
               >
                 <InstagramIcon className="h-4 w-4 transition-transform group-hover:scale-110" />
               </a>
@@ -174,13 +182,13 @@ export const Footer: React.FC = () => {
                 target="_blank"
                 rel="noreferrer noopener"
                 aria-label="Telegram"
-                className="group flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface-2/80 text-muted transition-all duration-200 hover:scale-105 hover:border-transparent hover:bg-[#229ED9] hover:text-white hover:shadow-md hover:shadow-sky-500/25 active:scale-95"
+                className="press group flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface-2/80 text-muted transition-all duration-200 hover:scale-105 hover:border-transparent hover:bg-[#229ED9] hover:text-white hover:shadow-md hover:shadow-sky-500/25 active:scale-95"
               >
                 <Send className="h-4 w-4 transition-transform group-hover:scale-110" aria-hidden="true" />
               </a>
               <a
                 href="mailto:support@maklersizuy.uz"
-                className="group flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface-2/80 text-muted transition-all duration-200 hover:scale-105 hover:border-transparent hover:bg-brand hover:text-white hover:shadow-md hover:shadow-brand/25 active:scale-95"
+                className="press group flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface-2/80 text-muted transition-all duration-200 hover:scale-105 hover:border-transparent hover:bg-brand hover:text-white hover:shadow-md hover:shadow-brand/25 active:scale-95"
               >
                 <Mail className="h-4 w-4 transition-transform group-hover:scale-110" aria-hidden="true" />
               </a>

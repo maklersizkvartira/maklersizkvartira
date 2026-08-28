@@ -44,7 +44,7 @@ _TIMEOUT = httpx.Timeout(15.0, connect=5.0)
 #: Message text per language, for non-OTP sends and for part estimation.
 TEMPLATES: dict[str, dict[str, str]] = {
     "otp_register": {
-        "uz": "Maklersiz.uz ro'yxatdan o'tish kodi: {code}. Hech kimga bermang.",
+        "uz": "Maklersiz.uz ro‘yxatdan o‘tish kodi: {code}. Hech kimga bermang.",
         "ru": "Код регистрации Maklersiz.uz: {code}. Никому не сообщайте.",
         "en": "Your Maklersiz.uz registration code: {code}. Do not share it.",
     },

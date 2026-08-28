@@ -49,10 +49,23 @@ function applyToDocument(theme: ResolvedTheme): void {
   const root = document.documentElement;
   root.classList.toggle('dark', theme === 'dark');
   root.style.colorScheme = theme;
+
   // Tints the mobile browser chrome to match the page.
+  //
+  // `querySelectorAll`, not `querySelector`: index.html ships *two*
+  // theme-color tags, one per `prefers-color-scheme`, so that a load with no
+  // JavaScript still matches the OS. Writing to only the first one meant the
+  // browser went on applying whichever of the pair its media query selected —
+  // so on a dark-mode phone, choosing the light theme repainted the page and
+  // left the address bar black, because the tag that was actually in effect
+  // was the dark one this never touched.
+  //
+  // Once there is an explicit choice both tags carry the same colour, so
+  // whichever one the media query picks is the right one.
+  const color = theme === 'dark' ? '#080d18' : '#f6f8fb';
   document
-    .querySelector('meta[name="theme-color"]')
-    ?.setAttribute('content', theme === 'dark' ? '#080d18' : '#f6f8fb');
+    .querySelectorAll('meta[name="theme-color"]')
+    .forEach((meta) => meta.setAttribute('content', color));
 }
 
 interface ThemeContextValue {

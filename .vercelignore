@@ -1,5 +1,6 @@
 backend_python/
 ui-verification/
+admin/
 Procfile
 Dockerfile
 railway.json

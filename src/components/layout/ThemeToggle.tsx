@@ -23,12 +23,12 @@ export const ThemeToggle: React.FC<{ compact?: boolean }> = ({ compact = true })
         onClick={toggle}
         aria-label={isDark ? t('common.theme.switchToLight') : t('common.theme.switchToDark')}
         title={isDark ? t('common.theme.switchToLight') : t('common.theme.switchToDark')}
-        className="rounded-xl border border-line bg-surface p-2 text-muted transition-colors hover:border-brand hover:text-content"
+        className="press flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-line bg-surface text-muted transition-colors hover:border-brand hover:text-content"
       >
         {isDark ? (
-          <Sun className="h-4 w-4" aria-hidden="true" />
+          <Sun className="h-5 w-5" aria-hidden="true" />
         ) : (
-          <Moon className="h-4 w-4" aria-hidden="true" />
+          <Moon className="h-5 w-5" aria-hidden="true" />
         )}
       </button>
     );
@@ -57,7 +57,7 @@ export const ThemeToggle: React.FC<{ compact?: boolean }> = ({ compact = true })
           role="radio"
           aria-checked={preference === option.value}
           onClick={() => setPreference(option.value)}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-bold transition-colors ${
+          className={`press flex min-h-11 flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg px-2.5 text-xs font-bold transition-colors ${
             preference === option.value
               ? 'bg-surface text-content shadow-card'
               : 'text-muted hover:text-content'

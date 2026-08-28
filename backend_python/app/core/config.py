@@ -79,7 +79,23 @@ class Settings(BaseSettings):
 
     # -- CORS ----------------------------------------------------------------
     # Explicit allowlist. Never "*" together with credentials.
-    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173"
+    #
+    # The site's dev server proxies /api, so it only needs an entry here for
+    # the cases where it does not (a direct VITE_API_URL). The admin panel has
+    # no proxy at all: it is a separate Next.js app on its own origin and calls
+    # this API cross-origin from the browser in every environment, so both its
+    # local ports are listed. `next dev --port 3000` steps aside to 3001 when
+    # the Vite server already holds 3000, which is the normal case when both
+    # are running — hence both.
+    #
+    # In production this default is replaced wholesale by the Railway
+    # variable, which must name the site origin AND the admin origin; see
+    # RAILWAY_ENV.md.
+    CORS_ORIGINS: str = (
+        "http://localhost:3000,http://127.0.0.1:3000,"
+        "http://localhost:3001,http://127.0.0.1:3001,"
+        "http://localhost:5173"
+    )
 
     # -- Auth policy ---------------------------------------------------------
     PASSWORD_MIN_LENGTH: int = 8

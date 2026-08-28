@@ -62,6 +62,13 @@ export const common = {
     signIn: 'Войти',
     signOut: 'Выйти',
     signUp: 'Регистрация',
+    done: 'Готово',
+    skip: 'Пропустить',
+    dismiss: 'Скрыть',
+    understood: 'Понятно',
+    showResults: 'Показать результаты',
+    clearAll: 'Очистить всё',
+    seeOnMap: 'Показать на карте',
   },
 
   state: {
@@ -182,6 +189,27 @@ export const common = {
     selectLanguage: 'Выбрать язык',
     goToPage: 'Перейти на страницу {page}',
     loading: 'Загрузка',
+    goToImage: 'Перейти к фото {index}',
+    imageIndicators: 'Индикаторы фотографий',
+    expand: 'Развернуть',
+    collapse: 'Свернуть',
+    moreOptions: 'Дополнительные параметры',
+    scrollLeft: 'Прокрутить влево',
+    scrollRight: 'Прокрутить вправо',
+  },
+
+  /**
+   * The shared bottom sheet. Its own vocabulary rather than reused dialog
+   * words: a sheet is dragged and dismissed, not just "closed", and the grab
+   * handle needs a label a screen reader can read out loud.
+   */
+  sheet: {
+    close: 'Закрыть',
+    closeAria: 'Закрыть панель',
+    dragHandle: 'Потяните панель вниз, чтобы закрыть',
+    loading: 'Загрузка...',
+    retry: 'Повторить попытку',
+    error: 'Не удалось загрузить данные.',
   },
 
   theme: {
@@ -215,5 +243,7 @@ export const common = {
     rateLimited: 'Слишком много попыток. Немного подождите.',
     validation: 'Проверьте введённые данные.',
     tryAgain: 'Повторить попытку',
+    timeout: 'Ответ занял слишком много времени. Попробуйте ещё раз.',
+    limitReached: 'Вы достигли лимита.',
   },
 } as const;

@@ -121,6 +121,11 @@ def _rules() -> dict[str, RateLimitRule]:
         "global_ip": RateLimitRule("global_ip", settings.RATE_LIMIT_GLOBAL_PER_MINUTE, 60),
         "auth_ip": RateLimitRule("auth_ip", settings.RATE_LIMIT_AUTH_PER_MINUTE, 60),
         "login_phone": RateLimitRule("login_phone", settings.RATE_LIMIT_AUTH_PER_MINUTE, 60),
+        # Keyed on the account, not the IP: signing devices out is idempotent
+        # housekeeping by someone already authenticated, and pooling it with
+        # "auth_ip" let a user clearing a long session list spend the login and
+        # refresh allowance of everyone behind the same NAT.
+        "session_revoke": RateLimitRule("session_revoke", 30, 60),
         "otp_phone": RateLimitRule("otp_phone", settings.RATE_LIMIT_OTP_PER_HOUR, 3600),
         "otp_ip": RateLimitRule("otp_ip", settings.RATE_LIMIT_OTP_PER_HOUR * 2, 3600),
         "register_ip": RateLimitRule("register_ip", 8, 3600),

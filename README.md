@@ -6,7 +6,7 @@ signals.
 
 - **Frontend** — React 19 + TypeScript + Vite + Tailwind v4, in `src/`
 - **Backend** — Python 3.13 + FastAPI + SQLAlchemy 2 (async) + PostgreSQL, in `backend_python/`
-- **Admin CRM** — dependency-free ES modules, in `backend_python/app/admin/`
+- **Admin CRM** — Next.js + TypeScript + Tailwind v4, in `admin/`
 
 Three interface languages (Uzbek, Russian, English) and a light/dark theme run
 through all three.
@@ -75,8 +75,20 @@ refuses to start if `OTP_DEBUG_RETURN_CODE` is true.
 
 ```bash
 npm install
-npm run dev                 # http://localhost:3000, proxies /api and /admin
+npm run dev                 # http://localhost:3000, proxies /api
 ```
+
+### Admin CRM
+
+```bash
+cd admin
+npm install
+npm run dev                 # http://localhost:3000 (3001 if the site has 3000)
+```
+
+It talks to the API cross-origin — there is no proxy — so whichever port it
+lands on has to be in the backend's `CORS_ORIGINS`. Both 3000 and 3001 are in
+the development default already.
 
 ### Tests
 
@@ -125,10 +137,12 @@ backend_python/
     routers/                auth, listings, ai, admin, meta
     services/               auth, listings, moderation, admin, sms, telegram,
                             shield_ai, google_auth
-    admin/                  the CRM (index.html + 3 ES modules)
   alembic/                  migrations
   scripts/                  create_admin, migrate_legacy
   tests/                    integration tests
+
+admin/                      Next.js admin CRM, deployed on its own
+  src/                      app router, components, API client
 ```
 
 ### Theming
@@ -225,17 +239,28 @@ actor, entity, IP and date. Secrets are stripped before the row is written.
 
 ## 5. Admin CRM
 
-`/admin`, behind a separate staff login (username + password → admin JWT, with an
-optional per-account CIDR allowlist).
+A Next.js app in `admin/`, behind a separate staff login (username + password →
+admin JWT, with an optional per-account CIDR allowlist).
 
 Dashboard · Listings moderation · Reports · Verifications · Users (search,
 filter, detail, password reveal, force-reset, revoke sessions, suspend, delete) ·
 **All activity** · Security (sign-in attempts) · Shield AI transcripts · SMS
 ledger · Staff management.
 
-Three languages, light/dark, and no CDN — the previous panel loaded Tailwind,
-Chart.js, FontAwesome and Google Fonts from four unpinned CDNs. Charts are
-inline SVG.
+```bash
+cd admin && npm run dev
+```
+
+It is a **separate Vercel project** from the site: same repository, Root
+Directory `admin`, its own domain. The root `.vercelignore` excludes `admin/`
+so the site's build never tries to compile it, and the site's `.vercelignore`
+is irrelevant to the admin project because that one deploys from `admin/` as
+its root.
+
+The panel is a browser client like any other: it calls the API cross-origin
+with a bearer token, so **its origin must be in the backend's `CORS_ORIGINS`**
+(see RAILWAY_ENV.md). The backend no longer serves any admin UI itself —
+`/admin` on the API host is gone, and only `/api/v1/admin/*` remains.
 
 ---
 
@@ -264,6 +289,12 @@ without `JWT_SECRET`, a real `DATABASE_URL`, and `PASSWORD_REVEAL_KEY`, or with
 
 The frontend is a static bundle (`npm run build` → `dist/`) deployed separately.
 Point `VITE_API_URL` at the API, or leave it empty to use the same origin.
+
+The admin panel is a third deployment: a Vercel project pointed at this same
+repository with **Root Directory `admin`**. It needs the API's public URL in
+its own environment, and its origin added to the API's `CORS_ORIGINS` — a
+missing origin there is the failure that looks like "the admin panel loads but
+every request fails".
 
 ---
 

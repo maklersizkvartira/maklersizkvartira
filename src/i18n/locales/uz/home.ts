@@ -12,8 +12,12 @@ export const home = {
   hero: {
     badge: '0% komissiya · to‘g‘ridan-to‘g‘ri ijara',
     title: 'Maklersiz uy va kvartira ijarasi',
+    // Not "{regions} ta viloyat": Uzbekistan has 12 viloyats plus the
+    // Republic of Karakalpakstan plus the city of Tashkent, so the number the
+    // page counts is 14 and the word for it is "hudud", not "viloyat".
     subtitle:
-      'O‘zbekiston bo‘ylab {regions} ta viloyat va {districts} ta tumandagi tekshirilgan uylar.',
+      'Vositachisiz, komissiyasiz — {regions} ta hudud va {districts} ta tuman va shahardagi '
+      + 'tekshirilgan uylar.',
     searchTitle: 'Qayerdan izlayapsiz?',
     searchHintShort: 'Qidirish uchun bosing',
     searchHintLong: 'Tuman, ko‘cha, mo‘ljal yoki metro bekati',
@@ -38,6 +42,12 @@ export const home = {
       budgetLowPrice: 'Arzon narx',
       premiumVerifiedOwner: 'Tasdiqlangan egasi',
       premiumHighTrust: 'Yuqori ishonch reytingi',
+      qizlargaOnlyGirls: 'Faqat qizlarga',
+      qizlargaRoommate: 'Qiz sherik',
+      komfortFurnished: 'Mebel bilan',
+      komfortAppliances: 'Konditsioner va kir mashinasi',
+      centerWalkable: 'Markazga piyoda',
+      centerDistricts: 'Markaziy tumanlar',
     },
   },
 
@@ -57,6 +67,34 @@ export const home = {
     commission: 'Vositachilik haqi',
     commissionHint: 'Uy egasi bilan to‘g‘ridan-to‘g‘ri',
     unavailable: 'Ko‘rsatkichlarni hozir yuklab bo‘lmadi.',
+
+    /**
+     * Geography, stated truthfully.
+     *
+     * The old line promised "{regions} ta viloyat" while the number behind it
+     * counted 12 viloyats + the Republic of Karakalpakstan + the city of
+     * Tashkent. "Hudud" is the word that covers all three, and the second-
+     * level unit is a "tuman va shahar", not a "tuman" alone.
+     *
+     * `geoSublineActive` is the honest variant: how many places actually have
+     * listings, not how many sit in the dropdown.
+     */
+    geoHeadline: 'Vositachisiz, komissiyasiz — to‘g‘ridan-to‘g‘ri uy egasidan',
+    geoSubheadline: 'Komissiya 0%. Uy egasi bilan o‘zingiz gaplashasiz.',
+    geoSubline:
+      'O‘zbekistonning {regions} ta hududi va {districts} ta tuman va shahridagi tekshirilgan uylar.',
+    geoSublineActive:
+      'Hozir {regions} ta hududda va {districts} ta tuman va shahrida faol e’lonlar bor.',
+    regionsLabel: 'Hududlar',
+    regionsHint: '12 viloyat, Qoraqalpog‘iston Respublikasi va Toshkent shahri',
+    districtsLabel: 'Tuman va shaharlar',
+    districtsHint: 'Hududlar ichidagi tuman va shaharlar',
+    regionsWithListings: 'E’lon bor hududlar',
+    regionsWithListingsHint: 'Kamida bitta faol e’loni bor hududlar',
+    districtsWithListings: 'E’lon bor tuman va shaharlar',
+    districtsWithListingsHint: 'Kamida bitta faol e’loni bor tuman va shaharlar',
+    coverageTitle: 'Qamrov',
+    coverageSubtitle: 'Ro‘yxatdagi emas, haqiqatan e’lon bor joylar ko‘rsatilgan.',
   },
 
   recommended: {
@@ -80,5 +118,23 @@ export const home = {
     metroStation: '{station} bekati',
     rentalTypeLabel: 'Ijara turi',
     submit: 'Natijalarni ko‘rish',
+    regionLabel: 'Hudud',
+    districtLabel: 'Tuman yoki shahar',
+    metroLabel: 'Metro bekati',
+    roomsLabel: 'Xonalar soni',
+    audienceLabel: 'Kimlar uchun',
+    priceLabel: 'Oylik narx (so‘m)',
+    priceMinPlaceholder: 'dan — 1 000 000',
+    priceMaxPlaceholder: 'gacha — 10 000 000',
+    priceAny: 'Narx muhim emas',
+    areaLabel: 'Eng kam maydon (m²)',
+    areaPlaceholder: 'Masalan: 40',
+    sortLabel: 'Saralash',
+    amenitiesLabel: 'Qulayliklar',
+    amenitiesHint: 'Tanlangan qulayliklarning barchasi bor uylar ko‘rsatiladi.',
+    advancedShow: 'Qo‘shimcha parametrlar',
+    advancedHide: 'Qo‘shimcha parametrlarni yashirish',
+    reset: 'Parametrlarni tozalash',
+    resultsHint: '{count} ta e’lon shu shartlarga mos keladi',
   },
 } as const;

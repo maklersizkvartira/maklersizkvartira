@@ -74,7 +74,16 @@ export const PRIVATE_VIEWS: ReadonlySet<ViewState> = new Set<ViewState>([
   'CHAT',
 ]);
 
-/** Views that require an account; a guest is sent to the auth dialog instead. */
+/**
+ * Views that require an account; a guest is sent to the auth dialog instead.
+ *
+ * This set is the *only* place the rule lives. The guard used to be repeated
+ * in every button that could reach one of these screens — the bottom nav, the
+ * header, the listings page and the create-listing page each had their own
+ * copy, opening a different tab from the next one — and typing the address
+ * straight into the bar walked past all four. App.tsx reads this set once, so
+ * a link, a button and a pasted URL now all end at the same dialog.
+ */
 export const REQUIRES_AUTH: ReadonlySet<ViewState> = new Set<ViewState>([
   'CREATE_LISTING',
   'MY_LISTINGS',
@@ -84,6 +93,18 @@ export const REQUIRES_AUTH: ReadonlySet<ViewState> = new Set<ViewState>([
   'REFERRAL',
   'CHAT',
 ]);
+
+/**
+ * Which tab of the auth dialog a guarded view should open on.
+ *
+ * Posting a first listing is a signup, not a sign-in: whoever presses it has
+ * usually never had an account, and the REGISTER tab opens on the role
+ * question — the funnel a new owner needs. Every other guarded view belongs
+ * to an account that already exists, so it asks them to sign in.
+ */
+export function authTabForView(view: ViewState): 'LOGIN' | 'REGISTER' {
+  return view === 'CREATE_LISTING' ? 'REGISTER' : 'LOGIN';
+}
 
 /** The query-string vocabulary of the previous build, kept working. */
 export const LEGACY_VIEW_QUERY: Record<string, ViewState> = {

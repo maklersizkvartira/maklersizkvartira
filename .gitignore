@@ -127,9 +127,12 @@ ui-verification/
 # Build artefact of the SSR pass that feeds scripts/prerender.mjs.
 .prerender/
 
-# ─── Admin panel — alohida repo ──────────────────────────────────────────────
-# `maklersizuy-admin` o'zining mustaqil repositoriysi va shu yerga qulaylik
-# uchun klonlangan. Ignore qilinmasa git uni `.gitmodules`siz submodule deb
-# ko'radi: toza klonda — Vercel'nikida ham — ogohlantirish beradi va bir kun
-# tasodifan gitlink bo'lib commit'ga tushadi. Kod o'z repositoriysida turadi.
-Maklersizuy.Admin/
+# ─── Admin panel (Next.js, in admin/) ────────────────────────────────────────
+# The panel's SOURCE is tracked here — it is part of this repo, it is only its
+# *deployment* that is separate (its own Vercel project, Root Directory
+# `admin`). Only its build output and local secrets are ignored.
+# `admin/.env.example` stays tracked: the `!**/.env.example` rule above wins
+# over the blanket `.env.*`, and none of the patterns below match it.
+admin/.next/
+admin/node_modules/
+admin/.env*.local

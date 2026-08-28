@@ -49,8 +49,11 @@ GUIDE: dict[str, tuple[str, str]] = {
         "ENVIRONMENT=production",
     ),
     "CORS_ORIGINS": (
-        "Ruxsat etilgan frontend manzillari",
-        "CORS_ORIGINS=https://maklersizuy.uz,https://www.maklersizuy.uz",
+        # Admin panel alohida deployment - uning manzili ham shu ro‘yxatda
+        # bo‘lishi shart, aks holda panel ochiladi-yu, har bir so‘rov uziladi.
+        "Ruxsat etilgan frontend manzillari (sayt + admin panel)",
+        "CORS_ORIGINS=https://maklersizuy.uz,https://www.maklersizuy.uz,"
+        "https://admin.maklersizuy.uz",
     ),
     "OTP_DEBUG_RETURN_CODE": (
         "SMS kodini javobda qaytarish (productionda taqiqlangan)",

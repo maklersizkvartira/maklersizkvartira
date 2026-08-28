@@ -82,7 +82,19 @@ export const account = {
     unknownIp: 'IP unavailable',
     empty: 'No active sessions found.',
     loadFailed: 'Could not load your sessions.',
+    loadError: 'Could not load your sessions. Please try again.',
     reload: 'Reload the list',
+    // A person recognises their own row by the device and the browser, not by
+    // a session id — and they must be able to see which row is the one they
+    // are reading it on, so they do not sign themselves out by accident.
+    current: 'This device',
+    browser: 'Browser',
+    lastSeen: 'Last active',
+    revoke: 'End session',
+    revokeConfirm: 'End the session on this device?',
+    revokeAll: 'Sign out of all other devices',
+    revoked: 'The session was ended.',
+    revokeFailed: 'The session could not be ended.',
   },
 
   signOut: {

@@ -21,6 +21,8 @@ export interface ListingQuery {
   minArea?: number;
   propertyType?: string;
   rentalType?: 'ALL' | 'FULL' | 'ROOMMATE';
+  /** Matches rooms marked for this gender plus the ones open to anyone. */
+  roommateGender?: 'GIRLS' | 'BOYS' | 'ANY';
   audience?: 'ALL' | 'STUDENT' | 'FAMILY';
   onlyVerified?: boolean;
   minTrustScore?: number;
@@ -70,8 +72,13 @@ function toQuery(query: ListingQuery): Record<string, string | number | boolean>
 }
 
 export const ListingsApi = {
-  list: (query: ListingQuery = {}) =>
-    http.get<ListingPage>('/listings', { query: toQuery(query) }),
+  /**
+   * `signal` is what lets the catalogue cancel a query the visitor has already
+   * moved on from — without it, a superseded filter tap holds a connection
+   * open for a result that will be thrown away.
+   */
+  list: (query: ListingQuery = {}, signal?: AbortSignal) =>
+    http.get<ListingPage>('/listings', { query: toQuery(query), signal }),
 
   featured: (limit = 8) =>
     http.get<{ data: Listing[] }>('/listings/featured', { query: { limit } }),

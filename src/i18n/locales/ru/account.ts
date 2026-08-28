@@ -82,7 +82,19 @@ export const account = {
     unknownIp: 'IP не определён',
     empty: 'Активных сеансов не найдено.',
     loadFailed: 'Не удалось загрузить список сеансов.',
+    loadError: 'Не удалось загрузить список сеансов. Попробуйте ещё раз.',
     reload: 'Обновить список',
+    // A person recognises their own row by the device and the browser, not by
+    // a session id — and they must be able to see which row is the one they
+    // are reading it on, so they do not sign themselves out by accident.
+    current: 'Это устройство',
+    browser: 'Браузер',
+    lastSeen: 'Последняя активность',
+    revoke: 'Завершить сеанс',
+    revokeConfirm: 'Завершить сеанс на этом устройстве?',
+    revokeAll: 'Выйти на всех других устройствах',
+    revoked: 'Сеанс завершён.',
+    revokeFailed: 'Не удалось завершить сеанс.',
   },
 
   signOut: {

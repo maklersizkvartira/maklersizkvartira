@@ -1,14 +1,29 @@
 /**
  * The complete authentication flow.
  *
- *   LOGIN     phone + password
- *   REGISTER  role -> name + phone + password + confirm  -> SMS
- *   VERIFY    6-digit code -> account created, signed in
- *   FORGOT    phone -> SMS
- *   RESET     code + new password
+ *   LOGIN           phone + password
+ *   REGISTER        role -> name + phone + password + confirm  -> SMS
+ *   VERIFY          6-digit code -> account created, signed in
+ *   FORGOT          phone -> SMS
+ *   RESET_CODE      6-digit code
+ *   RESET_PASSWORD  new password + confirm -> password changed, signed in
  *
  * Registration deliberately creates nothing until the code is confirmed, so
  * an abandoned signup never squats on somebody else's phone number.
+ *
+ * The password reset used to ask for the code and the new password on one
+ * screen, which is not how anybody expects a reset to go and gave the two
+ * failures — wrong code, rejected password — the same place to appear. It is
+ * three steps now, with one caveat worth knowing before touching it: the code
+ * step cannot check the code. `POST /auth/verify-code` refuses any purpose but
+ * REGISTER, and the service's `verify_otp` *consumes* the row it validates and
+ * has no dry-run mode, so verifying here would leave nothing for
+ * `/auth/reset-password` to consume and the last step would fail with
+ * `otp_not_found`. The code step is therefore a client-side gate — six digits,
+ * held in state — and `handleResetPassword` sends the code and the password
+ * together in the one call that is allowed to spend it. When the server
+ * rejects the code there, the visitor is sent back to the step that collected
+ * it, because a wrong code is not something a password screen can fix.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -34,6 +49,7 @@ import {
 import { useTranslation } from '../../i18n';
 import { AuthApi, type ApiUser } from '../../services/authApi';
 import { ApiError } from '../../services/http';
+import { REQUIRES_AUTH } from '../../router/views';
 import { useAppStore } from '../../stores/useAppStore';
 import { Logo } from '../brand/Logo';
 import { CodeInput } from './CodeInput';
@@ -48,10 +64,21 @@ import {
   TextInput,
 } from '../ui/Field';
 
-type Step = 'LOGIN' | 'ROLE' | 'REGISTER' | 'VERIFY' | 'FORGOT' | 'RESET' | 'DONE';
+type Step =
+  | 'LOGIN'
+  | 'ROLE'
+  | 'REGISTER'
+  | 'VERIFY'
+  | 'FORGOT'
+  | 'RESET_CODE'
+  | 'RESET_PASSWORD'
+  | 'DONE';
 type SignupRole = 'STUDENT' | 'OWNER';
 
 const PHONE_PREFIX = '+998 ';
+
+/** Phone, code, password — the three screens `auth.reset.stepOf` counts. */
+const RESET_STEPS = 3;
 
 /** Formats keystrokes as `+998 90 123 45 67` while keeping the caret sane. */
 function formatPhone(input: string): string {
@@ -162,8 +189,37 @@ export const AuthDialog: React.FC = () => {
 
   const close = useCallback(() => {
     setShowAuth(false);
+    // Declining the dialog on a guarded route has to move the address bar
+    // too. App.tsx renders HOME under the dialog while the guard holds, so
+    // closing it on /profil left the visitor reading the home page at a URL
+    // that says otherwise, with nothing on screen offering the dialog back.
+    //
+    // The `currentUser` check is what keeps the success path intact: `close`
+    // also runs from the 1.8s timer in `succeed()` and from the welcome
+    // screen, and by then there is a user — so nobody is bounced off the page
+    // they signed in to reach.
+    const store = useAppStore.getState();
+    if (!store.currentUser && REQUIRES_AUTH.has(store.currentView)) {
+      store.setCurrentView('HOME');
+    }
+    // The step is cleared here rather than inside `reset`, which the open
+    // effect also calls: resetting the step there would immediately undo the
+    // ROLE step that same effect had just chosen for the register tab.
+    setStep('LOGIN');
     reset();
   }, [setShowAuth, reset]);
+
+  /**
+   * Whether anything of this component is on screen.
+   *
+   * It is not simply `showAuth`. `succeed()` calls the store's `login()`,
+   * which sets `showAuth: false` — so an early return on `showAuth` alone
+   * unmounted the success screen, its auto-close timer and the welcome the
+   * instant they became relevant, and every successful sign-in ended in a
+   * dialog that vanished with nothing shown. The two endings keep the
+   * component mounted until they finish on their own.
+   */
+  const dialogVisible = showAuth || step === 'DONE' || celebrateName !== null;
 
   useEffect(() => {
     // The Firebase SDK is a lazy chunk now, so start fetching it as the
@@ -185,7 +241,7 @@ export const AuthDialog: React.FC = () => {
 
   // Focus management: trap Tab inside the dialog, restore focus on close.
   useEffect(() => {
-    if (!showAuth) return;
+    if (!dialogVisible) return;
     previouslyFocused.current = document.activeElement;
     document.body.style.overflow = 'hidden';
 
@@ -216,9 +272,9 @@ export const AuthDialog: React.FC = () => {
       document.body.style.overflow = '';
       (previouslyFocused.current as HTMLElement | null)?.focus?.();
     };
-  }, [showAuth, close]);
+  }, [dialogVisible, close]);
 
-  if (!showAuth) return null;
+  if (!dialogVisible) return null;
 
   const fail = (caught: unknown) => {
     setError(messageFor(caught));
@@ -349,11 +405,14 @@ export const AuthDialog: React.FC = () => {
     setFieldError(undefined);
     setBusy(true);
     try {
-      // The reset step consumes a PASSWORD_RESET code; asking for a REGISTER
-      // one here produced a code the verify call would always reject.
+      // The reset steps consume a PASSWORD_RESET code; asking for a REGISTER
+      // one here produced a code the reset call would always reject. The test
+      // names both reset steps because the split moved the button: it lives on
+      // the code screen, and the password screen can send the visitor back to
+      // it, so neither may fall through to REGISTER.
       const pending = await AuthApi.resendCode(
         phoneDigits(phone),
-        step === 'RESET' ? 'PASSWORD_RESET' : 'REGISTER',
+        step === 'RESET_CODE' || step === 'RESET_PASSWORD' ? 'PASSWORD_RESET' : 'REGISTER',
       );
       setResendIn(pending.resendAfter);
       setDevCode(pending.debugCode ?? null);
@@ -388,6 +447,11 @@ export const AuthDialog: React.FC = () => {
   const handleForgot = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
+    // Clearing the field name matters as much as clearing the message: a
+    // stale one left over from the login form routes the next screen's error
+    // to a field that is not there, and the banner — which only renders when
+    // no field owns the error — then says nothing at all.
+    setFieldError(undefined);
     if (!isPhoneComplete(phone)) {
       setError(t('auth.errors.phoneInvalid'));
       setFieldError('phone');
@@ -399,7 +463,8 @@ export const AuthDialog: React.FC = () => {
       setMaskedPhone(pending.phone);
       setResendIn(pending.resendAfter);
       setDevCode(pending.debugCode ?? null);
-      setStep('RESET');
+      setCode('');
+      setStep('RESET_CODE');
     } catch (caught) {
       fail(caught);
     } finally {
@@ -407,11 +472,32 @@ export const AuthDialog: React.FC = () => {
     }
   };
 
-  const handleReset = async (event: React.FormEvent) => {
+  /**
+   * The code step. It checks the length and nothing else — see the note at
+   * the top of the file for why the server cannot be asked yet.
+   */
+  const handleResetCode = (event: React.FormEvent) => {
     event.preventDefault();
-    setError(null);
     if (code.length < 6) {
       setError(t('auth.errors.codeIncomplete'));
+      setFieldError(undefined);
+      return;
+    }
+    setError(null);
+    setFieldError(undefined);
+    setStep('RESET_PASSWORD');
+  };
+
+  const handleResetPassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    setFieldError(undefined);
+
+    // The register form had this check and the reset form did not, so a
+    // six-character password was accepted here and refused by the server.
+    if (password.length < 8) {
+      setError(t('auth.errors.passwordTooShort', { min: 8 }));
+      setFieldError('password');
       return;
     }
     if (password !== confirmPassword) {
@@ -419,12 +505,20 @@ export const AuthDialog: React.FC = () => {
       setFieldError('confirmPassword');
       return;
     }
+
     setBusy(true);
     try {
       await AuthApi.resetPassword(phoneDigits(phone), code, password, confirmPassword);
       succeed(await AuthApi.login(phoneDigits(phone), password));
     } catch (caught) {
       fail(caught);
+      // This is the first and only moment the code is actually checked, so a
+      // bad or expired one surfaces on the password screen — where there is
+      // nothing to correct. Send it back to the step that owns it.
+      if (caught instanceof ApiError && caught.code.startsWith('otp')) {
+        setCode('');
+        setStep('RESET_CODE');
+      }
     } finally {
       setBusy(false);
     }
@@ -465,7 +559,8 @@ export const AuthDialog: React.FC = () => {
         <button
           type="button"
           onClick={onBack}
-          className="-ml-1 inline-flex items-center gap-1 rounded-lg px-1 py-1 text-xs font-bold text-brand-text transition-colors hover:bg-brand-soft"
+          aria-label={t('layout.header.backAria')}
+          className="press -ml-2 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold text-brand-text transition-colors hover:bg-brand-soft"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
           {t('common.action.back')}
@@ -477,6 +572,54 @@ export const AuthDialog: React.FC = () => {
       <p className="text-sm text-muted">{subtitle}</p>
     </div>
   );
+
+  /**
+   * Going back is a correction, so it clears what the last screen complained
+   * about. Left in place, a password error followed the visitor onto the code
+   * screen — which renders its banner unconditionally and would have shown it.
+   */
+  const backTo = (target: Step) => () => {
+    setError(null);
+    setFieldError(undefined);
+    setStep(target);
+  };
+
+  /** "Step 2 of 3", so the reset never feels like an open-ended interrogation. */
+  const resetProgress = (current: number) => (
+    <p className="text-center text-[11px] font-black uppercase tracking-wider text-subtle">
+      {t('auth.reset.stepOf', { current, total: RESET_STEPS })}
+    </p>
+  );
+
+  const codeTile = (Icon: React.ComponentType<{ className?: string }>) => (
+    <div className="flex justify-center">
+      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-soft text-brand-text">
+        <Icon className="h-7 w-7" aria-hidden="true" />
+      </span>
+    </div>
+  );
+
+  const resendBlock = (
+    <div className="space-y-2 text-center">
+      <button
+        type="button"
+        onClick={handleResend}
+        disabled={resendIn > 0 || busy}
+        className="press min-h-11 px-3 text-xs font-bold text-brand-text hover:underline disabled:cursor-not-allowed disabled:text-subtle disabled:no-underline"
+      >
+        {resendIn > 0
+          ? t('auth.verify.resendIn', { seconds: resendIn })
+          : t('auth.verify.resend')}
+      </button>
+      <p className="text-[11px] text-subtle">{t('auth.verify.pasteHint')}</p>
+    </div>
+  );
+
+  const devCodeBanner = devCode ? (
+    <p className="rounded-lg bg-warning-soft px-3 py-2 text-center text-xs font-bold text-warning">
+      {t('auth.verify.devCode', { code: devCode })}
+    </p>
+  ) : null;
 
   // -- Steps ----------------------------------------------------------------
   const renderStep = () => {
@@ -510,6 +653,10 @@ export const AuthDialog: React.FC = () => {
                 onClick={() => {
                   setStep('FORGOT');
                   setError(null);
+                  // The field name has to go with the message. Left behind, a
+                  // failed login's `password` kept every reset screen's banner
+                  // silent, because no field on them consumes it.
+                  setFieldError(undefined);
                 }}
                 className="text-xs font-bold text-brand-text hover:underline"
               >
@@ -616,7 +763,7 @@ export const AuthDialog: React.FC = () => {
       case 'REGISTER':
         return (
           <form onSubmit={handleRegister} className="space-y-4" noValidate>
-            {header(t('auth.register.title'), t('auth.register.subtitle'), () => setStep('ROLE'))}
+            {header(t('auth.register.title'), t('auth.register.subtitle'), backTo('ROLE'))}
 
             <div className="flex items-center justify-between rounded-xl border border-brand/25 bg-brand-soft px-3.5 py-2.5">
               <span className="text-xs font-bold text-brand-text">
@@ -705,11 +852,9 @@ export const AuthDialog: React.FC = () => {
         );
 
       case 'VERIFY':
-      case 'RESET': {
-        const isReset = step === 'RESET';
         return (
           <form
-            onSubmit={isReset ? handleReset : (event) => {
+            onSubmit={(event) => {
               event.preventDefault();
               void handleVerify();
             }}
@@ -717,105 +862,44 @@ export const AuthDialog: React.FC = () => {
             noValidate
           >
             {header(
-              isReset ? t('auth.reset.title') : t('auth.verify.title'),
-              isReset
-                ? t('auth.reset.subtitle')
-                : t('auth.verify.subtitle', { phone: maskedPhone }),
-              () => setStep(isReset ? 'FORGOT' : 'REGISTER'),
+              t('auth.verify.title'),
+              t('auth.verify.subtitle', { phone: maskedPhone }),
+              backTo('REGISTER'),
             )}
 
-            <div className="flex justify-center">
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-soft text-brand-text">
-                <ShieldCheck className="h-7 w-7" aria-hidden="true" />
-              </span>
-            </div>
+            {codeTile(ShieldCheck)}
 
             <CodeInput
               label={t('auth.fields.code')}
               value={code}
               onChange={setCode}
-              onComplete={isReset ? undefined : (value) => void handleVerify(value)}
+              onComplete={(value) => void handleVerify(value)}
               disabled={busy}
               invalid={Boolean(error)}
             />
 
-            {devCode && (
-              <p className="rounded-lg bg-warning-soft px-3 py-2 text-center text-xs font-bold text-warning">
-                {t('auth.verify.devCode', { code: devCode })}
-              </p>
-            )}
+            {devCodeBanner}
 
-            {isReset && (
-              <>
-                <Field label={t('auth.fields.newPassword')} required>
-                  {({ id, describedBy }) => (
-                    <PasswordInput
-                      id={id}
-                      aria-describedby={describedBy}
-                      autoComplete="new-password"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      placeholder={t('auth.fields.passwordPlaceholder')}
-                    />
-                  )}
-                </Field>
-                {password && <PasswordStrength score={scorePassword(password)} />}
-                <Field
-                  label={t('auth.fields.confirmPassword')}
-                  error={fieldError === 'confirmPassword' ? error ?? undefined : undefined}
-                  required
-                >
-                  {({ id, describedBy, invalid }) => (
-                    <PasswordInput
-                      id={id}
-                      aria-describedby={describedBy}
-                      invalid={invalid}
-                      autoComplete="new-password"
-                      value={confirmPassword}
-                      onChange={(event) => setConfirmPassword(event.target.value)}
-                      placeholder={t('auth.fields.confirmPlaceholder')}
-                    />
-                  )}
-                </Field>
-              </>
-            )}
-
-            {!fieldError && <FormError message={error} />}
+            {/* Unconditional, unlike every other screen's banner. `fieldFor`
+                answers 'code' for any otp_* failure and there is no field of
+                that name here, so the guarded version rendered nothing at all
+                — a rejected SMS code was answered with complete silence. */}
+            <FormError message={error} />
 
             <Button type="submit" loading={busy} fullWidth>
-              {busy
-                ? t('auth.verify.submitting')
-                : isReset
-                  ? t('auth.reset.submit')
-                  : t('auth.verify.submit')}
+              {busy ? t('auth.verify.submitting') : t('auth.verify.submit')}
             </Button>
 
-            <div className="space-y-2 text-center">
-              <button
-                type="button"
-                onClick={handleResend}
-                disabled={resendIn > 0 || busy}
-                className="text-xs font-bold text-brand-text hover:underline disabled:cursor-not-allowed disabled:text-subtle disabled:no-underline"
-              >
-                {resendIn > 0
-                  ? t('auth.verify.resendIn', { seconds: resendIn })
-                  : t('auth.verify.resend')}
-              </button>
-              <p className="text-[11px] text-subtle">{t('auth.verify.pasteHint')}</p>
-            </div>
+            {resendBlock}
           </form>
         );
-      }
 
       case 'FORGOT':
         return (
           <form onSubmit={handleForgot} className="space-y-4" noValidate>
-            {header(t('auth.forgot.title'), t('auth.forgot.subtitle'), () => setStep('LOGIN'))}
-            <div className="flex justify-center">
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-soft text-brand-text">
-                <KeyRound className="h-7 w-7" aria-hidden="true" />
-              </span>
-            </div>
+            {header(t('auth.forgot.title'), t('auth.forgot.subtitle'), backTo('LOGIN'))}
+            {resetProgress(1)}
+            {codeTile(KeyRound)}
             {phoneField}
             {!fieldError && <FormError message={error} />}
             <Button type="submit" loading={busy} fullWidth>
@@ -824,10 +908,106 @@ export const AuthDialog: React.FC = () => {
             <button
               type="button"
               onClick={() => setStep('LOGIN')}
-              className="w-full text-center text-xs font-bold text-brand-text hover:underline"
+              className="press min-h-11 w-full text-center text-xs font-bold text-brand-text hover:underline"
             >
               {t('auth.forgot.backToLogin')}
             </button>
+          </form>
+        );
+
+      case 'RESET_CODE':
+        return (
+          <form onSubmit={handleResetCode} className="space-y-5" noValidate>
+            {header(
+              t('auth.reset.codeTitle'),
+              t('auth.reset.codeSubtitle', { phone: maskedPhone }),
+              backTo('FORGOT'),
+            )}
+            {resetProgress(2)}
+            {codeTile(ShieldCheck)}
+
+            {/* No `onComplete`: the six digits are not verified here, so there
+                is nothing to auto-submit to. Continue is a deliberate press,
+                which also leaves a mistyped digit correctable. */}
+            <CodeInput
+              label={t('auth.fields.code')}
+              value={code}
+              onChange={setCode}
+              disabled={busy}
+              invalid={Boolean(error)}
+            />
+
+            {devCodeBanner}
+
+            {/* Unconditional, for the same reason as VERIFY: an otp_* failure
+                bounced back from the password step arrives with `fieldError`
+                set to 'code', and nothing on this screen consumes it. */}
+            <FormError message={error} />
+
+            <Button type="submit" loading={busy} fullWidth>
+              {t('auth.reset.continue')}
+            </Button>
+
+            {resendBlock}
+          </form>
+        );
+
+      case 'RESET_PASSWORD':
+        return (
+          <form onSubmit={handleResetPassword} className="space-y-4" noValidate>
+            {header(
+              t('auth.reset.passwordTitle'),
+              t('auth.reset.passwordSubtitle'),
+              backTo('RESET_CODE'),
+            )}
+            {resetProgress(3)}
+
+            <Field
+              label={t('auth.fields.newPassword')}
+              // The server's own password complaints come back as `password*`
+              // codes, which `fieldFor` routes to this field. Before it was
+              // passed in, they landed nowhere and the banner stayed quiet.
+              error={fieldError === 'password' ? error ?? undefined : undefined}
+              required
+            >
+              {({ id, describedBy, invalid }) => (
+                <PasswordInput
+                  id={id}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder={t('auth.fields.passwordPlaceholder')}
+                />
+              )}
+            </Field>
+
+            {password && <PasswordStrength score={scorePassword(password)} />}
+
+            <Field
+              label={t('auth.fields.confirmPassword')}
+              error={fieldError === 'confirmPassword' ? error ?? undefined : undefined}
+              required
+            >
+              {({ id, describedBy, invalid }) => (
+                <PasswordInput
+                  id={id}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  placeholder={t('auth.fields.confirmPlaceholder')}
+                />
+              )}
+            </Field>
+
+            {!fieldError && <FormError message={error} />}
+
+            <Button type="submit" loading={busy} fullWidth>
+              {busy ? t('auth.verify.submitting') : t('auth.reset.submit')}
+            </Button>
           </form>
         );
 
@@ -891,7 +1071,7 @@ export const AuthDialog: React.FC = () => {
           type="button"
           onClick={close}
           aria-label={t('common.a11y.closeDialog')}
-          className="absolute right-4 top-4 rounded-full p-2 text-subtle transition-colors hover:bg-surface-2 hover:text-content"
+          className="press absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full text-subtle transition-colors hover:bg-surface-2 hover:text-content"
         >
           <X className="h-5 w-5" aria-hidden="true" />
         </button>

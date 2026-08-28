@@ -51,6 +51,24 @@ export interface PendingRegistration {
   debugCode?: string | null;
 }
 
+/**
+ * One signed-in device, as `GET /auth/sessions` returns it (newest first, at
+ * most 50 rows).
+ */
+export interface AuthSession {
+  id: string;
+  createdAt: string;
+  expiresAt: string;
+  ip?: string;
+  userAgent?: string;
+  /**
+   * True for the device that made the request. The server used to send this as
+   * `false` on every row, which left no way to tell which session was the one
+   * you were reading the list on — so nobody could safely end any of them.
+   */
+  current?: boolean;
+}
+
 export interface RegisterInput {
   name: string;
   phone: string;
@@ -149,12 +167,29 @@ export const AuthApi = {
       { anonymous: true },
     ),
 
-  changePassword: (currentPassword: string, newPassword: string, confirmPassword: string) =>
-    http.post<{ message: string }>('/auth/change-password', {
-      currentPassword,
-      newPassword,
-      confirmPassword,
-    }),
+  /**
+   * Changes the password and, when the server allows it, keeps this device in.
+   *
+   * The server bumps the account's token version and revokes every refresh
+   * family, so the access token this very request rode on is dead the instant
+   * it returns — including on the device that asked for the change. When the
+   * response carries a replacement pair it is persisted here, before any other
+   * authenticated call can be made on the dead one; today's backend answers
+   * with `{message}` only, so the caller is told (via `null`) that it still
+   * has to obtain a session of its own.
+   */
+  changePassword: async (
+    currentPassword: string,
+    newPassword: string,
+    confirmPassword: string,
+  ): Promise<ApiUser | null> => {
+    const response = await http.post<{ message: string } & Partial<TokenResponse>>(
+      '/auth/change-password',
+      { currentPassword, newPassword, confirmPassword },
+    );
+    if (!response.accessToken || !response.user) return null;
+    return persist(response as TokenResponse);
+  },
 
   /** Live feedback for the registration form's strength meter. */
   checkPasswordStrength: (password: string) =>
@@ -164,10 +199,20 @@ export const AuthApi = {
       { anonymous: true },
     ),
 
-  sessions: () =>
-    http.get<Array<{ id: string; createdAt: string; expiresAt: string; ip?: string; userAgent?: string }>>(
-      '/auth/sessions',
-    ),
+  sessions: () => http.get<AuthSession[]>('/auth/sessions'),
+
+  /**
+   * Ends one device's session without touching the others.
+   *
+   * Deliberately not the same thing as `logout(true)`: that bumps the account's
+   * token version and drops every device at once. This revokes a single refresh
+   * family, which is what someone wants when they left a browser signed in on a
+   * shared machine and are still reading this page on their phone. The server
+   * scopes the id to the caller's own rows, so a foreign id is a 404, never a
+   * revoke.
+   */
+  revokeSession: (sessionId: string) =>
+    http.delete<{ message: string }>(`/auth/sessions/${encodeURIComponent(sessionId)}`),
 
   submitVerification: (input: {
     targetLevel: number;

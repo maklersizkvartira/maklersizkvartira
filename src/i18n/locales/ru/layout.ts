@@ -15,6 +15,11 @@ export const layout = {
     ecosystem: 'Экосистема',
     admin: 'Управление',
     help: 'Помощь',
+    search: 'Поиск',
+    more: 'Ещё',
+    settings: 'Настройки',
+    notifications: 'Уведомления',
+    support: 'Поддержка',
   },
 
   header: {
@@ -26,6 +31,18 @@ export const layout = {
     searchPlaceholder: 'Поиск...',
     openMenu: 'Открыть меню',
     closeMenu: 'Закрыть меню',
+    // The header drawer is a Sheet now, so it has a real heading instead of
+    // an unlabelled panel that a screen reader announced as “dialog”.
+    menuTitle: 'Меню',
+    menuSubtitle: 'Разделы, категории и ваш аккаунт',
+    drawerCategories: 'Категории',
+    drawerQuickLinks: 'Быстрые ссылки',
+    drawerAccount: 'Мой аккаунт',
+    drawerSettings: 'Настройки',
+    skipToContent: 'Перейти к основному содержимому',
+    searchAria: 'Поиск по объявлениям',
+    notificationsAria: 'Открыть уведомления',
+    backAria: 'Вернуться назад',
   },
 
   categories: {
@@ -55,6 +72,18 @@ export const layout = {
     premium: {
       title: 'Высокое доверие',
       description: 'От проверенных собственников',
+    },
+    qizlarga: {
+      title: 'Для девушек',
+      description: 'Комнаты и подселение только для девушек',
+    },
+    komfort: {
+      title: 'Комфорт',
+      description: 'Мебель, кондиционер, стиральная машина и интернет',
+    },
+    center: {
+      title: 'В центре',
+      description: 'Жильё в центральных районах города',
     },
   },
 
@@ -86,6 +115,16 @@ export const layout = {
     followUs: 'Мы в соцсетях',
     rights: '© {year} Maklersiz Uy. Все права защищены.',
     madeIn: 'Сделано в Узбекистане',
+    // The helpline is a separate group from the `support` link above it: that
+    // one goes to a page, this one is the number somebody can dial now. It is
+    // `supportBlock` rather than `support` because `support` is already the
+    // footer's link label and the footer still renders it.
+    supportBlock: {
+      title: 'Нужна помощь?',
+      phoneLabel: '+998 77 785 07 37',
+      phoneAria: 'Позвонить по номеру +998 77 785 07 37',
+      hours: 'Ежедневно 09:00 – 21:00',
+    },
   },
 
   splash: {

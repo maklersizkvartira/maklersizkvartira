@@ -43,6 +43,7 @@ import {
 
 import { VerificationBadge } from '../common/VerificationBadge';
 import { useTranslation } from '../../i18n';
+import { AMENITIES } from '../../data/amenities';
 import { ApiError } from '../../services/http';
 import { ListingsApi } from '../../services/listingsApi';
 import { trackEvent } from '../../services/analytics';
@@ -65,15 +66,6 @@ function trustToneClass(score: number): string {
   if (score >= 40) return 'bg-warning-soft text-warning';
   return 'bg-danger-soft text-danger';
 }
-
-const AMENITY_FIELDS = [
-  ['furnished', 'listings.amenities.furnished'],
-  ['parking', 'listings.amenities.parking'],
-  ['internet', 'listings.amenities.internet'],
-  ['airConditioning', 'listings.amenities.airConditioning'],
-  ['washingMachine', 'listings.amenities.washingMachine'],
-  ['petsAllowed', 'listings.amenities.petsAllowed'],
-] as const;
 
 /** Server-side reason codes paired with their labels. */
 const REPORT_REASONS = [
@@ -155,7 +147,7 @@ function youTubeEmbedUrl(raw: string): string | null {
 }
 
 export const ListingDetailPage: React.FC = () => {
-  const { t, formatDate, formatNumber, formatPrice } = useTranslation();
+  const { t, tRaw, formatDate, formatNumber, formatPrice } = useTranslation();
 
   const selectedListingId = useAppStore((state) => state.selectedListingId);
   const currentUser = useAppStore((state) => state.currentUser);
@@ -872,23 +864,24 @@ export const ListingDetailPage: React.FC = () => {
               {t('listings.detail.amenitiesTitle')}
             </h2>
             <ul className="grid grid-cols-2 gap-3 text-xs font-semibold sm:grid-cols-3">
-              {AMENITY_FIELDS.map(([field, labelKey]) => {
-                const available = Boolean(listing[field]);
+              {AMENITIES.map(({ key, listingLabelKey, Icon }) => {
+                const available = Boolean(listing[key]);
                 return (
                   <li
-                    key={field}
+                    key={key}
                     className={`flex items-center gap-2 rounded-xl border p-3 ${
                       available
                         ? 'border-brand/30 bg-brand-soft text-brand-text'
                         : 'border-line bg-surface-2 text-subtle'
                     }`}
                   >
+                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span className="min-w-0 flex-1">{tRaw(listingLabelKey)}</span>
                     {available ? (
                       <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
                     ) : (
-                      <X className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <X className="h-4 w-4 shrink-0 opacity-60" aria-hidden="true" />
                     )}
-                    <span>{t(labelKey)}</span>
                     <span className="sr-only">
                       {available
                         ? t('listings.detail.amenityAvailable')

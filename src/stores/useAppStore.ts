@@ -67,8 +67,11 @@ export interface Filters {
   rooms: number | null;
   minPrice: number | null;
   maxPrice: number | null;
+  minArea: number | null;
   propertyType: string;
   rentalType: 'ALL' | 'FULL' | 'ROOMMATE';
+  /** 'ALL' is the sentinel; 'GIRLS'/'BOYS' also match rooms left open to anyone. */
+  roommateGender: 'ALL' | 'GIRLS' | 'BOYS';
   audience: 'ALL' | 'STUDENT' | 'FAMILY';
   onlyVerified: boolean;
   minTrustScore: number;
@@ -86,14 +89,123 @@ export const DEFAULT_FILTERS: Filters = {
   rooms: null,
   minPrice: null,
   maxPrice: null,
+  minArea: null,
   propertyType: 'ALL',
   rentalType: 'ALL',
+  roommateGender: 'ALL',
   audience: 'ALL',
   onlyVerified: false,
   minTrustScore: 0,
   sortBy: 'RECOMMENDED',
   amenities: [],
 };
+
+// ---------------------------------------------------------------------------
+// Quick filters
+// ---------------------------------------------------------------------------
+/**
+ * The canned searches, defined once.
+ *
+ * They live here rather than in the catalogue page because the home page's
+ * category tiles open exactly the same searches, and two copies of "what
+ * 'for families' means" drift apart the first time one of them is tuned.
+ *
+ * Every delta is *complete* over the dimensions the group owns. The previous
+ * version patched only the keys a chip cared about, which meant tapping
+ * 'family' (audience=FAMILY + rentalType=FULL) and then 'roommate'
+ * (rentalType=ROOMMATE) left audience=FAMILY standing: the backend resolves
+ * that pair to `rooms >= 2 AND is_roommate IS FALSE AND is_roommate IS TRUE`,
+ * an unsatisfiable query that returns nothing with no chip on screen to
+ * explain why. Committing a whole filter set makes the group genuinely
+ * single-select and makes that state unreachable.
+ */
+export type QuickFilterId =
+  | 'all'
+  | 'roommate'
+  | 'student'
+  | 'family'
+  | 'metro'
+  | 'qizlarga'
+  | 'komfort'
+  | 'center'
+  | 'budget'
+  | 'premium';
+
+export const QUICK_FILTER_DELTAS: Record<QuickFilterId, Partial<Filters>> = {
+  all: {},
+  roommate: { rentalType: 'ROOMMATE' },
+  student: { audience: 'STUDENT' },
+  family: { audience: 'FAMILY', rentalType: 'FULL', rooms: 2 },
+  // The API has no "near any metro" flag, so the shortcut opens the busiest
+  // interchange and leaves the station dropdown for the rest.
+  metro: { metroStation: 'Yunusobod' },
+  // A shared room the owner marked "girls only", plus the ones open to
+  // anyone — a room with no preference recorded is open to her too, so the
+  // backend folds ANY and NULL into this filter rather than returning the
+  // handful of listings whose owners happened to fill the field in.
+  qizlarga: { rentalType: 'ROOMMATE', roommateGender: 'GIRLS' },
+  komfort: { amenities: ['furnished', 'airConditioning', 'washingMachine', 'internet'] },
+  // `district` is a single ILIKE, not a set, so "the central districts" is
+  // not expressible in one query. Mirobod is the one the centre is in; the
+  // district dropdown covers the rest.
+  center: { district: 'Mirobod' },
+  // Matches the "up to 3 mln" promise in the shared category description.
+  budget: { maxPrice: 3_000_000, sortBy: 'PRICE_LOW' },
+  premium: { onlyVerified: true, minTrustScore: 80, sortBy: 'TRUST' },
+};
+
+/**
+ * The chips the catalogue rail renders, in order.
+ *
+ * `roommate` and `metro` are deliberately absent: the rail sits directly
+ * under the ALL / FULL / ROOMMATE segmented control, and a chip that sets the
+ * same field as the control one row above it is a second switch for one
+ * setting. They stay in the delta map because the home page's tiles use them.
+ */
+export const QUICK_FILTER_RAIL: readonly QuickFilterId[] = [
+  'all',
+  'student',
+  'family',
+  'qizlarga',
+  'komfort',
+  'center',
+  'budget',
+  'premium',
+];
+
+/**
+ * The whole filter set a quick filter stands for.
+ *
+ * `search` is carried across rather than reset: it is the visitor's own
+ * words, and a chip is a way of narrowing them, not of discarding them.
+ */
+export function quickFilterState(id: QuickFilterId, search = ''): Filters {
+  return { ...DEFAULT_FILTERS, ...QUICK_FILTER_DELTAS[id], search };
+}
+
+function sameAmenities(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const left = [...a].sort();
+  const right = [...b].sort();
+  return left.every((value, index) => value === right[index]);
+}
+
+/**
+ * Which chip, if any, the current filters are. Compared over everything but
+ * the search box, so typing a query does not extinguish the active chip.
+ */
+export function activeQuickFilter(filters: Filters): QuickFilterId | null {
+  return (
+    QUICK_FILTER_RAIL.find((id) => {
+      const candidate = quickFilterState(id, filters.search);
+      return (Object.keys(DEFAULT_FILTERS) as Array<keyof Filters>).every((key) => {
+        if (key === 'search') return true;
+        if (key === 'amenities') return sameAmenities(filters.amenities, candidate.amenities);
+        return filters[key] === candidate[key];
+      });
+    }) ?? null
+  );
+}
 
 interface AppState {
   // -- Session -------------------------------------------------------------
@@ -161,9 +273,52 @@ interface AppState {
   totalCount: number;
   page: number;
   pageSize: number;
+  /**
+   * Whether the server says another page exists.
+   *
+   * Not `listings.length < totalCount`: `mergeUnique` deliberately drops rows
+   * an earlier page already showed, so one listing published mid-browse
+   * leaves the list permanently one short of the total and that comparison
+   * stays true forever — a "load more" button that fetches an empty page,
+   * changes nothing, and is still there afterwards. The server does its own
+   * cursor arithmetic and reports it in `meta.hasNext`.
+   */
+  hasMoreListings: boolean;
+  /**
+   * The filter signature the rows in `listings` answer, or null when there
+   * are none. `listingsAreCurrent` is the only thing that reads it.
+   */
+  listingsKey: string | null;
   listingsLoading: boolean;
+  /**
+   * True only while the in-flight request is a "load more".
+   *
+   * The page needs the distinction: a fresh query must replace the rows with
+   * skeletons, because leaving the previous filter's results on screen while
+   * a new one is running is the same lie the mock data used to tell. An
+   * append must leave them exactly where they are.
+   */
+  listingsAppending: boolean;
   listingsError: string | null;
+  /**
+   * The private lists carry their own status.
+   *
+   * They used to write `listingsError`, which is the field the catalogue
+   * renders its error card from — so a failed my-listings load on the owner
+   * dashboard armed an error on a screen the visitor was not even looking at,
+   * and a successful catalogue load cleared an error the dashboard still had.
+   */
+  myListingsLoading: boolean;
+  myListingsError: string | null;
+  favoritesLoading: boolean;
+  favoritesError: string | null;
   fetchListings: (options?: { append?: boolean; page?: number }) => Promise<void>;
+  /**
+   * True when the rows already in the store answer the filters on screen, so
+   * a page that has just mounted can leave them alone instead of refetching
+   * page 1 over the top of them.
+   */
+  listingsAreCurrent: () => boolean;
   fetchFeatured: () => Promise<void>;
   fetchMyListings: () => Promise<void>;
   fetchFavorites: () => Promise<void>;
@@ -174,7 +329,12 @@ interface AppState {
 
   // -- Filters -------------------------------------------------------------
   filters: Filters;
-  setFilters: (patch: Partial<Filters>) => void;
+  /**
+   * `options.quickFilter` names the chip or tile a whole-set commit came from.
+   * Intent used to be inferred from `'search' in patch`, which every canned
+   * search satisfies — see `setFilters` for what that cost the analytics.
+   */
+  setFilters: (patch: Partial<Filters>, options?: { quickFilter?: QuickFilterId }) => void;
   resetFilters: () => void;
   activeFilterCount: () => number;
 
@@ -259,8 +419,11 @@ function toQuery(filters: Filters, page: number, pageSize: number): ListingQuery
     rooms: filters.rooms ?? undefined,
     minPrice: filters.minPrice ?? undefined,
     maxPrice: filters.maxPrice ?? undefined,
+    minArea: filters.minArea ?? undefined,
     propertyType: filters.propertyType !== 'ALL' ? filters.propertyType : undefined,
     rentalType: filters.rentalType,
+    roommateGender:
+      filters.roommateGender !== 'ALL' ? filters.roommateGender : undefined,
     audience: filters.audience,
     onlyVerified: filters.onlyVerified || undefined,
     minTrustScore: filters.minTrustScore || undefined,
@@ -271,7 +434,49 @@ function toQuery(filters: Filters, page: number, pageSize: number): ListingQuery
   };
 }
 
-import { MOCK_LISTINGS } from '../data/mockListings';
+/**
+ * A stable fingerprint of everything a listings query depends on.
+ *
+ * Stored alongside the rows so a page that remounts — App.tsx swaps views by
+ * unmounting, so returning from a listing detail rebuilds the catalogue from
+ * scratch — can tell "the store already answers this search" from "these rows
+ * belong to a search the visitor has left". Without it the mount fetch threw
+ * away every page `load more` had accumulated.
+ *
+ * `page`/`pageSize` are pinned to 0 because they are not part of *which*
+ * search this is, and the amenity list is sorted because tapping the same two
+ * chips in the other order is the same query.
+ */
+function filterSignature(filters: Filters): string {
+  return JSON.stringify(
+    toQuery({ ...filters, amenities: [...filters.amenities].sort() }, 0, 0),
+  );
+}
+
+/**
+ * Appends page N without repeating a row page N-1 already showed.
+ *
+ * Offsets are computed against a table that is still being written to: one
+ * listing published between two page requests shifts everything down by one,
+ * so page 2 legitimately returns a row page 1 already had. Two cards with the
+ * same id is a duplicate React key and a wrong count, not a longer list.
+ */
+function mergeUnique(existing: Listing[], incoming: Listing[]): Listing[] {
+  const seen = new Set(existing.map((item) => item.id));
+  return [...existing, ...incoming.filter((item) => !seen.has(item.id))];
+}
+
+/**
+ * Request sequencing for the catalogue.
+ *
+ * Two filter taps inside a few hundred milliseconds used to race: whichever
+ * response landed last won, so the older query could paint over the newer one
+ * and the chips on screen would describe a list nobody had asked for. The
+ * sequence number decides who is allowed to write, and the controller aborts
+ * the loser so its connection is not held open for a result nobody wants.
+ */
+let listingsSequence = 0;
+let listingsAbort: AbortController | null = null;
 
 const store = createStore<AppState>((set, get) => ({
   // -- Session -------------------------------------------------------------
@@ -299,7 +504,13 @@ const store = createStore<AppState>((set, get) => ({
       });
 
     if (!getAccessToken()) {
-      set({ authReady: true, listings: MOCK_LISTINGS, totalCount: MOCK_LISTINGS.length });
+      // Nothing but the session flag. This used to seed ten fabricated
+      // listings, and because App.tsx gates the whole tree on `authReady`,
+      // the anonymous visitor's very first painted frame of the catalogue was
+      // ten fake cards — so the skeleton branch was never reachable, and the
+      // real response replaced them with however many rows the database
+      // actually has. Listings appearing and then vanishing was that.
+      set({ authReady: true });
       return;
     }
     try {
@@ -340,8 +551,12 @@ const store = createStore<AppState>((set, get) => ({
     set({
       currentUser: null,
       myListings: [],
+      myListingsError: null,
+      myListingsLoading: false,
       favorites: [],
       favoriteIds: new Set(),
+      favoritesError: null,
+      favoritesLoading: false,
       unreadChatCount: 0,
     });
     // Through the navigator, so the address bar leaves the private page too.
@@ -502,40 +717,79 @@ const store = createStore<AppState>((set, get) => ({
   totalCount: 0,
   page: 1,
   pageSize: 24,
+  hasMoreListings: false,
+  listingsKey: null,
   listingsLoading: false,
+  listingsAppending: false,
   listingsError: null,
+  myListingsLoading: false,
+  myListingsError: null,
+  favoritesLoading: false,
+  favoritesError: null,
 
   fetchListings: async (options = {}) => {
     const { append = false, page = append ? get().page + 1 : 1 } = options;
-    set({ listingsLoading: true, listingsError: null });
+
+    // Everything the response is judged against is read *now*, from the same
+    // state the query was built from. The old code re-read the filter count
+    // after the await, so a response was decided against filters the visitor
+    // had already changed.
+    const mine = ++listingsSequence;
+    listingsAbort?.abort();
+    const controller = new AbortController();
+    listingsAbort = controller;
+    const requestedFilters = get().filters;
+    const query = toQuery(requestedFilters, page, get().pageSize);
+    const signature = filterSignature(requestedFilters);
+
+    set({ listingsLoading: true, listingsAppending: append, listingsError: null });
     try {
-      const result = await ListingsApi.list(toQuery(get().filters, page, get().pageSize));
-      const data = result?.data || [];
-      const totalCount = result?.totalCount || 0;
+      const result = await ListingsApi.list(query, controller.signal);
+      if (mine !== listingsSequence) return;
 
-      // If server returns empty but we have no filters, keep mock data
-      const finalData = (data.length === 0 && get().activeFilterCount() === 0) ? MOCK_LISTINGS : data;
-      const finalTotal = (data.length === 0 && get().activeFilterCount() === 0) ? MOCK_LISTINGS.length : totalCount;
-
-      set((state) => ({
-        listings: append ? [...state.listings, ...finalData] : finalData,
-        totalCount: finalTotal,
-        page,
-        listingsLoading: false,
-      }));
-    } catch (error) {
-      // On error, show mock data if no filters
-      if (get().activeFilterCount() === 0) {
-        set({ listings: MOCK_LISTINGS, totalCount: MOCK_LISTINGS.length, listingsLoading: false });
-        return;
-      }
-      set({
-        listingsLoading: false,
-        listingsError:
-          error instanceof ApiError ? error.code : 'network',
-        ...(append ? {} : { listings: [] }),
+      const data = result?.data ?? [];
+      // An append that came back with nothing is the end of the list whatever
+      // the arithmetic says, and the cursor must not step past it or the next
+      // tap would skip a page that does exist.
+      const exhausted = append && data.length === 0;
+      set((state) => {
+        const rows = append ? mergeUnique(state.listings, data) : data;
+        const total = result?.totalCount ?? 0;
+        return {
+          listings: rows,
+          totalCount: total,
+          // Only the winning request moves the cursor. Writing it from every
+          // response let a superseded page-2 reply push `page` forward, so the
+          // next "load more" fetched page 4 and page 3 was never shown.
+          page: exhausted ? state.page : page,
+          hasMoreListings: exhausted ? false : (result?.meta?.hasNext ?? rows.length < total),
+          listingsKey: signature,
+          listingsLoading: false,
+          listingsAppending: false,
+        };
       });
+    } catch (error) {
+      if (mine !== listingsSequence) return;
+      set((state) => ({
+        listingsLoading: false,
+        listingsAppending: false,
+        listingsError: error instanceof ApiError ? error.code : 'network',
+        // A failed "load more" is not a reason to throw away the seventy-two
+        // rows already on screen; it is a reason to say the next page did not
+        // arrive. Only a failed first page clears the list.
+        listings: append ? state.listings : [],
+        totalCount: append ? state.totalCount : 0,
+        hasMoreListings: append ? state.hasMoreListings : false,
+        // Nothing on screen answers these filters any more, so a page that
+        // mounts next must fetch rather than trust the empty list.
+        listingsKey: append ? state.listingsKey : null,
+      }));
     }
+  },
+
+  listingsAreCurrent: () => {
+    const state = get();
+    return state.listings.length > 0 && state.listingsKey === filterSignature(state.filters);
   },
 
   fetchFeatured: async () => {
@@ -549,35 +803,40 @@ const store = createStore<AppState>((set, get) => ({
 
   fetchMyListings: async () => {
     if (!get().currentUser) return;
-    set({ listingsError: null });
+    set({ myListingsLoading: true, myListingsError: null });
     try {
       const data = await ListingsApi.mine();
-      set({ myListings: data || [] });
+      set({ myListings: data || [], myListingsLoading: false });
     } catch (error) {
       // Swallowing this made the pages' error states unreachable, so a failed
       // load looked identical to "you have no listings".
       set({
         myListings: [],
-        listingsError: error instanceof ApiError ? error.code : 'network',
+        myListingsLoading: false,
+        myListingsError: error instanceof ApiError ? error.code : 'network',
       });
     }
   },
 
   fetchFavorites: async () => {
     if (!get().currentUser) {
-      set({ favorites: [], favoriteIds: new Set() });
+      set({ favorites: [], favoriteIds: new Set(), favoritesLoading: false, favoritesError: null });
       return;
     }
+    set({ favoritesLoading: true, favoritesError: null });
     try {
       const items = await ListingsApi.favorites();
       const data = items || [];
       set({
         favorites: data,
         favoriteIds: new Set(data.map((item) => item.id)),
-        listingsError: null,
+        favoritesLoading: false,
       });
     } catch (error) {
-      set({ listingsError: error instanceof ApiError ? error.code : 'network' });
+      set({
+        favoritesLoading: false,
+        favoritesError: error instanceof ApiError ? error.code : 'network',
+      });
     }
   },
 
@@ -635,16 +894,30 @@ const store = createStore<AppState>((set, get) => ({
 
   // -- Filters -------------------------------------------------------------
   filters: { ...DEFAULT_FILTERS },
-  setFilters: (patch) => {
+  setFilters: (patch, options = {}) => {
     set((state) => ({ filters: { ...state.filters, ...patch }, page: 1 }));
     void get().fetchListings({ page: 1 });
+
     // A typed query and a tapped filter chip are different intents and belong
     // in different reports, but they arrive through the same action — so they
     // are separated here rather than at each of the call sites.
-    if (typeof patch.search === 'string') {
+    //
+    // The test used to be "does the patch mention `search`", which every chip,
+    // tile and search-sheet submit satisfies: they all commit a whole
+    // `quickFilterState`, and a whole filter set always carries a `search`
+    // key. So a chip tapped with an empty box reported nothing at all and a
+    // chip tapped over a typed query reported a search — which is why the
+    // three new categories showed zero usage. A commit is a search only when
+    // `search` is the *only* thing in it, which is exactly what the two
+    // debounced search boxes send.
+    const fields = Object.keys(patch);
+    const searchOnly = fields.length === 1 && fields[0] === 'search';
+    if (options.quickFilter) {
+      trackEvent('filter_apply', { fields: 'quick', quick_filter: options.quickFilter });
+    } else if (searchOnly) {
       if (patch.search) trackEvent('search_submit', { query_length: patch.search.length });
     } else {
-      trackEvent('filter_apply', { fields: Object.keys(patch).join(',') });
+      trackEvent('filter_apply', { fields: fields.join(',') });
     }
   },
   resetFilters: () => {
@@ -661,8 +934,10 @@ const store = createStore<AppState>((set, get) => ({
     if (filters.universityName !== 'ALL') count += 1;
     if (filters.rooms !== null) count += 1;
     if (filters.minPrice !== null || filters.maxPrice !== null) count += 1;
+    if (filters.minArea !== null) count += 1;
     if (filters.propertyType !== 'ALL') count += 1;
     if (filters.rentalType !== 'ALL') count += 1;
+    if (filters.roommateGender !== 'ALL') count += 1;
     if (filters.audience !== 'ALL') count += 1;
     if (filters.onlyVerified) count += 1;
     if (filters.minTrustScore > 0) count += 1;

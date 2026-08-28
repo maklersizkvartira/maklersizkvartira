@@ -16,6 +16,76 @@ export const listings = {
     },
   },
 
+  /**
+   * The filter bar and the filter sheet.
+   *
+   * Separate from `common.filters` on purpose: those are the words a filter
+   * is called anywhere in the app, these are the ones the listings surface
+   * puts on its own chips, its sort menu and its "show results" button.
+   */
+  filters: {
+    title: 'Filtrlar',
+    subtitle: 'Qidiruvni o‘zingizga moslang',
+    openAria: 'Filtrlarni ochish',
+    closeAria: 'Filtrlarni yopish',
+    activeCount: '{count} ta filtr faol',
+    activeNone: 'Filtr tanlanmagan',
+    clearAll: 'Hammasini tozalash',
+    clearOne: '“{label}” filtrini olib tashlash',
+    apply: 'Qo‘llash',
+    showResults: '{count} ta e’lonni ko‘rish',
+    showResultsNone: 'Mos e’lon topilmadi',
+    more: 'Ko‘proq filtr',
+    less: 'Filtrlarni yig‘ish',
+
+    quickLabel: 'Tezkor filtrlar',
+    quick: {
+      all: 'Barchasi',
+      roommate: 'Sheriklikka',
+      student: 'Talabalarga',
+      family: 'Oilalarga',
+      metro: 'Metro yaqinida',
+      budget: 'Arzon',
+      premium: 'Yuqori ishonchli',
+      qizlarga: 'Qizlarga',
+      komfort: 'Komfort',
+      center: 'Markazda',
+      verified: 'Tasdiqlangan',
+      noDeposit: 'Zakladsiz',
+      newest: 'Eng yangi',
+      withVideo: 'Videosi bor',
+      petsAllowed: 'Uy hayvonlariga ruxsat',
+    },
+
+    priceTitle: 'Oylik narx',
+    minPrice: 'Eng kam narx (so‘m)',
+    maxPrice: 'Eng ko‘p narx (so‘m)',
+    minPricePlaceholder: '1 000 000',
+    maxPricePlaceholder: '10 000 000',
+    priceHint: 'Bo‘sh qoldirsangiz narx bo‘yicha cheklov qo‘llanmaydi.',
+
+    areaTitle: 'Maydon',
+    minArea: 'Eng kam maydon (m²)',
+    maxArea: 'Eng ko‘p maydon (m²)',
+    minAreaPlaceholder: '30',
+    maxAreaPlaceholder: '120',
+
+    roomsTitle: 'Xonalar soni',
+    amenitiesTitle: 'Qulayliklar',
+    locationTitle: 'Joylashuv',
+
+    sortBy: 'Saralash',
+    sort: {
+      recommended: 'Tavsiya etilgan',
+      newest: 'Eng yangi',
+      priceLow: 'Avval arzoni',
+      priceHigh: 'Avval qimmati',
+      trust: 'Ishonch reytingi bo‘yicha',
+      areaLarge: 'Avval kattasi',
+      popular: 'Ommabop',
+    },
+  },
+
   hero: {
     eyebrow: 'Maklersiz platforma',
     title: 'Kvartirani egasidan toping',
@@ -61,6 +131,15 @@ export const listings = {
     savedListing: 'Saqlangan',
     shareListing: 'E’lonni ulashish',
     shareText: '{title} — {price}. Maklersiz Uy da, komissiyasiz!',
+    // The card carousel. Dots are buttons, so each one needs a name a screen
+    // reader can read; the live region reads the position after a swipe.
+    photoCarousel: '{title} — e’lon rasmlari',
+    photoDot: '{index}-rasmga o‘tish',
+    photoPosition: '{current} / {total}',
+    photoNext: 'Keyingi rasm',
+    photoPrev: 'Oldingi rasm',
+    photoNone: 'Rasm yo‘q',
+    photoCount: '{count} ta rasm',
   },
 
   detail: {

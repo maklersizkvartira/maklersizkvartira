@@ -127,9 +127,13 @@ export const MapView: React.FC = () => {
   const { isDark } = useTheme();
 
   const listings = useAppStore((state) => state.listings);
+  const totalCount = useAppStore((state) => state.totalCount);
   const listingsLoading = useAppStore((state) => state.listingsLoading);
+  const listingsAppending = useAppStore((state) => state.listingsAppending);
   const listingsError = useAppStore((state) => state.listingsError);
+  const hasMoreListings = useAppStore((state) => state.hasMoreListings);
   const fetchListings = useAppStore((state) => state.fetchListings);
+  const listingsAreCurrent = useAppStore((state) => state.listingsAreCurrent);
   const filters = useAppStore((state) => state.filters);
   const setFilters = useAppStore((state) => state.setFilters);
   const resetFilters = useAppStore((state) => state.resetFilters);
@@ -150,11 +154,21 @@ export const MapView: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<MapEngine | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requested = useRef(false);
 
   // -- Data ----------------------------------------------------------------
+  // Mount only; filter changes refetch through setFilters. The ref is what
+  // makes that true under StrictMode, which mounts every effect twice — two
+  // page-1 requests where one was wanted, the second cancelling the first.
+  //
+  // "See on map" arrives here straight from the catalogue, which has just
+  // fetched these exact filters and may have paged well past the first
+  // twenty-four. Refetching page 1 threw those extra pages away for a request
+  // whose answer the store already held.
   useEffect(() => {
-    void fetchListings({ page: 1 });
-    // Mount only; filter changes refetch through setFilters.
+    if (requested.current) return;
+    requested.current = true;
+    if (!listingsAreCurrent()) void fetchListings({ page: 1 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -296,10 +310,23 @@ export const MapView: React.FC = () => {
     (value: string) => {
       setSearchDraft(value);
       if (searchTimer.current) clearTimeout(searchTimer.current);
-      searchTimer.current = setTimeout(() => setFilters({ search: value }), 400);
+      searchTimer.current = setTimeout(() => {
+        searchTimer.current = null;
+        setFilters({ search: value });
+      }, 400);
     },
     [setFilters],
   );
+
+  // The store's search term can change from somewhere this box knows nothing
+  // about — the home search sheet, a category tile, a filter reset. Seeding
+  // the draft only at mount left an empty box over a filtered map. The
+  // pending-timer guard is what stops the resync from yanking the caret back
+  // while the visitor is still typing.
+  useEffect(() => {
+    if (searchTimer.current) return;
+    setSearchDraft(filters.search);
+  }, [filters.search]);
 
   useEffect(
     () => () => {
@@ -349,10 +376,38 @@ export const MapView: React.FC = () => {
 
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-sm font-black text-content">{t('map.page.title')}</h1>
-              <p className="truncate text-[11px] text-muted" aria-live="polite">
+              {/* The counter says how many pins are drawn, and that used to be
+                  the whole sentence: a filter matching 213 flats produced 24
+                  markers and a line reading "24 listings on the map", so a
+                  visitor who panned the district concluded those were all of
+                  them. The denominator is the missing half — the store has had
+                  the real total all along — and the button below is how the
+                  rest of them get onto the map. */}
+              <p className="text-[11px] text-muted" aria-live="polite">
                 {t('map.page.counter', { count: formatNumber(mapped.length) })}
+                {totalCount > listings.length && (
+                  <span className="ml-1.5 text-subtle">
+                    {t('common.pagination.showing', {
+                      from: 1,
+                      to: listings.length,
+                      total: formatNumber(totalCount),
+                    })}
+                  </span>
+                )}
               </p>
             </div>
+
+            {hasMoreListings && (
+              <Button
+                variant="secondary"
+                className="shrink-0 px-3 py-2 text-xs"
+                loading={listingsAppending}
+                disabled={listingsLoading}
+                onClick={() => void fetchListings({ append: true })}
+              >
+                {t('common.action.loadMore')}
+              </Button>
+            )}
           </div>
 
           <div className="relative min-w-0 flex-1">
@@ -366,7 +421,12 @@ export const MapView: React.FC = () => {
               onChange={(event) => onSearchChange(event.target.value)}
               placeholder={t('map.search.placeholder')}
               aria-label={t('common.action.search')}
-              className="w-full rounded-xl border border-line bg-surface-2 py-2.5 pl-10 pr-10 text-sm font-medium text-content transition-colors placeholder:text-subtle focus:border-brand focus:bg-surface focus:outline-none"
+              // 16px, not 14: iOS Safari zooms the page whenever a field
+              // smaller than that takes focus and never zooms back out, which
+              // on the map means every search leaves the visitor pinching the
+              // controls back into view. Field.tsx makes the same point about
+              // the shared control this box predates.
+              className="w-full rounded-xl border border-line bg-surface-2 py-2.5 pl-10 pr-10 text-base font-medium text-content transition-colors placeholder:text-subtle focus:border-brand focus:bg-surface focus:outline-none"
             />
             {searchDraft && (
               <button

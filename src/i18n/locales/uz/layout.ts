@@ -15,6 +15,11 @@ export const layout = {
     ecosystem: 'Ekotizim',
     admin: 'Boshqaruv',
     help: 'Yordam',
+    search: 'Qidiruv',
+    more: 'Yana',
+    settings: 'Sozlamalar',
+    notifications: 'Bildirishnomalar',
+    support: 'Qo‘llab-quvvatlash',
   },
 
   header: {
@@ -26,6 +31,18 @@ export const layout = {
     searchPlaceholder: 'Qidirish...',
     openMenu: 'Menyuni ochish',
     closeMenu: 'Menyuni yopish',
+    // The header drawer is a Sheet now, so it has a real heading instead of
+    // an unlabelled panel that a screen reader announced as “dialog”.
+    menuTitle: 'Menyu',
+    menuSubtitle: 'Bo‘limlar, kategoriyalar va hisobingiz',
+    drawerCategories: 'Kategoriyalar',
+    drawerQuickLinks: 'Tezkor havolalar',
+    drawerAccount: 'Hisobim',
+    drawerSettings: 'Sozlamalar',
+    skipToContent: 'Asosiy mazmunga o‘tish',
+    searchAria: 'E’lonlar bo‘yicha qidirish',
+    notificationsAria: 'Bildirishnomalarni ochish',
+    backAria: 'Ortga qaytish',
   },
 
   categories: {
@@ -55,6 +72,18 @@ export const layout = {
     premium: {
       title: 'Yuqori ishonchli',
       description: 'Tasdiqlangan uy egalaridan',
+    },
+    qizlarga: {
+      title: 'Qizlarga',
+      description: 'Faqat qizlar uchun xona va sheriklik',
+    },
+    komfort: {
+      title: 'Komfort',
+      description: 'Mebel, konditsioner, kir yuvish mashinasi va internet',
+    },
+    center: {
+      title: 'Markazda',
+      description: 'Shaharning markaziy tumanlaridagi uylar',
     },
   },
 
@@ -86,6 +115,16 @@ export const layout = {
     followUs: 'Ijtimoiy tarmoqlar',
     rights: '© {year} Maklersiz Uy. Barcha huquqlar himoyalangan.',
     madeIn: 'O‘zbekistonda ishlab chiqildi',
+    // The helpline is a separate group from the `support` link above it: that
+    // one goes to a page, this one is the number somebody can dial now. It is
+    // `supportBlock` rather than `support` because `support` is already the
+    // footer's link label and the footer still renders it.
+    supportBlock: {
+      title: 'Yordam kerakmi?',
+      phoneLabel: '+998 77 785 07 37',
+      phoneAria: '+998 77 785 07 37 raqamiga qo‘ng‘iroq qilish',
+      hours: 'Har kuni 09:00 – 21:00',
+    },
   },
 
   splash: {

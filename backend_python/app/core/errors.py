@@ -24,37 +24,37 @@ SUPPORTED_LANGUAGES = ("uz", "ru", "en")
 MESSAGES: dict[str, dict[str, str]] = {
     # -- Generic ------------------------------------------------------------
     "internal_error": {
-        "uz": "Serverda kutilmagan xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring.",
+        "uz": "Serverda kutilmagan xatolik yuz berdi. Birozdan so‘ng qayta urinib ko‘ring.",
         "ru": "Произошла непредвиденная ошибка сервера. Повторите попытку позже.",
         "en": "An unexpected server error occurred. Please try again shortly.",
     },
     "not_found": {
-        "uz": "So'ralgan ma'lumot topilmadi.",
+        "uz": "So‘ralgan ma’lumot topilmadi.",
         "ru": "Запрашиваемые данные не найдены.",
         "en": "The requested resource was not found.",
     },
     "validation_error": {
-        "uz": "Kiritilgan ma'lumotlar noto'g'ri. Iltimos, tekshirib qaytadan yuboring.",
+        "uz": "Kiritilgan ma’lumotlar noto‘g‘ri. Iltimos, tekshirib qaytadan yuboring.",
         "ru": "Введённые данные некорректны. Проверьте и отправьте снова.",
         "en": "The submitted data is invalid. Please check it and try again.",
     },
     "rate_limited": {
-        "uz": "Juda ko'p so'rov yuborildi. Iltimos, biroz kuting.",
+        "uz": "Juda ko‘p so‘rov yuborildi. Iltimos, biroz kuting.",
         "ru": "Слишком много запросов. Пожалуйста, подождите немного.",
         "en": "Too many requests. Please wait a moment.",
     },
     "payload_too_large": {
-        "uz": "Yuborilgan ma'lumot hajmi juda katta.",
+        "uz": "Yuborilgan ma’lumot hajmi juda katta.",
         "ru": "Размер отправленных данных слишком велик.",
         "en": "The submitted payload is too large.",
     },
     "forbidden": {
-        "uz": "Bu amalni bajarishga ruxsatingiz yo'q.",
+        "uz": "Bu amalni bajarishga ruxsatingiz yo‘q.",
         "ru": "У вас нет прав на это действие.",
         "en": "You do not have permission to perform this action.",
     },
     "service_unavailable": {
-        "uz": "Xizmat vaqtincha ishlamayapti. Birozdan so'ng urinib ko'ring.",
+        "uz": "Xizmat vaqtincha ishlamayapti. Birozdan so‘ng urinib ko‘ring.",
         "ru": "Сервис временно недоступен. Попробуйте позже.",
         "en": "The service is temporarily unavailable. Please try again later.",
     },
@@ -75,7 +75,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "Your session is invalid. Please sign in again.",
     },
     "refresh_invalid": {
-        "uz": "Sessiyani yangilab bo'lmadi. Qaytadan kiring.",
+        "uz": "Sessiyani yangilab bo‘lmadi. Qaytadan kiring.",
         "ru": "Не удалось обновить сессию. Войдите снова.",
         "en": "Could not refresh your session. Please sign in again.",
     },
@@ -85,17 +85,17 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "For your security you were signed out everywhere. Please sign in again.",
     },
     "invalid_credentials": {
-        "uz": "Telefon raqami yoki parol noto'g'ri.",
+        "uz": "Telefon raqami yoki parol noto‘g‘ri.",
         "ru": "Неверный номер телефона или пароль.",
         "en": "Incorrect phone number or password.",
     },
     "account_locked": {
-        "uz": "Hisob vaqtincha bloklandi. {minutes} daqiqadan so'ng qayta urinib ko'ring.",
+        "uz": "Hisob vaqtincha bloklandi. {minutes} daqiqadan so‘ng qayta urinib ko‘ring.",
         "ru": "Аккаунт временно заблокирован. Повторите через {minutes} мин.",
         "en": "Account temporarily locked. Try again in {minutes} minutes.",
     },
     "account_suspended": {
-        "uz": "Hisobingiz to'xtatilgan. Qo'llab-quvvatlash xizmatiga murojaat qiling.",
+        "uz": "Hisobingiz to‘xtatilgan. Qo‘llab-quvvatlash xizmatiga murojaat qiling.",
         "ru": "Ваш аккаунт приостановлен. Обратитесь в поддержку.",
         "en": "Your account is suspended. Please contact support.",
     },
@@ -110,12 +110,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "Your phone number is not verified. Please enter the SMS code.",
     },
     "reregistration_required": {
-        "uz": "Xavfsizlik yangilanishi sababli hisobingizni qayta ro'yxatdan o'tkazing.",
+        "uz": "Xavfsizlik yangilanishi sababli hisobingizni qayta ro‘yxatdan o‘tkazing.",
         "ru": "Из-за обновления безопасности пройдите регистрацию заново.",
         "en": "Because of a security upgrade, please register your account again.",
     },
     "phone_already_registered": {
-        "uz": "Bu telefon raqami allaqachon ro'yxatdan o'tgan. Kirish bo'limidan foydalaning.",
+        "uz": "Bu telefon raqami allaqachon ro‘yxatdan o‘tgan. Kirish bo‘limidan foydalaning.",
         "ru": "Этот номер уже зарегистрирован. Воспользуйтесь входом.",
         "en": "This phone number is already registered. Please sign in instead.",
     },
@@ -125,13 +125,13 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "The passwords do not match.",
     },
     "current_password_invalid": {
-        "uz": "Joriy parol noto'g'ri.",
+        "uz": "Joriy parol noto‘g‘ri.",
         "ru": "Текущий пароль неверен.",
         "en": "Your current password is incorrect.",
     },
     # -- Password policy ----------------------------------------------------
     "password_too_short": {
-        "uz": "Parol kamida {min} ta belgidan iborat bo'lishi kerak.",
+        "uz": "Parol kamida {min} ta belgidan iborat bo‘lishi kerak.",
         "ru": "Пароль должен содержать не менее {min} символов.",
         "en": "The password must be at least {min} characters long.",
     },
@@ -151,22 +151,22 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "That password is too common. Please choose another.",
     },
     "password_contains_phone": {
-        "uz": "Parol telefon raqamingizni o'z ichiga olmasligi kerak.",
+        "uz": "Parol telefon raqamingizni o‘z ichiga olmasligi kerak.",
         "ru": "Пароль не должен содержать ваш номер телефона.",
         "en": "The password must not contain your phone number.",
     },
     "password_contains_name": {
-        "uz": "Parol ismingizni o'z ichiga olmasligi kerak.",
+        "uz": "Parol ismingizni o‘z ichiga olmasligi kerak.",
         "ru": "Пароль не должен содержать ваше имя.",
         "en": "The password must not contain your name.",
     },
     "password_repeated_character": {
-        "uz": "Parol faqat bir xil belgidan iborat bo'lmasligi kerak.",
+        "uz": "Parol faqat bir xil belgidan iborat bo‘lmasligi kerak.",
         "ru": "Пароль не может состоять из одного повторяющегося символа.",
         "en": "The password cannot be a single repeated character.",
     },
     "password_whitespace": {
-        "uz": "Parol boshida yoki oxirida bo'sh joy bo'lmasligi kerak.",
+        "uz": "Parol boshida yoki oxirida bo‘sh joy bo‘lmasligi kerak.",
         "ru": "Пароль не должен начинаться или заканчиваться пробелом.",
         "en": "The password must not start or end with a space.",
     },
@@ -177,12 +177,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "Please enter your phone number.",
     },
     "phone_invalid": {
-        "uz": "Telefon raqami noto'g'ri.",
+        "uz": "Telefon raqami noto‘g‘ri.",
         "ru": "Некорректный номер телефона.",
         "en": "That phone number is not valid.",
     },
     "phone_invalid_length": {
-        "uz": "Telefon raqami to'liq emas. Masalan: +998 90 123 45 67",
+        "uz": "Telefon raqami to‘liq emas. Masalan: +998 90 123 45 67",
         "ru": "Номер телефона неполный. Например: +998 90 123 45 67",
         "en": "The phone number is incomplete. Example: +998 90 123 45 67",
     },
@@ -193,84 +193,84 @@ MESSAGES: dict[str, dict[str, str]] = {
     },
     # -- OTP ----------------------------------------------------------------
     "otp_not_found": {
-        "uz": "Kod yuborilmagan yoki muddati tugagan. Yangi kod so'rang.",
+        "uz": "Kod yuborilmagan yoki muddati tugagan. Yangi kod so‘rang.",
         "ru": "Код не отправлен или истёк. Запросите новый.",
         "en": "No code was sent, or it has expired. Request a new one.",
     },
     "otp_expired": {
-        "uz": "Kodning amal qilish muddati tugadi. Yangi kod so'rang.",
+        "uz": "Kodning amal qilish muddati tugadi. Yangi kod so‘rang.",
         "ru": "Срок действия кода истёк. Запросите новый.",
         "en": "The code has expired. Please request a new one.",
     },
     "otp_invalid": {
-        "uz": "Tasdiqlash kodi noto'g'ri. Yana {remaining} ta urinish qoldi.",
+        "uz": "Tasdiqlash kodi noto‘g‘ri. Yana {remaining} ta urinish qoldi.",
         "ru": "Неверный код подтверждения. Осталось попыток: {remaining}.",
         "en": "Incorrect verification code. {remaining} attempts remaining.",
     },
     "otp_too_many_attempts": {
-        "uz": "Juda ko'p noto'g'ri urinish. Yangi kod so'rang.",
+        "uz": "Juda ko‘p noto‘g‘ri urinish. Yangi kod so‘rang.",
         "ru": "Слишком много неверных попыток. Запросите новый код.",
         "en": "Too many incorrect attempts. Please request a new code.",
     },
     "otp_cooldown": {
-        "uz": "Yangi kodni {seconds} soniyadan so'ng so'rashingiz mumkin.",
+        "uz": "Yangi kodni {seconds} soniyadan so‘ng so‘rashingiz mumkin.",
         "ru": "Новый код можно запросить через {seconds} сек.",
         "en": "You can request a new code in {seconds} seconds.",
     },
     "otp_daily_limit": {
-        "uz": "Bugun uchun SMS limiti tugadi. Ertaga qayta urinib ko'ring.",
+        "uz": "Bugun uchun SMS limiti tugadi. Ertaga qayta urinib ko‘ring.",
         "ru": "Дневной лимит SMS исчерпан. Попробуйте завтра.",
         "en": "The daily SMS limit has been reached. Please try again tomorrow.",
     },
     "sms_send_failed": {
-        "uz": "SMS yuborishda xatolik. Iltimos, qayta urinib ko'ring.",
+        "uz": "SMS yuborishda xatolik. Iltimos, qayta urinib ko‘ring.",
         "ru": "Не удалось отправить SMS. Попробуйте ещё раз.",
         "en": "Could not send the SMS. Please try again.",
     },
     "registration_not_found": {
-        "uz": "Ro'yxatdan o'tish jarayoni topilmadi. Qaytadan boshlang.",
+        "uz": "Ro‘yxatdan o‘tish jarayoni topilmadi. Qaytadan boshlang.",
         "ru": "Процесс регистрации не найден. Начните заново.",
         "en": "No registration in progress. Please start again.",
     },
     # -- Listings -----------------------------------------------------------
     "listing_not_found": {
-        "uz": "E'lon topilmadi yoki o'chirilgan.",
+        "uz": "E’lon topilmadi yoki o‘chirilgan.",
         "ru": "Объявление не найдено или удалено.",
         "en": "That listing was not found or has been removed.",
     },
     "listing_forbidden": {
-        "uz": "Bu e'lon sizga tegishli emas.",
+        "uz": "Bu e’lon sizga tegishli emas.",
         "ru": "Это объявление вам не принадлежит.",
         "en": "This listing does not belong to you.",
     },
     "listing_rejected_by_ai": {
-        "uz": "E'lon moderatsiyadan o'tmadi: maklerlik yoki firibgarlik belgilari aniqlandi.",
+        "uz": "E’lon moderatsiyadan o‘tmadi: maklerlik yoki firibgarlik belgilari aniqlandi.",
         "ru": "Объявление не прошло модерацию: признаки посредничества или мошенничества.",
         "en": "The listing failed moderation: broker or fraud signals were detected.",
     },
     "listing_limit_reached": {
-        "uz": "Bir soatda faqat {limit} ta e'lon joylashingiz mumkin.",
+        "uz": "Bir soatda faqat {limit} ta e’lon joylashingiz mumkin.",
         "ru": "В час можно разместить не более {limit} объявлений.",
         "en": "You may post at most {limit} listings per hour.",
     },
     "owner_role_required": {
-        "uz": "E'lon joylash uchun 'Uy egasi' rolini tanlang.",
+        "uz": "E’lon joylash uchun «Uy egasi» rolini tanlang.",
         "ru": "Чтобы разместить объявление, выберите роль «Владелец».",
         "en": "Switch to the Owner role to post a listing.",
     },
     "too_many_images": {
-        "uz": "Bitta e'longa eng ko'pi {limit} ta rasm yuklash mumkin.",
+        "uz": "Bitta e’longa eng ko‘pi {limit} ta rasm yuklash mumkin.",
         "ru": "К одному объявлению можно приложить не более {limit} фото.",
         "en": "A listing may include at most {limit} images.",
     },
     # -- Admin --------------------------------------------------------------
     "admin_unauthorized": {
-        "uz": "Admin paneliga kirish uchun avtorizatsiyadan o'ting.",
+        "uz": "Admin paneliga kirish uchun avtorizatsiyadan o‘ting.",
         "ru": "Авторизуйтесь для доступа к админ-панели.",
         "en": "Sign in to access the admin panel.",
     },
     "admin_forbidden": {
-        "uz": "Bu amal uchun yetarli huquqingiz yo'q.",
+        "uz": "Bu amal uchun yetarli huquqingiz yo‘q.",
         "ru": "Недостаточно прав для этого действия.",
         "en": "You do not have sufficient privileges for this action.",
     },
@@ -280,7 +280,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "Admin access is not allowed from this IP address.",
     },
     "password_reveal_disabled": {
-        "uz": "Parolni ko'rsatish funksiyasi o'chirilgan.",
+        "uz": "Parolni ko‘rsatish funksiyasi o‘chirilgan.",
         "ru": "Функция показа пароля отключена.",
         "en": "The password reveal feature is disabled.",
     },
@@ -290,13 +290,13 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "No recoverable password is stored for this user.",
     },
     "cannot_modify_self": {
-        "uz": "O'z hisobingizga bu amalni qo'llay olmaysiz.",
+        "uz": "O‘z hisobingizga bu amalni qo‘llay olmaysiz.",
         "ru": "Вы не можете применить это действие к своему аккаунту.",
         "en": "You cannot apply this action to your own account.",
     },
     # -- AI -----------------------------------------------------------------
     "ai_daily_limit": {
-        "uz": "Bugungi {limit} ta bepul Shield AI so'rovingiz tugadi. Ertaga yangilanadi.",
+        "uz": "Bugungi {limit} ta bepul Shield AI so‘rovingiz tugadi. Ertaga yangilanadi.",
         "ru": "Дневной лимит {limit} бесплатных запросов Shield AI исчерпан. Обновится завтра.",
         "en": "You have used all {limit} free Shield AI requests for today. Resets tomorrow.",
     },

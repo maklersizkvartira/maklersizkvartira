@@ -85,7 +85,19 @@ export const account = {
     unknownIp: 'IP aniqlanmadi',
     empty: 'Faol seans topilmadi.',
     loadFailed: 'Seanslar ro‘yxatini yuklab bo‘lmadi.',
+    loadError: 'Seanslar ro‘yxatini yuklab bo‘lmadi. Qayta urinib ko‘ring.',
     reload: 'Ro‘yxatni yangilash',
+    // A person recognises their own row by the device and the browser, not by
+    // a session id — and they must be able to see which row is the one they
+    // are reading it on, so they do not sign themselves out by accident.
+    current: 'Shu qurilma',
+    browser: 'Brauzer',
+    lastSeen: 'Oxirgi faollik',
+    revoke: 'Seansni yakunlash',
+    revokeConfirm: 'Bu qurilmadagi seansni yakunlaysizmi?',
+    revokeAll: 'Boshqa barcha qurilmalardan chiqarish',
+    revoked: 'Seans yakunlandi.',
+    revokeFailed: 'Seansni yakunlab bo‘lmadi.',
   },
 
   signOut: {

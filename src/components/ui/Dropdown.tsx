@@ -22,6 +22,8 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 
+import { cn } from '../../lib/cn';
+
 interface Item {
   value: string;
   label: string;
@@ -110,7 +112,9 @@ export const Dropdown: React.FC<DropdownProps> = ({
   const openList = useCallback(() => {
     if (disabled) return;
     const rect = rootRef.current?.getBoundingClientRect();
-    if (rect) setDropUp(window.innerHeight - rect.bottom < 260 && rect.top > 260);
+    // 320 matches `max-h-80` on the list below; a threshold left behind at the
+    // old height opens downwards into space the list no longer fits in.
+    if (rect) setDropUp(window.innerHeight - rect.bottom < 320 && rect.top > 320);
     setActive(Math.max(items.findIndex((item) => item.value === value), 0));
     setOpen(true);
   }, [disabled, items, value]);
@@ -213,15 +217,18 @@ export const Dropdown: React.FC<DropdownProps> = ({
     }
   };
 
+  // `min-h-11` on both sizes: the compact variant's `py-2` on 12px text is a
+  // 32px control, and it is the one that appears in the filter bar — the
+  // densest row of taps on the busiest page.
   const size = compact
-    ? 'py-2 pl-3 pr-9 text-xs font-bold'
-    : 'px-4 py-3 pr-11 text-sm font-medium';
+    ? 'min-h-11 py-2 pl-3 pr-9 text-xs font-bold'
+    : 'min-h-11 px-4 py-3 pr-11 text-sm font-medium';
   const border = invalid ? 'border-danger' : open ? 'border-brand' : 'border-line';
 
   let lastGroup: string | undefined;
 
   return (
-    <div ref={rootRef} className={`relative ${className}`}>
+    <div ref={rootRef} className={cn('relative', className)}>
       <button
         id={buttonId}
         type="button"
@@ -234,14 +241,18 @@ export const Dropdown: React.FC<DropdownProps> = ({
         aria-activedescendant={open ? `${listId}-${active}` : undefined}
         aria-invalid={invalid || undefined}
         {...aria}
-        className={`flex w-full items-center justify-between gap-2 rounded-xl border bg-surface-2
-          text-left text-content transition-colors
-          disabled:cursor-not-allowed disabled:opacity-60
-          ${open ? 'bg-surface' : ''} ${border} ${size}`}
+        className={cn(
+          'flex w-full touch-manipulation items-center justify-between gap-2 rounded-xl',
+          'border bg-surface-2 text-left text-content transition-colors',
+          'disabled:cursor-not-allowed disabled:opacity-60',
+          open && 'bg-surface',
+          border,
+          size,
+        )}
       >
         <span className="truncate">{selected?.label ?? '—'}</span>
         <ChevronDown
-          className={`h-4 w-4 shrink-0 text-subtle transition-transform ${open ? 'rotate-180' : ''}`}
+          className={cn('h-4 w-4 shrink-0 text-subtle transition-transform', open && 'rotate-180')}
           aria-hidden="true"
         />
       </button>
@@ -253,8 +264,14 @@ export const Dropdown: React.FC<DropdownProps> = ({
           role="listbox"
           aria-labelledby={buttonId}
           tabIndex={-1}
-          className={`absolute z-50 max-h-64 w-full overflow-auto rounded-xl border border-line
-            bg-surface p-1 shadow-2xl ${dropUp ? 'bottom-full mb-1' : 'top-full mt-1'}`}
+          // Taller than it was, because the rows are taller than they were:
+          // at `max-h-64` the 44px rows showed five options where the old
+          // 36px ones showed seven.
+          className={cn(
+            'absolute z-50 max-h-80 w-full overscroll-contain overflow-auto rounded-xl',
+            'border border-line bg-surface p-1 shadow-2xl',
+            dropUp ? 'bottom-full mb-1' : 'top-full mt-1',
+          )}
         >
           {items.map((item, index) => {
             const heading = item.group && item.group !== lastGroup ? item.group : null;
@@ -288,11 +305,16 @@ export const Dropdown: React.FC<DropdownProps> = ({
                     commit(index);
                   }}
                   onPointerEnter={() => !item.disabled && setActive(index)}
-                  className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2
-                    text-sm transition-colors
-                    ${item.disabled ? 'cursor-not-allowed opacity-50' : ''}
-                    ${isActive ? 'bg-surface-3' : ''}
-                    ${isSelected ? 'font-bold text-brand-text' : 'text-content'}`}
+                  // `min-h-11`: at `py-2` these rows were 36px, and a list of
+                  // 151 districts scrolled under a thumb is exactly where an
+                  // under-sized target turns into the wrong district.
+                  className={cn(
+                    'flex min-h-11 cursor-pointer touch-manipulation items-center',
+                    'justify-between gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
+                    item.disabled && 'cursor-not-allowed opacity-50',
+                    isActive && 'bg-surface-3',
+                    isSelected ? 'font-bold text-brand-text' : 'text-content',
+                  )}
                 >
                   <span className="truncate">{item.label}</span>
                   {isSelected && <Check className="h-4 w-4 shrink-0" aria-hidden="true" />}

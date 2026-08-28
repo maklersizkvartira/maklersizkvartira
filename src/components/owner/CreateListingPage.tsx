@@ -8,9 +8,22 @@
  *    has the final say inside `ListingsApi.create()`.
  *  - Nothing server-owned (status, trust/risk scores, counters, owner) is sent:
  *    the API rejects unknown fields with 422.
- *  - Images travel as base64 data URLs inside the JSON body, so the wizard
- *    caps them and shows the running payload size — a request over the limit
- *    fails at the gateway, long after the owner has done the work.
+ *  - Images travel as base64 data URLs inside the JSON body, so they are
+ *    downscaled before they are encoded and the wizard shows the running
+ *    payload size — a request over the limit fails at the gateway, long after
+ *    the owner has done the work.
+ *
+ * Two rules this form learned the hard way:
+ *
+ *  - **Nothing is answered on the owner's behalf.** Every numeric field used
+ *    to open with a plausible number in it and six of the seven amenities
+ *    ticked, so an owner who typed a title and pressed through published a
+ *    flat that claimed 65 m², a 4.5M price, parking and a five-minute walk to
+ *    Yunusobod. A seeded value reads as an answer; a placeholder reads as an
+ *    example.
+ *  - **Nothing is lost.** Four steps is long enough that a mis-tapped back
+ *    gesture used to empty all four, photos included. The answers are kept in
+ *    a local draft and leaving is confirmed.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -39,9 +52,16 @@ import {
 
 import { useTranslation } from '../../i18n';
 import { UZBEKISTAN_REGIONS, TASHKENT_METRO_LINES } from '../../data/mockLocations';
+import { AMENITIES, NO_AMENITIES, type AmenityState } from '../../data/amenities';
+import { ApiError } from '../../services/http';
 import { ListingsApi, type ModerationResult } from '../../services/listingsApi';
 import { useAppStore } from '../../stores/useAppStore';
+import { useHaptics } from '../../hooks/useHaptics';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { cn } from '../../lib/cn';
 import { Button, Field, FormError, SelectInput, TextInput } from '../ui/Field';
+import { Card } from '../ui/Card';
+import { Sheet } from '../ui/Sheet';
 import { canPublishListings } from '../../types/roles';
 import {
   districtCentre,
@@ -53,20 +73,136 @@ import {
 const METRO_NONE = 'NONE';
 
 const MAX_IMAGES = 12;
+const MIN_IMAGES = 3;
 /** The JSON body carries the photos, so the whole request must stay small. */
 const MAX_PAYLOAD_MB = 6;
 const TOTAL_STEPS = 4;
 
-const checkboxClass =
-  'h-4 w-4 rounded border-line-2 text-brand accent-[var(--color-brand)] focus:ring-brand';
+/**
+ * Longest edge a stored photo is allowed to have.
+ *
+ * A photo straight off a current phone is 4000px wide and three of them are
+ * enough to blow the 6MB request cap on their own — which is why the single
+ * most common way to fail this form used to be uploading normal pictures. At
+ * 1600px a listing photo still fills a desktop card at 2x and costs roughly a
+ * fifteenth as many bytes.
+ */
+const MAX_IMAGE_EDGE = 1600;
+const IMAGE_QUALITY = 0.82;
+/** Below this an untouched original is cheaper than a re-encode of it. */
+const REENCODE_ABOVE_BYTES = 400 * 1024;
 
-const checkboxRowClass =
-  'flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-surface-2 p-3 ' +
-  'text-xs font-bold text-content transition-colors hover:bg-surface-3';
+/**
+ * The draft key carries the account id.
+ *
+ * One global key meant one draft per *browser*, and a shared phone or a family
+ * desktop is normal here: the owner who signed in second opened "post a
+ * listing" and found the first one's street address, price, Telegram handle
+ * and photos already in the form, ready to publish under their own name.
+ * `logout` never cleared it either, so signing out did not help.
+ */
+const DRAFT_KEY_PREFIX = 'maklersiz.owner.createDraft';
+/** The key from before the split, deleted rather than adopted — see above. */
+const LEGACY_DRAFT_KEY = DRAFT_KEY_PREFIX;
+const DRAFT_VERSION = 1;
+const DRAFT_DEBOUNCE_MS = 800;
+/**
+ * A draft older than this is not a draft, it is a memory. Coming back to a
+ * five-month-old form and pressing through publishes last spring's price.
+ */
+const DRAFT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** The API's own rule, applied here so a typo is not worth a round trip. */
+const TELEGRAM_PATTERN = /^@?[A-Za-z0-9_]{4,32}$/;
+
+/**
+ * The schema's own caps (`app/schemas/listing.py`), mirrored.
+ *
+ * Only the minimums were checked here, so a contact-time box filled with a
+ * whole sentence uploaded four megabytes of photos and came back as one red
+ * line reading "check the data you entered", with nothing saying which box.
+ * The server trims before it measures, so `.trim().length` is what is compared.
+ */
+const MAX_TITLE_LENGTH = 160;
+const MAX_DESCRIPTION_LENGTH = 5000;
+const MAX_CONTACT_TIME_LENGTH = 64;
+
+/**
+ * Which field a 422 is about, and where it lives.
+ *
+ * The API answers with the camelCase alias it was sent (`preferredContactTime`),
+ * which is neither this form's error key nor a step number — so the two are
+ * written down rather than assumed to line up.
+ */
+const SERVER_FIELDS: Record<string, { step: number; field: string }> = {
+  address: { step: 1, field: 'address' },
+  metroDistanceMinutes: { step: 1, field: 'metroMinutes' },
+  title: { step: 2, field: 'title' },
+  description: { step: 2, field: 'description' },
+  price: { step: 2, field: 'price' },
+  depositPrice: { step: 2, field: 'deposit' },
+  rooms: { step: 2, field: 'rooms' },
+  area: { step: 2, field: 'area' },
+  floor: { step: 2, field: 'floor' },
+  totalFloors: { step: 2, field: 'floor' },
+  images: { step: 3, field: 'images' },
+  videoUrl: { step: 3, field: 'videoUrl' },
+  contactTelegram: { step: 4, field: 'telegram' },
+  preferredContactTime: { step: 4, field: 'preferredTime' },
+};
+
+const GPS_ERROR_KEYS: Record<number, string> = {
+  1: 'owner.create.location.gpsDenied',
+  2: 'owner.create.location.gpsUnavailable',
+  3: 'owner.create.location.gpsTimeout',
+};
 
 const textareaClass =
-  'w-full rounded-xl border border-line bg-surface-2 p-3.5 text-sm font-medium text-content ' +
+  'w-full rounded-2xl border border-line bg-surface-2 p-3.5 text-base font-medium text-content ' +
   'transition-colors placeholder:text-subtle focus:border-brand focus:bg-surface focus:outline-none';
+
+/**
+ * `number | ''` rather than `number`.
+ *
+ * `Number('')` is 0, so with a plain number state clearing the price box wrote
+ * a literal zero into the listing and the field showed it.
+ */
+type NumberField = number | '';
+
+type RoommateGender = 'BOYS' | 'GIRLS' | 'ANY';
+
+type Notice = { key: string; params?: Record<string, string | number> };
+
+interface Draft {
+  version: number;
+  savedAt: number;
+  step: number;
+  region: string;
+  district: string;
+  address: string;
+  metro: string;
+  metroMinutes: NumberField;
+  latitude: number | null;
+  longitude: number | null;
+  title: string;
+  description: string;
+  price: NumberField;
+  deposit: NumberField;
+  rooms: NumberField;
+  area: NumberField;
+  floor: NumberField;
+  totalFloors: NumberField;
+  amenities: AmenityState;
+  isRoommate: boolean;
+  roommateGender: RoommateGender;
+  roommateSpots: number;
+  images: string[];
+  videoUrl: string;
+  telegram: string;
+  preferredTime: string;
+  /** True when this copy was stored without its photos — see `writeDraft`. */
+  photosDropped?: boolean;
+}
 
 /** Approximate byte size of a base64 data URL, without decoding it. */
 function dataUrlBytes(dataUrl: string): number {
@@ -84,10 +220,152 @@ function readAsDataUrl(file: File): Promise<string | null> {
   });
 }
 
-type Notice = { key: string; params?: Record<string, string | number> };
+function decode(dataUrl: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('decode_failed'));
+    image.src = dataUrl;
+  });
+}
+
+/**
+ * What came back from `prepareImage`: a picture, or a file that is not one.
+ *
+ * Unreadable and undecodable end in the same message rather than a
+ * format-specific one, because "this file could not be read" is equally true
+ * of a HEIC on Android, a truncated JPEG and a file whose extension lies.
+ */
+type PreparedImage = { ok: true; dataUrl: string } | { ok: false };
+
+/**
+ * Read a picked file and shrink it to something a JSON body can carry.
+ *
+ * A file the browser cannot decode is rejected rather than passed through.
+ * Returning the original used to look like leniency and was the opposite: no
+ * desktop or Android browser decodes HEIC, so an iPhone photo synced to a
+ * laptop went through untouched at its full size, showed a broken-image icon
+ * in the grid, counted three or four megabytes against the payload cap, and —
+ * if the total happened to fit — published a listing whose photos are blank in
+ * every browser, the moderation queue included.
+ *
+ * The canvas being unavailable is a different thing and still falls back to the
+ * original: there the picture is fine, only the shrinking failed, and a photo
+ * that is too big at least reaches the size warning.
+ */
+async function prepareImage(file: File): Promise<PreparedImage> {
+  const original = await readAsDataUrl(file);
+  if (!original) return { ok: false };
+
+  let image: HTMLImageElement;
+  try {
+    image = await decode(original);
+  } catch {
+    return { ok: false };
+  }
+
+  try {
+    const longestEdge = Math.max(image.naturalWidth, image.naturalHeight);
+    const scale = longestEdge > 0 ? Math.min(1, MAX_IMAGE_EDGE / longestEdge) : 1;
+    if (scale === 1 && dataUrlBytes(original) <= REENCODE_ABOVE_BYTES) {
+      return { ok: true, dataUrl: original };
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext('2d');
+    if (!context) return { ok: true, dataUrl: original };
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    const encoded = canvas.toDataURL('image/jpeg', IMAGE_QUALITY);
+    const smaller = dataUrlBytes(encoded) < dataUrlBytes(original) ? encoded : original;
+    return { ok: true, dataUrl: smaller };
+  } catch {
+    return { ok: true, dataUrl: original };
+  }
+}
+
+function draftKeyFor(userId: string): string {
+  return `${DRAFT_KEY_PREFIX}.${userId}`;
+}
+
+function readDraft(key: string | null): Draft | null {
+  if (!key) return null;
+  try {
+    // One-time migration. The old shared draft is not adopted into this
+    // account — it may belong to whoever used the browser last — it is thrown
+    // away, photos and all, so it stops leaking and stops taking up quota.
+    localStorage.removeItem(LEGACY_DRAFT_KEY);
+
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Draft;
+    if (!parsed || parsed.version !== DRAFT_VERSION) return null;
+    // A missing `savedAt` is a draft from before this check, so it is treated
+    // as old rather than as an age of NaN.
+    if (
+      !Number.isFinite(parsed.savedAt) ||
+      Date.now() - parsed.savedAt > DRAFT_MAX_AGE_MS
+    ) {
+      clearDraft(key);
+      return null;
+    }
+    return { ...parsed, amenities: { ...NO_AMENITIES, ...parsed.amenities } };
+  } catch {
+    // Corrupt or unreadable storage must not stop the form from opening.
+    return null;
+  }
+}
+
+type DraftWrite = 'saved' | 'photosDropped' | 'failed';
+
+/**
+ * Persist the draft, dropping the photos if that is what it takes.
+ *
+ * Twelve downscaled photos are past the ~5MB localStorage quota — the form's
+ * own 6MB budget is measured in decoded bytes and storage counts base64
+ * characters, so the wall arrives around a "3.6 / 6 MB" reading — and a quota
+ * error thrown here would otherwise lose the text too, which is the part that
+ * took the owner ten minutes to write.
+ *
+ * The drop is reported rather than swallowed. It is destructive: the write
+ * that fails replaces a draft that *did* hold four photos with one that holds
+ * none, so adding a fifth photo is what deletes the first four. The caller
+ * records it on the draft so the restore banner can say the photos are gone
+ * before the owner discovers it by their absence.
+ */
+function writeDraft(key: string | null, draft: Draft): DraftWrite {
+  if (!key) return 'failed';
+  try {
+    localStorage.setItem(key, JSON.stringify({ ...draft, photosDropped: false }));
+    return 'saved';
+  } catch {
+    const dropped = draft.images.length > 0;
+    try {
+      localStorage.setItem(
+        key,
+        JSON.stringify({ ...draft, images: [], photosDropped: dropped }),
+      );
+      return dropped ? 'photosDropped' : 'saved';
+    } catch {
+      /* storage is unavailable entirely (private mode, blocked) */
+      return 'failed';
+    }
+  }
+}
+
+function clearDraft(key: string | null): void {
+  if (!key) return;
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
 
 export const CreateListingPage: React.FC = () => {
-  const { t, tRaw, formatPrice, formatNumber } = useTranslation();
+  const { t, tRaw, formatPrice, formatNumber, formatDate } = useTranslation();
 
   const currentUser = useAppStore((state) => state.currentUser);
   const setCurrentView = useAppStore((state) => state.setCurrentView);
@@ -97,65 +375,90 @@ export const CreateListingPage: React.FC = () => {
   const pushToast = useAppStore((state) => state.pushToast);
   const fxRate = useAppStore((state) => state.fxRate);
 
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
+  const prefersReducedMotion = useReducedMotion();
+  const haptics = useHaptics();
 
-  const [step, setStep] = useState(1);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const dragFromRef = useRef<number | null>(null);
+
+  // Derived above the sign-in gate below, because the initialiser on the next
+  // line runs before that gate does. `null` when nobody is signed in, and every
+  // draft helper does nothing with a null key.
+  const draftKey = currentUser ? draftKeyFor(currentUser.id) : null;
+
+  // Read once, so every field below can open on the value the owner left.
+  const [initialDraft] = useState<Draft | null>(() => readDraft(draftKey));
+
+  const [step, setStep] = useState(initialDraft?.step ?? 1);
 
   // -- Step 1: location ------------------------------------------------------
-  const [region, setRegion] = useState(TASHKENT_CITY);
+  const [region, setRegion] = useState(initialDraft?.region ?? TASHKENT_CITY);
   const [district, setDistrict] = useState(
     () =>
+      initialDraft?.district ??
       (UZBEKISTAN_REGIONS.find((item) => item.name === TASHKENT_CITY) ?? UZBEKISTAN_REGIONS[0])
         .districts[0],
   );
-  const [address, setAddress] = useState('');
-  const [metro, setMetro] = useState('Yunusobod');
-  const [metroMinutes, setMetroMinutes] = useState(5);
+  const [address, setAddress] = useState(initialDraft?.address ?? '');
+  // METRO_NONE, not a station: an untouched form used to claim a five-minute
+  // walk to Yunusobod from anywhere in the country.
+  const [metro, setMetro] = useState(initialDraft?.metro ?? METRO_NONE);
+  const [metroMinutes, setMetroMinutes] = useState<NumberField>(
+    initialDraft?.metroMinutes ?? '',
+  );
   const [metroOpen, setMetroOpen] = useState(false);
   const [metroQuery, setMetroQuery] = useState('');
   // Only consulted below `lg`, where the tips panel collapses. Above that the
   // panel is always shown and its toggle is not reachable.
   const [tipsOpen, setTipsOpen] = useState(false);
-  const [latitude, setLatitude] = useState<number | null>(null);
-  const [longitude, setLongitude] = useState<number | null>(null);
+  const [latitude, setLatitude] = useState<number | null>(initialDraft?.latitude ?? null);
+  const [longitude, setLongitude] = useState<number | null>(initialDraft?.longitude ?? null);
   const [gpsBusy, setGpsBusy] = useState(false);
   const [gpsNotice, setGpsNotice] = useState<Notice | null>(null);
   const [gpsError, setGpsError] = useState<Notice | null>(null);
+  const [gpsPermission, setGpsPermission] = useState<PermissionState | null>(null);
 
   // -- Step 2: the property --------------------------------------------------
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [price, setPrice] = useState(4_500_000);
-  const [deposit, setDeposit] = useState(1_000_000);
-  const [rooms, setRooms] = useState(2);
-  const [area, setArea] = useState(65);
-  const [floor, setFloor] = useState(3);
-  const [totalFloors, setTotalFloors] = useState(9);
-  const [furnished, setFurnished] = useState(true);
-  const [utilities, setUtilities] = useState(true);
-  const [pets, setPets] = useState(false);
-  const [parking, setParking] = useState(true);
-  const [airConditioning, setAirConditioning] = useState(true);
-  const [washingMachine, setWashingMachine] = useState(true);
-  const [internet, setInternet] = useState(true);
-  const [isRoommate, setIsRoommate] = useState(false);
-  const [roommateGender, setRoommateGender] = useState<'BOYS' | 'GIRLS' | 'ANY'>('ANY');
-  const [roommateSpots, setRoommateSpots] = useState(1);
+  const [title, setTitle] = useState(initialDraft?.title ?? '');
+  const [description, setDescription] = useState(initialDraft?.description ?? '');
+  const [price, setPrice] = useState<NumberField>(initialDraft?.price ?? '');
+  const [deposit, setDeposit] = useState<NumberField>(initialDraft?.deposit ?? '');
+  const [rooms, setRooms] = useState<NumberField>(initialDraft?.rooms ?? '');
+  const [area, setArea] = useState<NumberField>(initialDraft?.area ?? '');
+  const [floor, setFloor] = useState<NumberField>(initialDraft?.floor ?? '');
+  const [totalFloors, setTotalFloors] = useState<NumberField>(initialDraft?.totalFloors ?? '');
+  const [amenities, setAmenities] = useState<AmenityState>(
+    initialDraft?.amenities ?? NO_AMENITIES,
+  );
+  const [isRoommate, setIsRoommate] = useState(initialDraft?.isRoommate ?? false);
+  const [roommateGender, setRoommateGender] = useState<RoommateGender>(
+    initialDraft?.roommateGender ?? 'ANY',
+  );
+  const [roommateSpots, setRoommateSpots] = useState(initialDraft?.roommateSpots ?? 1);
 
   // -- Step 3: media ---------------------------------------------------------
-  const [images, setImages] = useState<string[]>([]);
-  const [videoUrl, setVideoUrl] = useState('');
+  const [images, setImages] = useState<string[]>(initialDraft?.images ?? []);
+  const [videoUrl, setVideoUrl] = useState(initialDraft?.videoUrl ?? '');
+  const [processingImages, setProcessingImages] = useState(false);
+  const [dragOverDropzone, setDragOverDropzone] = useState(false);
 
   // -- Step 4: contact, moderation, submit -----------------------------------
-  const [telegram, setTelegram] = useState('');
-  const [preferredTime, setPreferredTime] = useState('');
+  const [telegram, setTelegram] = useState(initialDraft?.telegram ?? '');
+  const [preferredTime, setPreferredTime] = useState(initialDraft?.preferredTime ?? '');
   const [scan, setScan] = useState<ModerationResult | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [rejection, setRejection] = useState<ModerationResult | null>(null);
+
+  const [draftRestoredAt, setDraftRestoredAt] = useState<number | null>(
+    initialDraft?.savedAt ?? null,
+  );
+  /** The stored draft is holding no photos, whatever the grid is showing. */
+  const [photosDropped, setPhotosDropped] = useState(initialDraft?.photosDropped ?? false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
 
   /** Field name -> translation key, so errors survive a language switch. */
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -183,18 +486,121 @@ export const CreateListingPage: React.FC = () => {
   useEffect(() => {
     if (!hasMetro && metro !== METRO_NONE) {
       setMetro(METRO_NONE);
+      setMetroMinutes('');
       setMetroOpen(false);
     }
   }, [hasMetro, metro]);
 
   const payloadBytes = useMemo(
     () =>
-      images.reduce((sum, image) => sum + dataUrlBytes(image), 0) +
-      (videoUrl ? dataUrlBytes(videoUrl) : 0),
+      // The video is an https link now, not an inline file, so it costs its
+      // own length and nothing more.
+      images.reduce((sum, image) => sum + dataUrlBytes(image), 0) + videoUrl.length,
     [images, videoUrl],
   );
   const payloadMb = payloadBytes / (1024 * 1024);
   const payloadTooLarge = payloadMb > MAX_PAYLOAD_MB;
+
+  /**
+   * A step change is not a route change, so the app's own scroll reset — which
+   * lives in the store and fires on navigation — never saw any of the nine
+   * places that call `setStep`. Without this, pressing "next" at the bottom of
+   * a long step leaves you looking at the bottom of the next one.
+   */
+  useEffect(() => {
+    headingRef.current?.focus({ preventScroll: true });
+    window.scrollTo({ top: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' });
+  }, [step, prefersReducedMotion]);
+
+  /**
+   * What the button will do, before it is pressed.
+   *
+   * Asking the Permissions API is not a request: it reports what the browser
+   * already decided, so the label can say "this will ask you" rather than the
+   * page finding out by firing a prompt at someone who has not asked for one.
+   */
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.permissions?.query) return;
+    let cancelled = false;
+    let status: PermissionStatus | null = null;
+    const sync = () => {
+      if (!cancelled && status) setGpsPermission(status.state);
+    };
+
+    void navigator.permissions
+      .query({ name: 'geolocation' as PermissionName })
+      .then((result) => {
+        if (cancelled) return;
+        status = result;
+        setGpsPermission(result.state);
+        result.addEventListener('change', sync);
+      })
+      .catch(() => {
+        /* Safari only learned this recently; the button still works */
+      });
+
+    return () => {
+      cancelled = true;
+      status?.removeEventListener('change', sync);
+    };
+  }, []);
+
+  const hasContent =
+    address.trim() !== '' ||
+    title.trim() !== '' ||
+    description.trim() !== '' ||
+    price !== '' ||
+    rooms !== '' ||
+    area !== '' ||
+    images.length > 0 ||
+    telegram.trim() !== '';
+
+  const draft = useMemo<Draft>(
+    () => ({
+      version: DRAFT_VERSION,
+      savedAt: Date.now(),
+      step,
+      region,
+      district,
+      address,
+      metro,
+      metroMinutes,
+      latitude,
+      longitude,
+      title,
+      description,
+      price,
+      deposit,
+      rooms,
+      area,
+      floor,
+      totalFloors,
+      amenities,
+      isRoommate,
+      roommateGender,
+      roommateSpots,
+      images,
+      videoUrl,
+      telegram,
+      preferredTime,
+    }),
+    [
+      step, region, district, address, metro, metroMinutes, latitude, longitude,
+      title, description, price, deposit, rooms, area, floor, totalFloors,
+      amenities, isRoommate, roommateGender, roommateSpots, images, videoUrl,
+      telegram, preferredTime,
+    ],
+  );
+
+  // Debounced, because the alternative is serialising several megabytes of
+  // photos on every keystroke in the description box.
+  useEffect(() => {
+    if (!hasContent) return;
+    const timer = setTimeout(() => {
+      setPhotosDropped(writeDraft(draftKey, draft) === 'photosDropped');
+    }, DRAFT_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [draft, draftKey, hasContent]);
 
   // -- Gates -----------------------------------------------------------------
   if (!currentUser) {
@@ -205,7 +611,7 @@ export const CreateListingPage: React.FC = () => {
         </span>
         <h1 className="text-2xl font-black text-content">{t('owner.gate.signInTitle')}</h1>
         <p className="text-sm text-muted">{t('owner.gate.signInBody')}</p>
-        <Button fullWidth onClick={() => setShowAuth(true, 'LOGIN')}>
+        <Button type="button" fullWidth onClick={() => setShowAuth(true, 'LOGIN')}>
           {t('common.action.signIn')}
         </Button>
       </div>
@@ -221,6 +627,7 @@ export const CreateListingPage: React.FC = () => {
         <h1 className="text-2xl font-black text-content">{t('owner.gate.studentTitle')}</h1>
         <p className="text-sm text-muted">{t('owner.gate.studentBody')}</p>
         <Button
+          type="button"
           fullWidth
           onClick={() => {
             void switchRole('OWNER').catch(() => pushToast('owner.gate.switchFailed', 'error'));
@@ -228,17 +635,39 @@ export const CreateListingPage: React.FC = () => {
         >
           {t('owner.gate.switchToOwner')}
         </Button>
-        <Button variant="secondary" fullWidth onClick={() => setCurrentView('LISTINGS')}>
+        <Button type="button" variant="secondary" fullWidth onClick={() => setCurrentView('LISTINGS')}>
           {t('owner.gate.browseCta')}
         </Button>
       </div>
     );
   }
 
+  // -- Errors ----------------------------------------------------------------
+  /** Clears one field's error the moment it is corrected, not on the next
+   *  "Next" press — the old behaviour left a red field under a fixed value. */
+  const clearError = (field: string) =>
+    setFormErrors((current) => (current[field] ? { ...current, [field]: '' } : current));
+
+  const numberHandler =
+    (set: (value: NumberField) => void, field: string) =>
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const raw = event.target.value;
+      set(raw === '' ? '' : Number(raw));
+      clearError(field);
+    };
+
+  /**
+   * A verdict belongs to the text it was computed from.
+   *
+   * `runScan` sends the title, description, price and rooms, so an edit to any
+   * of them retires it. Without this the owner rewrote the flagged sentence,
+   * walked back to step 4 and found the same red card and the same disabled
+   * submit button, both describing wording that no longer exists.
+   */
+  const invalidateScan = () => setScan(null);
+
   // -- Media handlers --------------------------------------------------------
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = '';
+  const addFiles = async (files: File[]) => {
     if (files.length === 0) return;
 
     const room = MAX_IMAGES - images.length;
@@ -250,25 +679,59 @@ export const CreateListingPage: React.FC = () => {
       pushToast('owner.create.photos.limitNotice', 'warning', { max: MAX_IMAGES });
     }
 
-    const results = await Promise.all(files.slice(0, room).map(readAsDataUrl));
-    const accepted = results.filter((item): item is string => item !== null);
-    if (accepted.length < results.length) {
+    const pictures = files.filter((file) => file.type.startsWith('image/')).slice(0, room);
+    if (pictures.length === 0) {
+      // Some phones and file managers report an empty MIME type. Everything
+      // picked was dropped here, and saying so beats a "choose photos" button
+      // that appears to do nothing at all.
       pushToast('owner.create.photos.readFailed', 'error');
+      return;
     }
-    if (accepted.length > 0) {
-      setImages((current) => [...current, ...accepted]);
-      setFormErrors((current) => ({ ...current, images: '' }));
+
+    setProcessingImages(true);
+    try {
+      const results = await Promise.all(pictures.map(prepareImage));
+      // Deduplicated against the batch as well as against what is already
+      // there: the same photo picked twice is never intentional, and two
+      // identical entries cannot be told apart once they are in a list the
+      // owner can reorder. Comparing only against `images` missed a duplicate
+      // dragged in alongside its own copy, because both were new.
+      const seen = new Set(images);
+      const accepted: string[] = [];
+      for (const result of results) {
+        if (!result.ok || seen.has(result.dataUrl)) continue;
+        seen.add(result.dataUrl);
+        accepted.push(result.dataUrl);
+      }
+      if (results.some((result) => !result.ok)) {
+        pushToast('owner.create.photos.readFailed', 'error');
+      }
+      if (accepted.length > 0) {
+        setImages((current) => [...current, ...accepted]);
+        clearError('images');
+        clearError('payload');
+        haptics.success();
+      }
+    } finally {
+      setProcessingImages(false);
     }
   };
 
-  const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleImageInput = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
     event.target.value = '';
-    if (!file) return;
-    // The API only accepts an https video URL, so an inline data: URL would be
-    // rejected at submit time and take the whole listing with it. Say so here
-    // rather than letting the owner fill in a form that cannot be saved.
-    pushToast('owner.create.photos.videoUploadUnsupported', 'warning');
+    void addFiles(files);
+  };
+
+  const moveImage = (from: number, to: number) => {
+    if (to < 0 || to >= images.length || from === to) return;
+    setImages((current) => {
+      const next = [...current];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+    haptics.select();
   };
 
   // GPS has answered and the coordinates are on the form.
@@ -283,21 +746,28 @@ export const CreateListingPage: React.FC = () => {
       return;
     }
 
+    haptics.tap();
     setGpsBusy(true);
+    setGpsNotice({ key: 'owner.create.location.gpsSearching' });
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const nextLat = position.coords.latitude;
         const nextLng = position.coords.longitude;
         setLatitude(nextLat);
         setLongitude(nextLng);
+        setGpsNotice({ key: 'owner.create.location.gpsSuccess' });
 
         void reverseGeocode(nextLat, nextLng)
           .then((match) => {
+            // `reverseGeocode` guarantees the district belongs to the region,
+            // so these two can be applied together without the dropdown
+            // falling back to its em-dash placeholder.
             setRegion(match.region);
-            if (match.district) setDistrict(match.district);
+            setDistrict(match.district);
             if (match.street) {
               setAddress(match.street);
-              setFormErrors((current) => ({ ...current, address: '' }));
+              clearError('address');
               setGpsNotice({
                 key: 'owner.create.location.gpsFound',
                 params: {
@@ -314,14 +784,25 @@ export const CreateListingPage: React.FC = () => {
                 params: { latitude: nextLat.toFixed(4), longitude: nextLng.toFixed(4) },
               });
             }
+            haptics.success();
           })
           .finally(() => setGpsBusy(false));
       },
-      () => {
+      // The old callback took no parameter at all, so a timeout and a refusal
+      // both told the owner they had denied permission and sent them into the
+      // browser settings to fix something that was not broken.
+      (error: GeolocationPositionError) => {
         setGpsBusy(false);
-        setGpsError({ key: 'owner.create.location.gpsDenied' });
+        setGpsNotice(null);
+        setGpsError({
+          key: GPS_ERROR_KEYS[error.code] ?? 'owner.create.location.gpsUnavailable',
+        });
+        haptics.warn();
       },
-      { timeout: 8000 },
+      // `enableHighAccuracy` asks for the GPS chip instead of a coarse WiFi or
+      // IP fix, `maximumAge` accepts a fix from the last minute rather than
+      // forcing a cold one, and 15s is what a cold fix actually costs outdoors.
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 },
     );
   };
 
@@ -333,37 +814,58 @@ export const CreateListingPage: React.FC = () => {
       if (!address.trim()) errors.address = 'owner.create.validation.address';
       if (
         metro !== METRO_NONE &&
-        (!Number.isFinite(metroMinutes) || metroMinutes < 1 || metroMinutes > 60)
+        (metroMinutes === '' || metroMinutes < 1 || metroMinutes > 60)
       ) {
         errors.metroMinutes = 'owner.create.validation.metroMinutes';
       }
     }
 
     if (target === 2) {
+      // Both ends, not just the short one. `maxLength` on the input stops
+      // typing past the cap but not a paste and not a restored draft, and the
+      // server's answer to either is a 422 that takes the photos with it.
       if (title.trim().length < 8) errors.title = 'owner.create.validation.title';
+      else if (title.trim().length > MAX_TITLE_LENGTH) errors.title = 'common.error.validation';
       if (description.trim().length < 20) errors.description = 'owner.create.validation.description';
-      if (!Number.isFinite(price) || price <= 0) errors.price = 'owner.create.validation.price';
-      if (!Number.isFinite(deposit) || deposit < 0) errors.deposit = 'owner.create.validation.deposit';
-      if (!Number.isFinite(area) || area <= 0) errors.area = 'owner.create.validation.area';
+      else if (description.trim().length > MAX_DESCRIPTION_LENGTH) {
+        errors.description = 'common.error.validation';
+      }
+      if (price === '' || price <= 0) errors.price = 'owner.create.validation.price';
+      if (deposit !== '' && deposit < 0) errors.deposit = 'owner.create.validation.deposit';
+      // Rooms has no message of its own; the shared "required field" line says
+      // the only thing there is to say about an unanswered dropdown.
+      if (rooms === '' || rooms < 1) errors.rooms = 'common.state.required';
+      if (area !== '' && area <= 0) errors.area = 'owner.create.validation.area';
       if (
-        !Number.isFinite(floor) ||
-        !Number.isFinite(totalFloors) ||
-        floor < 1 ||
-        totalFloors < 1 ||
-        floor > totalFloors
+        (floor !== '' && floor < 1) ||
+        (totalFloors !== '' && totalFloors < 1) ||
+        (floor !== '' && totalFloors !== '' && floor > totalFloors)
       ) {
         errors.floor = 'owner.create.validation.floor';
       }
     }
 
     if (target === 3) {
-      if (images.length < 3) errors.images = 'owner.create.validation.images';
+      if (images.length < MIN_IMAGES) errors.images = 'owner.create.validation.images';
       if (payloadTooLarge) errors.payload = 'owner.create.validation.imagesTooLarge';
+      // The API only stores an https link, so anything else is a 422 that
+      // takes the whole listing with it.
+      if (videoUrl.trim() && !/^https:\/\/\S+$/i.test(videoUrl.trim())) {
+        errors.videoUrl = 'common.error.validation';
+      }
     }
 
     if (target === 4) {
       if ((currentUser.phone ?? '').replace(/\D/g, '').length < 9) {
         errors.phone = 'owner.create.validation.phone';
+      }
+      // The Telegram pattern already caps its own length at 33 characters,
+      // well inside the schema's 64, so only the free-text box needs the rule.
+      if (telegram.trim() && !TELEGRAM_PATTERN.test(telegram.trim())) {
+        errors.telegram = 'owner.create.validation.telegram';
+      }
+      if (preferredTime.trim().length > MAX_CONTACT_TIME_LENGTH) {
+        errors.preferredTime = 'common.error.validation';
       }
     }
 
@@ -371,9 +873,20 @@ export const CreateListingPage: React.FC = () => {
   };
 
   const goToStep = (target: number) => {
+    if (target === step) return;
+    // Walking backwards never has to be earned.
+    if (target < step) {
+      setStep(target);
+      return;
+    }
     const errors = validateStep(step);
     setFormErrors(errors);
-    if (Object.keys(errors).length === 0) setStep(target);
+    if (Object.keys(errors).length === 0) {
+      haptics.select();
+      setStep(target);
+    } else {
+      haptics.warn();
+    }
   };
 
   const firstInvalidStep = (): number | null => {
@@ -389,7 +902,7 @@ export const CreateListingPage: React.FC = () => {
   };
 
   // -- Moderation preview ----------------------------------------------------
-  const runScan = async () => {
+  const runScan = async (): Promise<ModerationResult | null> => {
     setScanning(true);
     setScanError(null);
     setScan(null);
@@ -397,28 +910,56 @@ export const CreateListingPage: React.FC = () => {
       const result = await ListingsApi.scan({
         title: title.trim(),
         description: description.trim(),
-        price,
-        rooms,
+        price: price === '' ? undefined : price,
+        rooms: rooms === '' ? undefined : rooms,
       });
       setScan(result);
+      return result;
     } catch {
       setScanError(t('owner.create.moderation.failed'));
+      return null;
     } finally {
       setScanning(false);
     }
   };
 
   // -- Submit ----------------------------------------------------------------
-  const coordinates = (): { latitude: number; longitude: number } => {
+  /**
+   * No GPS and no known centre means no coordinates.
+   *
+   * The fallback used to be the centre of Tashkent for every district in the
+   * country that is not in the table, so a flat in G'ijduvon was published at
+   * 41.311/69.279 and drawn on the map 450km from the building. The API takes
+   * both as null together, and a listing with no point is one the map declares
+   * unplaced instead of placing wrongly.
+   */
+  const coordinates = (): { latitude: number | null; longitude: number | null } => {
     if (latitude !== null && longitude !== null) return { latitude, longitude };
     const fallback = districtCentre(district);
-    return { latitude: fallback[0], longitude: fallback[1] };
+    return fallback
+      ? { latitude: fallback[0], longitude: fallback[1] }
+      : { latitude: null, longitude: null };
   };
 
   const handleSubmit = async () => {
     const invalidStep = firstInvalidStep();
     if (invalidStep !== null) {
+      haptics.warn();
       setStep(invalidStep);
+      return;
+    }
+
+    // The preview card used to be advisory in the literal sense: it could read
+    // "blocked" while the button next to it happily sent the listing. If the
+    // scan has not run, run it now; if it says no, the owner edits the text.
+    let verdict = scan;
+    if (!verdict) {
+      setSubmitting(true);
+      verdict = await runScan();
+      setSubmitting(false);
+    }
+    if (verdict && !verdict.allowed) {
+      haptics.warn();
       return;
     }
 
@@ -428,18 +969,20 @@ export const CreateListingPage: React.FC = () => {
 
     const point = coordinates();
     // Only owner-editable fields: anything the server owns (status, scores,
-    // counters, ownerId) makes the request fail validation with 422.
+    // counters, ownerId) makes the request fail validation with 422. Optional
+    // numbers travel as null rather than 0 — `area` is validated `gt=0`, so a
+    // zero is rejected outright.
     const payload: Record<string, unknown> = {
       title: title.trim(),
       description: description.trim(),
-      price,
+      price: price === '' ? null : price,
       currency: 'UZS',
-      depositPrice: deposit,
-      utilitiesIncluded: utilities,
-      rooms,
-      area,
-      floor,
-      totalFloors,
+      depositPrice: deposit === '' ? null : deposit,
+      utilitiesIncluded: amenities.utilitiesIncluded,
+      rooms: rooms === '' ? null : rooms,
+      area: area === '' ? null : area,
+      floor: floor === '' ? null : floor,
+      totalFloors: totalFloors === '' ? null : totalFloors,
       propertyType: 'APARTMENT',
       region,
       district,
@@ -447,15 +990,15 @@ export const CreateListingPage: React.FC = () => {
       latitude: point.latitude,
       longitude: point.longitude,
       metroStation: metro === METRO_NONE ? null : metro,
-      metroDistanceMinutes: metro === METRO_NONE ? null : metroMinutes,
-      furnished,
-      petsAllowed: pets,
-      parking,
-      internet,
-      airConditioning,
-      washingMachine,
+      metroDistanceMinutes: metro === METRO_NONE || metroMinutes === '' ? null : metroMinutes,
+      furnished: amenities.furnished,
+      petsAllowed: amenities.petsAllowed,
+      parking: amenities.parking,
+      internet: amenities.internet,
+      airConditioning: amenities.airConditioning,
+      washingMachine: amenities.washingMachine,
       images,
-      videoUrl: videoUrl || null,
+      videoUrl: videoUrl.trim() || null,
       hasVirtualTour: false,
       contactTelegram: telegram.trim() || null,
       preferredContactTime: preferredTime.trim() || null,
@@ -476,14 +1019,95 @@ export const CreateListingPage: React.FC = () => {
         return;
       }
 
+      clearDraft(draftKey);
+      haptics.success();
       pushToast('layout.toast.listingCreated', 'success');
       setCurrentView('MY_LISTINGS');
-    } catch {
-      setSubmitError(t('owner.create.submitFailed'));
-      pushToast('common.error.network', 'error');
+    } catch (error) {
+      // Five creates an hour is a real cap and the bare catch used to render it
+      // as "no internet", which sends the owner to reload and try again.
+      if (error instanceof ApiError && error.code === 'listing_limit_reached') {
+        setSubmitError(
+          t('owner.create.validation.limitReached', {
+            max: Number(error.params?.limit ?? 5),
+          }),
+        );
+        pushToast('common.error.limitReached', 'warning');
+      } else if (error instanceof ApiError && error.status === 422) {
+        // The server names the field it rejected. Marking that field and
+        // opening its step is the difference between "check the data you
+        // entered" and a red box around the box that is wrong.
+        const target = error.field ? SERVER_FIELDS[error.field] : undefined;
+        if (target) {
+          setFormErrors({ [target.field]: 'common.error.validation' });
+          setStep(target.step);
+        } else {
+          setSubmitError(error.message || t('common.error.validation'));
+        }
+        pushToast('common.error.validation', 'error');
+      } else {
+        setSubmitError(t('owner.create.submitFailed'));
+        pushToast('common.error.network', 'error');
+      }
+      haptics.warn();
     } finally {
       setSubmitting(false);
     }
+  };
+
+  /** Enter anywhere in the form now does what the visible button does. */
+  const onFormSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (step < TOTAL_STEPS) {
+      goToStep(step + 1);
+      return;
+    }
+    void handleSubmit();
+  };
+
+  // -- Draft -----------------------------------------------------------------
+  const discardDraft = () => {
+    clearDraft(draftKey);
+    setDraftRestoredAt(null);
+    setPhotosDropped(false);
+    setStep(1);
+    setRegion(TASHKENT_CITY);
+    setDistrict(
+      (UZBEKISTAN_REGIONS.find((item) => item.name === TASHKENT_CITY) ?? UZBEKISTAN_REGIONS[0])
+        .districts[0],
+    );
+    setAddress('');
+    setMetro(METRO_NONE);
+    setMetroMinutes('');
+    setLatitude(null);
+    setLongitude(null);
+    setTitle('');
+    setDescription('');
+    setPrice('');
+    setDeposit('');
+    setRooms('');
+    setArea('');
+    setFloor('');
+    setTotalFloors('');
+    setAmenities(NO_AMENITIES);
+    setIsRoommate(false);
+    setRoommateGender('ANY');
+    setRoommateSpots(1);
+    setImages([]);
+    setVideoUrl('');
+    setTelegram('');
+    setPreferredTime('');
+    setFormErrors({});
+    setScan(null);
+    pushToast('owner.create.draft.discarded', 'info');
+  };
+
+  const requestLeave = () => {
+    if (!hasContent) {
+      setCurrentView('HOME');
+      return;
+    }
+    setConfirmLeave(true);
   };
 
   // -- Render helpers --------------------------------------------------------
@@ -494,24 +1118,45 @@ export const CreateListingPage: React.FC = () => {
     { num: 4, title: t('owner.create.steps.contactTitle'), hint: t('owner.create.steps.contactHint') },
   ];
 
-  const errorKeys = Object.values(formErrors).filter(Boolean);
-  const usdPrice = fxRate > 0 ? Math.round(price / fxRate) : 0;
+  // Deduplicated: two fields can now fail on the same shared message, and the
+  // summary below keys its list by the message itself.
+  const errorKeys = [...new Set(Object.values(formErrors).filter(Boolean))];
+  const usdPrice = price !== '' && fxRate > 0 ? Math.round(price / fxRate) : null;
 
   const stepBadge = (
-    <span className="rounded-lg border border-line bg-brand-soft px-2.5 py-1 text-xs font-bold text-brand-text">
+    <span className="shrink-0 rounded-lg border border-line bg-brand-soft px-2.5 py-1 text-xs font-bold text-brand-text">
       {t('owner.create.stepBadge', { step })}
     </span>
   );
 
+  const headingClass =
+    'flex items-center gap-2 text-lg font-extrabold text-content outline-none';
+
+  /** The line under the GPS button says what pressing it will do. */
+  const gpsHintKey =
+    gpsPermission === 'denied'
+      ? 'owner.create.location.gpsDenied'
+      : gpsPermission === 'prompt'
+        ? 'owner.create.location.gpsPrompt'
+        : 'owner.create.location.gpsHint';
+
+  // `overflow-x-clip` on the page container rather than `overflow-x-hidden`:
+  // hidden makes the element a scroll container, and nothing inside a scroll
+  // container can stick to the viewport — which is what the action bar below
+  // and the tips rail beside it both need to do.
+  const pageClass =
+    'mx-auto w-full min-h-[85vh] max-w-6xl space-y-6 overflow-x-clip px-4 py-6 pb-40 ' +
+    'sm:space-y-8 sm:px-6 sm:py-10 lg:pb-16';
+
   return (
-    <div className="mx-auto w-full min-h-[85vh] max-w-6xl space-y-6 overflow-x-hidden px-4 py-6 pb-24 sm:space-y-8 sm:px-6 sm:py-10 sm:pb-16">
+    <div className={pageClass}>
       <div className="space-y-3 border-b border-line pb-4 sm:space-y-4 sm:pb-5">
         <nav aria-label={t('owner.create.breadcrumb')} className="hidden sm:block">
           <ol className="flex items-center gap-2 text-xs font-semibold text-subtle">
             <li>
               <button
                 type="button"
-                onClick={() => setCurrentView('HOME')}
+                onClick={requestLeave}
                 className="transition-colors hover:text-brand-text"
               >
                 {t('layout.nav.home')}
@@ -525,7 +1170,7 @@ export const CreateListingPage: React.FC = () => {
         </nav>
 
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-          <div>
+          <div className="min-w-0">
             <h1 className="text-xl font-black tracking-tight text-content sm:text-3xl">
               {t('owner.create.title')}
             </h1>
@@ -535,14 +1180,62 @@ export const CreateListingPage: React.FC = () => {
           </div>
 
           <Button
+            type="button"
             variant="secondary"
-            className="self-start sm:self-center"
-            onClick={() => setCurrentView('HOME')}
+            className="press self-start sm:self-center"
+            onClick={requestLeave}
           >
             {t('common.action.cancel')}
           </Button>
         </div>
       </div>
+
+      {draftRestoredAt !== null && (
+        <div className="flex flex-col gap-2 rounded-2xl border border-brand/25 bg-brand-soft p-3.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 space-y-1">
+            <p className="flex items-start gap-2 text-xs font-bold text-brand-text">
+              <CheckCircle2 className="mt-px h-4 w-4 shrink-0" aria-hidden="true" />
+              {/* The date, not just the clock. "Restored the draft saved at
+                  14:32" reads as "a few hours ago" whether it was saved this
+                  morning or in March, and the March one publishes March's
+                  price. */}
+              <span>
+                {t('owner.create.draft.restoredAt', {
+                  time: formatDate(draftRestoredAt, {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  }),
+                })}
+              </span>
+            </p>
+            {/* The photos did not fit in storage, so the restored draft has
+                none — said here rather than left to be discovered by an empty
+                grid on step 3. */}
+            {photosDropped && (
+              <p className="flex items-start gap-2 text-xs font-semibold text-warning">
+                <AlertTriangle className="mt-px h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>{t('owner.create.validation.images')}</span>
+              </p>
+            )}
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={discardDraft}
+              className="press min-h-11 rounded-xl border border-line bg-surface px-3 text-xs font-extrabold text-danger"
+            >
+              {t('owner.create.draft.discard')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setDraftRestoredAt(null)}
+              className="press min-h-11 rounded-xl px-3 text-xs font-extrabold text-brand-text"
+            >
+              {t('common.action.dismiss')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/*
         Step navigation, in two forms.
@@ -574,15 +1267,14 @@ export const CreateListingPage: React.FC = () => {
                     again. A future one is not a link to anywhere yet. */}
                 <button
                   type="button"
-                  onClick={() => {
-                    if (item.num <= step) setStep(item.num);
-                  }}
+                  onClick={() => goToStep(item.num)}
                   disabled={item.num > step}
                   aria-current={isActive ? 'step' : undefined}
                   aria-label={`${item.num}. ${item.title}`}
-                  className={`h-1.5 w-full rounded-full transition-colors disabled:cursor-not-allowed ${
-                    isActive || isDone ? 'bg-brand' : 'bg-line'
-                  }`}
+                  className={cn(
+                    'h-1.5 w-full touch-manipulation rounded-full transition-colors disabled:cursor-not-allowed',
+                    isActive || isDone ? 'bg-brand' : 'bg-line',
+                  )}
                 />
               </li>
             );
@@ -599,28 +1291,29 @@ export const CreateListingPage: React.FC = () => {
             <li key={item.num}>
               <button
                 type="button"
-                onClick={() => {
-                  if (item.num <= step) setStep(item.num);
-                }}
+                onClick={() => goToStep(item.num)}
                 disabled={item.num > step}
                 aria-current={isActive ? 'step' : undefined}
-                className={`relative w-full overflow-hidden rounded-2xl border p-3.5 text-left transition-all disabled:cursor-not-allowed sm:p-4 ${
+                className={cn(
+                  'press-sm relative w-full overflow-hidden rounded-2xl border p-3.5 text-left',
+                  'transition-all disabled:cursor-not-allowed sm:p-4',
                   isActive
                     ? 'border-brand bg-brand text-on-brand shadow-brand'
                     : isDone
                       ? 'border-line bg-brand-soft text-brand-text hover:bg-brand-soft-2'
-                      : 'border-line bg-surface text-subtle'
-                }`}
+                      : 'border-line bg-surface text-subtle',
+                )}
               >
                 <span className="flex items-center justify-between">
                   <span
-                    className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-black ${
+                    className={cn(
+                      'flex h-6 w-6 items-center justify-center rounded-full text-xs font-black',
                       isActive
                         ? 'bg-surface text-brand-text'
                         : isDone
                           ? 'bg-brand text-on-brand'
-                          : 'bg-surface-2 text-subtle'
-                    }`}
+                          : 'bg-surface-2 text-subtle',
+                    )}
                   >
                     {isDone ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : item.num}
                   </span>
@@ -639,7 +1332,12 @@ export const CreateListingPage: React.FC = () => {
       </ol>
 
       <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-3">
-        <div className="space-y-6 rounded-3xl border border-line bg-surface p-6 shadow-card sm:p-8 lg:col-span-2">
+        {/* One <form>, so Enter submits the step instead of doing nothing. */}
+        <form
+          noValidate
+          onSubmit={onFormSubmit}
+          className="space-y-6 rounded-3xl border border-line bg-surface p-4 shadow-card sm:p-8 lg:col-span-2"
+        >
           {errorKeys.length > 0 && (
             <div
               role="alert"
@@ -662,13 +1360,10 @@ export const CreateListingPage: React.FC = () => {
           {/* ---------------------------------------------------- STEP 1 --- */}
           {step === 1 && (
             <section className="space-y-5" aria-labelledby="owner-step-location">
-              <header className="flex items-center justify-between border-b border-line pb-3">
-                <div>
-                  <h2
-                    id="owner-step-location"
-                    className="flex items-center gap-2 text-lg font-extrabold text-content"
-                  >
-                    <MapPin className="h-5 w-5 text-brand" aria-hidden="true" />
+              <header className="flex items-start justify-between gap-3 border-b border-line pb-3">
+                <div className="min-w-0">
+                  <h2 id="owner-step-location" ref={headingRef} tabIndex={-1} className={headingClass}>
+                    <MapPin className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
                     {t('owner.create.location.heading')}
                   </h2>
                   <p className="mt-0.5 text-xs text-subtle">
@@ -681,12 +1376,19 @@ export const CreateListingPage: React.FC = () => {
               {/* First, because it fills the three fields below it — everything
                   underneath is a correction rather than data entry. Prominence
                   here is position and width, not colour: a filled brand panel
-                  made the shortcut louder than the form's actual subject. */}
+                  made the shortcut louder than the form's actual subject.
+
+                  The prompt stays attached to this press. Chrome blocks a
+                  geolocation request that is not tied to a gesture, and an
+                  unexplained permission dialog on first paint is the fastest
+                  way to lose someone who has not yet decided to trust the
+                  site — so the line underneath says what the press will do. */}
               <div className="space-y-2">
                 <Button
                   type="button"
                   variant={located ? 'secondary' : 'primary'}
                   fullWidth
+                  className="press"
                   onClick={detectLocation}
                   loading={gpsBusy}
                 >
@@ -703,7 +1405,7 @@ export const CreateListingPage: React.FC = () => {
                 </Button>
 
                 <p className="text-center text-[11px] font-medium text-subtle">
-                  {t('owner.create.location.gpsHint')}
+                  {tRaw(gpsHintKey)}
                 </p>
 
                 {gpsNotice && (
@@ -715,6 +1417,8 @@ export const CreateListingPage: React.FC = () => {
                 {gpsError && <FormError message={tRaw(gpsError.key, gpsError.params)} />}
               </div>
 
+              {/* Everything GPS fills stays editable: it is a shortcut, not a
+                  verdict, and it is wrong often enough outside the capital. */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label={t('owner.create.location.regionLabel')}>
                   {({ id }) => (
@@ -769,9 +1473,7 @@ export const CreateListingPage: React.FC = () => {
                     value={address}
                     onChange={(event) => {
                       setAddress(event.target.value);
-                      if (event.target.value.trim()) {
-                        setFormErrors((current) => ({ ...current, address: '' }));
-                      }
+                      if (event.target.value.trim()) clearError('address');
                     }}
                     placeholder={t('owner.create.location.addressPlaceholder')}
                   />
@@ -798,7 +1500,7 @@ export const CreateListingPage: React.FC = () => {
                       type="button"
                       onClick={() => setMetroOpen((open) => !open)}
                       aria-expanded={metroOpen}
-                      className="shrink-0 rounded-xl border border-line bg-surface px-3 py-2 text-xs font-extrabold text-brand-text transition-colors hover:bg-surface-3"
+                      className="press min-h-11 shrink-0 rounded-xl border border-line bg-surface px-3 text-xs font-extrabold text-brand-text transition-colors hover:bg-surface-3"
                     >
                       {metroOpen
                         ? t('common.action.close')
@@ -817,15 +1519,16 @@ export const CreateListingPage: React.FC = () => {
                         aria-label={t('owner.create.location.metroSearch')}
                       />
 
-                      <div className="max-h-56 overflow-y-auto rounded-xl border border-line bg-surface p-2">
+                      <div className="max-h-56 overflow-y-auto overscroll-contain rounded-xl border border-line bg-surface p-2">
                         <button
                           type="button"
                           onClick={() => {
                             setMetro(METRO_NONE);
+                            setMetroMinutes('');
                             setMetroOpen(false);
                             setMetroQuery('');
                           }}
-                          className="w-full rounded-lg px-3 py-2 text-left text-sm text-muted transition-colors hover:bg-surface-2"
+                          className="min-h-11 w-full rounded-lg px-3 text-left text-sm text-muted transition-colors hover:bg-surface-2"
                         >
                           {t('owner.create.location.metroNone')}
                         </button>
@@ -846,11 +1549,12 @@ export const CreateListingPage: React.FC = () => {
                                     setMetroOpen(false);
                                     setMetroQuery('');
                                   }}
-                                  className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                                  className={cn(
+                                    'min-h-11 w-full rounded-lg px-3 text-left text-sm transition-colors',
                                     isSelected
                                       ? 'bg-brand font-bold text-on-brand'
-                                      : 'text-content hover:bg-surface-2'
-                                  }`}
+                                      : 'text-content hover:bg-surface-2',
+                                  )}
                                 >
                                   {station}
                                 </button>
@@ -880,34 +1584,28 @@ export const CreateListingPage: React.FC = () => {
                           aria-describedby={describedBy}
                           invalid={invalid}
                           type="number"
+                          inputMode="numeric"
                           min={1}
                           max={60}
-                          value={metroMinutes}
-                          onChange={(event) => setMetroMinutes(Number(event.target.value))}
+                          value={metroMinutes === '' ? '' : metroMinutes}
+                          onChange={numberHandler(setMetroMinutes, 'metroMinutes')}
+                          placeholder="5"
                         />
                       )}
                     </Field>
                   )}
                 </div>
               )}
-
-              <Button fullWidth onClick={() => goToStep(2)}>
-                <span>{t('owner.create.next.toDetails')}</span>
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Button>
             </section>
           )}
 
           {/* ---------------------------------------------------- STEP 2 --- */}
           {step === 2 && (
             <section className="space-y-5" aria-labelledby="owner-step-details">
-              <header className="flex items-center justify-between border-b border-line pb-3">
-                <div>
-                  <h2
-                    id="owner-step-details"
-                    className="flex items-center gap-2 text-lg font-extrabold text-content"
-                  >
-                    <Building2 className="h-5 w-5 text-brand" aria-hidden="true" />
+              <header className="flex items-start justify-between gap-3 border-b border-line pb-3">
+                <div className="min-w-0">
+                  <h2 id="owner-step-details" ref={headingRef} tabIndex={-1} className={headingClass}>
+                    <Building2 className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
                     {t('owner.create.details.heading')}
                   </h2>
                   <p className="mt-0.5 text-xs text-subtle">
@@ -926,11 +1624,13 @@ export const CreateListingPage: React.FC = () => {
                     type="button"
                     onClick={() => setIsRoommate(false)}
                     aria-pressed={!isRoommate}
-                    className={`flex items-center justify-center gap-2 rounded-2xl border p-3.5 text-xs font-black transition-all ${
+                    className={cn(
+                      'press flex min-h-14 items-center justify-center gap-2 rounded-2xl border',
+                      'p-3.5 text-xs font-black transition-all',
                       !isRoommate
                         ? 'border-brand bg-brand text-on-brand shadow-brand'
-                        : 'border-line bg-surface-2 text-content hover:bg-surface-3'
-                    }`}
+                        : 'border-line bg-surface-2 text-content hover:bg-surface-3',
+                    )}
                   >
                     <Home className="h-4 w-4" aria-hidden="true" />
                     <span>{t('owner.create.details.whole')}</span>
@@ -939,11 +1639,13 @@ export const CreateListingPage: React.FC = () => {
                     type="button"
                     onClick={() => setIsRoommate(true)}
                     aria-pressed={isRoommate}
-                    className={`flex items-center justify-center gap-2 rounded-2xl border p-3.5 text-xs font-black transition-all ${
+                    className={cn(
+                      'press flex min-h-14 items-center justify-center gap-2 rounded-2xl border',
+                      'p-3.5 text-xs font-black transition-all',
                       isRoommate
                         ? 'border-warning bg-warning text-white shadow-card'
-                        : 'border-line bg-surface-2 text-content hover:bg-surface-3'
-                    }`}
+                        : 'border-line bg-surface-2 text-content hover:bg-surface-3',
+                    )}
                   >
                     <Users className="h-4 w-4" aria-hidden="true" />
                     <span>{t('owner.create.details.roommate')}</span>
@@ -960,48 +1662,42 @@ export const CreateListingPage: React.FC = () => {
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <Field label={t('owner.create.details.roommateGenderLabel')}>
                       {({ id }) => (
-                        <div className="relative">
-                          <SelectInput
-                            id={id}
-                            value={roommateGender}
-                            onChange={(event) =>
-                              setRoommateGender(event.target.value as 'BOYS' | 'GIRLS' | 'ANY')
-                            }
-                           
-                          >
-                            <option value="ANY">
-                              {t('owner.create.details.roommateGenderAny')}
-                            </option>
-                            <option value="BOYS">
-                              {t('owner.create.details.roommateGenderBoys')}
-                            </option>
-                            <option value="GIRLS">
-                              {t('owner.create.details.roommateGenderGirls')}
-                            </option>
-                          </SelectInput>
-                        </div>
+                        <SelectInput
+                          id={id}
+                          value={roommateGender}
+                          onChange={(event) =>
+                            setRoommateGender(event.target.value as RoommateGender)
+                          }
+                        >
+                          <option value="ANY">
+                            {t('owner.create.details.roommateGenderAny')}
+                          </option>
+                          <option value="BOYS">
+                            {t('owner.create.details.roommateGenderBoys')}
+                          </option>
+                          <option value="GIRLS">
+                            {t('owner.create.details.roommateGenderGirls')}
+                          </option>
+                        </SelectInput>
                       )}
                     </Field>
 
                     <Field label={t('owner.create.details.roommateSpotsLabel')}>
                       {({ id }) => (
-                        <div className="relative">
-                          <SelectInput
-                            id={id}
-                            value={roommateSpots}
-                            onChange={(event) => setRoommateSpots(Number(event.target.value))}
-                           
-                          >
-                            {[1, 2, 3].map((count) => (
-                              <option key={count} value={count}>
-                                {t('owner.create.details.roommateSpotsOption', { count })}
-                              </option>
-                            ))}
-                            <option value={4}>
-                              {t('owner.create.details.roommateSpotsPlus', { count: 4 })}
+                        <SelectInput
+                          id={id}
+                          value={roommateSpots}
+                          onChange={(event) => setRoommateSpots(Number(event.target.value))}
+                        >
+                          {[1, 2, 3].map((count) => (
+                            <option key={count} value={count}>
+                              {t('owner.create.details.roommateSpotsOption', { count })}
                             </option>
-                          </SelectInput>
-                        </div>
+                          ))}
+                          <option value={4}>
+                            {t('owner.create.details.roommateSpotsPlus', { count: 4 })}
+                          </option>
+                        </SelectInput>
                       )}
                     </Field>
                   </div>
@@ -1019,7 +1715,12 @@ export const CreateListingPage: React.FC = () => {
                     aria-describedby={describedBy}
                     invalid={invalid}
                     value={title}
-                    onChange={(event) => setTitle(event.target.value)}
+                    maxLength={MAX_TITLE_LENGTH}
+                    onChange={(event) => {
+                      setTitle(event.target.value);
+                      clearError('title');
+                      invalidateScan();
+                    }}
                     placeholder={t('owner.create.details.titlePlaceholder')}
                   />
                 )}
@@ -1037,7 +1738,12 @@ export const CreateListingPage: React.FC = () => {
                     aria-describedby={describedBy}
                     aria-invalid={invalid || undefined}
                     value={description}
-                    onChange={(event) => setDescription(event.target.value)}
+                    maxLength={MAX_DESCRIPTION_LENGTH}
+                    onChange={(event) => {
+                      setDescription(event.target.value);
+                      clearError('description');
+                      invalidateScan();
+                    }}
                     placeholder={t('owner.create.details.descriptionPlaceholder')}
                     className={textareaClass}
                   />
@@ -1073,9 +1779,15 @@ export const CreateListingPage: React.FC = () => {
                 <Field
                   label={t('owner.create.details.priceLabel')}
                   required
-                  hint={t('owner.create.details.priceApprox', {
-                    amount: formatPrice(usdPrice, 'USD'),
-                  })}
+                  // The dollar line is a reading of what was typed, so with an
+                  // empty box there is nothing to read and it says nothing.
+                  hint={
+                    usdPrice === null
+                      ? undefined
+                      : t('owner.create.details.priceApprox', {
+                          amount: formatPrice(usdPrice, 'USD'),
+                        })
+                  }
                   error={formErrors.price ? tRaw(formErrors.price) : undefined}
                 >
                   {({ id, describedBy, invalid }) => (
@@ -1084,10 +1796,15 @@ export const CreateListingPage: React.FC = () => {
                       aria-describedby={describedBy}
                       invalid={invalid}
                       type="number"
+                      inputMode="numeric"
                       min={0}
                       step={100000}
-                      value={price}
-                      onChange={(event) => setPrice(Number(event.target.value))}
+                      value={price === '' ? '' : price}
+                      onChange={(event) => {
+                        numberHandler(setPrice, 'price')(event);
+                        invalidateScan();
+                      }}
+                      placeholder={t('owner.create.details.pricePlaceholder')}
                     />
                   )}
                 </Field>
@@ -1102,33 +1819,47 @@ export const CreateListingPage: React.FC = () => {
                       aria-describedby={describedBy}
                       invalid={invalid}
                       type="number"
+                      inputMode="numeric"
                       min={0}
                       step={100000}
-                      value={deposit}
-                      onChange={(event) => setDeposit(Number(event.target.value))}
+                      value={deposit === '' ? '' : deposit}
+                      onChange={numberHandler(setDeposit, 'deposit')}
+                      placeholder={t('owner.create.details.depositPlaceholder')}
                     />
                   )}
                 </Field>
               </div>
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Field label={t('common.filters.rooms')}>
-                  {({ id }) => (
-                    <div className="relative">
-                      <SelectInput
-                        id={id}
-                        value={rooms}
-                        onChange={(event) => setRooms(Number(event.target.value))}
-                       
-                      >
-                        {[1, 2, 3].map((count) => (
-                          <option key={count} value={count}>
-                            {t('common.filters.roomsValue', { count })}
-                          </option>
-                        ))}
-                        <option value={4}>{t('common.filters.roomsPlus', { count: 4 })}</option>
-                      </SelectInput>
-                    </div>
+                <Field
+                  label={t('common.filters.rooms')}
+                  required
+                  error={formErrors.rooms ? tRaw(formErrors.rooms) : undefined}
+                >
+                  {({ id, describedBy, invalid }) => (
+                    <SelectInput
+                      id={id}
+                      aria-describedby={describedBy}
+                      invalid={invalid}
+                      value={rooms === '' ? '' : rooms}
+                      onChange={(event) => {
+                        setRooms(event.target.value === '' ? '' : Number(event.target.value));
+                        clearError('rooms');
+                        invalidateScan();
+                      }}
+                    >
+                      {/* Disabled, so it can be shown as the unanswered state
+                          but never chosen back. */}
+                      <option value="" disabled>
+                        {t('owner.create.details.roomsPlaceholder')}
+                      </option>
+                      {[1, 2, 3].map((count) => (
+                        <option key={count} value={count}>
+                          {t('common.filters.roomsValue', { count })}
+                        </option>
+                      ))}
+                      <option value={4}>{t('common.filters.roomsPlus', { count: 4 })}</option>
+                    </SelectInput>
                   )}
                 </Field>
 
@@ -1142,9 +1873,11 @@ export const CreateListingPage: React.FC = () => {
                       aria-describedby={describedBy}
                       invalid={invalid}
                       type="number"
+                      inputMode="numeric"
                       min={1}
-                      value={area}
-                      onChange={(event) => setArea(Number(event.target.value))}
+                      value={area === '' ? '' : area}
+                      onChange={numberHandler(setArea, 'area')}
+                      placeholder={t('owner.create.details.areaPlaceholder')}
                     />
                   )}
                 </Field>
@@ -1159,9 +1892,11 @@ export const CreateListingPage: React.FC = () => {
                       aria-describedby={describedBy}
                       invalid={invalid}
                       type="number"
+                      inputMode="numeric"
                       min={1}
-                      value={floor}
-                      onChange={(event) => setFloor(Number(event.target.value))}
+                      value={floor === '' ? '' : floor}
+                      onChange={numberHandler(setFloor, 'floor')}
+                      placeholder={t('owner.create.details.floorPlaceholder')}
                     />
                   )}
                 </Field>
@@ -1171,76 +1906,64 @@ export const CreateListingPage: React.FC = () => {
                     <TextInput
                       id={id}
                       type="number"
+                      inputMode="numeric"
                       min={1}
-                      value={totalFloors}
-                      onChange={(event) => setTotalFloors(Number(event.target.value))}
+                      value={totalFloors === '' ? '' : totalFloors}
+                      onChange={numberHandler(setTotalFloors, 'floor')}
+                      placeholder={t('owner.create.details.totalFloorsPlaceholder')}
                     />
                   )}
                 </Field>
               </div>
 
+              {/* Each amenity is a promise to a tenant, so each one is opted
+                  into: the icon and the filled row make a ticked promise
+                  visible at a glance rather than as a 16px checkbox. */}
               <fieldset className="space-y-2 pt-1">
                 <legend className="text-xs font-bold uppercase tracking-wider text-muted">
                   {t('owner.create.details.amenitiesLabel')}
                 </legend>
-                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-                  {(
-                    [
-                      ['furnished', furnished, setFurnished, 'listings.amenities.furnished'],
-                      ['utilities', utilities, setUtilities, 'listings.amenities.utilitiesIncluded'],
-                      [
-                        'airConditioning',
-                        airConditioning,
-                        setAirConditioning,
-                        'listings.amenities.airConditioning',
-                      ],
-                      [
-                        'washingMachine',
-                        washingMachine,
-                        setWashingMachine,
-                        'listings.amenities.washingMachine',
-                      ],
-                      ['internet', internet, setInternet, 'listings.amenities.internet'],
-                      ['parking', parking, setParking, 'listings.amenities.parking'],
-                      ['pets', pets, setPets, 'listings.amenities.petsAllowed'],
-                    ] as const
-                  ).map(([name, checked, setChecked, labelKey]) => (
-                    <label key={name} className={checkboxRowClass}>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                  {AMENITIES.map(({ key, labelKey, Icon }) => (
+                    <label
+                      key={key}
+                      className={cn(
+                        'press flex min-h-12 cursor-pointer touch-manipulation items-center gap-2.5',
+                        'rounded-2xl border border-line bg-surface-2 p-3 text-xs font-bold text-content',
+                        'transition-colors hover:bg-surface-3',
+                        'has-[:checked]:border-brand has-[:checked]:bg-brand-soft has-[:checked]:text-brand-text',
+                      )}
+                    >
+                      {/* The native input stays: it is what makes the row
+                          focusable, toggleable with the space bar and
+                          announced as a checkbox. */}
                       <input
                         type="checkbox"
-                        checked={checked}
-                        onChange={(event) => setChecked(event.target.checked)}
-                        className={checkboxClass}
+                        checked={amenities[key]}
+                        onChange={(event) =>
+                          setAmenities((current) => ({
+                            ...current,
+                            [key]: event.target.checked,
+                          }))
+                        }
+                        className="h-4 w-4 shrink-0 rounded border-line-2 text-brand accent-[var(--color-brand)] focus:ring-brand"
                       />
-                      <span>{tRaw(labelKey)}</span>
+                      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span className="min-w-0">{tRaw(labelKey)}</span>
                     </label>
                   ))}
                 </div>
               </fieldset>
-
-              <div className="flex gap-3 pt-2">
-                <Button variant="secondary" className="w-1/3" onClick={() => setStep(1)}>
-                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                  <span>{t('common.action.back')}</span>
-                </Button>
-                <Button className="w-2/3" onClick={() => goToStep(3)}>
-                  <span>{t('owner.create.next.toPhotos')}</span>
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              </div>
             </section>
           )}
 
           {/* ---------------------------------------------------- STEP 3 --- */}
           {step === 3 && (
             <section className="space-y-5" aria-labelledby="owner-step-photos">
-              <header className="flex items-center justify-between border-b border-line pb-3">
-                <div>
-                  <h2
-                    id="owner-step-photos"
-                    className="flex items-center gap-2 text-lg font-extrabold text-content"
-                  >
-                    <Upload className="h-5 w-5 text-brand" aria-hidden="true" />
+              <header className="flex items-start justify-between gap-3 border-b border-line pb-3">
+                <div className="min-w-0">
+                  <h2 id="owner-step-photos" ref={headingRef} tabIndex={-1} className={headingClass}>
+                    <Upload className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
                     {t('owner.create.photos.heading')}
                   </h2>
                   <p className="mt-0.5 text-xs text-subtle">
@@ -1256,19 +1979,42 @@ export const CreateListingPage: React.FC = () => {
                 accept="image/*"
                 multiple
                 className="sr-only"
-                onChange={(event) => {
-                  void handleImageUpload(event);
-                }}
+                onChange={handleImageInput}
               />
 
+              {/* The dashed border and the word "drop" were a promise the card
+                  did not keep: there were no drag handlers on it at all. */}
               <button
                 type="button"
                 onClick={() => imageInputRef.current?.click()}
-                disabled={images.length >= MAX_IMAGES}
-                className="w-full space-y-3 rounded-3xl border-2 border-dashed border-brand/50 bg-brand-soft p-6 text-center transition-colors hover:border-brand disabled:cursor-not-allowed disabled:opacity-60 sm:p-8"
+                disabled={images.length >= MAX_IMAGES || processingImages}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setDragOverDropzone(true);
+                }}
+                onDragLeave={() => setDragOverDropzone(false)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setDragOverDropzone(false);
+                  void addFiles(Array.from(event.dataTransfer.files ?? []));
+                }}
+                className={cn(
+                  'press-sm w-full space-y-3 rounded-3xl border-2 border-dashed p-6 text-center',
+                  'transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:p-8',
+                  dragOverDropzone
+                    ? 'border-brand bg-brand-soft-2'
+                    : 'border-brand/50 bg-brand-soft hover:border-brand',
+                )}
               >
                 <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-soft-2 text-brand-text">
-                  <Upload className="h-7 w-7" aria-hidden="true" />
+                  {processingImages ? (
+                    <span
+                      className="h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <Upload className="h-7 w-7" aria-hidden="true" />
+                  )}
                 </span>
                 <span className="block text-sm font-extrabold text-content sm:text-base">
                   {t('owner.create.photos.dropTitle')}
@@ -1283,7 +2029,11 @@ export const CreateListingPage: React.FC = () => {
 
               <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold">
                 <span className="text-subtle">
-                  {t('owner.create.photos.limitNotice', { max: MAX_IMAGES })}
+                  {t('owner.create.photos.countAndSizeHint', {
+                    min: MIN_IMAGES,
+                    max: MAX_IMAGES,
+                    size: MAX_PAYLOAD_MB,
+                  })}
                 </span>
                 <span className={payloadTooLarge ? 'text-danger' : 'text-subtle'}>
                   {t('owner.create.photos.sizeNotice', {
@@ -1304,13 +2054,38 @@ export const CreateListingPage: React.FC = () => {
 
               {images.length > 0 ? (
                 <div className="space-y-2">
-                  <p className="text-xs font-extrabold text-muted">
-                    {t('owner.create.photos.uploadedTitle')}
-                  </p>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="text-xs font-extrabold text-muted">
+                      {t('owner.create.photos.uploadedTitle')}
+                    </p>
+                    <p className="text-[11px] font-semibold text-subtle">
+                      {t('owner.create.photos.remainingHint', {
+                        count: MAX_IMAGES - images.length,
+                      })}
+                    </p>
+                  </div>
+
+                  {/* Order is the listing's cover photo, so it has to be
+                      changeable. Drag works on a desktop pointer; on touch it
+                      is two explicit buttons, because drag-to-reorder on a
+                      touchscreen without a library is a pile of edge cases and
+                      a target you cannot see under your own thumb. */}
                   <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {images.map((image, index) => (
                       <li
-                        key={image.slice(-48) + String(index)}
+                        key={image}
+                        draggable
+                        onDragStart={() => {
+                          dragFromRef.current = index;
+                        }}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          if (dragFromRef.current !== null) {
+                            moveImage(dragFromRef.current, index);
+                          }
+                          dragFromRef.current = null;
+                        }}
                         className="group relative aspect-[4/3] overflow-hidden rounded-2xl border border-line"
                       >
                         <img
@@ -1326,13 +2101,35 @@ export const CreateListingPage: React.FC = () => {
                         <button
                           type="button"
                           aria-label={t('owner.create.photos.removeImage', { index: index + 1 })}
-                          onClick={() =>
-                            setImages((current) => current.filter((_, item) => item !== index))
-                          }
-                          className="absolute right-2 top-2 rounded-full bg-danger p-1.5 text-white shadow-card transition-transform active:scale-95"
+                          onClick={() => {
+                            setImages((current) => current.filter((_, item) => item !== index));
+                            haptics.tap();
+                          }}
+                          className="press absolute right-1.5 top-1.5 flex h-11 w-11 items-center justify-center rounded-full bg-danger text-white shadow-card"
                         >
-                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </button>
+
+                        <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-gradient-to-t from-black/60 to-transparent p-1.5">
+                          <button
+                            type="button"
+                            aria-label={t('common.a11y.scrollLeft')}
+                            disabled={index === 0}
+                            onClick={() => moveImage(index, index - 1)}
+                            className="press flex h-11 w-11 items-center justify-center rounded-xl bg-black/45 text-white disabled:opacity-30"
+                          >
+                            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={t('common.a11y.scrollRight')}
+                            disabled={index === images.length - 1}
+                            onClick={() => moveImage(index, index + 1)}
+                            className="press flex h-11 w-11 items-center justify-center rounded-xl bg-black/45 text-white disabled:opacity-30"
+                          >
+                            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -1343,7 +2140,11 @@ export const CreateListingPage: React.FC = () => {
                 </p>
               )}
 
-              <div className="space-y-3 rounded-3xl border border-line bg-surface-2 p-4 sm:p-5">
+              {/* The video card used to be a file picker whose only outcome was
+                  a toast saying files are not supported — so `videoUrl` could
+                  never become non-empty. The API stores an https link, so that
+                  is what this asks for. */}
+              <Card tone="nested" padding="none" className="space-y-3 p-4 sm:p-5">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2 text-xs font-extrabold text-content">
                     <Video className="h-4 w-4 text-danger" aria-hidden="true" />
@@ -1354,58 +2155,46 @@ export const CreateListingPage: React.FC = () => {
                   </span>
                 </div>
 
-                <input
-                  ref={videoInputRef}
-                  type="file"
-                  accept="video/*"
-                  className="sr-only"
-                  onChange={(event) => {
-                    void handleVideoUpload(event);
-                  }}
-                />
+                <Field
+                  label={t('owner.create.photos.videoDropTitle')}
+                  hint={t('owner.create.photos.videoUploadUnsupported')}
+                  error={formErrors.videoUrl ? tRaw(formErrors.videoUrl) : undefined}
+                >
+                  {({ id, describedBy, invalid }) => (
+                    <TextInput
+                      id={id}
+                      aria-describedby={describedBy}
+                      invalid={invalid}
+                      type="url"
+                      inputMode="url"
+                      value={videoUrl}
+                      onChange={(event) => {
+                        setVideoUrl(event.target.value);
+                        clearError('videoUrl');
+                      }}
+                      placeholder="https://youtu.be/..."
+                    />
+                  )}
+                </Field>
 
-                {videoUrl ? (
-                  <div className="space-y-2">
-                    <div className="relative overflow-hidden rounded-2xl border border-line bg-[#0b1220]">
-                      {/* eslint-disable-next-line jsx-a11y/media-has-caption -- owner-recorded tour, no caption track exists */}
-                      <video controls src={videoUrl} className="max-h-56 w-full object-contain" />
-                      <button
-                        type="button"
-                        onClick={() => setVideoUrl('')}
-                        className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-xl bg-danger px-3 py-1.5 text-xs font-extrabold text-white shadow-raised transition-transform active:scale-95"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>{t('owner.create.photos.videoRemove')}</span>
-                      </button>
-                    </div>
-                    <p className="flex items-center gap-1 text-[11px] font-bold text-brand-text">
-                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                      {t('owner.create.photos.videoUploaded')}
-                    </p>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => videoInputRef.current?.click()}
-                    className="w-full space-y-2 rounded-2xl border-2 border-dashed border-line-2 p-4 text-center transition-colors hover:border-danger"
-                  >
-                    <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-danger-soft text-danger">
-                      <Video className="h-5 w-5" aria-hidden="true" />
-                    </span>
-                    <span className="block text-xs font-bold text-content">
-                      {t('owner.create.photos.videoDropTitle')}
-                    </span>
-                    <span className="block text-[11px] text-subtle">
-                      {t('owner.create.photos.videoDropBody')}
-                    </span>
-                  </button>
+                {videoUrl.trim() !== '' && !formErrors.videoUrl && (
+                  <p className="flex items-center gap-1 text-[11px] font-bold text-brand-text">
+                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    {t('owner.create.photos.videoUploaded')}
+                  </p>
                 )}
-              </div>
+              </Card>
 
               {/* Photo-based condition and price analysis ran in the browser on
                   a shared API key. The card stays so the feature is not lost
-                  silently; it turns back on when the server exposes it. */}
-              <div className="space-y-2 rounded-2xl border border-line bg-surface-2 p-4 sm:p-5">
+                  silently; it turns back on when the server exposes it.
+
+                  Both panels are `Card tone="nested"` rather than two
+                  hand-typed strings: stacked directly on top of each other they
+                  had 24px and 16px corners, which is the accident Card was
+                  extracted to stop. The padding stays on the class list because
+                  neither of Card's presets is `p-4 sm:p-5`. */}
+              <Card tone="nested" padding="none" className="space-y-2 p-4 sm:p-5">
                 <p className="flex items-center gap-2 text-sm font-black text-content">
                   <Sparkles className="h-5 w-5 text-brand" aria-hidden="true" />
                   {t('owner.create.ai.photoTitle')}
@@ -1416,31 +2205,17 @@ export const CreateListingPage: React.FC = () => {
                 <p className="text-xs font-semibold text-subtle">
                   {t('owner.create.ai.unavailable')}
                 </p>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <Button variant="secondary" className="w-1/3" onClick={() => setStep(2)}>
-                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                  <span>{t('common.action.back')}</span>
-                </Button>
-                <Button className="w-2/3" onClick={() => goToStep(4)}>
-                  <span>{t('owner.create.next.toContact')}</span>
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              </div>
+              </Card>
             </section>
           )}
 
           {/* ---------------------------------------------------- STEP 4 --- */}
           {step === 4 && (
             <section className="space-y-6" aria-labelledby="owner-step-contact">
-              <header className="flex items-center justify-between border-b border-line pb-3">
-                <div>
-                  <h2
-                    id="owner-step-contact"
-                    className="flex items-center gap-2 text-lg font-extrabold text-content"
-                  >
-                    <Phone className="h-5 w-5 text-brand" aria-hidden="true" />
+              <header className="flex items-start justify-between gap-3 border-b border-line pb-3">
+                <div className="min-w-0">
+                  <h2 id="owner-step-contact" ref={headingRef} tabIndex={-1} className={headingClass}>
+                    <Phone className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
                     {t('owner.create.contact.heading')}
                   </h2>
                   <p className="mt-0.5 text-xs text-subtle">
@@ -1470,12 +2245,21 @@ export const CreateListingPage: React.FC = () => {
                   )}
                 </Field>
 
-                <Field label={t('owner.create.contact.telegramLabel')}>
-                  {({ id }) => (
+                <Field
+                  label={t('owner.create.contact.telegramLabel')}
+                  hint={t('owner.create.contact.telegramHint')}
+                  error={formErrors.telegram ? tRaw(formErrors.telegram) : undefined}
+                >
+                  {({ id, describedBy, invalid }) => (
                     <TextInput
                       id={id}
+                      aria-describedby={describedBy}
+                      invalid={invalid}
                       value={telegram}
-                      onChange={(event) => setTelegram(event.target.value)}
+                      onChange={(event) => {
+                        setTelegram(event.target.value);
+                        clearError('telegram');
+                      }}
                       placeholder={t('owner.create.contact.telegramPlaceholder')}
                       icon={<MessageSquare className="h-4 w-4" aria-hidden="true" />}
                     />
@@ -1483,19 +2267,30 @@ export const CreateListingPage: React.FC = () => {
                 </Field>
               </div>
 
-              <Field label={t('owner.create.contact.timeLabel')}>
-                {({ id }) => (
+              <Field
+                label={t('owner.create.contact.timeLabel')}
+                error={formErrors.preferredTime ? tRaw(formErrors.preferredTime) : undefined}
+              >
+                {({ id, describedBy, invalid }) => (
                   <TextInput
                     id={id}
+                    aria-describedby={describedBy}
+                    invalid={invalid}
                     value={preferredTime}
-                    onChange={(event) => setPreferredTime(event.target.value)}
+                    maxLength={MAX_CONTACT_TIME_LENGTH}
+                    onChange={(event) => {
+                      setPreferredTime(event.target.value);
+                      clearError('preferredTime');
+                    }}
                     placeholder={t('owner.create.contact.timePlaceholder')}
                     icon={<Clock className="h-4 w-4" aria-hidden="true" />}
                   />
                 )}
               </Field>
 
-              {/* Moderation preview: advisory only, the server decides on create. */}
+              {/* Moderation preview. Advisory about the wording, but binding on
+                  this button: a "blocked" card can no longer sit next to a
+                  submit that would have sent the listing anyway. */}
               <div aria-live="polite">
                 {scanning ? (
                   <div className="space-y-3 rounded-3xl border border-line bg-brand-soft p-6 text-center">
@@ -1525,6 +2320,7 @@ export const CreateListingPage: React.FC = () => {
                     </div>
                     <FormError message={scanError} />
                     <Button
+                      type="button"
                       onClick={() => {
                         void runScan();
                       }}
@@ -1575,10 +2371,11 @@ export const CreateListingPage: React.FC = () => {
                       })}
                     </p>
                     <div className="flex flex-col gap-2 sm:flex-row">
-                      <Button className="flex-1" onClick={() => setStep(2)}>
+                      <Button type="button" className="flex-1" onClick={() => setStep(2)}>
                         {t('owner.create.moderation.editCta')}
                       </Button>
                       <Button
+                        type="button"
                         variant="secondary"
                         className="flex-1"
                         onClick={() => {
@@ -1612,10 +2409,11 @@ export const CreateListingPage: React.FC = () => {
                     </ul>
                   )}
                   <div className="flex flex-col gap-2 sm:flex-row">
-                    <Button className="flex-1" onClick={() => setStep(2)}>
+                    <Button type="button" className="flex-1" onClick={() => setStep(2)}>
                       {t('owner.create.moderation.editCta')}
                     </Button>
                     <Button
+                      type="button"
                       variant="secondary"
                       className="flex-1"
                       onClick={() => setCurrentView('MY_LISTINGS')}
@@ -1627,29 +2425,63 @@ export const CreateListingPage: React.FC = () => {
               )}
 
               <FormError message={submitError} />
-
-              <div className="flex gap-3 pt-2">
-                <Button variant="secondary" className="w-1/3" onClick={() => setStep(3)}>
-                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                  <span>{t('common.action.back')}</span>
-                </Button>
-                <Button
-                  className="w-2/3"
-                  loading={submitting}
-                  disabled={payloadTooLarge}
-                  onClick={() => {
-                    void handleSubmit();
-                  }}
-                >
-                  <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-                  <span>
-                    {submitting ? t('owner.create.submitting') : t('owner.create.submit')}
-                  </span>
-                </Button>
-              </div>
             </section>
           )}
-        </div>
+
+          {/*
+            One action row for all four steps.
+
+            It follows the form down the page and parks itself just above the
+            bottom navigation on a phone, which is where a thumb already is —
+            the per-step button pairs it replaces sat at the end of a long
+            scroll and were the reason "next" felt like something you had to go
+            and find.
+          */}
+          <div
+            className={cn(
+              'sticky bottom-[calc(env(safe-area-inset-bottom)+3.75rem)] z-20 -mx-4 flex gap-3',
+              'border-t border-line bg-surface/95 px-4 pb-3 pt-3 backdrop-blur',
+              'sm:-mx-8 sm:px-8 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:px-0 lg:backdrop-blur-none',
+            )}
+          >
+            {step > 1 && (
+              <Button
+                type="button"
+                variant="secondary"
+                className="press w-1/3"
+                onClick={() => goToStep(step - 1)}
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                <span>{t('common.action.back')}</span>
+              </Button>
+            )}
+
+            {step < TOTAL_STEPS ? (
+              <Button type="submit" className={cn('press', step > 1 ? 'w-2/3' : 'w-full')}>
+                <span>
+                  {step === 1
+                    ? t('owner.create.next.toDetails')
+                    : step === 2
+                      ? t('owner.create.next.toPhotos')
+                      : t('owner.create.next.toContact')}
+                </span>
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                className="press w-2/3"
+                loading={submitting || scanning}
+                disabled={payloadTooLarge || (scan !== null && !scan.allowed)}
+              >
+                <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+                <span>
+                  {submitting ? t('owner.create.submitting') : t('owner.create.submit')}
+                </span>
+              </Button>
+            )}
+          </div>
+        </form>
 
         {/*
           Side rail: what makes a listing rent quickly.
@@ -1680,14 +2512,15 @@ export const CreateListingPage: React.FC = () => {
                 </span>
               </span>
               <ChevronDown
-                className={`h-5 w-5 shrink-0 text-subtle transition-transform lg:hidden ${
-                  tipsOpen ? 'rotate-180' : ''
-                }`}
+                className={cn(
+                  'h-5 w-5 shrink-0 text-subtle transition-transform lg:hidden',
+                  tipsOpen && 'rotate-180',
+                )}
                 aria-hidden="true"
               />
             </button>
 
-            <div className={`space-y-5 ${tipsOpen ? 'block' : 'hidden lg:block'}`}>
+            <div className={tipsOpen ? 'block space-y-5' : 'hidden space-y-5 lg:block'}>
               <ul className="space-y-4 text-xs font-medium text-muted">
                 {(['photos', 'price', 'address', 'terms'] as const).map((rule) => (
                   <li key={rule} className="flex items-start gap-3">
@@ -1737,6 +2570,43 @@ export const CreateListingPage: React.FC = () => {
           </div>
         </aside>
       </div>
+
+      {/* Cancel used to walk straight home with a full form behind it. */}
+      <Sheet
+        open={confirmLeave}
+        onClose={() => setConfirmLeave(false)}
+        title={t('owner.create.draft.confirmLeaveTitle')}
+        description={t('owner.create.draft.confirmLeaveBody')}
+        size="sm"
+        footer={
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              className="press flex-1"
+              onClick={() => setConfirmLeave(false)}
+            >
+              {t('owner.create.draft.stay')}
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              className="press flex-1"
+              onClick={() => {
+                setConfirmLeave(false);
+                setCurrentView('HOME');
+              }}
+            >
+              {t('owner.create.draft.leave')}
+            </Button>
+          </div>
+        }
+      >
+        <p className="flex items-start gap-2 text-sm font-semibold text-muted">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+          <span>{t('owner.create.draft.saved')}</span>
+        </p>
+      </Sheet>
     </div>
   );
 };

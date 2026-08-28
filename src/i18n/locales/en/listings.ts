@@ -16,6 +16,76 @@ export const listings = {
     },
   },
 
+  /**
+   * The filter bar and the filter sheet.
+   *
+   * Separate from `common.filters` on purpose: those are the words a filter
+   * is called anywhere in the app, these are the ones the listings surface
+   * puts on its own chips, its sort menu and its "show results" button.
+   */
+  filters: {
+    title: 'Filters',
+    subtitle: 'Tune the search to what you need',
+    openAria: 'Open the filters',
+    closeAria: 'Close the filters',
+    activeCount: '{count} filters active',
+    activeNone: 'No filters selected',
+    clearAll: 'Clear all',
+    clearOne: 'Remove the “{label}” filter',
+    apply: 'Apply',
+    showResults: 'Show {count} listings',
+    showResultsNone: 'No listings match',
+    more: 'More filters',
+    less: 'Fewer filters',
+
+    quickLabel: 'Quick filters',
+    quick: {
+      all: 'All',
+      roommate: 'Shared',
+      student: 'For students',
+      family: 'For families',
+      metro: 'Near the metro',
+      budget: 'Budget',
+      premium: 'Highly trusted',
+      qizlarga: 'For women',
+      komfort: 'Comfort',
+      center: 'Central',
+      verified: 'Verified',
+      noDeposit: 'No deposit',
+      newest: 'Newest',
+      withVideo: 'With video',
+      petsAllowed: 'Pets allowed',
+    },
+
+    priceTitle: 'Monthly price',
+    minPrice: 'Minimum price (so‘m)',
+    maxPrice: 'Maximum price (so‘m)',
+    minPricePlaceholder: '1,000,000',
+    maxPricePlaceholder: '10,000,000',
+    priceHint: 'Leave it empty to apply no price limit.',
+
+    areaTitle: 'Area',
+    minArea: 'Minimum area (m²)',
+    maxArea: 'Maximum area (m²)',
+    minAreaPlaceholder: '30',
+    maxAreaPlaceholder: '120',
+
+    roomsTitle: 'Number of rooms',
+    amenitiesTitle: 'Amenities',
+    locationTitle: 'Location',
+
+    sortBy: 'Sort by',
+    sort: {
+      recommended: 'Recommended',
+      newest: 'Newest first',
+      priceLow: 'Cheapest first',
+      priceHigh: 'Most expensive first',
+      trust: 'By trust score',
+      areaLarge: 'Largest first',
+      popular: 'Popular',
+    },
+  },
+
   hero: {
     eyebrow: 'Broker-free platform',
     title: 'Find a flat straight from the owner',
@@ -61,6 +131,15 @@ export const listings = {
     savedListing: 'Saved',
     shareListing: 'Share listing',
     shareText: '{title} — {price}. On Maklersiz Uy, with no commission!',
+    // The card carousel. Dots are buttons, so each one needs a name a screen
+    // reader can read; the live region reads the position after a swipe.
+    photoCarousel: '{title} — listing photos',
+    photoDot: 'Go to photo {index}',
+    photoPosition: '{current} / {total}',
+    photoNext: 'Next photo',
+    photoPrev: 'Previous photo',
+    photoNone: 'No photo',
+    photoCount: '{count} photos',
   },
 
   detail: {

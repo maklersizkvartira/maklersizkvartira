@@ -62,6 +62,13 @@ export const common = {
     signIn: 'Kirish',
     signOut: 'Chiqish',
     signUp: 'Ro‘yxatdan o‘tish',
+    done: 'Tayyor',
+    skip: 'O‘tkazib yuborish',
+    dismiss: 'Yopish',
+    understood: 'Tushunarli',
+    showResults: 'Natijalarni ko‘rish',
+    clearAll: 'Hammasini tozalash',
+    seeOnMap: 'Xaritada ko‘rish',
   },
 
   state: {
@@ -182,6 +189,27 @@ export const common = {
     selectLanguage: 'Tilni tanlash',
     goToPage: '{page}-sahifaga o‘tish',
     loading: 'Yuklanmoqda',
+    goToImage: '{index}-rasmga o‘tish',
+    imageIndicators: 'Rasmlar ko‘rsatkichi',
+    expand: 'Kengaytirish',
+    collapse: 'Yig‘ish',
+    moreOptions: 'Qo‘shimcha imkoniyatlar',
+    scrollLeft: 'Chapga surish',
+    scrollRight: 'O‘ngga surish',
+  },
+
+  /**
+   * The shared bottom sheet. Its own vocabulary rather than reused dialog
+   * words: a sheet is dragged and dismissed, not just "closed", and the grab
+   * handle needs a label a screen reader can read out loud.
+   */
+  sheet: {
+    close: 'Yopish',
+    closeAria: 'Panelni yopish',
+    dragHandle: 'Panelni pastga surib yoping',
+    loading: 'Yuklanmoqda...',
+    retry: 'Qayta urinish',
+    error: 'Ma’lumotni yuklab bo‘lmadi.',
   },
 
   theme: {
@@ -215,5 +243,7 @@ export const common = {
     rateLimited: 'Juda ko‘p urinish. Biroz kuting.',
     validation: 'Kiritilgan ma’lumotlarni tekshiring.',
     tryAgain: 'Qayta urinish',
+    timeout: 'Javob juda uzoq kutildi. Qayta urinib ko‘ring.',
+    limitReached: 'Chegaraga yetdingiz.',
   },
 } as const;

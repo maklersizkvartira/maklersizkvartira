@@ -146,7 +146,20 @@ async def admin_refresh(
             user_agent=ctx.user_agent,
         )
     except TokenError as exc:
-        raise Unauthorized(exc.code) from exc
+        if exc.code == "refresh_reused":
+            await audit_log.record(
+                db,
+                AuditAction.AUTH_TOKEN_REUSE_DETECTED,
+                entity_type="admin",
+                entity_id=admin.id,
+                entity_label=admin.username,
+                summary="Admin refresh token replay detected - all sessions revoked",
+            )
+        # The family revocation performed while detecting the replay must
+        # outlive the error, or the stolen token would keep working: a bare
+        # raise is rolled back by get_db together with the very UPDATE that
+        # describes the theft.
+        await commit_then_raise(db, Unauthorized(exc.code))
 
     return TokenResponse(
         access_token=pair.access_token,
@@ -333,13 +346,22 @@ async def toggle_monetization(admin: RequireSuperadmin, db: DbSession) -> Messag
             {"val": new_val}
         )
     await db.flush()
+    # ADMIN_SETTINGS_CHANGED, not the ADMIN_UPDATED this used to name: that
+    # member does not exist on the enum, so the first superadmin to press the
+    # toggle would have got an AttributeError rather than a setting change.
+    #
+    # The entity is the SETTING, not the admin. Recording the acting admin's
+    # id as entity_id put this row in the target's history instead of the
+    # setting's — and the actor is already captured from the request context,
+    # so it was never missing in the first place.
     await audit_log.record(
         db,
-        AuditAction.ADMIN_UPDATED,
+        AuditAction.ADMIN_SETTINGS_CHANGED,
         entity_type="system_settings",
-        entity_id=admin.id,
+        entity_id="is_monetization_enabled",
         entity_label="is_monetization_enabled",
         summary=f"{admin.full_name} turned {'off' if current else 'on'} monetization",
+        changes={"value": {"from": "true" if current else "false", "to": new_val}},
     )
     return MessageResponse(message="Sozlamalar yangilandi")
 
@@ -512,6 +534,10 @@ async def get_user(user_id: uuid.UUID, admin: RequireModerator, db: DbSession) -
                 RefreshToken.user_id == user.id,
                 RefreshToken.revoked_at.is_(None),
                 RefreshToken.used_at.is_(None),
+                # An aged-out row sets neither revoked_at nor used_at, and
+                # nothing deletes it, so without this a moderator sees every
+                # long-dead login of this account as a live device.
+                RefreshToken.expires_at > _now(),
             )
             .order_by(RefreshToken.created_at.desc())
             .limit(20)
@@ -707,9 +733,29 @@ async def delete_user(
     label = f"{user.name} {mask_phone(user.phone)}"
 
     # Soft delete, and free the phone number so it can be registered again.
+    #
+    # The tombstone has to FIT: `phone` is String(20), and the obvious
+    # "deleted:{uuid}" is 44 characters, so Postgres raised
+    # StringDataRightTruncation, the SQLAlchemyError handler turned it into a
+    # 500, and the rollback took the soft delete AND its audit row with it —
+    # the delete button simply failed, invisibly, every time.
+    #
+    # "del:" plus 14 hex digits is 18 characters and still unique in the two
+    # ways that matter: no real phone can collide, because every live one is
+    # E.164 and starts with "+"; and 14 hex digits of a random UUIDv4 are 56
+    # bits, so two tombstones colliding needs on the order of 2^28 deleted
+    # accounts before it is even worth thinking about.
+    #
+    # The digits are taken from the END of the uuid, not the start: hex[12] is
+    # the version nibble and is always "4", so a 14-character prefix carries
+    # only 52 random bits, while the last 14 characters are random throughout.
     user.deleted_at = _now()
     user.status = UserStatus.BANNED.value
-    user.phone = f"deleted:{user.id}"
+    user.phone = f"del:{user.id.hex[-14:]}"
+    # email is String(255) and cleared rather than rewritten, so it has no
+    # equivalent problem — but it does share the unique index, which is why it
+    # is set to NULL: Postgres treats NULLs as distinct, so any number of
+    # deleted accounts can hold it at once and the address is freed for reuse.
     user.email = None
     user.google_uid = None
     user.password_hash = None

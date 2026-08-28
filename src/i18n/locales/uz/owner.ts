@@ -60,7 +60,16 @@ export const owner = {
       gpsDetected: 'GPS aniqlandi',
       gpsFound: 'GPS manzil topildi: {region}, {district}, {address}',
       gpsCoordinates: 'GPS koordinatalari aniqlandi: {latitude}, {longitude}',
-      gpsDenied: 'GPS ruxsati berilmadi. Manzilni matn ko‘rinishida kiriting.',
+      // The Geolocation API reports three different failures and the button
+      // used to call all of them "permission denied", which sent people to
+      // the browser settings to fix a timeout they could have fixed by
+      // stepping outside.
+      gpsDenied: 'GPS ruxsati berilmadi. Brauzer sozlamalaridan ruxsat bering yoki manzilni yozing.',
+      gpsTimeout: 'GPS javob bermadi. Ochiq joyga chiqib qayta urining yoki manzilni yozing.',
+      gpsUnavailable: 'Joylashuvni aniqlab bo‘lmadi. Signal kuchsiz bo‘lishi mumkin.',
+      gpsPrompt: 'Brauzer joylashuv so‘rayapti — “Ruxsat berish”ni tanlang.',
+      gpsSearching: 'Joylashuv qidirilmoqda...',
+      gpsSuccess: 'Joylashuv aniqlandi.',
       gpsUnsupported: 'Qurilmangiz GPS ni qo‘llab-quvvatlamaydi.',
       metroLabel: 'Yaqin metro bekati',
       metroNone: 'Yo‘q (metro yaqin emas)',
@@ -97,6 +106,31 @@ export const owner = {
       floorLabel: 'Qavat',
       totalFloorsLabel: 'Jami qavat',
       amenitiesLabel: 'Mavjud sharoit va qulayliklar',
+      // These fields start empty now. A seeded number reads as an answer, and
+      // people published it unchanged; a placeholder reads as an example.
+      pricePlaceholder: 'Masalan: 4 000 000',
+      depositPlaceholder: 'Zaklad yo‘q bo‘lsa — 0',
+      areaPlaceholder: 'Masalan: 54',
+      floorPlaceholder: 'Masalan: 3',
+      totalFloorsPlaceholder: 'Masalan: 9',
+      roomsPlaceholder: 'Masalan: 2',
+    },
+
+    /**
+     * One label per amenity key the form toggles.
+     *
+     * `listings.amenities.*` describes an amenity on a published listing
+     * ("Uy hayvonlariga ruxsat"); these are the words on the wizard's own
+     * checkboxes, keyed exactly as the form's state is.
+     */
+    amenities: {
+      furnished: 'Mebel bilan',
+      utilities: 'Kommunal to‘lov narxga kiradi',
+      airConditioning: 'Konditsioner',
+      washingMachine: 'Kir yuvish mashinasi',
+      internet: 'Internet / Wi-Fi',
+      parking: 'Parkovka',
+      pets: 'Uy hayvonlariga ruxsat',
     },
 
     photos: {
@@ -121,6 +155,11 @@ export const owner = {
       videoUploaded: 'Video yuklandi',
       videoRemove: 'Videoni o‘chirish',
       videoUploadUnsupported: 'Hozircha videoni to‘g‘ridan-to‘g‘ri yuklab bo‘lmaydi. Videoni YouTube’ga joylab, havolasini qo‘ying.',
+      // Said once, before the upload, instead of only as an error afterwards.
+      countHint: 'Kamida {min} ta, ko‘pi bilan {max} ta rasm.',
+      sizeHint: 'Barcha fayllar jami {max} MB gacha.',
+      countAndSizeHint: '{min}–{max} ta rasm, jami {size} MB gacha.',
+      remainingHint: 'Yana {count} ta rasm qo‘shishingiz mumkin.',
     },
 
     contact: {
@@ -131,6 +170,7 @@ export const owner = {
       phoneMissing: 'Profilingizda telefon raqami yo‘q.',
       telegramLabel: 'Telegram username',
       telegramPlaceholder: '@username',
+      telegramHint: '@ bilan boshlang. Faqat lotin harflari, raqam va pastki chiziq.',
       timeLabel: 'Qulay aloqa vaqti',
       timePlaceholder: 'Har kuni 09:00 – 21:00',
     },
@@ -167,6 +207,25 @@ export const owner = {
         'Bu funksiya hozircha ishlamaydi: AI tahlili server tomoniga ko‘chirildi. Matn va narxni o‘zingiz kiriting.',
     },
 
+    /**
+     * Draft persistence.
+     *
+     * The wizard is four steps long and a mis-tapped back gesture used to
+     * empty all four, so the answers are kept and the exit is confirmed.
+     */
+    draft: {
+      restored: 'Saqlangan qoralama tiklandi.',
+      restoredAt: '{time} da saqlangan qoralama tiklandi.',
+      discard: 'Qoralamani o‘chirish',
+      discarded: 'Qoralama o‘chirildi.',
+      saved: 'Qoralama saqlandi',
+      confirmLeaveTitle: 'E’lonni yakunlamay chiqasizmi?',
+      confirmLeaveBody:
+        'Kiritganlaringiz qoralama sifatida saqlanadi va keyin shu joydan davom ettirasiz.',
+      stay: 'Bu yerda qolish',
+      leave: 'Chiqish',
+    },
+
     submit: 'E’lonni chiqarish',
     submitting: 'Yuborilmoqda...',
     submitFailed: 'E’lonni yuborib bo‘lmadi. Internet aloqasini tekshirib qayta urining.',
@@ -198,6 +257,8 @@ export const owner = {
       imagesTooLarge:
         'Rasm va video hajmi {size} MB — chegaradan ({max} MB) oshdi. Kamroq yoki kichikroq fayl yuklang.',
       phone: 'Profilingizga ishlaydigan telefon raqamini qo‘shing.',
+      telegram: 'Telegram username noto‘g‘ri. Masalan: @dilshod_karimov',
+      limitReached: 'Faol e’lonlar chegarasiga yetdingiz ({max} ta). Avval eskisini o‘chiring.',
     },
   },
 
@@ -260,5 +321,26 @@ export const owner = {
       verificationRequired: 'Tasdiqlash talab qilinadi',
       noReasons: 'Qo‘shimcha izoh yo‘q.',
     },
+  },
+
+  /**
+   * The account-wide statistics panel.
+   *
+   * Distinct from `owner.my.stats`, which labels the tiles on one listing's
+   * row: these count every listing the owner has, moderation states included.
+   */
+  stats: {
+    title: 'Mening e’lonlarim va statistika',
+    subtitle: 'Barcha e’lonlaringiz bo‘yicha umumiy ko‘rsatkichlar.',
+    totalListings: 'Jami e’lonlar',
+    approved: 'Tasdiqlangan',
+    pending: 'Ko‘rib chiqilmoqda',
+    rejected: 'Rad etilgan',
+    views: 'Ko‘rishlar',
+    favorites: 'Saqlanganlar',
+    contacts: 'Aloqa so‘rovlari',
+    avgTrust: 'O‘rtacha ishonch reytingi',
+    empty: 'Statistika uchun hali ma’lumot yo‘q — birinchi e’loningizni joylang.',
+    emptyCta: 'E’lon joylash',
   },
 } as const;

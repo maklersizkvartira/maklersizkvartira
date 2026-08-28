@@ -112,6 +112,16 @@ export const auth = {
     subtitle: 'SMS kodni kiriting va yangi parol tanlang',
     submit: 'Parolni yangilash',
     success: 'Parol yangilandi. Endi yangi parol bilan kiring.',
+    // One fused screen became three: phone, then the SMS code, then the new
+    // password twice. Each step needs its own heading, and the code step
+    // needs a way to say the code was wrong without blaming the password.
+    codeTitle: 'SMS kodni kiriting',
+    codeSubtitle: '{phone} raqamiga yuborilgan 6 xonali kodni kiriting.',
+    passwordTitle: 'Yangi parol tanlang',
+    passwordSubtitle: 'Parolni ikki marta kiriting — birini boshqasi tasdiqlaydi.',
+    continue: 'Davom etish',
+    codeInvalid: 'Kod noto‘g‘ri yoki muddati tugagan. Yangi kod so‘rang.',
+    stepOf: '{current}-qadam / {total}',
   },
 
   changePassword: {

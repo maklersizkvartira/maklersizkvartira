@@ -289,11 +289,46 @@ html {
   border: 1px solid var(--color-line);
 }
 
+/* ---------------------------------------------------------------------------
+   Safe areas.
+
+   `viewport-fit=cover` in index.html hands the page the whole screen,
+   including the strip under the notch and the strip under the home
+   indicator. The vertical pair existed; the horizontal one did not, so a
+   notched phone held sideways clipped the first and last characters of every
+   row against the sensor housing.
+
+   `max()` rather than a bare `env()` on the gutters: an inset of 0 on a
+   normal screen must still leave the page its usual 1rem of breathing room,
+   not butt the text against the glass.
+--------------------------------------------------------------------------- */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 .pt-safe {
   padding-top: env(safe-area-inset-top, 0px);
+}
+.pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+.px-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+/* A page gutter that grows for the notch instead of being replaced by it. */
+.gutter-safe {
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+}
+/* For a bar that is already padded and only needs the indicator's clearance. */
+.pb-safe-plus {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+}
+.mb-safe {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .text-balance {
@@ -359,6 +394,15 @@ html {
   }
 }
 
+@keyframes sheet-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
 .auth-overlay {
   animation: fade-in 0.2s ease-out;
   background: var(--overlay);
@@ -371,11 +415,81 @@ html {
     animation: modal-pop 0.28s ease-out;
   }
 }
+/* The side variant of the same sheet — the header drawer. It slides in from
+   the edge at every width, so unlike `.auth-sheet` it is not re-animated as a
+   centred modal above 640px. */
+.auth-sheet-side {
+  animation: sheet-right 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
 .rise-in {
   animation: rise-in 0.4s ease-out both;
 }
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out both;
+}
 
-/* Respect the user's motion preference — animations here are decorative. */
+/* ---------------------------------------------------------------------------
+   Tap feedback.
+
+   Native apps answer a press before the action finishes, and the web version
+   answered nothing at all. `.press` is that answer: a small scale that comes
+   back instantly on release. `touch-action: manipulation` is part of the
+   utility rather than a separate class because they are the same intent —
+   this element is tapped — and forgetting the second one leaves the ~300ms
+   double-tap-zoom delay in front of the first.
+--------------------------------------------------------------------------- */
+/* The property list includes the colour properties, not just `transform`.
+   These rules are unlayered and Tailwind's utilities are not, so a bare
+   `transition: transform` here would win outright over a `transition-colors`
+   in the same class list and silently turn every hover fade into a snap. */
+.press,
+.press-sm {
+  touch-action: manipulation;
+  transition-property: transform, color, background-color, border-color, box-shadow, opacity;
+  transition-duration: 120ms;
+  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+.press:active {
+  transform: scale(0.97);
+}
+/* A card is large; the same 3% on it reads as the whole page lurching. */
+.press-sm:active {
+  transform: scale(0.985);
+}
+
+/* ---------------------------------------------------------------------------
+   Slow crossfade.
+
+   For the listing carousel, which holds each photo for ten seconds. A slide
+   that snaps is jarring at that pace and a slide that pans fights the page's
+   own scrolling, so the images cross over in place: the incoming one fades up
+   while the outgoing one is still there, and nothing moves.
+
+   The transition variant is for a stack of stacked <img> elements whose
+   opacity a component toggles; the animation variant is for a single element
+   that is remounted per slide.
+--------------------------------------------------------------------------- */
+@keyframes cross-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.crossfade {
+  transition: opacity 900ms ease-in-out;
+}
+.animate-crossfade {
+  animation: cross-fade 900ms ease-in-out both;
+}
+
+/* Respect the user's motion preference — animations here are decorative.
+
+   Note that this reaches CSS and nothing else: a JavaScript timer, a
+   `scrollIntoView({ behavior: 'smooth' })` call and a framer-motion spring
+   are all untouched by it. Those read `useReducedMotion()` instead. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -384,6 +498,14 @@ html {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Clamping the duration only makes the press instantaneous, not absent —
+     the element still jumps to 97%. Somebody who asked for less movement
+     wants none of it, and the tap is already confirmed by the colour change. */
+  .press:active,
+  .press-sm:active {
+    transform: none;
   }
 }
 

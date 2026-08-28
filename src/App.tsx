@@ -28,7 +28,7 @@ import { isAutomatedAgent } from './services/crawler';
 import { trackPageView } from './services/analytics';
 import { MetaApi } from './services/listingsApi';
 import { useSeoHead } from './seo/useSeoHead';
-import { REQUIRES_AUTH } from './router/views';
+import { REQUIRES_AUTH, authTabForView } from './router/views';
 import { useAppStore, type ViewState } from './stores/useAppStore';
 
 const HomePage = lazy(() => import('./components/home/HomePage'));
@@ -86,24 +86,6 @@ const Loading: React.FC = () => {
   );
 };
 
-const SignInPrompt: React.FC = () => {
-  const { t } = useTranslation();
-  const setShowAuth = useAppStore((state) => state.setShowAuth);
-  return (
-    <div className="mx-auto max-w-md px-4 py-20 text-center">
-      <h1 className="text-xl font-black text-content">{t('auth.guard.title')}</h1>
-      <p className="mt-2 text-sm text-muted">{t('auth.guard.body')}</p>
-      <button
-        type="button"
-        onClick={() => setShowAuth(true, 'LOGIN')}
-        className="mt-5 rounded-xl bg-brand px-5 py-3 text-sm font-bold text-on-brand shadow-brand"
-      >
-        {t('auth.guard.cta')}
-      </button>
-    </div>
-  );
-};
-
 function renderView(view: ViewState): React.ReactNode {
   switch (view) {
     case 'HOME':
@@ -157,6 +139,7 @@ export const App: React.FC = () => {
   const initAuth = useAppStore((state) => state.initAuth);
   const authReady = useAppStore((state) => state.authReady);
   const currentUser = useAppStore((state) => state.currentUser);
+  const setShowAuth = useAppStore((state) => state.setShowAuth);
   const pushToast = useAppStore((state) => state.pushToast);
 
   const fetchUnreadChatCount = useAppStore((state) => state.fetchUnreadChatCount);
@@ -232,20 +215,41 @@ export const App: React.FC = () => {
   // described by the route, so the shell writes their head here.
   useSeoHead(route, language, {}, !SELF_TITLING.has(currentView));
 
-  const guarded = REQUIRES_AUTH.has(currentView) && !currentUser;
+  /**
+   * The route-level half of the sign-in guard.
+   *
+   * `authReady` matters: until the refresh token has been checked there is no
+   * user *yet*, and treating that moment as "signed out" flashed the dialog
+   * at people who were already signed in.
+   */
+  const guarded = authReady && REQUIRES_AUTH.has(currentView) && !currentUser;
+
+  useEffect(() => {
+    if (guarded) setShowAuth(true, authTabForView(currentView));
+  }, [guarded, currentView, setShowAuth]);
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas text-content">
       <Header />
       <GlobalAINotification />
 
-      <main className="flex-1 pb-20 pt-[76px] sm:pt-[86px] lg:pb-0">
+      {/*
+        The padding clears the fixed header, whose height is fixed in
+        Header.tsx: a 56px bar (64px at sm), a 28px trust strip and the two
+        1px borders — 86px, 94px at sm. Change one and change the other; they
+        are the same measurement written in two files.
+
+        `id` is the skip link's target, so a keyboard visitor can jump the
+        whole header in one press.
+      */}
+      <main id="main-content" className="flex-1 pb-20 pt-[86px] sm:pt-[94px] lg:pb-0">
         {!authReady ? (
           <Loading />
-        ) : guarded ? (
-          <SignInPrompt />
         ) : (
-          <Suspense fallback={<Loading />}>{renderView(currentView)}</Suspense>
+          // A guarded view renders the home page rather than a dead end: the
+          // dialog is already open over it, and signing in swaps the real
+          // page in underneath at the same URL, with no second navigation.
+          <Suspense fallback={<Loading />}>{renderView(guarded ? 'HOME' : currentView)}</Suspense>
         )}
       </main>
 

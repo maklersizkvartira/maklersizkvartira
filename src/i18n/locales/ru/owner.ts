@@ -60,7 +60,16 @@ export const owner = {
       gpsDetected: 'GPS определён',
       gpsFound: 'Адрес по GPS найден: {region}, {district}, {address}',
       gpsCoordinates: 'Координаты GPS определены: {latitude}, {longitude}',
-      gpsDenied: 'Доступ к GPS не разрешён. Введите адрес текстом.',
+      // The Geolocation API reports three different failures and the button
+      // used to call all of them "permission denied", which sent people to
+      // the browser settings to fix a timeout they could have fixed by
+      // stepping outside.
+      gpsDenied: 'Доступ к GPS не разрешён. Разрешите его в настройках браузера или введите адрес.',
+      gpsTimeout: 'GPS не ответил. Выйдите на открытое место и повторите или введите адрес.',
+      gpsUnavailable: 'Не удалось определить местоположение. Возможно, слабый сигнал.',
+      gpsPrompt: 'Браузер запрашивает доступ к геолокации — нажмите «Разрешить».',
+      gpsSearching: 'Ищем местоположение...',
+      gpsSuccess: 'Местоположение определено.',
       gpsUnsupported: 'Ваше устройство не поддерживает GPS.',
       metroLabel: 'Ближайшая станция метро',
       metroNone: 'Нет (метро далеко)',
@@ -97,6 +106,31 @@ export const owner = {
       floorLabel: 'Этаж',
       totalFloorsLabel: 'Всего этажей',
       amenitiesLabel: 'Имеющиеся условия и удобства',
+      // These fields start empty now. A seeded number reads as an answer, and
+      // people published it unchanged; a placeholder reads as an example.
+      pricePlaceholder: 'Например: 4 000 000',
+      depositPlaceholder: 'Если залога нет — 0',
+      areaPlaceholder: 'Например: 54',
+      floorPlaceholder: 'Например: 3',
+      totalFloorsPlaceholder: 'Например: 9',
+      roomsPlaceholder: 'Например: 2',
+    },
+
+    /**
+     * One label per amenity key the form toggles.
+     *
+     * `listings.amenities.*` describes an amenity on a published listing
+     * («Можно с животными»); these are the words on the wizard's own
+     * checkboxes, keyed exactly as the form's state is.
+     */
+    amenities: {
+      furnished: 'С мебелью',
+      utilities: 'Коммунальные включены в цену',
+      airConditioning: 'Кондиционер',
+      washingMachine: 'Стиральная машина',
+      internet: 'Интернет / Wi-Fi',
+      parking: 'Парковка',
+      pets: 'Можно с животными',
     },
 
     photos: {
@@ -121,6 +155,11 @@ export const owner = {
       videoUploaded: 'Видео загружено',
       videoRemove: 'Удалить видео',
       videoUploadUnsupported: 'Загрузка видео файлом пока недоступна. Загрузите ролик на YouTube и вставьте ссылку.',
+      // Said once, before the upload, instead of only as an error afterwards.
+      countHint: 'Минимум {min}, максимум {max} фотографий.',
+      sizeHint: 'Все файлы вместе — до {max} МБ.',
+      countAndSizeHint: '{min}–{max} фотографий, суммарно до {size} МБ.',
+      remainingHint: 'Можно добавить ещё {count} фото.',
     },
 
     contact: {
@@ -131,6 +170,7 @@ export const owner = {
       phoneMissing: 'В вашем профиле нет номера телефона.',
       telegramLabel: 'Имя пользователя в Telegram',
       telegramPlaceholder: '@username',
+      telegramHint: 'Начните с @. Только латинские буквы, цифры и подчёркивание.',
       timeLabel: 'Удобное время для связи',
       timePlaceholder: 'Ежедневно 09:00 – 21:00',
     },
@@ -167,6 +207,25 @@ export const owner = {
         'Функция временно недоступна: анализ ИИ перенесён на сервер. Введите текст и цену самостоятельно.',
     },
 
+    /**
+     * Draft persistence.
+     *
+     * The wizard is four steps long and a mis-tapped back gesture used to
+     * empty all four, so the answers are kept and the exit is confirmed.
+     */
+    draft: {
+      restored: 'Сохранённый черновик восстановлен.',
+      restoredAt: 'Восстановлен черновик от {time}.',
+      discard: 'Удалить черновик',
+      discarded: 'Черновик удалён.',
+      saved: 'Черновик сохранён',
+      confirmLeaveTitle: 'Выйти, не завершив объявление?',
+      confirmLeaveBody:
+        'Введённые данные сохранятся как черновик, и вы продолжите с этого же места.',
+      stay: 'Остаться',
+      leave: 'Выйти',
+    },
+
     submit: 'Опубликовать объявление',
     submitting: 'Отправляем...',
     submitFailed: 'Не удалось отправить объявление. Проверьте соединение и попробуйте снова.',
@@ -198,6 +257,8 @@ export const owner = {
       imagesTooLarge:
         'Объём фото и видео — {size} МБ, что превышает предел ({max} МБ). Загрузите меньше файлов или уменьшите их.',
       phone: 'Добавьте в профиль действующий номер телефона.',
+      telegram: 'Неверное имя пользователя Telegram. Например: @dilshod_karimov',
+      limitReached: 'Достигнут лимит активных объявлений ({max}). Сначала удалите одно из старых.',
     },
   },
 
@@ -261,5 +322,26 @@ export const owner = {
       verificationRequired: 'Требуется подтверждение',
       noReasons: 'Дополнительных комментариев нет.',
     },
+  },
+
+  /**
+   * The account-wide statistics panel.
+   *
+   * Distinct from `owner.my.stats`, which labels the tiles on one listing's
+   * row: these count every listing the owner has, moderation states included.
+   */
+  stats: {
+    title: 'Мои объявления и статистика',
+    subtitle: 'Сводные показатели по всем вашим объявлениям.',
+    totalListings: 'Всего объявлений',
+    approved: 'Одобрено',
+    pending: 'На проверке',
+    rejected: 'Отклонено',
+    views: 'Просмотры',
+    favorites: 'В избранном',
+    contacts: 'Запросы контактов',
+    avgTrust: 'Средний рейтинг доверия',
+    empty: 'Для статистики пока нет данных — разместите первое объявление.',
+    emptyCta: 'Разместить объявление',
   },
 } as const;

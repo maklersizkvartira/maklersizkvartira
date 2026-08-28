@@ -83,13 +83,16 @@ export const AIRecommended: React.FC = () => {
   return (
     <section
       aria-labelledby="home-recommended-title"
-      className="mx-auto w-full max-w-7xl overflow-x-hidden px-3 py-6 sm:px-6 sm:py-10"
+      // `gutter-safe`, not `px-3`: the categories grid directly below uses it,
+      // and a 12px gutter both stepped 4px away from that neighbour and stayed
+      // 12px when a landscape notch ate the left edge.
+      className="gutter-safe mx-auto w-full max-w-7xl overflow-x-hidden py-6 sm:py-10"
     >
       <div className="mb-4 flex flex-row items-center justify-between gap-2">
         <div>
           <div className="flex items-center gap-2 mb-1">
             {isMonetizationEnabled && (
-              <Star className="h-5 w-5 text-yellow-500" fill="currentColor" aria-hidden="true" />
+              <Star className="h-5 w-5 text-warning" fill="currentColor" aria-hidden="true" />
             )}
             <h2
               id="home-recommended-title"
@@ -100,7 +103,11 @@ export const AIRecommended: React.FC = () => {
                 : t('home.recommended.title' as never)}
             </h2>
             {isMonetizationEnabled && (
-              <span className="rounded-md bg-yellow-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-yellow-600 border border-yellow-500/20">
+              // `warning`, not a `yellow-500` literal: the token flips with the
+              // theme and a palette class does not, so this badge used to stay
+              // light-mode ochre while the identical TOP badge on the catalogue
+              // lifted to the dark-mode amber beside it.
+              <span className="rounded-md border border-warning/20 bg-warning-soft px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-warning">
                 VIP
               </span>
             )}

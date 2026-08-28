@@ -58,7 +58,16 @@ export const owner = {
       gpsDetected: 'GPS detected',
       gpsFound: 'Address found by GPS: {region}, {district}, {address}',
       gpsCoordinates: 'GPS coordinates detected: {latitude}, {longitude}',
-      gpsDenied: 'GPS permission was denied. Please type the address instead.',
+      // The Geolocation API reports three different failures and the button
+      // used to call all of them "permission denied", which sent people to
+      // the browser settings to fix a timeout they could have fixed by
+      // stepping outside.
+      gpsDenied: 'GPS permission was denied. Allow it in your browser settings, or type the address.',
+      gpsTimeout: 'GPS did not answer. Step outside and try again, or type the address.',
+      gpsUnavailable: 'Your location could not be determined. The signal may be weak.',
+      gpsPrompt: 'Your browser is asking for location access — choose “Allow”.',
+      gpsSearching: 'Looking for your location...',
+      gpsSuccess: 'Location detected.',
       gpsUnsupported: 'Your device does not support GPS.',
       metroLabel: 'Nearest metro station',
       metroNone: 'None (no metro nearby)',
@@ -95,6 +104,31 @@ export const owner = {
       floorLabel: 'Floor',
       totalFloorsLabel: 'Total floors',
       amenitiesLabel: 'Available amenities',
+      // These fields start empty now. A seeded number reads as an answer, and
+      // people published it unchanged; a placeholder reads as an example.
+      pricePlaceholder: 'For example: 4,000,000',
+      depositPlaceholder: 'Enter 0 if there is no deposit',
+      areaPlaceholder: 'For example: 54',
+      floorPlaceholder: 'For example: 3',
+      totalFloorsPlaceholder: 'For example: 9',
+      roomsPlaceholder: 'For example: 2',
+    },
+
+    /**
+     * One label per amenity key the form toggles.
+     *
+     * `listings.amenities.*` describes an amenity on a published listing
+     * ("Pets allowed"); these are the words on the wizard's own checkboxes,
+     * keyed exactly as the form's state is.
+     */
+    amenities: {
+      furnished: 'Furnished',
+      utilities: 'Utilities included in the price',
+      airConditioning: 'Air conditioning',
+      washingMachine: 'Washing machine',
+      internet: 'Internet / Wi-Fi',
+      parking: 'Parking',
+      pets: 'Pets allowed',
     },
 
     photos: {
@@ -119,6 +153,11 @@ export const owner = {
       videoUploaded: 'Video uploaded',
       videoRemove: 'Remove video',
       videoUploadUnsupported: 'Direct video upload is not available yet. Upload the clip to YouTube and paste the link.',
+      // Said once, before the upload, instead of only as an error afterwards.
+      countHint: 'At least {min} photos, at most {max}.',
+      sizeHint: 'All files together up to {max} MB.',
+      countAndSizeHint: '{min}–{max} photos, up to {size} MB in total.',
+      remainingHint: 'You can add {count} more photos.',
     },
 
     contact: {
@@ -129,6 +168,7 @@ export const owner = {
       phoneMissing: 'Your profile has no phone number.',
       telegramLabel: 'Telegram username',
       telegramPlaceholder: '@username',
+      telegramHint: 'Start with @. Latin letters, digits and underscores only.',
       timeLabel: 'Preferred contact hours',
       timePlaceholder: 'Every day 09:00 – 21:00',
     },
@@ -165,6 +205,25 @@ export const owner = {
         'This feature is unavailable for now: AI analysis moved to the server. Please write the text and set the price yourself.',
     },
 
+    /**
+     * Draft persistence.
+     *
+     * The wizard is four steps long and a mis-tapped back gesture used to
+     * empty all four, so the answers are kept and the exit is confirmed.
+     */
+    draft: {
+      restored: 'Your saved draft was restored.',
+      restoredAt: 'Restored the draft saved at {time}.',
+      discard: 'Discard the draft',
+      discarded: 'The draft was discarded.',
+      saved: 'Draft saved',
+      confirmLeaveTitle: 'Leave without finishing the listing?',
+      confirmLeaveBody:
+        'What you have entered is kept as a draft, and you will continue from the same place.',
+      stay: 'Stay here',
+      leave: 'Leave',
+    },
+
     submit: 'Publish the listing',
     submitting: 'Submitting...',
     submitFailed: 'The listing could not be submitted. Check your connection and try again.',
@@ -196,6 +255,8 @@ export const owner = {
       imagesTooLarge:
         'Photos and video add up to {size} MB, over the {max} MB limit. Upload fewer or smaller files.',
       phone: 'Add a working phone number to your profile.',
+      telegram: 'That Telegram username is not valid. For example: @dilshod_karimov',
+      limitReached: 'You have reached the limit of {max} active listings. Delete an old one first.',
     },
   },
 
@@ -258,5 +319,26 @@ export const owner = {
       verificationRequired: 'Verification required',
       noReasons: 'No further notes.',
     },
+  },
+
+  /**
+   * The account-wide statistics panel.
+   *
+   * Distinct from `owner.my.stats`, which labels the tiles on one listing's
+   * row: these count every listing the owner has, moderation states included.
+   */
+  stats: {
+    title: 'My listings and statistics',
+    subtitle: 'Combined figures across every listing you have.',
+    totalListings: 'Total listings',
+    approved: 'Approved',
+    pending: 'Under review',
+    rejected: 'Rejected',
+    views: 'Views',
+    favorites: 'Saved',
+    contacts: 'Contact requests',
+    avgTrust: 'Average trust score',
+    empty: 'There is nothing to report yet — post your first listing.',
+    emptyCta: 'Post a listing',
   },
 } as const;

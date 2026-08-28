@@ -62,6 +62,13 @@ export const common = {
     signIn: 'Sign in',
     signOut: 'Sign out',
     signUp: 'Sign up',
+    done: 'Done',
+    skip: 'Skip',
+    dismiss: 'Dismiss',
+    understood: 'Got it',
+    showResults: 'Show results',
+    clearAll: 'Clear all',
+    seeOnMap: 'Show on the map',
   },
 
   state: {
@@ -182,6 +189,27 @@ export const common = {
     selectLanguage: 'Select language',
     goToPage: 'Go to page {page}',
     loading: 'Loading',
+    goToImage: 'Go to image {index}',
+    imageIndicators: 'Image indicators',
+    expand: 'Expand',
+    collapse: 'Collapse',
+    moreOptions: 'More options',
+    scrollLeft: 'Scroll left',
+    scrollRight: 'Scroll right',
+  },
+
+  /**
+   * The shared bottom sheet. Its own vocabulary rather than reused dialog
+   * words: a sheet is dragged and dismissed, not just "closed", and the grab
+   * handle needs a label a screen reader can read out loud.
+   */
+  sheet: {
+    close: 'Close',
+    closeAria: 'Close the panel',
+    dragHandle: 'Drag the panel down to close it',
+    loading: 'Loading...',
+    retry: 'Try again',
+    error: 'The data could not be loaded.',
   },
 
   theme: {
@@ -215,5 +243,7 @@ export const common = {
     rateLimited: 'Too many attempts. Please wait a moment.',
     validation: 'Please check the details you entered.',
     tryAgain: 'Try again',
+    timeout: 'That took too long to answer. Please try again.',
+    limitReached: 'You have reached the limit.',
   },
 } as const;

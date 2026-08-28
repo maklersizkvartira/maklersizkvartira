@@ -295,6 +295,10 @@ class ListingFilters(CamelModel):
     min_area: float | None = Field(default=None, ge=0, le=10_000)
     property_type: PropertyType | None = None
     rental_type: Literal["ALL", "FULL", "ROOMMATE"] = "ALL"
+    # A listing that says "girls only" is useless to a woman searching if she
+    # cannot ask for it. GIRLS also matches ANY, because a room open to
+    # everyone is open to her too — only BOYS-only rooms are excluded.
+    roommate_gender: RoommateGender | None = None
     audience: Literal["ALL", "STUDENT", "FAMILY"] = "ALL"
     only_verified: bool = False
     min_trust_score: int = Field(default=0, ge=0, le=100)

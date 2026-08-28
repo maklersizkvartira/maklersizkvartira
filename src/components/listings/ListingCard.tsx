@@ -4,9 +4,13 @@
  * Two shapes from one component: the default vertical card for the grid, and
  * a horizontal `list` variant. Both share the same badge, price and trust
  * treatment so a listing looks like itself wherever it appears.
+ *
+ * The photo is a slow carousel. Owners upload five or six rooms and the grid
+ * only ever showed the first one, so a flat with a photographed kitchen and a
+ * flat with nothing but a hallway looked identical until you opened them.
  */
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BedDouble,
   Heart,
@@ -21,11 +25,63 @@ import {
 } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
+import { cn } from '../../lib/cn';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useAppStore } from '../../stores/useAppStore';
 import type { Listing } from '../../types';
 import { AppLink } from '../../router/AppLink';
 import { listingPath } from '../../seo/routes';
 import { listingSlug } from '../../seo/slugs';
+
+/** Beyond this the dots stop being readable and the extra layers cost more
+ *  than they show. The detail page is where the full gallery lives. */
+const MAX_SLIDES = 5;
+
+/** Slow enough to read the rest of the card between changes. */
+const ROTATE_MS = 10_000;
+
+// ---------------------------------------------------------------------------
+// One ticker for every card on the page.
+//
+// A `setInterval` per card meant a twenty-four card grid woke the main thread
+// twenty-four times per cycle, each wake at its own offset, so the page never
+// got a quiet frame and the cards drifted out of step with each other. A
+// single module-level interval with a subscriber set costs one timer no
+// matter how many cards are mounted, and it stops itself when the last card
+// unsubscribes.
+// ---------------------------------------------------------------------------
+type TickSubscriber = () => void;
+
+const tickSubscribers = new Set<TickSubscriber>();
+let tickerId: number | null = null;
+
+function subscribeToTicker(subscriber: TickSubscriber): () => void {
+  tickSubscribers.add(subscriber);
+  if (tickerId === null && typeof window !== 'undefined') {
+    tickerId = window.setInterval(() => {
+      // A backgrounded tab is not being looked at, and advancing there only
+      // means the visitor comes back to a photo they never saw arrive.
+      if (typeof document !== 'undefined' && document.hidden) return;
+      tickSubscribers.forEach((run) => run());
+    }, ROTATE_MS);
+  }
+  return () => {
+    tickSubscribers.delete(subscriber);
+    if (tickSubscribers.size === 0 && tickerId !== null) {
+      window.clearInterval(tickerId);
+      tickerId = null;
+    }
+  };
+}
+
+/** The next slot that actually has a picture, or the current one if none has. */
+function nextSlide(current: number, total: number, failed: ReadonlySet<number>): number {
+  for (let step = 1; step <= total; step += 1) {
+    const candidate = (current + step) % total;
+    if (!failed.has(candidate)) return candidate;
+  }
+  return current;
+}
 
 interface ListingCardProps {
   listing: Listing;
@@ -34,6 +90,13 @@ interface ListingCardProps {
   promoted?: boolean;
   onOpen?: (listing: Listing) => void;
   priority?: boolean;
+  /**
+   * Rotate the photos on the shared ticker. Defaults to "yes, when there is
+   * more than one photo", which is why none of the nine call sites pass it.
+   * Pass `false` where a card must hold still — a screenshot, a print view,
+   * or a dense list where movement in nine places at once is noise.
+   */
+  autoRotate?: boolean;
 }
 
 function trustTone(score: number): { label: string; className: string } {
@@ -49,17 +112,99 @@ export const ListingCard: React.FC<ListingCardProps> = ({
   promoted = false,
   onOpen,
   priority = false,
+  autoRotate,
 }) => {
   const { t, formatPrice, formatRelativeTime } = useTranslation();
+  const reducedMotion = useReducedMotion();
   const favoriteIds = useAppStore((state) => state.favoriteIds);
   const toggleFavorite = useAppStore((state) => state.toggleFavorite);
   const setCurrentView = useAppStore((state) => state.setCurrentView);
-  const [imageError, setImageError] = useState(false);
+
+  const images = useMemo(() => (listing.images ?? []).slice(0, MAX_SLIDES), [listing.images]);
+
+  /**
+   * Which slots failed to load, not whether *the* image failed.
+   *
+   * A single boolean meant one dead URL out of five collapsed the card to the
+   * placeholder even though four good photos were sitting right behind it.
+   */
+  const [failedSlides, setFailedSlides] = useState<ReadonlySet<number>>(() => new Set<number>());
+  const [slide, setSlide] = useState(0);
+  const mediaRef = useRef<HTMLDivElement>(null);
 
   const isFavorite = favoriteIds.has(listing.id);
-  const cover = listing.images?.[0];
   const trust = trustTone(listing.trustScore ?? 0);
   const href = listingPath({ id: listing.id, slug: listingSlug(listing) });
+  const rotates = autoRotate ?? images.length > 1;
+
+  // A recycled card (the grid reuses positions as pages append) must not keep
+  // the previous listing's slide or its dead-photo bookkeeping.
+  useEffect(() => {
+    setSlide(0);
+    setFailedSlides(new Set<number>());
+  }, [listing.id]);
+
+  const handleImageError = useCallback((index: number) => {
+    setFailedSlides((previous) => {
+      if (previous.has(index)) return previous;
+      const next = new Set(previous);
+      next.add(index);
+      return next;
+    });
+  }, []);
+
+  // Landing on a slot whose photo has just 404'd would show the empty box
+  // behind the stack for a full ten seconds.
+  useEffect(() => {
+    if (!failedSlides.has(slide)) return;
+    setSlide((current) => nextSlide(current, images.length, failedSlides));
+  }, [failedSlides, slide, images.length]);
+
+  // The ticker fires for every card at once; a card reads its own live counts
+  // through this rather than through the closure the effect captured, so a
+  // photo that dies mid-cycle is skipped from the next tick on.
+  const rotation = useRef({ total: images.length, failed: failedSlides });
+  useEffect(() => {
+    rotation.current = { total: images.length, failed: failedSlides };
+  }, [images.length, failedSlides]);
+
+  useEffect(() => {
+    // `prefers-reduced-motion` clamps the CSS transition to nothing, which
+    // turns the crossfade into a hard cut every ten seconds — worse than not
+    // rotating at all. The stylesheet cannot stop a JS timer, so this does.
+    if (!rotates || reducedMotion || images.length < 2) return undefined;
+
+    const advance = () => {
+      const { total, failed } = rotation.current;
+      if (total < 2 || failed.size >= total - 1) return;
+      setSlide((current) => nextSlide(current, total, failed));
+    };
+
+    const node = mediaRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') {
+      // Nothing to ask about visibility: rotate rather than freeze.
+      return subscribeToTicker(advance);
+    }
+
+    // A card three screens down is burning bandwidth and layout work for a
+    // picture nobody is looking at.
+    let onScreen = false;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        onScreen = entries.some((entry) => entry.isIntersecting);
+      },
+      { threshold: 0.4 },
+    );
+    observer.observe(node);
+
+    const unsubscribe = subscribeToTicker(() => {
+      if (onScreen) advance();
+    });
+    return () => {
+      observer.disconnect();
+      unsubscribe();
+    };
+  }, [rotates, reducedMotion, images.length]);
 
   const open = () => {
     if (onOpen) onOpen(listing);
@@ -72,30 +217,55 @@ export const ListingCard: React.FC<ListingCardProps> = ({
   };
 
   const isList = variant === 'list';
+  const hasPhoto = images.length > 0 && failedSlides.size < images.length;
+  const activeSlide = Math.min(slide, Math.max(images.length - 1, 0));
 
   const media = (
     <div
-      className={`relative shrink-0 overflow-hidden bg-surface-2 ${
-        isList ? 'h-full w-36 sm:w-52' : 'aspect-[4/3] w-full'
-      }`}
+      ref={mediaRef}
+      className={cn(
+        'relative shrink-0 overflow-hidden bg-surface-2',
+        isList ? 'h-full w-36 sm:w-52' : 'aspect-[4/3] w-full',
+      )}
     >
-      {cover && !imageError ? (
-        /* The property photo is the content, not decoration: an empty alt told
-           Google Images and every screen reader to ignore it. */
-        <img
-          src={cover}
-          alt={listing.title}
-          width={isList ? 208 : 800}
-          height={isList ? 176 : 600}
-          loading={priority ? 'eager' : 'lazy'}
-          fetchPriority={priority ? 'high' : 'auto'}
-          decoding="async"
-          onError={() => setImageError(true)}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
+      {hasPhoto ? (
+        /* The hover zoom lives on this wrapper, not on the layers. `.crossfade`
+           is a whole `transition` declaration, so an element carrying both it
+           and `transition-transform` keeps only one of them — and the one that
+           lost was the zoom. */
+        <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-105">
+          {images.map((src, index) =>
+            failedSlides.has(index) ? null : (
+              <img
+                key={`${listing.id}-${index}`}
+                src={src}
+                /* The property photo is the content, not decoration: an empty
+                   alt told Google Images and every screen reader to ignore it.
+                   Only the layer on top is described — the others are the same
+                   flat, and five identical alts is five announcements. */
+                alt={index === activeSlide ? listing.title : ''}
+                width={isList ? 208 : 800}
+                height={isList ? 176 : 600}
+                /* Only the first frame of a priority card is eager. Making
+                   every layer eager would have the browser fetch five photos
+                   per card before the one that is actually on screen, which is
+                   exactly how an LCP is lost. */
+                loading={priority && index === 0 ? 'eager' : 'lazy'}
+                fetchPriority={priority && index === 0 ? 'high' : 'auto'}
+                decoding="async"
+                onError={() => handleImageError(index)}
+                className={cn(
+                  'crossfade absolute inset-0 h-full w-full object-cover',
+                  index === activeSlide ? 'opacity-100' : 'opacity-0',
+                )}
+              />
+            ),
+          )}
+        </div>
       ) : (
         <div className="flex h-full w-full items-center justify-center text-subtle">
           <ImageIcon className="h-8 w-8" aria-hidden="true" />
+          <span className="sr-only">{t('listings.card.photoNone')}</span>
         </div>
       )}
 
@@ -118,28 +288,66 @@ export const ListingCard: React.FC<ListingCardProps> = ({
       <button
         type="button"
         onClick={handleFavorite}
+        // The card root is a `role="button"` with its own key handler, so
+        // without this a Space press on the heart also opened the listing.
+        onKeyDown={(event) => event.stopPropagation()}
         aria-label={isFavorite ? t('common.action.unfavorite') : t('common.action.favorite')}
         aria-pressed={isFavorite}
-        className="absolute right-2 top-2 rounded-full bg-surface/90 p-2 shadow-sm backdrop-blur transition-all hover:scale-110 active:scale-95"
+        className="press absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-surface/90 shadow-sm backdrop-blur transition-all hover:scale-110"
       >
         <Heart
-          className={`h-4 w-4 transition-colors ${
-            isFavorite ? 'fill-danger text-danger' : 'text-muted'
-          }`}
+          className={cn(
+            'h-4 w-4 transition-colors',
+            isFavorite ? 'fill-danger text-danger' : 'text-muted',
+          )}
           aria-hidden="true"
         />
       </button>
+
+      {/* The count pill said "5" and did nothing. Dots say the same number,
+          say which one you are on, and are the control for getting there.
+          Drawn before the video badge so the scrim behind them does not wash
+          over it. */}
+      {hasPhoto && images.length > 1 && (
+        <div
+          role="group"
+          aria-label={t('listings.card.photoPosition', {
+            current: activeSlide + 1,
+            total: images.length,
+          })}
+          className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-0.5 bg-gradient-to-t from-black/40 to-transparent pb-1 pt-6"
+        >
+          {images.map((src, index) => (
+            <button
+              key={`${listing.id}-dot-${index}`}
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setSlide(index);
+              }}
+              onKeyDown={(event) => event.stopPropagation()}
+              aria-label={t('listings.card.photoDot', { index: index + 1 })}
+              aria-current={index === activeSlide}
+              className="press flex h-6 w-6 items-center justify-center"
+            >
+              <span
+                className={cn(
+                  'h-1.5 rounded-full transition-all duration-300',
+                  index === activeSlide ? 'w-4 bg-white' : 'w-1.5 bg-white/60',
+                  failedSlides.has(index) && 'opacity-30',
+                )}
+                aria-hidden="true"
+              />
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Bottom-right media hints */}
       <div className="absolute bottom-2 right-2 flex gap-1.5">
         {listing.videoUrl && (
           <span className="rounded-md bg-black/70 p-1.5 text-white" title={t('listings.amenities.video')}>
             <Video className="h-3 w-3" aria-hidden="true" />
-          </span>
-        )}
-        {listing.images?.length > 1 && (
-          <span className="rounded-md bg-black/70 px-1.5 py-1 text-[10px] font-bold text-white">
-            {listing.images.length}
           </span>
         )}
       </div>
@@ -242,7 +450,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
       role="button"
       tabIndex={0}
       aria-label={listing.title}
-      className={`group cursor-pointer overflow-hidden rounded-2xl border bg-surface shadow-card
+      className={`group press-sm cursor-pointer overflow-hidden rounded-2xl border bg-surface shadow-card
         transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised
         focus-visible:outline-none
         ${promoted ? 'border-warning/40 ring-1 ring-warning/20' : 'border-line'}

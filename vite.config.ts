@@ -14,9 +14,12 @@ export default defineConfig(({ isSsrBuild }) => ({
     port: 3000,
     // Proxying keeps the dev origin identical to production, so the API can be
     // addressed as a same-origin /api/v1 path and CORS never enters the picture.
+    // The admin panel used to be proxied here too, back when the backend
+    // served it as a static bundle. It is its own Next.js app in `admin/`
+    // now, on its own port and its own deployment, so proxying /admin from
+    // the site would only shadow a route the site may one day want.
     proxy: {
       '/api': { target: 'http://127.0.0.1:5000', changeOrigin: true },
-      '/admin': { target: 'http://127.0.0.1:5000', changeOrigin: true },
     },
   },
   // `vite preview` serves the production bundle; it needs the same proxy as dev
@@ -25,7 +28,6 @@ export default defineConfig(({ isSsrBuild }) => ({
     port: 4173,
     proxy: {
       '/api': { target: 'http://127.0.0.1:5060', changeOrigin: true },
-      '/admin': { target: 'http://127.0.0.1:5060', changeOrigin: true },
     },
   },
   build: {

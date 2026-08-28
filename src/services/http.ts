@@ -137,7 +137,22 @@ export function setSessionExpiredHandler(handler: SessionExpiredHandler | null):
 interface RefreshResult {
   token: string | null;
   rejected: boolean;
+  /** The refresh call itself never answered, as opposed to failing outright. */
+  timedOut?: boolean;
 }
+
+/**
+ * The refresh gets its own deadline.
+ *
+ * Every other fetch in this file is wired to `request`'s controller, which
+ * aborts after `timeoutMs`. This one was not, and `fetch` has no default
+ * timeout — so a refresh endpoint that accepted the connection and then went
+ * quiet held the promise open until the operating system gave up on the
+ * socket, minutes later. Because `refreshInFlight` is shared, every other 401
+ * queued behind it, and `initAuth` never reached its `catch`: the whole app
+ * sat on `<Loading />` with no error and nothing to retry.
+ */
+const REFRESH_TIMEOUT_MS = 10_000;
 
 let refreshInFlight: Promise<RefreshResult> | null = null;
 
@@ -150,6 +165,7 @@ async function performRefresh(): Promise<RefreshResult> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
+      signal: AbortSignal.timeout(REFRESH_TIMEOUT_MS),
     });
     if (!response.ok) {
       clearTokens();
@@ -163,10 +179,13 @@ async function performRefresh(): Promise<RefreshResult> {
     }
     saveTokens(access, data.refreshToken ?? null);
     return { token: access, rejected: false };
-  } catch {
+  } catch (error) {
     // A network blip is not an expired session: keep the tokens so the next
-    // attempt can succeed.
-    return { token: null, rejected: false };
+    // attempt can succeed. The deadline above surfaces as an AbortError, and
+    // it is reported separately because a refresh that never answered must
+    // not be mistaken for a 401 further down.
+    const timedOut = error instanceof DOMException && error.name === 'TimeoutError';
+    return { token: null, rejected: false, timedOut };
   }
 }
 
@@ -177,6 +196,21 @@ async function refreshAccessToken(): Promise<RefreshResult> {
     });
   }
   return refreshInFlight;
+}
+
+/**
+ * Resolves when `signal` aborts, and never rejects.
+ *
+ * Raced against the shared refresh so a caller the visitor has already
+ * cancelled — a filter tap superseding the previous query — stops waiting for
+ * it. The refresh promise itself is deliberately left running: other callers
+ * are queued on the same one and still want its answer.
+ */
+function abortedWhen(signal: AbortSignal): Promise<'aborted'> {
+  return new Promise((resolve) => {
+    if (signal.aborted) resolve('aborted');
+    else signal.addEventListener('abort', () => resolve('aborted'), { once: true });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -227,7 +261,14 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  signal?.addEventListener('abort', () => controller.abort(), { once: true });
+
+  // A signal that is *already* aborted fires no event, so listening alone let
+  // a request the caller had cancelled before it started go out anyway. The
+  // listener is removed in the `finally` so a caller that reuses one signal
+  // across many requests does not accumulate handlers on it.
+  const relayAbort = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  else signal?.addEventListener('abort', relayAbort, { once: true });
 
   const send = async (token: string | null): Promise<Response> => {
     const headers: Record<string, string> = {
@@ -250,7 +291,12 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
     // One transparent retry after refreshing an expired access token.
     if (response.status === 401 && !anonymous && getRefreshToken()) {
-      const result = await refreshAccessToken();
+      const result = await Promise.race([refreshAccessToken(), abortedWhen(controller.signal)]);
+      if (result === 'aborted') {
+        throw signal?.aborted
+          ? new ApiError(0, 'aborted', 'Request aborted')
+          : new ApiError(0, 'timeout', 'Request timed out');
+      }
       if (result.token) {
         response = await send(result.token);
       } else if (result.rejected) {
@@ -259,6 +305,16 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
         // refresh path already promised but did not do.
         clearTokens();
         onSessionExpired?.();
+      } else {
+        // The refresh neither succeeded nor was refused, so the session is
+        // still whatever it was. Falling through to the 401 already in hand
+        // would run the expiry branch below and sign the visitor out over a
+        // stalled socket — the exact opposite of what the line above says.
+        throw new ApiError(
+          0,
+          result.timedOut ? 'timeout' : 'network',
+          'Token refresh did not complete',
+        );
       }
     }
 
@@ -277,11 +333,17 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   } catch (error) {
     if (error instanceof ApiError) throw error;
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new ApiError(0, 'timeout', 'Request timed out');
+      // A caller-supplied abort is a cancellation, not a timeout: the caller
+      // asked for this and its own sequencing decides what to do next, so it
+      // is reported as such rather than as a failed request.
+      throw signal?.aborted
+        ? new ApiError(0, 'aborted', 'Request aborted')
+        : new ApiError(0, 'timeout', 'Request timed out');
     }
     throw new ApiError(0, 'network', 'Network request failed');
   } finally {
     clearTimeout(timeout);
+    signal?.removeEventListener('abort', relayAbort);
   }
 }
 

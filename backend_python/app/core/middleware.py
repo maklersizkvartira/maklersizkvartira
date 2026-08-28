@@ -70,26 +70,33 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Defence-in-depth response headers.
 
-    The CSP is deliberately tight for API responses; the admin panel is served
-    with its own slightly wider policy so its inline bootstrap can run.
+    This service answers with JSON everywhere except the interactive docs, so
+    one strict policy covers it with a single documented exception. The wider
+    policy that used to sit beside this one existed solely for the static admin
+    panel's inline bootstrap script; the panel is a separate Next.js deployment
+    now and brings its own headers.
     """
 
     API_CSP = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
-    ADMIN_CSP = (
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline'; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-        "font-src 'self' https://fonts.gstatic.com data:; "
-        "img-src 'self' data: https:; "
+
+    #: FastAPI builds /docs from a CDN-hosted swagger-ui bundle plus an inline
+    #: bootstrap script, and the page then fetches /openapi.json same-origin.
+    #: Under the API policy all four are blocked and the page renders blank, so
+    #: the docs we deliberately enable outside production are unusable. Scoped
+    #: to that one path and never sent in production, where docs_url is None.
+    DOCS_CSP = (
+        "default-src 'none'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "img-src 'self' data: https://fastapi.tiangolo.com; "
         "connect-src 'self'; "
-        "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        "frame-ancestors 'none'; base-uri 'none'"
     )
 
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
         response = await call_next(request)
-        is_admin_ui = request.url.path.startswith("/admin")
 
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
@@ -99,8 +106,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Permissions-Policy"] = (
             "geolocation=(self), microphone=(), camera=(), payment=(), usb=()"
         )
+        # Read off the app rather than hard-coded, so moving or disabling the
+        # docs cannot leave the relaxed policy pointing at a live path.
+        docs_url = getattr(request.scope.get("app"), "docs_url", None)
         response.headers["Content-Security-Policy"] = (
-            self.ADMIN_CSP if is_admin_ui else self.API_CSP
+            self.DOCS_CSP if docs_url and request.url.path == docs_url else self.API_CSP
         )
         # Never let a browser or CDN cache an authenticated API response.
         if request.url.path.startswith(settings.API_PREFIX):

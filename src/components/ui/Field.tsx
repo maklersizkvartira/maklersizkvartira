@@ -11,12 +11,25 @@ import React, { useId, useState } from 'react';
 import { AlertCircle, Check, Eye, EyeOff } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
+import { cn } from '../../lib/cn';
 import { Dropdown } from './Dropdown';
 
+/**
+ * `text-base` is load-bearing and must not be shrunk.
+ *
+ * iOS Safari zooms the whole page when a field smaller than 16px takes focus,
+ * and it does not zoom back out. Every "make the form denser" pass that drops
+ * this to `text-sm` buys 2px of height and costs the visitor a viewport they
+ * have to pinch their way out of on every single input.
+ *
+ * `min-h-11` is 44px, the tap target the padding almost reached already, and
+ * `touch-manipulation` removes the ~300ms delay mobile browsers hold every
+ * tap for while they wait to see whether it is a double-tap zoom.
+ */
 const inputBase =
-  'w-full rounded-xl border bg-surface-2 px-4 py-3 text-base font-medium text-content ' +
-  'transition-colors placeholder:text-subtle focus:bg-surface focus:outline-none ' +
-  'disabled:cursor-not-allowed disabled:opacity-60';
+  'w-full min-h-11 touch-manipulation rounded-xl border bg-surface-2 px-4 py-3 text-base ' +
+  'font-medium text-content transition-colors placeholder:text-subtle focus:bg-surface ' +
+  'focus:outline-none disabled:cursor-not-allowed disabled:opacity-60';
 
 const inputStates = {
   normal: 'border-line focus:border-brand',
@@ -100,7 +113,12 @@ export const TextInput: React.FC<TextInputProps> = ({
       <input
         {...rest}
         aria-invalid={invalid || undefined}
-        className={`${inputBase} ${inputStates[state]} ${icon ? 'pl-11' : ''} ${className}`}
+        // `cn`, not a template literal. A caller passing `px-3` used to ship
+        // both its class and this base's `px-4`, and which one won was decided
+        // by the order Tailwind happened to emit the two rules in — so an
+        // override worked or did not depending on what an unrelated file had
+        // added. `twMerge` resolves by group, last wins, caller last.
+        className={cn(inputBase, inputStates[state], icon && 'pl-11', className)}
       />
       {valid && !invalid && (
         <Check
@@ -177,14 +195,21 @@ export const PasswordInput: React.FC<TextInputProps> = ({
         {...rest}
         type={visible ? 'text' : 'password'}
         aria-invalid={invalid || undefined}
-        className={`${inputBase} ${invalid ? inputStates.error : inputStates.normal} pr-12 ${className}`}
+        // `pr-14` clears the reveal button, which is now a full 44px target
+        // rather than the 32px icon it used to be.
+        className={cn(
+          inputBase,
+          invalid ? inputStates.error : inputStates.normal,
+          'pr-14',
+          className,
+        )}
       />
       <button
         type="button"
         onClick={() => setVisible((current) => !current)}
         aria-label={visible ? t('auth.fields.hidePassword') : t('auth.fields.showPassword')}
         aria-pressed={visible}
-        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-2 text-subtle transition-colors hover:bg-surface-3 hover:text-content"
+        className="absolute right-1.5 top-1/2 flex h-11 w-11 -translate-y-1/2 touch-manipulation items-center justify-center rounded-lg text-subtle transition-colors hover:bg-surface-3 hover:text-content"
       >
         {visible ? (
           <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -268,9 +293,18 @@ export const Button: React.FC<ButtonProps> = ({
     {...rest}
     disabled={disabled || loading}
     aria-busy={loading || undefined}
-    className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-bold
-      transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60
-      disabled:active:scale-100 ${buttonVariants[variant]} ${fullWidth ? 'w-full' : ''} ${className}`}
+    // `cn` matters most here: several call sites pass a denser
+    // `px-4 py-2.5 text-xs` for a toolbar button, and against this base's
+    // `px-5 py-3.5 text-sm` a plain concatenation left both in the attribute
+    // with no defined winner.
+    className={cn(
+      'inline-flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-xl',
+      'px-5 py-3.5 text-sm font-bold transition-all active:scale-[0.98]',
+      'disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100',
+      buttonVariants[variant],
+      fullWidth && 'w-full',
+      className,
+    )}
   >
     {loading && (
       <span
