@@ -847,7 +847,16 @@ input.input-field.h-8 {
 .data-table tbody tr[data-clickable="true"]:hover,
 .data-table tbody tr[data-clickable="true"]:focus-within { background: var(--color-surface-2); }
 
-.data-cards { display: flex; flex-direction: column; gap: 10px; }
+/* The `display` is scoped to the breakpoint this list is for, instead of being
+   declared unconditionally, because everything in this file is UNLAYERED while
+   Tailwind's utilities sit in `@layer utilities` — and an unlayered rule beats
+   a layered one no matter the order. A bare `display: flex` here therefore won
+   against the `lg:hidden` on the same element, and the stacked cards rendered
+   underneath the table on desktop. Same trap as `.filter-bar` below. */
+.data-cards { flex-direction: column; gap: 10px; }
+@media (width < 64rem) {
+  .data-cards { display: flex; }
+}
 .data-card {
   width: 100%;
   display: flex;
@@ -893,11 +902,17 @@ input.input-field.h-8 {
 /* ═══════════════════════════════════════════════════════════════════════════
    FILTER BAR — one row on desktop, a disclosure panel on phones
    ═══════════════════════════════════════════════════════════════════════════ */
+/* `display` scoped to sm-and-up for the same reason as `.data-cards`: this
+   element carries `hidden sm:flex`, and an unlayered `display: flex` here beat
+   the layered `hidden`, so the desktop filter row also rendered on a phone
+   alongside the mobile filter panel. */
 .filter-bar {
-  display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+}
+@media (width >= 40rem) {
+  .filter-bar { display: flex; }
 }
 .filter-bar > * { min-width: 0; }
 .filter-toggle {
