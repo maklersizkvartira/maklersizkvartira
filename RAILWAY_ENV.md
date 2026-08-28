@@ -108,8 +108,21 @@ TELEGRAM_GROUP_ID=-1003935734144
 TELEGRAM_BOT_TOKEN=PASTE_ROTATED_TELEGRAM_TOKEN
 
 # ── AI (server-side only) ────────────────────────────────────────────────
-OPENAI_MODEL=gpt-4o-mini
 OPENAI_API_KEY=PASTE_ROTATED_OPENAI_KEY
+# The everyday model: classification, moderation, and the assistant's first
+# call of each turn — the majority of requests by volume.
+OPENAI_MODEL=gpt-4o-mini
+# The reasoning tier, used only once a turn has already called a tool and has
+# something to make sense of. Leave EMPTY to run everything on OPENAI_MODEL;
+# set it to a stronger model when you want better answers on the harder turns
+# without paying for one on "salom". Nothing else has to change.
+OPENAI_MODEL_SMART=
+# Tool round trips one turn may take before the loop gives up and answers with
+# what it has. Four covers "search, open one, save it" with room to spare.
+AI_MAX_TOOL_STEPS=4
+# Numbers the assistant may hand out when someone asks to speak to a person.
+# Comma-separated, highest priority first.
+SUPPORT_PHONES=+998937188885,+998777850737
 
 # ── Google sign-in ───────────────────────────────────────────────────────
 # Public config, not a secret. Empty disables Google sign-in rather than

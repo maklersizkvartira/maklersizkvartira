@@ -37,6 +37,15 @@ class AISession(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     #: Last extracted search intent: district, rooms, maxPrice, audience...
     last_intent: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    #: Working state the agent loop needs to survive between turns:
+    #:
+    #: ``shownIds``      the listing ids currently on screen, in order. This is
+    #:                   what makes "save the second one" resolve to a row the
+    #:                   server chose rather than one the model invented.
+    #: ``pendingAction`` a tool call waiting on a yes. Held here rather than in
+    #:                   the client so a confirmation cannot be forged by
+    #:                   editing a request body.
+    agent_state: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     ip: Mapped[str | None] = mapped_column(INET, nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(400), nullable=True)

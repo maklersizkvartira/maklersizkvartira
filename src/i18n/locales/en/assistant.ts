@@ -37,6 +37,18 @@ export const assistant = {
     limitReached:
       'You have used all of today’s requests. Come back tomorrow or browse the listings yourself.',
     resultsTitle: 'Listings that match',
+    /** What the assistant did, shown as a badge rather than left in prose. */
+    actions: {
+      addFavorite: 'Saved to favourites',
+      removeFavorite: 'Removed from favourites',
+      requestSupportCallback: 'Passed to our support team',
+      myListings: 'Your listings opened',
+      listingPerformance: 'Listing statistics measured',
+      listFavorites: 'Favourites opened',
+    },
+    confirmYes: 'Yes',
+    confirmNo: 'No',
+    confirmHint: 'Waiting for your confirmation',
     viewAllResults: 'View all apartments',
     startFailed: 'Could not start the conversation. Please try again.',
     replyFailed: 'Could not get a reply. Please try again.',

@@ -41,6 +41,19 @@ export const assistant = {
     limitReached:
       'Bugungi so‘rovlar limiti tugadi. Ertaga qaytib keling yoki e’lonlarni o‘zingiz qidiring.',
     resultsTitle: 'Sizga mos e’lonlar',
+    /** Assistant bajargan amallar — matn ichida emas, alohida ko‘rinsin. */
+    actions: {
+      addFavorite: 'Sevimlilarga qo‘shildi',
+      removeFavorite: 'Sevimlilardan olindi',
+      requestSupportCallback: 'So‘rovingiz qo‘llab-quvvatlash xizmatiga yuborildi',
+      myListings: 'E’lonlaringiz ochildi',
+      listingPerformance: 'E’lon statistikasi hisoblandi',
+      listFavorites: 'Sevimlilar ochildi',
+    },
+    /** Ha/yo‘q kutilayotganda ko‘rinadigan tugmalar. */
+    confirmYes: 'Ha',
+    confirmNo: 'Yo‘q',
+    confirmHint: 'Tasdiqlashingizni kutyapman',
     viewAllResults: 'Barcha kvartiralarni ko‘rish',
     startFailed: 'Suhbatni boshlab bo‘lmadi. Qayta urinib ko‘ring.',
     replyFailed: 'Javob olib bo‘lmadi. Iltimos, qaytadan urinib ko‘ring.',

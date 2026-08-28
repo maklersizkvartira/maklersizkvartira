@@ -465,6 +465,9 @@ SAFETY RULE the assistant should repeat when money comes up: never transfer
   paperwork.
 CONTACT: through the listing page — each listing shows the owner's phone and,
   when provided, a Telegram link.
+SUPPORT: if the visitor wants a person rather than the assistant, MaklersizUy
+  support can be reached on the numbers published on the site, or they can
+  leave their own number and support calls them back.
 """
 
 #: Subjects that are internal no matter how the question is phrased. Listed

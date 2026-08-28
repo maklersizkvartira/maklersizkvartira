@@ -122,7 +122,31 @@ class Settings(BaseSettings):
     TELEGRAM_GROUP_ID: str = ""
 
     OPENAI_API_KEY: str = ""
+    #: The everyday model. Used for classification, moderation and for the
+    #: agent loop itself, which is the majority of calls by volume.
     OPENAI_MODEL: str = "gpt-4o-mini"
+    #: The model used when a turn actually has to reason: an owner asking why
+    #: their listing is not performing, a multi-step request, a turn that
+    #: already called a tool and has to make sense of what came back. Left
+    #: equal to OPENAI_MODEL by default so nothing changes until this is set
+    #: deliberately — set it in the dashboard once you have picked a tier.
+    OPENAI_MODEL_SMART: str = ""
+    #: How many tool round trips one turn may take before the loop gives up.
+    #: Four covers "search, look at one of them, save it" with room to spare;
+    #: past that the model is looping rather than working.
+    AI_MAX_TOOL_STEPS: int = 4
+    #: Support numbers the assistant may hand out, highest priority first.
+    #: Comma-separated so they can be changed without a deploy.
+    SUPPORT_PHONES: str = "+998937188885,+998777850737"
+
+    @property
+    def openai_model_smart(self) -> str:
+        """The reasoning tier, falling back to the everyday model."""
+        return self.OPENAI_MODEL_SMART or self.OPENAI_MODEL
+
+    @property
+    def support_phones(self) -> list[str]:
+        return [p.strip() for p in self.SUPPORT_PHONES.split(",") if p.strip()]
 
     # Required to verify Firebase ID tokens on /auth/google. Empty disables
     # Google sign-in rather than accepting unverified identities.

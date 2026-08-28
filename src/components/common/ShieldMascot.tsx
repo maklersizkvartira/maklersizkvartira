@@ -9,9 +9,9 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronRight, MessageSquare, RotateCcw, Send, Shield, Sparkles, X } from 'lucide-react';
+import { Check, ChevronRight, MessageSquare, RotateCcw, Send, Shield, Sparkles, X } from 'lucide-react';
 
-import { useTranslation } from '../../i18n';
+import { useTranslation, type TranslationKey } from '../../i18n';
 import { AssistantApi } from '../../services/listingsApi';
 import { ApiError } from '../../services/http';
 import { useAppStore, type Filters } from '../../stores/useAppStore';
@@ -29,7 +29,24 @@ interface ChatMessage {
   from: 'ai' | 'me';
   text: string;
   listings?: Listing[];
+  /** Tool names the assistant ran that changed something, e.g. `add_favorite`. */
+  actions?: string[];
+  /** Waiting on a yes/no about something irreversible. */
+  awaitingConfirmation?: boolean;
 }
+
+/**
+ * Tool name to translation key. Anything not listed here ran but has nothing
+ * worth announcing — a search speaks for itself through the cards below it.
+ */
+const ACTION_LABELS: Record<string, TranslationKey> = {
+  add_favorite: 'assistant.chat.actions.addFavorite',
+  remove_favorite: 'assistant.chat.actions.removeFavorite',
+  request_support_callback: 'assistant.chat.actions.requestSupportCallback',
+  my_listings: 'assistant.chat.actions.myListings',
+  listing_performance: 'assistant.chat.actions.listingPerformance',
+  list_favorites: 'assistant.chat.actions.listFavorites',
+};
 
 type Phase = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -202,8 +219,14 @@ export const ShieldMascot: React.FC = () => {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, showCloseConfirm]);
 
-  const send = async () => {
-    const message = text.trim();
+  /**
+   * Send one message. `override` exists for the yes/no shortcut buttons,
+   * which put a word on the wire without it ever passing through the input —
+   * the server reads consent from the message text either way, so a tapped
+   * "Ha" and a typed one are the same request.
+   */
+  const sendText = async (override?: string) => {
+    const message = (override ?? text).trim();
     if (!message || sending || limitReached) return;
 
     const sessionKey = readStoredSession();
@@ -213,7 +236,7 @@ export const ShieldMascot: React.FC = () => {
     }
 
     append({ from: 'me', text: message });
-    setText('');
+    if (override === undefined) setText('');
     setSending(true);
 
     try {
@@ -233,6 +256,8 @@ export const ShieldMascot: React.FC = () => {
         from: 'ai',
         text: response.reply,
         listings: response.listings?.length ? response.listings : undefined,
+        actions: response.actions?.length ? response.actions : undefined,
+        awaitingConfirmation: response.awaitingConfirmation ?? false,
       });
 
       if (response.need) {
@@ -456,6 +481,54 @@ export const ShieldMascot: React.FC = () => {
                   </span>
                   <div className="whitespace-pre-line wrap-break-word">{message.text}</div>
 
+                  {/* An action the assistant took is shown as a fact, not left
+                      as a claim inside the prose. Only tools that changed
+                      something appear here. */}
+                  {message.actions && message.actions.length > 0 && (
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                      {message.actions
+                        .filter((action) => ACTION_LABELS[action])
+                        .map((action) => (
+                          <span
+                            key={action}
+                            className="inline-flex items-center gap-1 rounded-full border border-brand/30 bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand-text"
+                          >
+                            <Check className="h-3 w-3" aria-hidden="true" />
+                            {t(ACTION_LABELS[action])}
+                          </span>
+                        ))}
+                    </div>
+                  )}
+
+                  {/* The reply is a yes/no question and the action is parked on
+                      the server until it is answered. Typing "ha" works just as
+                      well; these are a shortcut, not a separate channel. */}
+                  {message.awaitingConfirmation && (
+                    <div className="mt-3">
+                      <p className="mb-1.5 text-xs font-semibold text-muted">
+                        {t('assistant.chat.confirmHint')}
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => sendText(t('assistant.chat.confirmYes'))}
+                          disabled={sending}
+                          className="rounded-full bg-brand px-4 py-1.5 text-xs font-bold text-on-brand disabled:opacity-50"
+                        >
+                          {t('assistant.chat.confirmYes')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => sendText(t('assistant.chat.confirmNo'))}
+                          disabled={sending}
+                          className="rounded-full border border-line px-4 py-1.5 text-xs font-bold text-content disabled:opacity-50"
+                        >
+                          {t('assistant.chat.confirmNo')}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {message.listings && message.listings.length > 0 && (
                     <div className="mt-3 space-y-3">
                       <p className="text-xs font-bold text-muted">
@@ -516,7 +589,7 @@ export const ShieldMascot: React.FC = () => {
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              void send();
+              void sendText();
             }}
             className="flex shrink-0 items-center gap-2 border-t border-line p-3"
           >

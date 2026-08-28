@@ -19,6 +19,7 @@ from app.models.ai import AIMessage, AISession
 from app.models.enums import AuditAction, UserRole
 from app.schemas.common import CamelModel
 from app.schemas.listing import ListingOut
+from app.services import ai_agent
 from app.services import listings as listing_service
 from app.services import shield_ai
 from app.services.telegram import send_chat_summary
@@ -208,6 +209,69 @@ async def assistant(
     session.message_count += 1
     await db.flush()
 
+    # ---------------------------------------------------------------
+    # Preferred path: the agent loop, which can act and not only answer.
+    # ---------------------------------------------------------------
+    state = dict(session.agent_state or {})
+    shown_ids = [str(i) for i in (state.get("shownIds") or [])]
+    pending = state.get("pendingAction")
+
+    # A pending action is a question we asked. Read the answer before doing
+    # anything else with the message, because "ha" means nothing on its own.
+    approved: dict | None = None
+    declined: dict | None = None
+    if pending:
+        verdict = ai_agent.read_confirmation(payload.message)
+        if verdict is True:
+            approved = pending
+        elif verdict is False:
+            declined = pending
+        # However it was answered — yes, no, or by changing the subject — the
+        # question is now spent. A pending action left lying around would fire
+        # on an unrelated "ok" ten turns later.
+        state.pop("pendingAction", None)
+        session.agent_state = state or None
+
+    agent = await ai_agent.run_turn(
+        db=db,
+        viewer=viewer,
+        session=session,
+        message=payload.message,
+        history=history,
+        language=language,
+        user_name=(viewer.name if viewer else payload.user_name),
+        is_first_turn=is_first_turn,
+        shown_ids=shown_ids,
+        approved=approved,
+        declined=declined,
+    )
+
+    if agent.reply:
+        return await _finish(
+            db,
+            session=session,
+            viewer=viewer,
+            payload=payload,
+            language=language,
+            reply=agent.reply,
+            rows=agent.rows,
+            relaxation="AGENT",
+            # A turn that searched replaces the remembered criteria; one that
+            # only answered a question leaves them alone, so the listings page
+            # does not lose its filters to a "rahmat".
+            intent_dict=agent.last_search or session.last_intent or {},
+            used=used,
+            unlimited=unlimited,
+            shown_ids=agent.shown_ids,
+            pending=agent.pending,
+            steps=agent.steps,
+            actions=agent.actions,
+        )
+
+    # ---------------------------------------------------------------
+    # Fallback: no API key, a provider failure, or a model that returned
+    # nothing usable. The deterministic two-pass path below always answers.
+    # ---------------------------------------------------------------
     # Two passes with the search in between: the model cannot describe rows it
     # has not seen, and the rows depend on what the first pass understood.
     parsed = shield_ai.parse_intent(payload.message)
@@ -266,6 +330,54 @@ async def assistant(
             searched_district=searched_district,
         )
 
+    return await _finish(
+        db,
+        session=session,
+        viewer=viewer,
+        payload=payload,
+        language=language,
+        reply=reply,
+        rows=rows,
+        relaxation=relaxation,
+        intent_dict=intent.as_dict(),
+        used=used,
+        unlimited=unlimited,
+        shown_ids=[str(r.id) for r in rows],
+        pending=None,
+        steps=[],
+        actions=[],
+        searched_district=searched_district,
+        total=total,
+    )
+
+
+async def _finish(
+    db,
+    *,
+    session,
+    viewer,
+    payload: AssistantRequest,
+    language: str,
+    reply: str,
+    rows: list,
+    relaxation: str,
+    intent_dict: dict,
+    used: int,
+    unlimited: bool,
+    shown_ids: list[str],
+    pending: dict | None,
+    steps: list[dict],
+    actions: list[str],
+    searched_district: str | None = None,
+    total: int | None = None,
+) -> dict:
+    """Persist one assistant turn and shape the response.
+
+    Both paths end here so that whichever one produced the words, the turn is
+    stored, audited and serialised identically. The owner's phone is stripped
+    from every row on the way out: seeing a number is a deliberate act on the
+    listing page that increments a counter, not a side effect of chatting.
+    """
     favorite_ids = await listing_service.favorite_ids_for(db, viewer)
     serialised = []
     for row in rows:
@@ -282,7 +394,17 @@ async def assistant(
             listing_ids={"ids": [str(r.id) for r in rows]},
         )
     )
-    session.last_intent = intent.as_dict()
+    session.last_intent = intent_dict
+    # Only a search-shaped turn rewrites what "the second one" points at. A
+    # turn that answered a question leaves the previous results addressable.
+    state = dict(session.agent_state or {})
+    if shown_ids:
+        state["shownIds"] = shown_ids[:20]
+    if pending:
+        state["pendingAction"] = pending
+    else:
+        state.pop("pendingAction", None)
+    session.agent_state = state or None
     session.message_count += 1
     await db.flush()
 
@@ -294,25 +416,39 @@ async def assistant(
         entity_label=(viewer.name if viewer else "Guest"),
         summary=payload.message[:200],
         meta={
-            "intent": intent.as_dict(),
+            "intent": intent_dict,
             "results": len(rows),
-            "total_matches": total,
+            "total_matches": total if total is not None else len(rows),
             "language": language,
             # How far the search had to loosen to find these rows. Reviewing
             # the feed later, this is what explains a surprising suggestion.
             "relaxation": relaxation,
             "searched_district": searched_district,
+            # Which tools ran, so an action taken on someone's behalf is
+            # reconstructable from the audit trail alone.
+            "tools": [step.get("tool") for step in steps if step.get("tool")],
+            "actions": actions,
+            "awaiting_confirmation": bool(pending),
         },
     )
 
     return {
         "status": "success",
         "reply": reply,
-        "need": intent.as_dict(),
+        "need": intent_dict,
         # The client shows the result rail only when the rows really answer
         # the question; "NONE" means the turn was conversational.
         "matchQuality": relaxation,
         "listings": serialised,
+        # What the assistant did on the visitor's behalf, so the interface can
+        # say "saved to favourites" rather than leaving it in the prose.
+        "actions": actions,
+        "steps": [
+            {"tool": step["tool"], "label": step["label"]}
+            for step in steps
+            if step.get("label")
+        ],
+        "awaitingConfirmation": bool(pending),
         "sessionKey": session.session_key,
         "used": used + 1,
         "limit": 0 if unlimited else DAILY_LIMIT,

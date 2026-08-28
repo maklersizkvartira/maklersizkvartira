@@ -180,7 +180,27 @@ export const AssistantApi = {
        * The reply text already explains it; this is here for the UI to badge
        * a widened result without re-parsing prose.
        */
-      matchQuality?: 'NONE' | 'EXACT' | 'PARTIAL' | 'NEARBY' | 'ANY';
+      matchQuality?: 'NONE' | 'EXACT' | 'PARTIAL' | 'NEARBY' | 'ANY' | 'AGENT';
+      /**
+       * Tools the assistant actually ran this turn, in order. Only the ones
+       * that changed something are listed — a search is not an action.
+       * The chat badges these so a save is visible as a save, rather than
+       * being a claim buried in the prose.
+       */
+      actions?: string[];
+      /**
+       * Which tools ran, in order, with a translated label each. The reply is
+       * not streamed, so these arrive after the work is finished — they are a
+       * record for the admin view and for debugging a surprising answer, not
+       * a live progress bar. Rendering them as one would claim the chat is
+       * doing something it has already done.
+       */
+      steps?: Array<{ tool: string; label: string }>;
+      /**
+       * The reply is a yes/no question about something irreversible, and the
+       * action is held server-side until the next message answers it.
+       */
+      awaitingConfirmation?: boolean;
       sessionKey: string;
       used: number;
       limit: number;
