@@ -77,6 +77,11 @@ fails on the last step with `The Next.js output directory "dist" was not found`.
 Since `vercel.json` takes precedence over the dashboard, keeping them null makes
 the deployment reproducible whatever state the project settings are in.
 
+The reasoning lives here rather than in the file because `vercel.json` is
+validated with `additionalProperties: false` — unlike `package.json` it rejects
+a `"//"` comment key outright, with `Invalid request: should NOT have additional
+property`. Only the keys in the published schema may appear in it.
+
 `vercel.json` sends `X-Robots-Tag: noindex, nofollow` along with `X-Frame-Options`,
 `X-Content-Type-Options` and `Referrer-Policy` on every response. A staff console
 has nothing to gain from search traffic and leaks user and listing identifiers
