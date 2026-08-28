@@ -41,9 +41,31 @@ run in this version.
 
 ## Deployment
 
-This directory is deployed as its **own Vercel project**, separate from the
-public site, with **Root Directory = `admin`**. Set `NEXT_PUBLIC_API_URL` in that
-project's environment variables.
+This directory is deployed as its **own Vercel project**, separate from the one
+that builds the public site, even though both live in this repository.
+
+Setting it up, in the order that matters:
+
+1. **New Project** on Vercel, pointed at this same repository.
+2. **Settings → Build & Deployment → Root Directory: `admin`.** This is the step
+   that is easy to miss and produces a confusing failure: left at the repository
+   root, Vercel installs the *site's* dependencies (firebase, capacitor, vite)
+   and then stops with `No Next.js version detected`, because the package.json it
+   read has no `next` in it. The error names the framework, but the cause is the
+   directory.
+3. **Framework Preset: Next.js.** It is detected automatically once the Root
+   Directory is right; `vercel.json` also declares it.
+4. **Environment Variables → `NEXT_PUBLIC_API_URL`**, set to the API's base URL
+   *including* the `/api/v1` suffix — the HTTP client appends bare endpoint
+   paths like `/admin/stats` to it. See `.env.example`.
+5. **On the API side (Railway), add this project's domain to `CORS_ORIGINS`.**
+   The panel calls the API cross-origin from the browser and production forbids
+   `*`, so without this every screen loads and then stays empty — a failed
+   preflight surfaces as an opaque network error, not as a message you can read.
+
+Note that the repository-root `.vercelignore` deliberately does **not** list
+`admin/`: it can be applied to the upload before Vercel descends into the Root
+Directory, which would delete this app out of its own deployment.
 
 `vercel.json` sends `X-Robots-Tag: noindex, nofollow` along with `X-Frame-Options`,
 `X-Content-Type-Options` and `Referrer-Policy` on every response. A staff console

@@ -1,6 +1,11 @@
 backend_python/
 ui-verification/
-admin/
+# `admin/` is deliberately NOT listed. It has its own Vercel project whose Root
+# Directory is `admin`, and a repository-root .vercelignore can be applied to
+# the upload before Vercel descends into that directory — which strips the
+# admin app out of its own deployment and fails with "Root Directory does not
+# exist". The site's Vite build never reads admin/ anyway, so ignoring it here
+# buys nothing but that failure mode.
 Procfile
 Dockerfile
 railway.json
