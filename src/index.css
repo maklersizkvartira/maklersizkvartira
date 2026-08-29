@@ -507,6 +507,9 @@ html {
   .press-sm:active {
     transform: none;
   }
+.hero-title {
+  font-family: "Outfit", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif !important;
+  letter-spacing: -0.035em;
 }
 
 /* ===========================================================================
@@ -514,7 +517,7 @@ html {
    ======================================================================== */
 @media (max-width: 480px) {
   .hero-title {
-    font-size: 1.7rem !important;
+    font-size: 1.75rem !important;
     line-height: 1.2 !important;
   }
   .mobile-p-small {
