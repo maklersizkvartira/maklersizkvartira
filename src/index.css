@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@600;700;800;900&family=Inter:wght@400;500;600;700&display=swap');
 
 /* ===========================================================================
    Dark mode
@@ -511,8 +511,8 @@ html {
 }
 
 .hero-title {
-  font-family: "Outfit", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif !important;
-  letter-spacing: -0.035em;
+  font-family: "Poppins", "Montserrat", "Outfit", system-ui, -apple-system, sans-serif !important;
+  letter-spacing: -0.02em;
 }
 
 /* ===========================================================================
