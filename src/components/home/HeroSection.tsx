@@ -18,52 +18,51 @@ import React, { useState } from 'react';
 import { Search } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
-import { UZBEKISTAN_REGIONS } from '../../data/mockLocations';
 import { SearchModal } from './SearchModal';
 import { QuickCategories } from './QuickCategories';
 
-/** First-level units: 12 viloyats + Qoraqalpogʻiston + Toshkent shahri. */
-const HUDUD_COUNT = UZBEKISTAN_REGIONS.length;
-
-/** Second level: tumans *and* the cities that are units in their own right. */
-const TUMAN_AND_CITY_COUNT = UZBEKISTAN_REGIONS.reduce(
-  (total, region) => total + region.districts.length,
-  0,
-);
-
 export const HeroSection: React.FC = () => {
-  const { t, formatNumber } = useTranslation();
+  const { t } = useTranslation();
   const [showSearchModal, setShowSearchModal] = useState(false);
-
-  const coverage = {
-    regions: formatNumber(HUDUD_COUNT),
-    districts: formatNumber(TUMAN_AND_CITY_COUNT),
-  };
 
   return (
     <div className="w-full">
-      {/* `gutter-safe` rather than `px-4 sm:px-6`: the same 16px base, but it
-          grows for a landscape notch instead of letting the sensor housing sit
-          on top of the copy. It is also what the categories grid below and the
-          whole catalogue already use, so the home sections stop each picking
-          their own gutter. */}
-      <section className="gutter-safe relative overflow-hidden bg-gradient-to-b from-band to-band-2 pb-24 pt-12 text-center text-on-band sm:pb-28 sm:pt-16">
-        <div className="relative z-10 mx-auto max-w-5xl space-y-4 sm:space-y-6">
-          <p className="inline-flex items-center gap-2.5 rounded-full border border-on-band/25 bg-on-band/10 px-4 py-1.5 text-xs font-extrabold uppercase tracking-wide">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-brand" aria-hidden="true" />
-            <span>{t('home.hero.badge')}</span>
-          </p>
+      <section className="gutter-safe relative overflow-hidden bg-gradient-to-b from-band to-band-2 pb-10 pt-5 text-center text-on-band sm:pb-14 sm:pt-8">
+        <div className="relative z-10 mx-auto max-w-5xl space-y-5 sm:space-y-6">
+          {/* 1. Category Cards at the top (exact match with design screenshot) */}
+          <QuickCategories />
 
-          <h1 className="hero-title text-balance text-3xl font-black leading-[1.1] tracking-tight xs:text-4xl sm:text-6xl md:text-7xl">
+          {/* 2. Hero Title */}
+          <h1 className="hero-title text-balance text-2xl font-black leading-tight tracking-tight text-white xs:text-3xl sm:text-5xl md:text-6xl pt-1 sm:pt-2">
             {t('home.hero.title')}
           </h1>
 
-          <p className="mx-auto max-w-2xl text-xs font-medium leading-relaxed text-on-band/75 sm:text-lg md:text-xl">
-            {t('home.hero.subtitle', coverage)}
-          </p>
+          {/* 3. Search Bar Button */}
+          <div className="mx-auto max-w-3xl px-1">
+            <button
+              type="button"
+              onClick={() => setShowSearchModal(true)}
+              aria-haspopup="dialog"
+              aria-expanded={showSearchModal}
+              className="press group flex w-full items-center gap-3 rounded-full border border-line bg-surface p-3 shadow-raised hover:bg-surface-2 sm:p-4 transition-all duration-300 hover:border-brand/40 hover:shadow-brand/10"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-on-brand transition-transform group-hover:scale-105 sm:h-11 sm:w-11 shadow-sm">
+                <Search className="h-5 w-5 sm:h-5.5 sm:w-5.5" aria-hidden="true" />
+              </span>
+              <span className="min-w-0 flex-1 text-left">
+                <span className="block truncate text-sm font-black text-content sm:text-base">
+                  {t('home.hero.searchTitle')}
+                </span>
+                <span className="block truncate text-xs font-medium text-subtle">
+                  <span className="sm:hidden">{t('home.hero.searchHintShort')}</span>
+                  <span className="hidden sm:inline">{t('home.hero.searchHintLong')}</span>
+                </span>
+              </span>
+            </button>
+          </div>
         </div>
 
-        {/* Ambient brand glow — decorative only. */}
+        {/* Ambient brand glow — decorative only */}
         <div
           className="pointer-events-none absolute right-0 top-0 hidden h-[350px] w-[350px] -translate-y-1/3 translate-x-1/3 rounded-full bg-brand/25 blur-3xl sm:block sm:h-[450px] sm:w-[450px]"
           aria-hidden="true"
@@ -73,33 +72,6 @@ export const HeroSection: React.FC = () => {
           aria-hidden="true"
         />
       </section>
-
-      {/* Overlaps the hero band, which is why it carries its own stacking context. */}
-      <div className="gutter-safe relative z-20 mx-auto -mt-8 max-w-5xl sm:-mt-10 space-y-4 sm:space-y-5">
-        <button
-          type="button"
-          onClick={() => setShowSearchModal(true)}
-          aria-haspopup="dialog"
-          aria-expanded={showSearchModal}
-          className="press group flex w-full items-center gap-3 rounded-full border border-line bg-surface p-3 shadow-raised hover:bg-surface-2 sm:p-4 transition-all duration-300 hover:border-brand/40 hover:shadow-brand/10"
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-on-brand transition-transform group-hover:scale-105 sm:h-12 sm:w-12 shadow-sm">
-            <Search className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
-          </span>
-          <span className="min-w-0 flex-1 text-left">
-            <span className="block truncate text-sm font-black text-content sm:text-base">
-              {t('home.hero.searchTitle')}
-            </span>
-            <span className="block truncate text-xs font-medium text-subtle">
-              <span className="sm:hidden">{t('home.hero.searchHintShort')}</span>
-              <span className="hidden sm:inline">{t('home.hero.searchHintLong')}</span>
-            </span>
-          </span>
-        </button>
-
-        {/* Compact, modern category shortcuts right under search */}
-        <QuickCategories />
-      </div>
 
       <SearchModal open={showSearchModal} onClose={() => setShowSearchModal(false)} />
     </div>
