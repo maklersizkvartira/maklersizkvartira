@@ -1,22 +1,11 @@
 /**
- * The shortcut categories.
+ * The top shortcut categories bar.
  *
- * Titles and descriptions come from `layout.categories.*` — the header
- * dropdown shows the same sections, and a second copy of the strings would
- * drift the moment one of them is reworded.
- *
- * Each card commits a full filter set (defaults + its own patch) in a single
- * `setFilters` call, because reset-then-patch would fire two list requests.
- *
- * There are nine of them now, which is what ended the horizontal rail: nine
- * tiles in a rail means six of them live off the right edge of a phone, and
- * the three that are visible are the three nobody chose. A two-column grid
- * shows six without a scroll and the last three one thumb-flick away.
+ * Modern, icon-first category buttons placed right under the main search bar.
  */
 
 import React from 'react';
 import {
-  ArrowRight,
   Flower2,
   GraduationCap,
   Handshake,
@@ -33,39 +22,13 @@ import { cn } from '../../lib/cn';
 import { useHaptics } from '../../hooks/useHaptics';
 import { quickFilterState, useAppStore, type QuickFilterId } from '../../stores/useAppStore';
 import { AppLink } from '../../router/AppLink';
-import { VIEW_PATHS } from '../../router/views';
 
-/**
- * What each card opens is not defined here.
- *
- * `QUICK_FILTER_DELTAS` in the store is the one definition of "what 'for
- * families' means", and the catalogue's chips read the same map. When the two
- * had their own literals they had already drifted — the card set `rooms: 2`
- * and the chip did not — so the same word gave two different result counts
- * depending on where you tapped it.
- */
 interface HomeCategory {
-  /** Names a delta in the store's quick-filter map. */
   id: Exclude<QuickFilterId, 'all'>;
   titleKey: TranslationKey;
-  descriptionKey: TranslationKey;
-  tagKeys: readonly [TranslationKey, TranslationKey];
   icon: React.ComponentType<{ className?: string }>;
-  /** Icon micro-animation, chosen per category to hint at what it does. */
-  iconMotion: string;
-  /** The icon tile. */
   tone: string;
-  /** The corner wash behind it — the gradient's `from-` stop. */
-  wash: string;
-  /**
-   * The landing page this shortcut belongs to, when there is one.
-   *
-   * These cards used to commit a filter and swap the view, so six of the
-   * site's most prominent entry points led to the same URL and passed no
-   * signal to the pages built for exactly those searches. The five without a
-   * landing page have no keyword worth a page of their own and keep the old
-   * filter behaviour.
-   */
+  glow: string;
   landing?: string;
 }
 
@@ -74,108 +37,70 @@ const CATEGORIES: HomeCategory[] = [
     id: 'roommate',
     landing: '/sheriklikka-ijara',
     titleKey: 'layout.categories.roommate.title',
-    descriptionKey: 'layout.categories.roommate.description',
-    tagKeys: ['home.categories.tags.roommateBoys', 'home.categories.tags.roommateGirls'],
     icon: Handshake,
-    iconMotion: 'group-hover:scale-110',
-    tone: 'bg-warning-soft text-warning',
-    wash: 'from-warning/25',
+    tone: 'bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 border-amber-500/20 group-hover:bg-amber-500 group-hover:text-white',
+    glow: 'from-amber-500/25',
   },
   {
     id: 'student',
     landing: '/talabalar-uchun-ijara',
     titleKey: 'layout.categories.student.title',
-    descriptionKey: 'layout.categories.student.description',
-    tagKeys: [
-      'home.categories.tags.studentNearUniversity',
-      'home.categories.tags.studentDormAlternative',
-    ],
     icon: GraduationCap,
-    iconMotion: 'group-hover:-rotate-12',
-    tone: 'bg-info-soft text-info',
-    wash: 'from-info/25',
+    tone: 'bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 border-blue-500/20 group-hover:bg-blue-500 group-hover:text-white',
+    glow: 'from-blue-500/25',
   },
   {
     id: 'family',
     landing: '/oilalar-uchun-ijara',
     titleKey: 'layout.categories.family.title',
-    descriptionKey: 'layout.categories.family.description',
-    tagKeys: ['home.categories.tags.familyTwoRooms', 'home.categories.tags.familyThreeRooms'],
     icon: Users,
-    iconMotion: 'group-hover:rotate-6',
-    tone: 'bg-brand-soft text-brand-text',
-    wash: 'from-brand/25',
+    tone: 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-white',
+    glow: 'from-emerald-500/25',
   },
   {
     id: 'qizlarga',
     titleKey: 'layout.categories.qizlarga.title',
-    descriptionKey: 'layout.categories.qizlarga.description',
-    tagKeys: ['home.categories.tags.qizlargaOnlyGirls', 'home.categories.tags.qizlargaRoommate'],
     icon: Flower2,
-    iconMotion: 'group-hover:rotate-12',
-    tone: 'bg-danger-soft text-danger',
-    wash: 'from-danger/25',
+    tone: 'bg-pink-500/10 text-pink-600 dark:bg-pink-500/20 dark:text-pink-400 border-pink-500/20 group-hover:bg-pink-500 group-hover:text-white',
+    glow: 'from-pink-500/25',
   },
   {
     id: 'komfort',
     titleKey: 'layout.categories.komfort.title',
-    descriptionKey: 'layout.categories.komfort.description',
-    tagKeys: ['home.categories.tags.komfortFurnished', 'home.categories.tags.komfortAppliances'],
     icon: Sofa,
-    iconMotion: 'group-hover:-translate-y-0.5',
-    tone: 'bg-success-soft text-success',
-    wash: 'from-success/25',
+    tone: 'bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 border-indigo-500/20 group-hover:bg-indigo-500 group-hover:text-white',
+    glow: 'from-indigo-500/25',
   },
   {
     id: 'center',
     titleKey: 'layout.categories.center.title',
-    descriptionKey: 'layout.categories.center.description',
-    tagKeys: ['home.categories.tags.centerWalkable', 'home.categories.tags.centerDistricts'],
     icon: Landmark,
-    iconMotion: 'group-hover:scale-110',
-    tone: 'bg-brand-soft-2 text-brand-text',
-    wash: 'from-brand/20',
+    tone: 'bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 border-orange-500/20 group-hover:bg-orange-500 group-hover:text-white',
+    glow: 'from-orange-500/25',
   },
   {
     id: 'metro',
     titleKey: 'layout.categories.metro.title',
-    descriptionKey: 'layout.categories.metro.description',
-    tagKeys: ['home.categories.tags.metroWalk', 'home.categories.tags.metroCentral'],
     icon: TrainFront,
-    iconMotion: 'group-hover:translate-x-1',
-    tone: 'bg-info-soft text-info',
-    wash: 'from-info/20',
+    tone: 'bg-cyan-500/10 text-cyan-600 dark:bg-cyan-500/20 dark:text-cyan-400 border-cyan-500/20 group-hover:bg-cyan-500 group-hover:text-white',
+    glow: 'from-cyan-500/25',
   },
   {
     id: 'budget',
     landing: '/arzon-ijara',
     titleKey: 'layout.categories.budget.title',
-    descriptionKey: 'layout.categories.budget.description',
-    tagKeys: ['home.categories.tags.budgetNoDeposit', 'home.categories.tags.budgetLowPrice'],
     icon: TrendingDown,
-    iconMotion: 'group-hover:translate-y-0.5',
-    tone: 'bg-danger-soft text-danger',
-    wash: 'from-danger/20',
+    tone: 'bg-teal-500/10 text-teal-600 dark:bg-teal-500/20 dark:text-teal-400 border-teal-500/20 group-hover:bg-teal-500 group-hover:text-white',
+    glow: 'from-teal-500/25',
   },
   {
     id: 'premium',
     titleKey: 'layout.categories.premium.title',
-    descriptionKey: 'layout.categories.premium.description',
-    tagKeys: [
-      'home.categories.tags.premiumVerifiedOwner',
-      'home.categories.tags.premiumHighTrust',
-    ],
     icon: ShieldCheck,
-    iconMotion: 'group-hover:scale-110',
-    tone: 'bg-brand-soft text-brand-text',
-    wash: 'from-brand/20',
+    tone: 'bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400 border-purple-500/20 group-hover:bg-purple-500 group-hover:text-white',
+    glow: 'from-purple-500/25',
   },
 ];
-
-const cardClass =
-  'press group relative flex h-full w-full flex-col gap-2 overflow-hidden rounded-2xl ' +
-  'border border-line bg-surface p-2.5 text-left transition-all duration-300 ' +
-  'hover:-translate-y-1 hover:border-brand/40 hover:shadow-raised sm:gap-3 sm:p-4 sm:rounded-3xl';
 
 export const QuickCategories: React.FC = () => {
   const { t } = useTranslation();
@@ -185,104 +110,55 @@ export const QuickCategories: React.FC = () => {
 
   const openCategory = (id: HomeCategory['id']) => {
     haptics.select();
-    // A whole filter set in one commit: reset-then-patch would fire two list
-    // requests, and patching alone would leave the previous card's audience
-    // standing next to this card's rental type.
     setFilters(quickFilterState(id));
     setCurrentView('LISTINGS');
   };
 
   return (
-    <section
-      id="kategoriyalar"
-      aria-labelledby="home-categories-title"
-      className="gutter-safe mx-auto max-w-7xl space-y-5 py-8 sm:py-14"
-    >
-      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-        <div>
-          <h2
-            id="home-categories-title"
-            className="text-2xl font-black tracking-tight text-content sm:text-4xl"
-          >
-            {t('home.categories.title')}
-          </h2>
-          <p className="mt-1 text-xs font-medium text-subtle sm:text-sm">
-            {t('home.categories.subtitle')}
-          </p>
-        </div>
-
-        <AppLink
-          to={VIEW_PATHS.LISTINGS ?? '/elonlar'}
-          className="press group inline-flex items-center gap-2 self-start rounded-2xl bg-brand px-4 py-2.5 text-xs font-extrabold text-on-brand shadow-brand hover:bg-brand-hover sm:self-auto sm:text-sm"
-        >
-          <span>{t('home.categories.viewAll')}</span>
-          <ArrowRight
-            className="h-4 w-4 transition-transform group-hover:translate-x-1"
-            aria-hidden="true"
-          />
-        </AppLink>
-      </div>
-
-      <ul className="flex overflow-x-auto gap-2.5 pb-2 -mx-4 px-4 snap-x snap-mandatory hide-scrollbar sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:grid-cols-3 sm:gap-4">
+    <div className="w-full pt-1">
+      <ul className="flex overflow-x-auto gap-2 sm:gap-2.5 pb-2 pt-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-9 hide-scrollbar snap-x snap-mandatory justify-start sm:justify-center">
         {CATEGORIES.map((category) => {
           const Icon = category.icon;
           const inner = (
             <>
-              {/* The accent wash. Decorative, and behind everything else, which
-                  is why every real child below carries `relative`. */}
+              {/* Glow effect on hover */}
               <span
                 aria-hidden="true"
                 className={cn(
-                  'pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full',
-                  'bg-gradient-to-br to-transparent opacity-60 blur-2xl',
-                  'transition-opacity duration-300 group-hover:opacity-100',
-                  category.wash,
+                  'pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b to-transparent opacity-0 blur-md transition-opacity duration-300 group-hover:opacity-100',
+                  category.glow,
                 )}
               />
 
               <span
                 className={cn(
-                  'relative flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl',
-                  'border border-line/60 transition-transform duration-300 group-hover:scale-105',
+                  'relative flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-2xl border shadow-xs transition-all duration-300 group-hover:scale-105 group-hover:shadow-md',
                   category.tone,
                 )}
               >
-                <Icon
-                  className={cn('h-5 w-5 sm:h-6 sm:w-6 transition-transform duration-300', category.iconMotion)}
-                />
+                <Icon className="h-5 w-5 sm:h-6 sm:w-6 transition-transform duration-300" />
               </span>
 
-              <span className="relative block min-w-0">
-                <span className="block truncate text-xs sm:text-sm font-black text-content transition-colors group-hover:text-brand-text">
-                  {t(category.titleKey)}
-                </span>
-                <span className="mt-0.5 line-clamp-1 sm:line-clamp-2 block text-[10px] sm:text-[11px] font-medium leading-snug text-subtle">
-                  {t(category.descriptionKey)}
-                </span>
-              </span>
-
-              {/* The tags */}
-              <span className="relative mt-auto flex flex-wrap gap-1 pt-0.5">
-                {category.tagKeys.map((tagKey) => (
-                  <span
-                    key={tagKey}
-                    className="max-w-full truncate rounded-full bg-surface-2 px-1.5 py-0.5 sm:px-2 text-[9px] sm:text-[10px] font-bold text-muted"
-                  >
-                    {t(tagKey)}
-                  </span>
-                ))}
+              <span className="relative block w-full truncate text-[11px] sm:text-xs font-extrabold text-content transition-colors group-hover:text-brand-text">
+                {t(category.titleKey)}
               </span>
             </>
           );
 
+          const itemClass =
+            'press group relative flex flex-col items-center justify-center gap-1.5 ' +
+            'rounded-2xl border border-line/70 bg-surface/90 p-2 sm:p-2.5 text-center backdrop-blur-md ' +
+            'transition-all duration-300 hover:-translate-y-1 hover:border-brand/50 hover:bg-surface ' +
+            'hover:shadow-raised active:scale-95 shrink-0 w-[78px] xs:w-[84px] sm:w-auto cursor-pointer snap-start';
+
           return (
-            <li key={category.id} className="min-w-0 shrink-0 w-[148px] snap-start sm:w-auto sm:shrink">
+            <li key={category.id} className="min-w-0">
               {category.landing ? (
-                <AppLink to={category.landing} onClick={() => haptics.select()} className={cardClass}>
+                <AppLink to={category.landing} onClick={() => haptics.select()} className={itemClass}>
                   {inner}
                 </AppLink>
               ) : (
-                <button type="button" onClick={() => openCategory(category.id)} className={cardClass}>
+                <button type="button" onClick={() => openCategory(category.id)} className={itemClass}>
                   {inner}
                 </button>
               )}
@@ -290,8 +166,9 @@ export const QuickCategories: React.FC = () => {
           );
         })}
       </ul>
-    </section>
+    </div>
   );
 };
 
 export default QuickCategories;
+

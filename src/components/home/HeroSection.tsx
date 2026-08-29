@@ -15,11 +15,12 @@
  */
 
 import React, { useState } from 'react';
-import { MapPin, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { UZBEKISTAN_REGIONS } from '../../data/mockLocations';
 import { SearchModal } from './SearchModal';
+import { QuickCategories } from './QuickCategories';
 
 /** First-level units: 12 viloyats + Qoraqalpogʻiston + Toshkent shahri. */
 const HUDUD_COUNT = UZBEKISTAN_REGIONS.length;
@@ -74,15 +75,15 @@ export const HeroSection: React.FC = () => {
       </section>
 
       {/* Overlaps the hero band, which is why it carries its own stacking context. */}
-      <div className="gutter-safe relative z-20 mx-auto -mt-8 max-w-3xl sm:-mt-10">
+      <div className="gutter-safe relative z-20 mx-auto -mt-8 max-w-5xl sm:-mt-10 space-y-4 sm:space-y-5">
         <button
           type="button"
           onClick={() => setShowSearchModal(true)}
           aria-haspopup="dialog"
           aria-expanded={showSearchModal}
-          className="press group flex w-full items-center gap-3 rounded-full border border-line bg-surface p-3 shadow-raised hover:bg-surface-2 sm:p-4"
+          className="press group flex w-full items-center gap-3 rounded-full border border-line bg-surface p-3 shadow-raised hover:bg-surface-2 sm:p-4 transition-all duration-300 hover:border-brand/40 hover:shadow-brand/10"
         >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-on-brand transition-transform group-hover:scale-105 sm:h-12 sm:w-12">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-on-brand transition-transform group-hover:scale-105 sm:h-12 sm:w-12 shadow-sm">
             <Search className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
           </span>
           <span className="min-w-0 flex-1 text-left">
@@ -96,23 +97,8 @@ export const HeroSection: React.FC = () => {
           </span>
         </button>
 
-        {/* The coverage claim, stated where somebody deciding whether the site
-            is worth their time will read it. `geoSubline` counts places in the
-            catalogue, which is the only figure any shipped component can
-            derive; the `home.stats.geoSublineActive` variant next to it in the
-            locale files — "places that actually have a listing" — is rendered
-            nowhere, so editing it changes nothing on screen. */}
-        <p className="mt-3 flex items-start gap-2 px-1 text-left">
-          <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
-          <span className="min-w-0">
-            <span className="block text-xs font-black text-content sm:text-sm">
-              {t('home.stats.geoHeadline')}
-            </span>
-            <span className="block text-[11px] font-medium leading-relaxed text-subtle sm:text-xs">
-              {t('home.stats.geoSubline', coverage)}
-            </span>
-          </span>
-        </p>
+        {/* Compact, modern category shortcuts right under search */}
+        <QuickCategories />
       </div>
 
       <SearchModal open={showSearchModal} onClose={() => setShowSearchModal(false)} />

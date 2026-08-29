@@ -14,7 +14,6 @@
 import React from 'react';
 import { AIRecommended } from './AIRecommended';
 import { HeroSection } from './HeroSection';
-import { QuickCategories } from './QuickCategories';
 import { TrustStats } from './TrustStats';
 
 export const HomePage: React.FC = () => {
@@ -22,7 +21,6 @@ export const HomePage: React.FC = () => {
     <>
       <HeroSection />
       <AIRecommended />
-      <QuickCategories />
       <TrustStats />
     </>
   );
