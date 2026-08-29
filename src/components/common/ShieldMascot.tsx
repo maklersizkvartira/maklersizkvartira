@@ -9,7 +9,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, ChevronRight, MessageSquare, RotateCcw, Send, Shield, Sparkles, X } from 'lucide-react';
+import { Check, ChevronRight, MessageSquare, RotateCcw, Send, Sparkles, X } from 'lucide-react';
 
 import { useTranslation, type TranslationKey } from '../../i18n';
 import { AssistantApi } from '../../services/listingsApi';
@@ -333,8 +333,8 @@ export const ShieldMascot: React.FC = () => {
             className="w-full max-w-xs space-y-4 rounded-3xl border border-line bg-surface p-6 text-center shadow-raised"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-brand/30 bg-brand-soft text-brand-text">
-              <Shield className="h-6 w-6" aria-hidden="true" />
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-brand/30 bg-brand text-on-brand font-black text-sm tracking-wider">
+              AI
             </div>
             <div>
               <h3 id="assistant-close-title" className="text-base font-black text-content">
@@ -376,8 +376,8 @@ export const ShieldMascot: React.FC = () => {
           {/* Header */}
           <div className="flex shrink-0 items-center justify-between border-b border-line p-4 sm:p-5">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-brand/30 bg-brand-soft text-brand-text">
-                <Shield className="h-5 w-5" aria-hidden="true" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-brand/30 bg-brand text-on-brand font-black text-xs tracking-wider">
+                AI
               </div>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -469,8 +469,8 @@ export const ShieldMascot: React.FC = () => {
                 className={`flex ${message.from === 'me' ? 'justify-end' : 'justify-start'}`}
               >
                 {message.from === 'ai' && (
-                  <div className="mr-2.5 mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-brand/30 bg-brand-soft text-brand-text sm:h-8 sm:w-8">
-                    <Shield className="h-4 w-4" aria-hidden="true" />
+                  <div className="mr-2.5 mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-brand/30 bg-brand text-on-brand font-black text-[10px] tracking-wider sm:h-8 sm:w-8 sm:text-xs">
+                    AI
                   </div>
                 )}
                 <div
@@ -549,8 +549,8 @@ export const ShieldMascot: React.FC = () => {
 
             {sending && (
               <div className="flex justify-start">
-                <div className="mr-2 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-brand/30 bg-brand-soft text-brand-text">
-                  <Shield className="h-3 w-3" aria-hidden="true" />
+                <div className="mr-2 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-brand/30 bg-brand text-on-brand font-black text-[9px] tracking-wider">
+                  AI
                 </div>
                 <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-sm border border-line bg-surface-2 p-3">
                   <span aria-hidden="true" className="flex gap-1.5">
@@ -636,8 +636,8 @@ export const ShieldMascot: React.FC = () => {
           aria-label={t('assistant.mascot.open')}
           className="group ml-auto flex items-center gap-3 rounded-full border border-brand/40 bg-surface p-2 text-content shadow-raised transition-all duration-300 hover:border-brand active:scale-95 sm:px-4 sm:py-2.5"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-brand/30 bg-brand-soft text-brand-text transition-transform group-hover:scale-110 sm:h-8 sm:w-8">
-            <Shield className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-brand/30 bg-brand text-on-brand font-black text-xs tracking-wider transition-transform group-hover:scale-110 sm:h-8 sm:w-8">
+            AI
           </span>
           <span className="hidden flex-col text-left sm:flex">
             <span className="flex items-center gap-1 text-xs font-black text-content">

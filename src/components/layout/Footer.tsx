@@ -38,7 +38,7 @@ const SUPPORT_CONTACTS: SupportContact[] = [
     dial: '+998777850737',
     label: '+998 77 785 07 37',
     telegramUsername: 'karimov_developer',
-    telegramLabel: '@karimov_developer',
+    telegramLabel: '@karimov',
   },
 ];
 
@@ -175,6 +175,7 @@ export const Footer: React.FC = () => {
               <nav
                 key={column.titleKey}
                 aria-label={t(column.titleKey as never)}
+                className={column.titleKey === 'layout.footer.legal' ? 'hidden sm:block' : undefined}
               >
                 <h2 className="mb-3 text-xs font-black uppercase tracking-wide text-content">
                   {t(column.titleKey as never)}
