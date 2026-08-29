@@ -121,8 +121,7 @@ export const layout = {
     // footer's link label and the footer still renders it.
     supportBlock: {
       title: 'Нужна помощь?',
-      phoneLabel: '+998 77 785 07 37',
-      phoneAria: 'Позвонить по номеру +998 77 785 07 37',
+      phoneAria: 'Позвонить по номеру {phone}',
       hours: 'Ежедневно 09:00 – 21:00',
     },
   },

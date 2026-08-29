@@ -11,6 +11,20 @@ import { Logo } from '../brand/Logo';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ThemeToggle } from './ThemeToggle';
 
+/**
+ * The helpline numbers, in the order they should be tried.
+ *
+ * Kept here rather than in the locale files because a phone number is not
+ * translated copy: holding it as a string in uz/ru/en meant changing the
+ * helpline required editing three translation files in lockstep, and the
+ * aria-label repeated the digits a fourth time. The label is the human
+ * spacing, `dial` is what `tel:` needs.
+ */
+const SUPPORT_PHONES = [
+  { dial: '+998937188885', label: '+998 93 718 88 85' },
+  { dial: '+998777850737', label: '+998 77 785 07 37' },
+] as const;
+
 const InstagramIcon: React.FC<{ className?: string }> = ({ className = 'h-4 w-4' }) => (
   <svg
     viewBox="0 0 24 24"
@@ -102,16 +116,24 @@ export const Footer: React.FC = () => {
               <h2 className="mb-3 text-xs font-black uppercase tracking-wide text-content">
                 {t('layout.footer.supportBlock.title')}
               </h2>
-              <a
-                href="tel:+998777850737"
-                aria-label={t('layout.footer.supportBlock.phoneAria')}
-                className="press inline-flex min-h-11 items-center gap-2.5 rounded-xl border border-line bg-surface-2/60 px-3 py-2 text-sm font-black text-content transition-colors hover:border-brand/40 hover:text-brand-text"
-              >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-text">
-                  <Phone className="h-4 w-4" aria-hidden="true" />
-                </span>
-                {t('layout.footer.supportBlock.phoneLabel')}
-              </a>
+              <ul className="flex flex-col gap-2">
+                {SUPPORT_PHONES.map((phone) => (
+                  <li key={phone.dial}>
+                    <a
+                      href={`tel:${phone.dial}`}
+                      aria-label={t('layout.footer.supportBlock.phoneAria', {
+                        phone: phone.label,
+                      })}
+                      className="press inline-flex min-h-11 items-center gap-2.5 rounded-xl border border-line bg-surface-2/60 px-3 py-2 text-sm font-black text-content transition-colors hover:border-brand/40 hover:text-brand-text"
+                    >
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-text">
+                        <Phone className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                      {phone.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
               <p className="mt-2 text-[11px] text-subtle">
                 {t('layout.footer.supportBlock.hours')}
               </p>
