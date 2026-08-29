@@ -163,7 +163,7 @@ export function Sheet({
             type="button"
             onClick={onClose}
             aria-label={closeLabel}
-            className="icon-btn w-11 h-11 sm:w-8 sm:h-8 shrink-0 -mr-2 sm:mr-0"
+            className="icon-btn flex w-11 h-11 sm:w-8 sm:h-8 shrink-0 -mr-2 sm:mr-0"
           >
             <X size={17} />
           </button>

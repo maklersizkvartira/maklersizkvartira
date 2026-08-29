@@ -9,15 +9,18 @@ import {
   niceMax,
   seriesColor,
   useChartTooltip,
+  CHART_BODY_CLASS,
   type Series,
 } from './chart-shared';
+import { useChartSize } from '@/features/dashboard/hooks/use-chart-size';
 
 /**
  * Bars, in the two arrangements the dashboard needs:
  *
  *  · horizontal, one series — ranked categories (top districts). Horizontal
  *    because district names are words, and words rotated 45° under a vertical
- *    axis are words nobody reads.
+ *    axis are words nobody reads. It is also plain HTML rows rather than SVG,
+ *    which is why it is still the best chart on the page at 360px.
  *  · vertical, stacked — a composition per time bucket (activity by severity).
  *
  * Both anchor to a zero baseline. A bar chart that starts its axis at 40 is
@@ -51,6 +54,7 @@ export function BarChart({
 }: BarChartProps) {
   const { tooltip, setTooltip, hide } = useChartTooltip();
   const [hovered, setHovered] = useState<number | null>(null);
+  const { ref, box } = useChartSize();
 
   const totals = useMemo(
     () => labels.map((_, i) => series.reduce((sum, s) => sum + (s.values[i] ?? 0), 0)),
@@ -65,7 +69,7 @@ export function BarChart({
   }, [stacked, totals, series]);
 
   if (labels.length === 0 || series.length === 0) {
-    return <div className={`skeleton ${className}`} style={{ height: 240 }} />;
+    return <div className={`skeleton ${CHART_BODY_CLASS} ${className}`} />;
   }
 
   const tooltipFor = (index: number) => ({
@@ -134,82 +138,91 @@ export function BarChart({
   }
 
   /* ─── Vertical (grouped or stacked) ──────────────────────────────────── */
-  const W = 600;
-  const H = 240;
-  const PAD = { top: 14, right: 8, bottom: 28, left: 42 };
-  const PLOT_W = W - PAD.left - PAD.right;
-  const PLOT_H = H - PAD.top - PAD.bottom;
+  const W = box.width;
+  const H = box.height;
+  const PAD = { top: 14, right: 8, bottom: 24, left: W < 480 ? 32 : 42 };
+  const PLOT_W = Math.max(1, W - PAD.left - PAD.right);
+  const PLOT_H = Math.max(1, H - PAD.top - PAD.bottom);
 
   const slot = PLOT_W / labels.length;
   const barWidth = stacked ? Math.min(28, slot * 0.62) : Math.min(18, (slot * 0.62) / series.length);
-  const labelStride = Math.max(1, Math.ceil(labels.length / 8));
+  const maxLabels = W < 480 ? 4 : 8;
+  const labelStride = Math.max(1, Math.ceil(labels.length / maxLabels));
 
   return (
-    <div className={`relative ${className}`}>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" style={{ overflow: 'visible' }}>
-        {[0, 0.25, 0.5, 0.75, 1].map((t) => {
-          const y = PAD.top + PLOT_H * (1 - t);
-          return (
-            <g key={t}>
-              <line x1={PAD.left} x2={W - PAD.right} y1={y} y2={y} stroke="var(--color-border)" strokeDasharray="4 4" strokeWidth={1} />
-              <text x={PAD.left - 8} y={y + 3.5} textAnchor="end" fontSize={10} fill="var(--color-text-muted)">
-                {formatValue(max * t)}
-              </text>
-            </g>
-          );
-        })}
-
-        {labels.map((label, i) => {
-          const slotX = PAD.left + i * slot;
-          const centre = slotX + slot / 2;
-          let cursorY = PAD.top + PLOT_H;
-
-          return (
-            <g key={label + i}>
-              {series.map((s, si) => {
-                const value = s.values[i] ?? 0;
-                const h = (value / max) * PLOT_H;
-                if (h <= 0) return null;
-
-                const color = s.color ?? seriesColor(si);
-
-                if (stacked) {
-                  // The 2px gap is surface, not a stroke: it keeps two
-                  // adjacent segments from reading as one long block.
-                  const y = cursorY - h;
-                  cursorY = y - GAP;
-                  return (
-                    <rect key={s.key} x={centre - barWidth / 2} y={y} width={barWidth} height={Math.max(1, h - GAP)} rx={3} fill={color} />
-                  );
-                }
-
-                const groupWidth = barWidth * series.length + GAP * (series.length - 1);
-                const x = centre - groupWidth / 2 + si * (barWidth + GAP);
-                return <rect key={s.key} x={x} y={PAD.top + PLOT_H - h} width={barWidth} height={h} rx={3} fill={color} />;
-              })}
-
-              {/* Column-wide hit target */}
-              <rect
-                x={slotX}
-                y={PAD.top}
-                width={slot}
-                height={PLOT_H}
-                fill="transparent"
-                onPointerEnter={() => setTooltip({ x: (centre / W) * 100, y: 20, content: <TooltipRows {...tooltipFor(i)} /> })}
-                onPointerLeave={hide}
-              />
-
-              {(i % labelStride === 0 || i === labels.length - 1) && (
-                <text x={centre} y={H - 8} textAnchor="middle" fontSize={10} fill="var(--color-text-muted)">
-                  {label}
+    <div className={className}>
+      <div ref={ref} className={`relative w-full ${CHART_BODY_CLASS}`}>
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className="absolute inset-0 h-full w-full"
+          role="img"
+          style={{ overflow: 'visible' }}
+        >
+          {[0, 0.25, 0.5, 0.75, 1].map((t) => {
+            const y = PAD.top + PLOT_H * (1 - t);
+            return (
+              <g key={t}>
+                <line x1={PAD.left} x2={W - PAD.right} y1={y} y2={y} stroke="var(--color-border)" strokeDasharray="4 4" strokeWidth={1} />
+                <text x={PAD.left - 8} y={y + 3.5} textAnchor="end" fontSize={10} fill="var(--color-text-muted)">
+                  {formatValue(max * t)}
                 </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
+              </g>
+            );
+          })}
 
-      <ChartTooltip tooltip={tooltip} />
+          {labels.map((label, i) => {
+            const slotX = PAD.left + i * slot;
+            const centre = slotX + slot / 2;
+            let cursorY = PAD.top + PLOT_H;
+
+            return (
+              <g key={label + i}>
+                {series.map((s, si) => {
+                  const value = s.values[i] ?? 0;
+                  const h = (value / max) * PLOT_H;
+                  if (h <= 0) return null;
+
+                  const color = s.color ?? seriesColor(si);
+
+                  if (stacked) {
+                    // The 2px gap is surface, not a stroke: it keeps two
+                    // adjacent segments from reading as one long block.
+                    const y = cursorY - h;
+                    cursorY = y - GAP;
+                    return (
+                      <rect key={s.key} x={centre - barWidth / 2} y={y} width={barWidth} height={Math.max(1, h - GAP)} rx={3} fill={color} />
+                    );
+                  }
+
+                  const groupWidth = barWidth * series.length + GAP * (series.length - 1);
+                  const x = centre - groupWidth / 2 + si * (barWidth + GAP);
+                  return <rect key={s.key} x={x} y={PAD.top + PLOT_H - h} width={barWidth} height={h} rx={3} fill={color} />;
+                })}
+
+                {/* Column-wide hit target */}
+                <rect
+                  x={slotX}
+                  y={PAD.top}
+                  width={slot}
+                  height={PLOT_H}
+                  fill="transparent"
+                  onPointerEnter={() => setTooltip({ x: (centre / W) * 100, y: 20, content: <TooltipRows {...tooltipFor(i)} /> })}
+                  onPointerLeave={hide}
+                />
+
+                {(i % labelStride === 0 || i === labels.length - 1) && (
+                  <text x={centre} y={H - 8} textAnchor="middle" fontSize={10} fill="var(--color-text-muted)">
+                    {label}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+
+        <ChartTooltip tooltip={tooltip} />
+      </div>
+
       <ChartLegend series={series} />
     </div>
   );

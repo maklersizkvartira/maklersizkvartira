@@ -84,7 +84,7 @@ export function FilterBar({
         {activeCount > 0 && onReset && (
           <button
             type="button"
-            className="icon-btn w-9 h-9"
+            className="icon-btn flex w-9 h-9"
             onClick={onReset}
             title={resetLabel}
             aria-label={resetLabel ?? label}

@@ -148,7 +148,7 @@ export function Header({ paletteOpen, onTogglePalette, onClosePalette }: HeaderP
       >
         {/* Mobile hamburger */}
         <div className="lg:hidden flex items-center shrink-0">
-          <button onClick={toggleSidebar} className="icon-btn w-9 h-9" aria-label={navT('expand')}>
+          <button onClick={toggleSidebar} className="icon-btn flex w-9 h-9" aria-label={navT('expand')}>
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
               <rect y="3" width="18" height="1.5" rx="0.75" fill="currentColor" />
               <rect y="8.25" width="14" height="1.5" rx="0.75" fill="currentColor" />

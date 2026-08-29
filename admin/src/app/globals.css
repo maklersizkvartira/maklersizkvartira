@@ -743,8 +743,15 @@ input.input-field.h-8 {
    which meant a keyboard user tabbing through the header got no feedback at
    all. Same visuals, but :hover and :focus-visible now share one rule.
    ═══════════════════════════════════════════════════════════════════════════ */
+/* No `display` here, and none may be added — same trap as `.data-cards` and
+   `.filter-bar` above. Four of these buttons carry a responsive display
+   utility (`hidden md:flex` on the header's palette + theme toggles,
+   `hidden lg:flex` on the sidebar's collapse button, `lg:hidden` on its
+   mobile-close button), and an unlayered `display: flex` here beat every one
+   of them: the two header buttons rendered on phones, and on desktop the
+   collapse button and the close-drawer button both showed at once. Every
+   call site now names its own display in the className. */
 .icon-btn {
-  display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-md);
@@ -1230,4 +1237,281 @@ html[data-theme="light"] .apple-glass-item[data-active="true"] {
   0%   { transform: rotate(0deg) scale(1); }
   50%  { transform: rotate(120deg) scale(1.22); }
   100% { transform: rotate(180deg) scale(1); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DASHBOARD — the triage layout
+
+   THE BUILD RULE FOR THIS WHOLE BLOCK: globals.css paints, Tailwind owns
+   display / grid / flex / visibility on the element. Not one class below
+   declares `display`, and none may grow one.
+
+   Why, concretely: everything in this file is UNLAYERED while Tailwind's
+   utilities sit in `@layer utilities`, and an unlayered rule beats a layered
+   one no matter the source order or the specificity. `.data-cards` and
+   `.filter-bar` both shipped that bug — a bare `display` here defeating the
+   `lg:hidden` / `hidden sm:flex` on the same element. The dashboard puts
+   responsive display utilities on `.seg` containers, on the StatBand's four
+   `<section>`s (`hidden xl:block`) and on the hero row's `xl:contents`
+   wrapper, so a `display` in any of these rules would break the phone layout
+   silently. A box that needs to be a flex row says so in its className.
+
+   ORDER MATTERS: `.card-cut-*`, `.card-hero` and `.card-wash` must stay AFTER
+   `.card`. Both are unlayered single-class selectors of equal specificity, so
+   source order alone decides whose `border-radius` and whose `background`
+   wins. Appending at the end of the file is what makes that true — do not
+   hoist these up beside the tokens.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* The corner cut, as two tokens rather than a hard-coded quadruple in each
+     class. The dashboard's silhouette is the one place the panel deviates
+     from the eleven sibling pages' plain --radius-lg; keeping it token-backed
+     means reverting the whole bet is a one-line edit with no markup churn. */
+  --radius-cut-lg: var(--radius-xl);
+  --radius-cut-sm: var(--radius-sm);
+}
+
+/* ── The signature shape ───────────────────────────────────────────────────
+   Three corners round, one cut to roughly a third. Neighbouring cards cut
+   DIFFERENT corners, so a grid of rectangles reads as a set rather than as a
+   repeat. The suffix names which corner is cut. */
+.card-cut-bl { border-radius: var(--radius-cut-lg) var(--radius-cut-lg) var(--radius-cut-lg) var(--radius-cut-sm); }
+.card-cut-br { border-radius: var(--radius-cut-lg) var(--radius-cut-lg) var(--radius-cut-sm) var(--radius-cut-lg); }
+.card-cut-tr { border-radius: var(--radius-cut-lg) var(--radius-cut-sm) var(--radius-cut-lg) var(--radius-cut-lg); }
+.card-cut-tl { border-radius: var(--radius-cut-sm) var(--radius-cut-lg) var(--radius-cut-lg) var(--radius-cut-lg); }
+
+/* ── Tone ──────────────────────────────────────────────────────────────────
+   Five classes, each setting the same five custom properties from tokens that
+   already exist. Everything downstream — icon tiles, numerals, meters, rails,
+   washes — reads var(--tone*), so a card changes meaning by swapping ONE
+   class name and never by hard-coding a status hex.
+
+   --tone-rail and --tone-wash are the two that resolve to `transparent` at
+   neutral: a calm card must not carry a grey spine or a grey bloom, it must
+   carry nothing. That is what makes an empty queue read as finished rather
+   than as broken. */
+.tone-accent {
+  --tone:        var(--accent);
+  --tone-bg:     var(--accent-subtle);
+  --tone-border: var(--accent-border);
+  --tone-rail:   var(--accent);
+  --tone-wash:   var(--accent-subtle);
+}
+.tone-success {
+  --tone:        var(--color-success);
+  --tone-bg:     var(--color-success-bg);
+  --tone-border: var(--color-success-border);
+  --tone-rail:   var(--color-success);
+  --tone-wash:   var(--color-success-bg);
+}
+.tone-warning {
+  --tone:        var(--color-warning);
+  --tone-bg:     var(--color-warning-bg);
+  --tone-border: var(--color-warning-border);
+  --tone-rail:   var(--color-warning);
+  --tone-wash:   var(--color-warning-bg);
+}
+.tone-danger {
+  --tone:        var(--color-danger);
+  --tone-bg:     var(--color-danger-bg);
+  --tone-border: var(--color-danger-border);
+  --tone-rail:   var(--color-danger);
+  --tone-wash:   var(--color-danger-bg);
+}
+.tone-neutral {
+  --tone:        var(--color-text-secondary);
+  --tone-bg:     var(--color-surface-3);
+  --tone-border: var(--color-border);
+  --tone-rail:   transparent;
+  --tone-wash:   transparent;
+}
+
+/* ── Icon tile ─────────────────────────────────────────────────────────────
+   The tinted square that opens a card. Its cut corner echoes the card
+   signature one scale down. It is composed as `icon-tile flex-center`: the
+   existing `.flex-center` supplies the display, because this class is not
+   allowed to — see the build rule at the top of this block. */
+.icon-tile {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md) var(--radius-md) var(--radius-md) var(--radius-xs);
+  background: var(--tone-bg, var(--accent-subtle));
+  color: var(--tone, var(--accent));
+}
+
+/* ── Hero fill ─────────────────────────────────────────────────────────────
+   A ~2% value shift between two adjacent surface tokens at an off-axis angle,
+   plus a tone-tinted bloom in the top-right that disappears when the queue is
+   empty. Both stops are tokens, so the card stays correctly translucent under
+   html[data-has-bg] instead of going opaque over the user's own photo. */
+.card-hero {
+  position: relative;
+  background-image: linear-gradient(158deg, var(--color-surface-2) 0%, var(--color-surface) 62%);
+}
+.card-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 90% at 82% 6%, var(--tone-wash, transparent), transparent 62%);
+}
+.card-hero > * { position: relative; }
+
+/* A quieter wash for a card that is a MODE rather than a metric. */
+.card-wash {
+  background-image: linear-gradient(135deg, var(--tone-wash, transparent) 0%, transparent 58%);
+}
+
+/* ── The severity rail ─────────────────────────────────────────────────────
+   Severity is carried by position as well as by hue: a 3px spine on the left
+   edge, which survives both a colour-vision deficiency and a greyscale
+   screenshot pasted into a chat. */
+.rail { position: relative; }
+.rail::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--tone-rail, transparent);
+}
+.rail > * { position: relative; }
+
+/* ── Tap surfaces ──────────────────────────────────────────────────────────
+   The queue rows are the point of the whole page, and they are primarily
+   touched rather than hovered — so the press feedback matters more than the
+   hover tint, and nothing here is hover-only information. */
+.tap {
+  cursor: pointer;
+  transition: background var(--t-fast), transform var(--t-fast);
+}
+.tap:hover,
+.tap:focus-visible { background: var(--color-surface-2); }
+.tap:active { transform: scale(0.995); }
+
+.queue-row { border-top: 1px solid var(--color-border-light); }
+
+/* ── Meter ─────────────────────────────────────────────────────────────────
+   Width is relative to the LARGEST value in its group, so the bar answers
+   "which of these is worst" while the numeral beside it answers "how many".
+   Height comes from Tailwind, and so does `block` on both boxes. */
+.meter {
+  background: var(--color-surface-3);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.meter-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--tone, var(--accent));
+  transition: width 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Numbers and micro-labels ──────────────────────────────────────────────
+   Maklersiz has ONE font family, so the display/mono/sans split a three-font
+   system would use is not available here. The contrast has to come from
+   weight, tracking and size instead. Tabular figures are load-bearing rather
+   than decorative: they are the reason an animated counter can tick from 0 to
+   148 without the card twitching a pixel. */
+.stat-num {
+  font-family: var(--font-heading);
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  color: var(--color-text-primary);
+}
+
+/* Deliberately identical to PageHeader's eyebrow, so the micro-label reads as
+   native Maklersiz vocabulary rather than as an import from another product. */
+.stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.stat-row { border-top: 1px solid var(--color-border-light); }
+
+/* ── Chip ──────────────────────────────────────────────────────────────────
+   Callers add `inline-flex items-center gap-1.5`. */
+.chip {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 2px 8px;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+/* ── Segmented control ─────────────────────────────────────────────────────
+   The track's display is passed in by the caller — `grid grid-cols-3 w-full`
+   on a phone so the three pills are equal thumb targets with no horizontal
+   scroll, `sm:inline-grid sm:grid-flow-col sm:w-auto` above it. */
+.seg {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 3px;
+}
+.seg-item {
+  padding: 7px 14px;
+  border-radius: var(--radius-full);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), box-shadow var(--t-fast);
+}
+/* The reference band's four group tabs wrap onto two rows on the narrowest
+   phone, and `--radius-full` on a two-row box turns the track into an oval.
+   Declared after `.seg` so it wins on source order — the same rule that
+   governs `.card` and `.card-cut-*`. */
+.seg-grid { border-radius: var(--radius-lg); }
+
+.seg-item:hover { color: var(--color-text-primary); }
+
+/* Below 480px three pills share about 290px, and 14px of padding each side is
+   14px the label needed. Padding is paint, so it may live here — `display`
+   still may not. */
+@media (width < 30rem) {
+  .seg-item {
+    padding-left: 8px;
+    padding-right: 8px;
+    font-size: 12px;
+  }
+}
+.seg-item[data-active="true"] {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent-border);
+}
+
+/* ── Chart reveal ──────────────────────────────────────────────────────────
+   clip-path, never stroke-dasharray: the dash length would be computed in the
+   chart's own coordinate space and leave visible gaps once the animation
+   ended. This wipes the line and its area fill together. */
+@keyframes chart-wipe {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+.chart-wipe { animation: chart-wipe 0.9s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* ── Reduced motion ────────────────────────────────────────────────────────
+   Scoped to the dashboard's own selectors on purpose. The panel has no global
+   reduced-motion block, and adding one here would silently restyle eleven
+   pages this change never touched; `.dash-reveal` is the marker <Reveal>
+   carries so the stagger can be nulled without disarming
+   `.animate-fade-in-up` everywhere else. useCountUp does its own check in JS. */
+@media (prefers-reduced-motion: reduce) {
+  .chart-wipe { animation: none; clip-path: none; }
+  .meter-fill { transition: none; }
+  .dash-reveal {
+    animation-delay: 0ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

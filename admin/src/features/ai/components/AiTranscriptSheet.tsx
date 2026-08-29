@@ -134,7 +134,7 @@ export function AiTranscriptSheet({ session, onClose }: AiTranscriptSheetProps) 
             type="button"
             onClick={onClose}
             aria-label={c('close')}
-            className="icon-btn w-11 h-11 md:w-8 md:h-8 -mt-1.5 -mr-1.5 shrink-0"
+            className="icon-btn flex w-11 h-11 md:w-8 md:h-8 -mt-1.5 -mr-1.5 shrink-0"
           >
             <X size={16} />
           </button>

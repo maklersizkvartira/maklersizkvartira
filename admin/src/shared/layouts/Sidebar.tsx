@@ -379,7 +379,7 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
           <button
             onClick={() => setSidebarOpen(false)}
             title={t('collapse')}
-            className="icon-btn ml-auto w-8 h-8 lg:hidden"
+            className="icon-btn flex ml-auto w-8 h-8 lg:hidden"
           >
             {Icons.sidebarClose}
           </button>
@@ -436,7 +436,7 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
               <button
                 onClick={toggleTheme}
                 title={t('theme')}
-                className="icon-btn group relative w-9 h-9 rounded-full"
+                className="icon-btn flex group relative w-9 h-9 rounded-full"
               >
                 {theme === 'light' ? Icons.moon : Icons.sun}
                 {sidebarCollapsed && (
@@ -449,7 +449,7 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
               <button
                 onClick={onTogglePalette}
                 title={t('appearance')}
-                className={`icon-btn group relative w-9 h-9 rounded-full ${paletteOpen ? 'icon-btn-active' : ''}`}
+                className={`icon-btn flex group relative w-9 h-9 rounded-full ${paletteOpen ? 'icon-btn-active' : ''}`}
               >
                 {Icons.palette}
                 {sidebarCollapsed && (
@@ -463,7 +463,7 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
                 href="/settings"
                 onClick={() => setSidebarOpen(false)}
                 title={t('settings')}
-                className="icon-btn group relative w-9 h-9 rounded-full"
+                className="icon-btn flex group relative w-9 h-9 rounded-full"
               >
                 {Icons.settings}
                 {sidebarCollapsed && (

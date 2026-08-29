@@ -120,6 +120,44 @@
     "title": "Панель управления",
     "subtitle": "Текущее состояние платформы",
     "refreshedAt": "Обновлено: {time}",
+    "live": {
+      "error": "Не удалось обновить"
+    },
+    "sections": {
+      "trend": "Что изменилось",
+      "reach": "Охват и режим"
+    },
+    "allMetrics": "Все показатели",
+    "triage": {
+      "title": "Ждёт вас",
+      "caption": "ждут решения",
+      "clear": "Очередь пуста",
+      "live": "живое"
+    },
+    "risk": {
+      "title": "Безопасность и SMS",
+      "clear": "Сегодня проблем нет"
+    },
+    "today": {
+      "title": "Сегодня"
+    },
+    "flow": {
+      "title": "Поток объявлений"
+    },
+    "trend": {
+      "title": "Динамика",
+      "avg": "Среднее",
+      "peak": "Пик",
+      "period": "Период",
+      "range": "{from} – {to}",
+      "window": "{days, plural, one {# день} few {# дня} other {# дней}}"
+    },
+    "groups": {
+      "people": "Пользователи",
+      "listings": "Объявления",
+      "ai": "AI",
+      "ops": "Операции"
+    },
     "monetization": "Монетизация",
     "monetizationOn": "Включена",
     "monetizationOff": "Выключена",
@@ -153,16 +191,16 @@
       "failedLoginsToday": "Неудачных входов"
     },
     "charts": {
-      "registrations": "Регистрации (7 дней)",
-      "traffic": "Посетители (7 дней)",
+      "registrations": "Регистрации",
+      "traffic": "Посетители",
       "districts": "По районам",
-      "activity": "Активность системы (7 дней)",
+      "activity": "Активность системы",
       "visitors": "Посетители",
       "views": "Просмотры",
       "count": "Количество",
       "district": "Район",
       "noData": "Нет данных для графика",
-      "utcNote": "Даты указаны по UTC"
+      "utcNote": "Даты по UTC (Ташкент +5)"
     }
   },
   "listings": {

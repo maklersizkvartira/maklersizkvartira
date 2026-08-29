@@ -120,6 +120,44 @@
     "title": "Dashboard",
     "subtitle": "How the platform is doing today",
     "refreshedAt": "Refreshed at {time}",
+    "live": {
+      "error": "Refresh failed"
+    },
+    "sections": {
+      "trend": "What changed",
+      "reach": "Coverage and mode"
+    },
+    "allMetrics": "All metrics",
+    "triage": {
+      "title": "Waiting for you",
+      "caption": "items need a decision",
+      "clear": "Queue is clear",
+      "live": "live"
+    },
+    "risk": {
+      "title": "Security & SMS",
+      "clear": "No problems today"
+    },
+    "today": {
+      "title": "Today"
+    },
+    "flow": {
+      "title": "Listing flow"
+    },
+    "trend": {
+      "title": "Trend",
+      "avg": "Avg",
+      "peak": "Peak",
+      "period": "Period",
+      "range": "{from} – {to}",
+      "window": "{days, plural, one {# day} other {# days}}"
+    },
+    "groups": {
+      "people": "People",
+      "listings": "Listings",
+      "ai": "AI",
+      "ops": "Operations"
+    },
     "monetization": "Monetization",
     "monetizationOn": "On",
     "monetizationOff": "Off",
@@ -153,16 +191,16 @@
       "failedLoginsToday": "Failed sign-ins"
     },
     "charts": {
-      "registrations": "Registrations (7 days)",
-      "traffic": "Visitors (7 days)",
+      "registrations": "Registrations",
+      "traffic": "Visitors",
       "districts": "By district",
-      "activity": "System activity (7 days)",
+      "activity": "System activity",
       "visitors": "Visitors",
       "views": "Views",
       "count": "Count",
       "district": "District",
       "noData": "Nothing to chart yet",
-      "utcNote": "Dates are in UTC"
+      "utcNote": "Dates are in UTC (Tashkent +5)"
     }
   },
   "listings": {

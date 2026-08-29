@@ -3,33 +3,7 @@
 import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations, useLocale } from 'next-intl';
-import {
-  Users,
-  UserCheck,
-  Home,
-  GraduationCap,
-  UserCog,
-  UserX,
-  UserPlus,
-  CalendarPlus,
-  Building2,
-  BadgeCheck,
-  Ban,
-  Clock,
-  Star,
-  FilePlus2,
-  Eye,
-  Flag,
-  ShieldCheck,
-  Bot,
-  UserSearch,
-  MessageSquare,
-  MessagesSquare,
-  Send,
-  SendHorizonal,
-  Footprints,
-  LockKeyhole,
-} from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 
 import { http } from '@/shared/lib/http';
 import { api } from '@/shared/api/endpoints';
@@ -43,29 +17,61 @@ import type {
 } from '@/shared/api/types';
 import { useRole } from '@/providers/role-provider';
 import { PageHeader } from '@/shared/ui/PageHeader';
-import { KpiCard } from '@/shared/ui/KpiCard';
 import { Button } from '@/shared/ui/Button';
-import { StatusPill } from '@/shared/ui/StatusPill';
+import { EmptyState } from '@/shared/ui/EmptyState';
 import { toast } from '@/shared/ui/Toast';
-import { LineChart } from '@/features/dashboard/components/LineChart';
-import { BarChart } from '@/features/dashboard/components/BarChart';
-import { severityColor } from '@/features/dashboard/components/chart-shared';
+import { STAT_COUNT } from '@/features/dashboard/dashboard-groups';
+import { Reveal } from '@/features/dashboard/components/Reveal';
+import { Storey } from '@/features/dashboard/components/Storey';
+import { TriageCard } from '@/features/dashboard/components/TriageCard';
+import { RiskCard } from '@/features/dashboard/components/RiskCard';
+import { TodayCard } from '@/features/dashboard/components/TodayCard';
+import { ListingFlowCard } from '@/features/dashboard/components/ListingFlowCard';
+import { TrendCard } from '@/features/dashboard/components/TrendCard';
+import { DistrictsCard } from '@/features/dashboard/components/DistrictsCard';
+import { MonetizationCard } from '@/features/dashboard/components/MonetizationCard';
+import { StatBand } from '@/features/dashboard/components/StatBand';
 
 /**
- * The overview screen: the 26 counters from `GET /admin/stats` and the four
- * chart routes beside them.
+ * The overview screen, arranged as a descending answer to one question: is
+ * there work for me this morning.
  *
- * Every number here is a plain count from the backend — there is no trend
- * endpoint, so no KpiCard is given a `change` percentage. Inventing one from
- * the "today" and "week" counters would be arithmetic the API never did.
+ * It used to be a wall of twenty-five identically weighted tiles, in the order
+ * the API happens to serialise them, where `pendingListings`, `openReports`
+ * and `pendingVerifications` sat at positions 12, 16 and 17 drawn exactly as
+ * loudly as `totalViews`, and none of the three was clickable. Now the three
+ * queues are the first thing on screen as tappable rows that link into the
+ * page which clears them, and everything merely informational moved into the
+ * reference band at the bottom. Nothing was removed: all 25 counters are still
+ * on the page, one tap away at every width.
+ *
+ * Every number here is still a plain count from the backend. There is no trend
+ * endpoint, so nothing on this page prints a delta — inventing one from the
+ * "today" and "week" counters would be arithmetic the API never did. The one
+ * derived figure is the hero's sum of the three queue depths, which is three
+ * integers of the same kind with all three parts printed underneath it.
  */
 
 /** How many days of history the three time charts ask for. The backend caps
- *  `days` at 90 and the translated chart titles say "7 kun", so the two have to
- *  move together — change the messages if you change this. */
+ *  `days` at 90. The window is now printed once, by the trend card's chip,
+ *  from this constant — the chart titles no longer hard-code it, so changing
+ *  this number no longer means editing nine message strings. */
 const CHART_DAYS = 7;
 /** `limit` on the districts chart; the backend allows 1..30. */
 const DISTRICT_LIMIT = 10;
+
+/**
+ * How often the stats spine re-reads itself.
+ *
+ * Two minutes, not one. `/admin/stats` runs about two dozen uncached
+ * sequential COUNTs under a per-IP ceiling, the primary reader is on a phone
+ * on cellular data, and the manual refresh below — which now invalidates all
+ * six queries rather than only this one — is the appropriate path for someone
+ * who wants a number NOW. Background polling is off for the same reason.
+ */
+const STATS_POLL_MS = 120_000;
+/** The charts move far more slowly than the counters do. */
+const CHART_POLL_MS = 300_000;
 
 /** ISO date → a short axis label in the reader's locale. */
 function useDayFormatter() {
@@ -80,36 +86,47 @@ function useDayFormatter() {
 export default function DashboardPage() {
   const t = useTranslations('dashboard');
   const c = useTranslations('common');
+  const e = useTranslations('errors');
   const locale = useLocale();
-  const { can } = useRole();
+  const { can, canAccess } = useRole();
   const queryClient = useQueryClient();
   const dayFormat = useDayFormatter();
 
   const statsQuery = useQuery({
     queryKey: ['stats'],
     queryFn: ({ signal }) => http.get<AdminStats>(api.stats, { signal }),
+    refetchInterval: STATS_POLL_MS,
+    refetchIntervalInBackground: false,
   });
 
   const registrationsQuery = useQuery({
     queryKey: ['chart', 'registrations', CHART_DAYS],
     queryFn: ({ signal }) =>
       http.get<RegistrationPoint[]>(api.charts.registrations(CHART_DAYS), { signal }),
+    refetchInterval: CHART_POLL_MS,
+    refetchIntervalInBackground: false,
   });
 
   const trafficQuery = useQuery({
     queryKey: ['chart', 'traffic', CHART_DAYS],
     queryFn: ({ signal }) => http.get<TrafficPoint[]>(api.charts.traffic(CHART_DAYS), { signal }),
+    refetchInterval: CHART_POLL_MS,
+    refetchIntervalInBackground: false,
   });
 
   const districtsQuery = useQuery({
     queryKey: ['chart', 'districts', DISTRICT_LIMIT],
     queryFn: ({ signal }) =>
       http.get<DistrictPoint[]>(api.charts.districts(DISTRICT_LIMIT), { signal }),
+    refetchInterval: CHART_POLL_MS,
+    refetchIntervalInBackground: false,
   });
 
   const activityQuery = useQuery({
     queryKey: ['chart', 'activity', CHART_DAYS],
     queryFn: ({ signal }) => http.get<ActivityPoint[]>(api.charts.activity(CHART_DAYS), { signal }),
+    refetchInterval: CHART_POLL_MS,
+    refetchIntervalInBackground: false,
   });
 
   /**
@@ -130,53 +147,51 @@ export default function DashboardPage() {
     onError: (error: Error) => toast.error(c('error'), error.message),
   });
 
-  const stats = statsQuery.data;
-  const loading = statsQuery.isLoading;
-
   /**
-   * `tenants` is deliberately absent: the backend fills it with the same query
-   * as `students`, so showing both would print one number under two labels.
+   * Refresh means refresh. It used to refetch only `['stats']` while the four
+   * charts and the monetization state went on showing whatever they had, so
+   * the button silently did a fifth of what it said.
    */
-  const kpis: { key: string; label: string; value: number; icon: React.ReactNode }[] = stats
-    ? [
-        { key: 'totalUsers', label: t('kpi.totalUsers'), value: stats.totalUsers, icon: <Users size={18} /> },
-        { key: 'activeUsers', label: t('kpi.activeUsers'), value: stats.activeUsers, icon: <UserCheck size={18} /> },
-        { key: 'owners', label: t('kpi.owners'), value: stats.owners, icon: <Home size={18} /> },
-        { key: 'students', label: t('kpi.students'), value: stats.students, icon: <GraduationCap size={18} /> },
-        { key: 'pendingUsers', label: t('kpi.pendingUsers'), value: stats.pendingUsers, icon: <UserCog size={18} /> },
-        { key: 'suspendedUsers', label: t('kpi.suspendedUsers'), value: stats.suspendedUsers, icon: <UserX size={18} /> },
-        { key: 'todayNewUsers', label: t('kpi.todayNewUsers'), value: stats.todayNewUsers, icon: <UserPlus size={18} /> },
-        { key: 'weekNewUsers', label: t('kpi.weekNewUsers'), value: stats.weekNewUsers, icon: <CalendarPlus size={18} /> },
-        { key: 'totalListings', label: t('kpi.totalListings'), value: stats.totalListings, icon: <Building2 size={18} /> },
-        { key: 'approvedListings', label: t('kpi.approvedListings'), value: stats.approvedListings, icon: <BadgeCheck size={18} /> },
-        { key: 'rejectedListings', label: t('kpi.rejectedListings'), value: stats.rejectedListings, icon: <Ban size={18} /> },
-        { key: 'pendingListings', label: t('kpi.pendingListings'), value: stats.pendingListings, icon: <Clock size={18} /> },
-        { key: 'featuredListings', label: t('kpi.featuredListings'), value: stats.featuredListings, icon: <Star size={18} /> },
-        { key: 'todayNewListings', label: t('kpi.todayNewListings'), value: stats.todayNewListings, icon: <FilePlus2 size={18} /> },
-        { key: 'totalViews', label: t('kpi.totalViews'), value: stats.totalViews, icon: <Eye size={18} /> },
-        { key: 'openReports', label: t('kpi.openReports'), value: stats.openReports, icon: <Flag size={18} /> },
-        { key: 'pendingVerifications', label: t('kpi.pendingVerifications'), value: stats.pendingVerifications, icon: <ShieldCheck size={18} /> },
-        { key: 'aiSessions', label: t('kpi.aiSessions'), value: stats.aiSessions, icon: <Bot size={18} /> },
-        { key: 'guests', label: t('kpi.guests'), value: stats.guests, icon: <UserSearch size={18} /> },
-        { key: 'aiQueries', label: t('kpi.aiQueries'), value: stats.aiQueries, icon: <MessageSquare size={18} /> },
-        { key: 'todayAiQueries', label: t('kpi.todayAiQueries'), value: stats.todayAiQueries, icon: <MessagesSquare size={18} /> },
-        { key: 'smsToday', label: t('kpi.smsToday'), value: stats.smsToday, icon: <Send size={18} /> },
-        { key: 'smsFailedToday', label: t('kpi.smsFailedToday'), value: stats.smsFailedToday, icon: <SendHorizonal size={18} /> },
-        { key: 'visitorsToday', label: t('kpi.visitorsToday'), value: stats.visitorsToday, icon: <Footprints size={18} /> },
-        { key: 'failedLoginsToday', label: t('kpi.failedLoginsToday'), value: stats.failedLoginsToday, icon: <LockKeyhole size={18} /> },
-      ]
-    : [];
+  const queries = [
+    statsQuery,
+    registrationsQuery,
+    trafficQuery,
+    districtsQuery,
+    activityQuery,
+    monetizationQuery,
+  ];
+  const refreshing = queries.some((query) => query.isFetching);
+  const refreshAll = () => {
+    void Promise.all(queries.map((query) => query.refetch()));
+  };
 
-  const numberFormat = useMemo(() => new Intl.NumberFormat(locale), [locale]);
-
+  const stats = statsQuery.data;
   const registrations = registrationsQuery.data ?? [];
   const traffic = trafficQuery.data ?? [];
   const districts = districtsQuery.data ?? [];
   const activity = activityQuery.data ?? [];
 
-  const day = (iso: string) => dayFormat.format(new Date(iso));
+  const formatDay = (iso: string) => dayFormat.format(new Date(iso));
+
+  /** TrendCard shows one series at a time; retrying refetches only that one. */
+  const retryTrend = (key: 'registrations' | 'traffic' | 'activity') => {
+    const query =
+      key === 'traffic' ? trafficQuery : key === 'activity' ? activityQuery : registrationsQuery;
+    void query.refetch();
+  };
 
   const monetizationOn = monetizationQuery.data?.is_monetization_enabled === true;
+
+  // The page's own gate, alongside the sidebar's. Every other guarded page
+  // carries one; this is the eleventh. A rank that cannot reach the route must
+  // not be able to type the URL into a browser either.
+  if (!canAccess('/dashboard')) {
+    return (
+      <div className="card">
+        <EmptyState icon={<ShieldAlert size={26} />} title={e('forbidden')} />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -185,222 +200,162 @@ export default function DashboardPage() {
         subtitle={t('subtitle')}
         actions={
           <>
-            {statsQuery.dataUpdatedAt > 0 && (
-              <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                {t('refreshedAt', {
-                  time: new Date(statsQuery.dataUpdatedAt).toLocaleTimeString(locale, {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  }),
-                })}
+            {/* Staleness made visible rather than inferred: the dot says the
+                page is keeping itself current, the timestamp says how current,
+                and a failed read turns both red instead of leaving an old
+                time on screen looking authoritative. */}
+            {(statsQuery.dataUpdatedAt > 0 || statsQuery.isError) && (
+              <span
+                className="chip inline-flex items-center gap-1.5"
+                style={
+                  statsQuery.isError
+                    ? { color: 'var(--color-danger)', borderColor: 'var(--color-danger-border)' }
+                    : undefined
+                }
+              >
+                <span
+                  className={`status-dot ${refreshing ? 'animate-pulse-status' : ''}`}
+                  style={{
+                    width: 6,
+                    height: 6,
+                    background: statsQuery.isError ? 'var(--color-danger)' : 'var(--color-success)',
+                  }}
+                />
+                {statsQuery.isError
+                  ? t('live.error')
+                  : t('refreshedAt', {
+                      time: new Date(statsQuery.dataUpdatedAt).toLocaleTimeString(locale, {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      }),
+                    })}
               </span>
             )}
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => statsQuery.refetch()}
-              loading={statsQuery.isFetching}
-            >
+            <Button variant="secondary" size="sm" onClick={refreshAll} loading={refreshing}>
               {c('refresh')}
             </Button>
           </>
         }
       />
 
-      {/* ── Monetization ─────────────────────────────────────────────────────
-          Read from the public /settings route; the toggle behind it is
-          SUPERADMIN-only on the backend, so anyone below that rank sees the
-          state without a button that would only ever 403. */}
-      <div className="card p-5 mb-6 flex flex-wrap items-center gap-4">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2.5 mb-1">
-            <p className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-              {t('monetization')}
+      {/* One gutter for the whole page — 16px, everywhere, so the vertical
+          rhythm cannot drift the way it did when each block carried its own
+          mb-6/mb-8. The bottom padding is room for the fixed mobile dock: it
+          floats 16px from the bottom below 1024px and would otherwise sit on
+          top of the reference band, which is now the last thing on the page. */}
+      <div className="flex flex-col gap-4 pb-24 lg:pb-4">
+        {/* ── 1 · Triage ───────────────────────────────────────────────────
+            A failed /admin/stats says nothing about /admin/chart/*, so the
+            error replaces this floor only and everything below still renders. */}
+        {statsQuery.error ? (
+          <div className="card card-cut-bl flex flex-wrap items-center gap-4 p-5">
+            <p className="flex-1 text-sm" style={{ color: 'var(--color-danger)' }}>
+              {c('error')}
             </p>
-            {!monetizationQuery.isLoading && (
-              <StatusPill
-                status={monetizationOn ? 'ACTIVE' : 'ARCHIVED'}
-                label={monetizationOn ? t('monetizationOn') : t('monetizationOff')}
-                pulse={monetizationOn}
-              />
-            )}
+            <Button variant="secondary" size="sm" className="max-sm:w-full" onClick={() => statsQuery.refetch()}>
+              {c('retry')}
+            </Button>
           </div>
-          <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            {t('monetizationHint')}
-          </p>
-        </div>
-        {can('monetizationToggle') && (
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => toggleMonetization.mutate()}
-            loading={toggleMonetization.isPending}
-            disabled={monetizationQuery.isLoading}
-          >
-            {t('toggleMonetization')}
-          </Button>
+        ) : (
+          /* 27:20:20 is 1.35:1:1 written without a decimal point — Tailwind's
+             scanner silently drops an arbitrary grid template containing a
+             `.`, and a dropped class here would collapse the hero row to a
+             single column on desktop with nothing in the build to say so. */
+          <section id="triage" className="scroll-mt-[76px] grid gap-4 xl:grid-cols-[27fr_20fr_20fr]">
+            <Reveal index={0} className="xl:row-span-2">
+              <TriageCard stats={stats} />
+            </Reveal>
+
+            {/* Full width at 360px, two-up from sm, then dissolved by
+                `xl:contents` so both cards become direct children of the outer
+                template. Two 148px cards on the narrowest phone would truncate
+                "Muvaffaqiyatsiz kirishlar" to four characters, and a label
+                nobody can read is a number nobody can use. */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:contents">
+              <Reveal index={1}>
+                <RiskCard stats={stats} />
+              </Reveal>
+              <Reveal index={2}>
+                <TodayCard stats={stats} traffic={traffic} />
+              </Reveal>
+            </div>
+
+            <Reveal index={3} className="xl:col-span-2">
+              <ListingFlowCard stats={stats} />
+            </Reveal>
+          </section>
         )}
+
+        {/* ── 2 · What changed ─────────────────────────────────────────── */}
+        <Storey id="trend" label={t('sections.trend')}>
+          <Reveal index={4}>
+            <TrendCard
+              days={CHART_DAYS}
+              registrations={registrations}
+              traffic={traffic}
+              activity={activity}
+              loading={{
+                registrations: registrationsQuery.isLoading,
+                traffic: trafficQuery.isLoading,
+                activity: activityQuery.isLoading,
+              }}
+              error={{
+                registrations: registrationsQuery.isError,
+                traffic: trafficQuery.isError,
+                activity: activityQuery.isError,
+              }}
+              onRetry={retryTrend}
+              formatDay={formatDay}
+            />
+          </Reveal>
+        </Storey>
+
+        {/* ── 3 · Coverage and mode ────────────────────────────────────── */}
+        <Storey id="reach" label={t('sections.reach')}>
+          {/* 8:5 is 1.6:1 — see the note on the hero row above. */}
+          <div className="grid gap-4 xl:grid-cols-[8fr_5fr]">
+            <Reveal index={5}>
+              <DistrictsCard
+                districts={districts}
+                loading={districtsQuery.isLoading}
+                error={districtsQuery.isError}
+                onRetry={() => void districtsQuery.refetch()}
+                limit={DISTRICT_LIMIT}
+              />
+            </Reveal>
+            <Reveal index={6}>
+              <MonetizationCard
+                enabled={monetizationOn}
+                loading={monetizationQuery.isLoading}
+                error={monetizationQuery.isError}
+                onRetry={() => void monetizationQuery.refetch()}
+                canToggle={can('monetizationToggle')}
+                toggling={toggleMonetization.isPending}
+                onToggle={() => toggleMonetization.mutate()}
+              />
+            </Reveal>
+          </div>
+        </Storey>
+
+        {/* ── 4 · Everything else ──────────────────────────────────────── */}
+        <Storey
+          id="reference"
+          label={t('allMetrics')}
+          right={
+            <span className="shrink-0 text-[11px] tabular-nums" style={{ color: 'var(--color-text-muted)' }}>
+              {STAT_COUNT}
+            </span>
+          }
+        >
+          <Reveal index={7}>
+            <StatBand
+              stats={stats}
+              error={statsQuery.isError}
+              onRetry={() => void statsQuery.refetch()}
+            />
+          </Reveal>
+        </Storey>
       </div>
-
-      {/* ── Counters ─────────────────────────────────────────────────────── */}
-      {statsQuery.error ? (
-        <div className="card p-6 mb-6 flex flex-wrap items-center gap-4">
-          <p className="text-sm flex-1" style={{ color: 'var(--color-danger)' }}>
-            {c('error')}
-          </p>
-          <Button variant="secondary" size="sm" onClick={() => statsQuery.refetch()}>
-            {c('retry')}
-          </Button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
-          {loading
-            ? Array.from({ length: 10 }, (_, i) => (
-                <KpiCard key={i} icon={null} label="" value="" loading />
-              ))
-            : kpis.map((kpi) => (
-                <KpiCard
-                  key={kpi.key}
-                  icon={kpi.icon}
-                  label={kpi.label}
-                  value={numberFormat.format(kpi.value)}
-                />
-              ))}
-        </div>
-      )}
-
-      {/* ── Charts ───────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ChartCard
-          title={t('charts.registrations')}
-          note={t('charts.utcNote')}
-          loading={registrationsQuery.isLoading}
-          empty={registrations.length === 0}
-          emptyLabel={t('charts.noData')}
-        >
-          <LineChart
-            labels={registrations.map((point) => day(point.date))}
-            series={[
-              {
-                key: 'registrations',
-                label: t('charts.count'),
-                values: registrations.map((point) => point.count),
-              },
-            ]}
-            area
-          />
-        </ChartCard>
-
-        <ChartCard
-          title={t('charts.traffic')}
-          note={t('charts.utcNote')}
-          loading={trafficQuery.isLoading}
-          empty={traffic.length === 0}
-          emptyLabel={t('charts.noData')}
-        >
-          <LineChart
-            labels={traffic.map((point) => day(point.date))}
-            series={[
-              {
-                key: 'visitors',
-                label: t('charts.visitors'),
-                values: traffic.map((point) => point.visitors),
-              },
-              {
-                key: 'views',
-                label: t('charts.views'),
-                values: traffic.map((point) => point.views),
-              },
-            ]}
-          />
-        </ChartCard>
-
-        <ChartCard
-          title={t('charts.districts')}
-          loading={districtsQuery.isLoading}
-          empty={districts.length === 0}
-          emptyLabel={t('charts.noData')}
-        >
-          <BarChart
-            horizontal
-            showValues
-            labels={districts.map((point) => point.district)}
-            series={[
-              {
-                key: 'listings',
-                label: t('charts.count'),
-                values: districts.map((point) => point.count),
-              },
-            ]}
-          />
-        </ChartCard>
-
-        <ChartCard
-          title={t('charts.activity')}
-          note={t('charts.utcNote')}
-          loading={activityQuery.isLoading}
-          empty={activity.length === 0}
-          emptyLabel={t('charts.noData')}
-        >
-          {/* Severity is a state, so the series take the status colours rather
-              than the neutral chart slots — see SEVERITY_VARS. */}
-          <BarChart
-            stacked
-            labels={activity.map((point) => day(point.date))}
-            series={[
-              { key: 'INFO', label: 'INFO', values: activity.map((p) => p.info), color: severityColor('INFO') },
-              { key: 'NOTICE', label: 'NOTICE', values: activity.map((p) => p.notice), color: severityColor('NOTICE') },
-              { key: 'WARNING', label: 'WARNING', values: activity.map((p) => p.warning), color: severityColor('WARNING') },
-              { key: 'CRITICAL', label: 'CRITICAL', values: activity.map((p) => p.critical), color: severityColor('CRITICAL') },
-            ]}
-          />
-        </ChartCard>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Chart shell ───────────────────────────────────────────────────────── */
-
-function ChartCard({
-  title,
-  note,
-  loading,
-  empty,
-  emptyLabel,
-  children,
-}: {
-  title: string;
-  note?: string;
-  loading: boolean;
-  empty: boolean;
-  emptyLabel: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="card p-5">
-      <div className="flex items-baseline justify-between gap-3 mb-4">
-        <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-          {title}
-        </h2>
-        {note && (
-          <span className="text-[10px] shrink-0" style={{ color: 'var(--color-text-muted)' }}>
-            {note}
-          </span>
-        )}
-      </div>
-      {loading ? (
-        <div className="skeleton" style={{ height: 240 }} />
-      ) : empty ? (
-        <p
-          className="flex items-center justify-center text-sm"
-          style={{ height: 240, color: 'var(--color-text-muted)' }}
-        >
-          {emptyLabel}
-        </p>
-      ) : (
-        children
-      )}
     </div>
   );
 }

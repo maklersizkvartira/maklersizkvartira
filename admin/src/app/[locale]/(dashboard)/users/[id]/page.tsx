@@ -329,14 +329,14 @@ export default function UserDetailPage() {
                     {hidden ? '••••••••••••' : revealed.password}
                   </code>
                   <button
-                    className="icon-btn w-8 h-8"
+                    className="icon-btn flex w-8 h-8"
                     onClick={() => setHidden((h) => !h)}
                     aria-label={hidden ? t('revealPassword.reveal') : t('revealPassword.hide')}
                   >
                     {hidden ? <Eye size={14} /> : <EyeOff size={14} />}
                   </button>
                   <button
-                    className="icon-btn w-8 h-8"
+                    className="icon-btn flex w-8 h-8"
                     onClick={() => {
                       void navigator.clipboard?.writeText(revealed.password);
                       toast.success(c('copied'));

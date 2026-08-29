@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import { AlertTriangle } from 'lucide-react';
+
+import { Button } from '@/shared/ui/Button';
 
 /**
  * Pieces every chart in the panel shares. Kept in one file so the series
@@ -44,6 +47,67 @@ export const SEVERITY_VARS: Record<string, string> = {
 
 export function severityColor(key: string, fallbackIndex = 0): string {
   return SEVERITY_VARS[key.toUpperCase()] ?? seriesColor(fallbackIndex);
+}
+
+/* ─── Plot height ──────────────────────────────────────────────────────────
+   One class, applied identically by the chart, by its loading skeleton and by
+   its empty state, so a card cannot change height as the data arrives. It is
+   shorter on a phone because 240px of plot plus a header plus a legend is
+   most of a small viewport spent on one card. */
+export const CHART_BODY_CLASS = 'h-[200px] sm:h-[240px]';
+
+/* ─── The two non-chart states ─────────────────────────────────────────────
+   Empty and error are DIFFERENT ANSWERS and must not look alike. Every chart
+   on this page used to render `query.data ?? []`, so a 500 arrived at the card
+   as an empty array and drew "Nothing to chart yet" — a sentence that says the
+   platform is quiet when in fact the panel has no idea. The districts endpoint
+   makes that unforgivable rather than merely sloppy: `[]` is a legitimate
+   answer there (a fresh deployment has no listings), so the empty state is the
+   one state a reader has been trained to believe.
+
+   So: empty is muted grey text and nothing else, error is a danger-toned line
+   with a warning glyph and the retry that empty deliberately does not offer.
+   Both occupy CHART_BODY_CLASS, so neither changes the card's height. */
+
+export function ChartEmpty({ text, className = CHART_BODY_CLASS }: { text: string; className?: string }) {
+  return (
+    <p
+      className={`flex items-center justify-center text-sm ${className}`}
+      style={{ color: 'var(--color-text-muted)' }}
+    >
+      {text}
+    </p>
+  );
+}
+
+export function ChartError({
+  text,
+  retryLabel,
+  onRetry,
+  className = CHART_BODY_CLASS,
+}: {
+  text: string;
+  retryLabel: string;
+  onRetry: () => void;
+  className?: string;
+}) {
+  return (
+    <div
+      role="alert"
+      className={`flex flex-col items-center justify-center gap-3 px-4 text-center ${className}`}
+    >
+      <p
+        className="flex items-center gap-2 text-sm"
+        style={{ color: 'var(--color-danger)' }}
+      >
+        <AlertTriangle size={15} aria-hidden="true" />
+        {text}
+      </p>
+      <Button variant="secondary" size="sm" onClick={onRetry}>
+        {retryLabel}
+      </Button>
+    </div>
+  );
 }
 
 /* ─── Shapes ─────────────────────────────────────────────────────────────── */
@@ -120,15 +184,22 @@ export function useChartTooltip() {
 export function ChartTooltip({ tooltip }: { tooltip: TooltipState | null }) {
   if (!tooltip) return null;
 
+  /**
+   * Clamped at both ends, not only the right. `.card` sets `overflow: hidden`
+   * and this is an absolutely positioned HTML layer inside it, so a tooltip
+   * anchored to the first or last point gets sliced off at the card edge —
+   * and the trend card's narrower phone plot pushes the first point further
+   * left than the old right-only flip ever accounted for.
+   */
+  const shift = tooltip.x > 60 ? '-105%' : tooltip.x < 12 ? '0%' : '5%';
+
   return (
     <div
       className="chart-tooltip absolute z-10 whitespace-nowrap"
       style={{
         left: `${tooltip.x}%`,
         top: `${tooltip.y}%`,
-        // Flip to the left of the cursor past the midpoint so the tooltip
-        // never runs off the card edge.
-        transform: `translate(${tooltip.x > 60 ? '-105%' : '5%'}, -50%)`,
+        transform: `translate(${shift}, -50%)`,
       }}
       role="tooltip"
     >

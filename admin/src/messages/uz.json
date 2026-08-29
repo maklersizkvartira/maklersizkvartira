@@ -120,6 +120,44 @@
     "title": "Boshqaruv paneli",
     "subtitle": "Platformaning bugungi holati",
     "refreshedAt": "Yangilandi: {time}",
+    "live": {
+      "error": "Yangilanmadi"
+    },
+    "sections": {
+      "trend": "Nima oʻzgardi",
+      "reach": "Qamrov va rejim"
+    },
+    "allMetrics": "Barcha koʻrsatkichlar",
+    "triage": {
+      "title": "Sizni kutmoqda",
+      "caption": "qaror kutmoqda",
+      "clear": "Navbat boʻsh",
+      "live": "jonli"
+    },
+    "risk": {
+      "title": "Xavfsizlik va SMS",
+      "clear": "Bugun muammo yoʻq"
+    },
+    "today": {
+      "title": "Bugun"
+    },
+    "flow": {
+      "title": "Eʼlonlar oqimi"
+    },
+    "trend": {
+      "title": "Dinamika",
+      "avg": "Oʻrtacha",
+      "peak": "Eng yuqori",
+      "period": "Davr",
+      "range": "{from} – {to}",
+      "window": "{days} kun"
+    },
+    "groups": {
+      "people": "Foydalanuvchilar",
+      "listings": "Eʼlonlar",
+      "ai": "AI",
+      "ops": "Operatsiyalar"
+    },
     "monetization": "Monetizatsiya",
     "monetizationOn": "Yoqilgan",
     "monetizationOff": "Oʻchirilgan",
@@ -153,16 +191,16 @@
       "failedLoginsToday": "Muvaffaqiyatsiz kirishlar"
     },
     "charts": {
-      "registrations": "Roʻyxatdan oʻtishlar (7 kun)",
-      "traffic": "Tashrifchilar (7 kun)",
+      "registrations": "Roʻyxatdan oʻtishlar",
+      "traffic": "Tashrifchilar",
       "districts": "Tumanlar boʻyicha",
-      "activity": "Tizim faolligi (7 kun)",
+      "activity": "Tizim faolligi",
       "visitors": "Tashrifchilar",
       "views": "Koʻrishlar",
       "count": "Soni",
       "district": "Tuman",
       "noData": "Grafik uchun maʼlumot yoʻq",
-      "utcNote": "Sanalar UTC boʻyicha"
+      "utcNote": "Sanalar UTC boʻyicha (Toshkent +5)"
     }
   },
   "listings": {
