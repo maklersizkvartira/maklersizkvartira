@@ -33,7 +33,10 @@ export const HeroSection: React.FC = () => {
           <QuickCategories />
 
           {/* 2. Hero Title */}
-          <h1 className="hero-title text-balance text-2xl font-black leading-tight tracking-tight text-white xs:text-3xl sm:text-5xl md:text-6xl pt-1 sm:pt-2">
+          <h1
+            className="hero-title text-balance text-2xl font-black leading-tight tracking-tight text-white xs:text-3xl sm:text-5xl md:text-6xl pt-1 sm:pt-2"
+            style={{ fontFamily: "'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" }}
+          >
             {t('home.hero.title')}
           </h1>
 
