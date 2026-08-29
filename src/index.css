@@ -507,6 +507,8 @@ html {
   .press-sm:active {
     transform: none;
   }
+}
+
 .hero-title {
   font-family: "Outfit", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif !important;
   letter-spacing: -0.035em;
