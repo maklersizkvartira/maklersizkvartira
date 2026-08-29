@@ -615,3 +615,21 @@ input[type='number']::-webkit-inner-spin-button {
 input[type='number'] {
   appearance: textfield;
 }
+
+/* The header's search field.
+
+   `type="search"` is the right type for it — a phone keyboard gets a Search
+   key, and `role="search"` on the form expects it — but WebKit decorates the
+   input with a clear button of its own. That would put two Xs in the pill,
+   one of them drawn for a white page and sitting on saturated blue, and it is
+   ~14px wide where the project's tap floor is 44. The header draws its own,
+   which can match the band and carry a hit area worth pressing.
+
+   This sets `appearance`, never `display`: these rules are unlayered, so a
+   `display` here would silently beat a Tailwind `hidden`/`sm:grid` on the
+   same element. */
+.header-search-input::-webkit-search-cancel-button,
+.header-search-input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}

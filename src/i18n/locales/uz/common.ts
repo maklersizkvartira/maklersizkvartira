@@ -185,7 +185,6 @@ export const common = {
     closeDialog: 'Oynani yopish',
     prevImage: 'Oldingi rasm',
     nextImage: 'Keyingi rasm',
-    toggleTheme: 'Mavzuni almashtirish',
     selectLanguage: 'Tilni tanlash',
     goToPage: '{page}-sahifaga o‘tish',
     loading: 'Yuklanmoqda',

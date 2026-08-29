@@ -185,7 +185,6 @@ export const common = {
     closeDialog: 'Закрыть окно',
     prevImage: 'Предыдущее фото',
     nextImage: 'Следующее фото',
-    toggleTheme: 'Переключить тему',
     selectLanguage: 'Выбрать язык',
     goToPage: 'Перейти на страницу {page}',
     loading: 'Загрузка',

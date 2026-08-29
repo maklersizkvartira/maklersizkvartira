@@ -25,8 +25,6 @@ export const layout = {
   header: {
     createListingCta: 'Post a listing',
     savedCount: 'Saved ({count})',
-    loginCta: 'Sign in',
-    registerCta: 'Sign up',
     loginOrRegister: 'Sign in / Sign up',
     searchPlaceholder: 'Search...',
     openMenu: 'Open menu',
@@ -37,11 +35,21 @@ export const layout = {
     menuSubtitle: 'Sections, categories and your account',
     drawerCategories: 'Categories',
     drawerQuickLinks: 'Quick links',
-    drawerAccount: 'My account',
     drawerSettings: 'Settings',
     skipToContent: 'Skip to main content',
     searchAria: 'Search the listings',
-    notificationsAria: 'Open notifications',
+    // The eyebrow over the four section links at the top of the browse
+    // panel — distinct from `categories.chooseSection`, which heads the ten
+    // category tiles below them in the same panel.
+    browseSections: 'Sections',
+    // The bar carries one glyph for both preferences now, so its label has to
+    // name both; neither `common.language.label` nor `common.theme.label`
+    // describes what pressing it opens.
+    settingsAria: 'Language and appearance',
+    // Not `nav.profile`: the avatar opens a menu, it no longer navigates to
+    // the profile page, and calling it "Profile" would lie to a screen reader.
+    accountAria: 'Account menu',
+    mapSearchAria: 'Search on the map',
     backAria: 'Go back',
   },
 

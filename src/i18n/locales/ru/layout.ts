@@ -25,8 +25,6 @@ export const layout = {
   header: {
     createListingCta: 'Разместить объявление',
     savedCount: 'Избранное ({count})',
-    loginCta: 'Войти',
-    registerCta: 'Регистрация',
     loginOrRegister: 'Войти / Регистрация',
     searchPlaceholder: 'Поиск...',
     openMenu: 'Открыть меню',
@@ -37,11 +35,21 @@ export const layout = {
     menuSubtitle: 'Разделы, категории и ваш аккаунт',
     drawerCategories: 'Категории',
     drawerQuickLinks: 'Быстрые ссылки',
-    drawerAccount: 'Мой аккаунт',
     drawerSettings: 'Настройки',
     skipToContent: 'Перейти к основному содержимому',
     searchAria: 'Поиск по объявлениям',
-    notificationsAria: 'Открыть уведомления',
+    // The eyebrow over the four section links at the top of the browse
+    // panel — distinct from `categories.chooseSection`, which heads the ten
+    // category tiles below them in the same panel.
+    browseSections: 'Разделы',
+    // The bar carries one glyph for both preferences now, so its label has to
+    // name both; neither `common.language.label` nor `common.theme.label`
+    // describes what pressing it opens.
+    settingsAria: 'Язык и оформление',
+    // Not `nav.profile`: the avatar opens a menu, it no longer navigates to
+    // the profile page, and calling it "Профиль" would lie to a screen reader.
+    accountAria: 'Меню аккаунта',
+    mapSearchAria: 'Искать на карте',
     backAria: 'Вернуться назад',
   },
 

@@ -18,6 +18,7 @@ import { AuthDialog } from './components/auth/AuthDialog';
 import { BottomNav } from './components/layout/BottomNav';
 import { Footer } from './components/layout/Footer';
 import { Header } from './components/layout/Header';
+import { HEADER_CLEARANCE } from './components/layout/headerMetrics';
 import { Toaster } from './components/layout/Toaster';
 import { ListingsPage } from './components/listings/ListingsPage';
 import { ShieldMascot } from './components/common/ShieldMascot';
@@ -231,18 +232,30 @@ export const App: React.FC = () => {
   return (
     <div className="flex min-h-screen flex-col bg-canvas text-content">
       <Header />
-      <GlobalAINotification />
 
       {/*
-        The padding clears the fixed header, whose height is fixed in
-        Header.tsx: a 56px bar (64px at sm), a 28px trust strip and the two
-        1px borders — 86px, 94px at sm. Change one and change the other; they
-        are the same measurement written in two files.
+        The padding clears the fixed header. The number is not written here —
+        it is `HEADER_CLEARANCE` in headerMetrics.ts, which Header.tsx's own
+        height comes from too. It used to be a literal in this file and a
+        second literal in ListingsPage.tsx and a third in Header.tsx, and the
+        comment that stood here described a 28px trust strip the markup had
+        stopped containing, with 86/94px totals that had been wrong for as
+        long as the strip was gone.
 
         `id` is the skip link's target, so a keyboard visitor can jump the
         whole header in one press.
       */}
-      <main id="main-content" className="flex-1 pt-14 sm:pt-16">
+      <main id="main-content" className={`flex-1 ${HEADER_CLEARANCE}`}>
+        {/*
+          Inside <main>, not above it.
+
+          This is `relative z-50` in normal flow at y=0, and the header is
+          `fixed` at z-90 — so an owner's flagged-listing alert rendered
+          underneath the blue bar and was partly or wholly invisible. Here it
+          inherits the same clearance as every other thing on the page.
+        */}
+        <GlobalAINotification />
+
         {!authReady ? (
           <Loading />
         ) : (

@@ -26,6 +26,7 @@ import { I18nProvider } from './i18n';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { Footer } from './components/layout/Footer';
 import { Header } from './components/layout/Header';
+import { HEADER_CLEARANCE } from './components/layout/headerMetrics';
 import { HomePage } from './components/home/HomePage';
 import { ListingsPage } from './components/listings/ListingsPage';
 import { SeoLandingPage } from './components/seo/SeoLandingPage';
@@ -149,8 +150,19 @@ export function renderPage(path: string, language: Language): RenderedPage {
             <Header />
             {/* Same padding as the live shell, so the fixed header appearing
                 on hydration does not shove the prerendered content down the
-                page — that shift would be a CLS penalty on every entry. */}
-            <main className="flex-1 pb-20 pt-[76px] sm:pt-[86px] lg:pb-0">
+                page — that shift would be a CLS penalty on every entry.
+
+                It is the same CONSTANT App.tsx uses, not the same number
+                typed twice. The two padding literals that stood here were the
+                pre-redesign bar — 76px, and 86 above the sm breakpoint. The
+                bar is 65px at every width now, so all 346 prerendered pages
+                shipped 11px (21 above sm) of dead space that snapped shut the
+                instant React hydrated: exactly the CLS this comment claims to
+                prevent. The old values are spelled out in prose rather than
+                as class names on purpose — Tailwind v4 scans this file as raw
+                text, so quoting a dead utility in a comment is enough to
+                generate it into the stylesheet. */}
+            <main className={`flex-1 pb-20 ${HEADER_CLEARANCE} lg:pb-0`}>
               <Page />
             </main>
             <Footer />

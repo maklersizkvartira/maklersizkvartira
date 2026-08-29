@@ -1,8 +1,24 @@
 /**
  * Language switcher.
  *
- * A menu rather than a cycling button: with three languages, a cycle makes a
- * user press twice to go back one, and never shows what the options are.
+ * Two shapes for one control.
+ *
+ * `inline` is a segmented radiogroup — the whole choice on screen at once. It
+ * is what the header's settings popover and the mobile drawer both use, and
+ * it exists because the alternative was a menu nested inside a popover and a
+ * menu nested inside a sheet: two dismissable layers stacked on each other,
+ * each with its own outside-click handler, competing for the same Escape
+ * press. A radiogroup has no second layer to dismiss. It also matches
+ * ThemeToggle's full control pixel for pixel, so the two settings a visitor
+ * meets side by side look like one pair rather than two unrelated widgets.
+ *
+ * The default shape is still a menu rather than a cycling button: with three
+ * languages a cycle makes a user press twice to go back one, and never shows
+ * what the options are.
+ *
+ * The `inverted` variant is gone. It painted this button in the header's old
+ * white-on-blue chip skin — a string hand-copied from Header.tsx and
+ * ThemeToggle.tsx — and the bar no longer carries a language chip at all.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -11,7 +27,10 @@ import { Check, Globe } from 'lucide-react';
 import { LANGUAGE_LIST, useTranslation, type Language } from '../../i18n';
 import { useAppStore } from '../../stores/useAppStore';
 
-export const LanguageSwitcher: React.FC<{ compact?: boolean; inverted?: boolean }> = ({ compact = false, inverted = false }) => {
+export const LanguageSwitcher: React.FC<{ compact?: boolean; inline?: boolean }> = ({
+  compact = false,
+  inline = false,
+}) => {
   const { t, language, setLanguage } = useTranslation();
   const setStoreLanguage = useAppStore((state) => state.setLanguage);
   const [open, setOpen] = useState(false);
@@ -43,9 +62,42 @@ export const LanguageSwitcher: React.FC<{ compact?: boolean; inverted?: boolean 
 
   const active = LANGUAGE_LIST.find((entry) => entry.code === language);
 
-  const buttonStyle = inverted
-    ? 'press inline-flex h-10 sm:h-11 min-w-10 sm:min-w-11 shrink-0 touch-manipulation items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-2.5 text-xs font-bold text-white transition-colors hover:bg-white/20'
-    : 'press inline-flex h-11 min-w-11 shrink-0 touch-manipulation items-center justify-center gap-1.5 rounded-xl border border-line bg-surface px-2.5 text-xs font-bold text-muted transition-colors hover:border-brand hover:text-content';
+  if (inline) {
+    return (
+      <div
+        role="radiogroup"
+        aria-label={t('common.a11y.selectLanguage')}
+        className="flex gap-1 rounded-xl border border-line bg-surface-2 p-1"
+      >
+        {LANGUAGE_LIST.map((entry) => (
+          <button
+            key={entry.code}
+            type="button"
+            role="radio"
+            aria-checked={entry.code === language}
+            onClick={() => choose(entry.code)}
+            className={`press flex min-h-11 flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold transition-colors ${
+              entry.code === language
+                ? 'bg-surface text-content shadow-card'
+                : 'text-muted hover:text-content'
+            }`}
+          >
+            {/* The visible label is the flag and the two-letter code: three
+                native names ("O‘zbekcha", "Русский", "English") do not fit
+                across a 224px popover at a legible size, and truncating a
+                language's own name to "O‘zbek…" is worse than not showing it.
+                The name is still the button's accessible name, so a screen
+                reader hears the language rather than two letters. */}
+            <span aria-hidden="true">{entry.flag}</span>
+            <span aria-hidden="true" className="uppercase">
+              {entry.code}
+            </span>
+            <span className="sr-only">{entry.nativeName}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="relative" ref={containerRef}>
@@ -55,7 +107,7 @@ export const LanguageSwitcher: React.FC<{ compact?: boolean; inverted?: boolean 
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('common.a11y.selectLanguage')}
-        className={buttonStyle}
+        className="press inline-flex h-11 min-w-11 shrink-0 touch-manipulation items-center justify-center gap-1.5 rounded-xl border border-line bg-surface px-2.5 text-xs font-bold text-muted transition-colors hover:border-brand hover:text-content"
       >
         <Globe className="h-5 w-5" aria-hidden="true" />
         {!compact && <span className="uppercase">{language}</span>}

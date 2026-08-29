@@ -117,8 +117,12 @@ export const BottomNav: React.FC = () => {
             <span className="relative">
               <tab.icon className="h-6 w-6" aria-hidden="true" />
               {badge > 0 && (
-                <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-black text-white">
-                  {badge}
+                // Capped at 9+ and set in `tabular-nums`, the same as the
+                // header's: a two-digit count stretched this into a lozenge,
+                // and the two navigation surfaces are on screen together
+                // below `lg` showing the same two numbers.
+                <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-black tabular-nums text-white">
+                  {badge > 9 ? '9+' : badge}
                 </span>
               )}
             </span>

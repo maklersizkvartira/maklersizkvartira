@@ -59,6 +59,7 @@ import { Chip, ChipRow } from '../ui/Chip';
 import { Segmented } from '../ui/Segmented';
 import { Sheet } from '../ui/Sheet';
 import { LinkGroups } from '../seo/blocks';
+import { HEADER_STICKY_TOP } from '../layout/headerMetrics';
 import { ListingCard, ListingCardSkeleton } from './ListingCard';
 
 const TASHKENT_DISTRICTS = [
@@ -346,9 +347,20 @@ export const ListingsPage: React.FC = () => {
           the bar parked itself underneath the fixed header — an opaque
           `bg-surface/95` at z-90 against this z-60 — taking the view toggle,
           the search box and the filter badge with it for the rest of the
-          scroll. 86/94px is the header's measured height; App.tsx:245 pads
-          <main> by exactly the same numbers, so change one and change both. */}
-      <section className="sticky top-[86px] z-[60] border-b border-line bg-surface pb-3 pt-3 shadow-sm sm:top-[94px]">
+          scroll.
+
+          The offset is `HEADER_STICKY_TOP`, imported, and never a literal.
+          "Change one and change both" is precisely what did not happen: the
+          two offsets that stood here were the pre-redesign bar — 86px, and 94
+          above the sm breakpoint. Once the bar became 65px at every width
+          this parked 21px too low (29 above sm), leaving a strip of the
+          results list scrolling visibly through the gap. Those values are
+          written as prose rather than as class names deliberately: Tailwind
+          v4 scans this file as raw text, so a dead utility quoted in a
+          comment is a dead utility shipped in the stylesheet. */}
+      <section
+        className={`sticky ${HEADER_STICKY_TOP} z-[60] border-b border-line bg-surface pb-3 pt-3 shadow-sm`}
+      >
         <div className="gutter-safe mx-auto max-w-7xl space-y-3">
 
           {/* Row 1: view toggle & map */}

@@ -25,8 +25,6 @@ export const layout = {
   header: {
     createListingCta: 'E’lon berish',
     savedCount: 'Saqlanganlar ({count})',
-    loginCta: 'Kirish',
-    registerCta: 'Ro‘yxatdan o‘tish',
     loginOrRegister: 'Kirish / Ro‘yxatdan o‘tish',
     searchPlaceholder: 'Qidirish...',
     openMenu: 'Menyuni ochish',
@@ -37,11 +35,21 @@ export const layout = {
     menuSubtitle: 'Bo‘limlar, kategoriyalar va hisobingiz',
     drawerCategories: 'Kategoriyalar',
     drawerQuickLinks: 'Tezkor havolalar',
-    drawerAccount: 'Hisobim',
     drawerSettings: 'Sozlamalar',
     skipToContent: 'Asosiy mazmunga o‘tish',
     searchAria: 'E’lonlar bo‘yicha qidirish',
-    notificationsAria: 'Bildirishnomalarni ochish',
+    // The eyebrow over the four section links at the top of the browse
+    // panel — distinct from `categories.chooseSection`, which heads the ten
+    // category tiles below them in the same panel.
+    browseSections: 'Bo‘limlar',
+    // The bar carries one glyph for both preferences now, so its label has to
+    // name both; neither `common.language.label` nor `common.theme.label`
+    // describes what pressing it opens.
+    settingsAria: 'Til va ko‘rinish',
+    // Not `nav.profile`: the avatar opens a menu, it no longer navigates to
+    // the profile page, and calling it "Profil" would lie to a screen reader.
+    accountAria: 'Hisobim menyusi',
+    mapSearchAria: 'Xaritada qidirish',
     backAria: 'Ortga qaytish',
   },
 

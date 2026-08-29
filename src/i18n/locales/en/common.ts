@@ -185,7 +185,6 @@ export const common = {
     closeDialog: 'Close dialog',
     prevImage: 'Previous image',
     nextImage: 'Next image',
-    toggleTheme: 'Toggle theme',
     selectLanguage: 'Select language',
     goToPage: 'Go to page {page}',
     loading: 'Loading',

@@ -1,9 +1,18 @@
 /**
  * Theme control.
  *
- * `compact` renders a single button that flips light/dark — the common case
- * in the header. The full control offers all three options including
- * "follow the system", which the previous build had no way to express.
+ * `compact` renders a single button that flips light/dark. The full control
+ * offers all three options including "follow the system", which the previous
+ * build had no way to express — and it is what the header uses now: the bar
+ * no longer carries a theme chip of its own, so the only places this appears
+ * are the header's settings popover and the mobile drawer, both of which have
+ * the room to show all three.
+ *
+ * The `inverted` variant is gone. It existed so the compact button could wear
+ * the header's old white-on-blue chip skin, and it was a hand-copied third
+ * copy of a string that also lived in Header.tsx and LanguageSwitcher.tsx —
+ * three files to edit to restyle one button. Nothing renders this on the blue
+ * band any more.
  */
 
 import React from 'react';
@@ -12,22 +21,18 @@ import { Monitor, Moon, Sun } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 import { useTheme, type ThemePreference } from '../../theme/ThemeProvider';
 
-export const ThemeToggle: React.FC<{ compact?: boolean; inverted?: boolean }> = ({ compact = true, inverted = false }) => {
+export const ThemeToggle: React.FC<{ compact?: boolean }> = ({ compact = true }) => {
   const { t } = useTranslation();
   const { preference, isDark, setPreference, toggle } = useTheme();
 
   if (compact) {
-    const buttonStyle = inverted
-      ? 'press flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/20'
-      : 'press flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-line bg-surface text-muted transition-colors hover:border-brand hover:text-content';
-
     return (
       <button
         type="button"
         onClick={toggle}
         aria-label={isDark ? t('common.theme.switchToLight') : t('common.theme.switchToDark')}
         title={isDark ? t('common.theme.switchToLight') : t('common.theme.switchToDark')}
-        className={buttonStyle}
+        className="press flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-line bg-surface text-muted transition-colors hover:border-brand hover:text-content"
       >
         {isDark ? (
           <Sun className="h-5 w-5" aria-hidden="true" />
