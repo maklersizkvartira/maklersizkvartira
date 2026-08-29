@@ -7,7 +7,11 @@
 export const common = {
   brand: {
     name: 'Maklersiz Uy',
-    tagline: "Uy egasi va ijarachini to'g'ridan-to'g'ri bog'laydi",
+    // U+2018, the same mark every other Uzbek string in this locale uses for
+    // oʻ/gʻ. The ASCII typewriter quote that stood here was the one string on
+    // the site spelled against Uzbek orthography, and it is the tagline — the
+    // line under the wordmark in the footer, so it was the visible one.
+    tagline: 'Uy egasi va ijarachini to‘g‘ridan-to‘g‘ri bog‘laydi',
     shortTagline: 'Maklersiz. Komissiyasiz.',
   },
 

@@ -26,7 +26,6 @@ export const layout = {
     createListingCta: 'Разместить объявление',
     savedCount: 'Избранное ({count})',
     loginOrRegister: 'Войти / Регистрация',
-    searchPlaceholder: 'Поиск...',
     openMenu: 'Открыть меню',
     closeMenu: 'Закрыть меню',
     // The header drawer is a Sheet now, so it has a real heading instead of
@@ -37,10 +36,10 @@ export const layout = {
     drawerQuickLinks: 'Быстрые ссылки',
     drawerSettings: 'Настройки',
     skipToContent: 'Перейти к основному содержимому',
-    searchAria: 'Поиск по объявлениям',
-    // The eyebrow over the four section links at the top of the browse
-    // panel — distinct from `categories.chooseSection`, which heads the ten
-    // category tiles below them in the same panel.
+    // The accessible name of the primary <nav> in the middle of the bar —
+    // the four section links themselves, which are visible text and need no
+    // eyebrow. Distinct from `categories.chooseSection`, which heads the ten
+    // category tiles inside the browse panel that nav's last control opens.
     browseSections: 'Разделы',
     // The bar carries one glyph for both preferences now, so its label has to
     // name both; neither `common.language.label` nor `common.theme.label`
@@ -133,7 +132,9 @@ export const layout = {
     // footer's link label and the footer still renders it.
     supportBlock: {
       title: 'Нужна помощь?',
-      feedback: 'Для предложений и жалоб:',
+      // The row's own call to action. It is a word, not an icon, because the
+      // row is a `tel:` link and nothing else on it says what pressing does.
+      call: 'Позвонить',
       phoneAria: 'Позвонить по номеру {phone}',
       hours: 'Ежедневно 09:00 – 21:00',
     },

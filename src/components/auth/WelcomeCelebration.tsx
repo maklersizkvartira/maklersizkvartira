@@ -96,8 +96,11 @@ export const WelcomeCelebration: React.FC<WelcomeCelebrationProps> = ({ name, on
           className="animate-welcome-step-1 mt-5 inline-flex items-center gap-1 text-2xl font-black tracking-tight"
           aria-hidden="true"
         >
-          <span className="text-brand">Maklersiz</span>
-          <span className="text-content">Uy</span>
+          {/* Matches Logo.tsx, which is the one definition: "Uy" is the blue
+              word. This copy had the assignment reversed, so the celebration
+              showed a different wordmark from every other surface. */}
+          <span className="text-content">Maklersiz</span>
+          <span className="text-brand">Uy</span>
         </p>
 
         <h2

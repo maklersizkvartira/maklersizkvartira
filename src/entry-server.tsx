@@ -161,8 +161,19 @@ export function renderPage(path: string, language: Language): RenderedPage {
                 prevent. The old values are spelled out in prose rather than
                 as class names on purpose — Tailwind v4 scans this file as raw
                 text, so quoting a dead utility in a comment is enough to
-                generate it into the stylesheet. */}
-            <main className={`flex-1 pb-20 ${HEADER_CLEARANCE} lg:pb-0`}>
+                generate it into the stylesheet.
+
+                The class list is App.tsx's, character for character, and that
+                is the point: this element carried 5rem of extra bottom
+                padding below `lg` that App.tsx's <main> does not, so on every
+                phone entry the footer sat 80px lower in the prerendered HTML
+                than it does once React hydrates and snapped up the instant it
+                did — the same shift, at the other end of the page, that the
+                header clearance above is here to prevent. Nothing needed it:
+                the bottom nav's clearance is padding on the <footer> itself
+                (see Footer.tsx), and this shell does not render a bottom nav
+                at all. */}
+            <main className={`flex-1 ${HEADER_CLEARANCE}`}>
               <Page />
             </main>
             <Footer />

@@ -8,6 +8,16 @@
  * The photo is a slow carousel. Owners upload five or six rooms and the grid
  * only ever showed the first one, so a flat with a photographed kitchen and a
  * flat with nothing but a hallway looked identical until you opened them.
+ *
+ * Every card in a row is the same height, and that is a contract the card
+ * keeps on its own rather than something its callers arrange. Three pieces
+ * hold it: `h-full` on the root, so the card fills the row a stretching grid
+ * gives it — several call sites wrap the card in a `<li>` or a `<div>`, and
+ * there the wrapper stretched while the card inside it kept its content
+ * height; a reserved two-line title, so a short title cannot shorten the
+ * card; and `mt-auto` on the closing row, so the parts that should agree
+ * across neighbouring cards sit at the same distance from the bottom no
+ * matter how many optional rows — metro, district, area — a listing has.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -375,8 +385,23 @@ export const ListingCard: React.FC<ListingCardProps> = ({
       {/* The one real anchor on the card. The whole tile stays clickable, but
           a `<div onClick>` is invisible to a crawler — without this there is
           no link from any grid to any listing, and nothing below the home
-          page is discoverable. */}
-      <h3 className="line-clamp-2 text-[13px] sm:text-sm font-bold leading-snug text-content">
+          page is discoverable.
+
+          The clamp alone did not make two neighbouring cards agree: it caps a
+          long title at two lines but lets a short one occupy one, and that
+          missing line was the difference in height between a card whose title
+          fits and the card beside it. Reserving the clamped height fixes the
+          card's tallest variable row at a constant. The floor is in `em`, so
+          it tracks the 13px/14px step and `leading-snug` (1.375) without a
+          second breakpoint: two lines is 2.75em, one line 1.375em. The list
+          variant gets one line — its card is a fixed 144/176px and a second
+          title line is what pushed the meta rows out of the bottom of it. */}
+      <h3
+        className={cn(
+          'text-[13px] sm:text-sm font-bold leading-snug text-content',
+          isList ? 'line-clamp-1 min-h-[1.375em]' : 'line-clamp-2 min-h-[2.75em]',
+        )}
+      >
         <AppLink
           to={href}
           onClick={(event) => {
@@ -396,19 +421,41 @@ export const ListingCard: React.FC<ListingCardProps> = ({
         </AppLink>
       </h3>
 
-      <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-1 text-[11px] sm:text-xs text-muted">
-        <span className="inline-flex items-center gap-1">
+      {/* The grid card wraps this row; the list card must not.
+          A list card is a fixed 144/176px box with `overflow-hidden` on the
+          root, and its budget is spent: price, one title line, this row, the
+          optional metro line and the closing row leave under ten pixels of
+          slack at 144. A second meta line costs ~21px, so on a narrow phone a
+          listing that has rooms AND area AND district AND a metro station
+          pushed the closing row — the no-commission badge and the age of the
+          listing — out through the bottom edge, where the clip silently ate
+          it. This is the same call the title makes two rows up and for the
+          same reason: in the list variant a row that can grow is a row that
+          breaks the card, so the district chip loses its tail (it already
+          `truncate`s) instead of the card losing its last line. */}
+      <div
+        className={cn(
+          'flex items-center gap-x-2 sm:gap-x-3 gap-y-1 text-[11px] sm:text-xs text-muted',
+          isList ? 'min-w-0 flex-nowrap overflow-hidden' : 'flex-wrap',
+        )}
+      >
+        {/* Rooms and the area are two or three characters and are the two
+            figures a scan compares, so they never give up width; the district
+            is the one that yields, which is why it is the only member of the
+            row without `shrink-0`. In the wrapping grid variant none of this
+            applies — nothing is competing for a single line there. */}
+        <span className="inline-flex shrink-0 items-center gap-1">
           <BedDouble className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
           {t('common.filters.roomsValue', { count: listing.rooms })}
         </span>
         {listing.area ? (
-          <span className="inline-flex items-center gap-1">
+          <span className="inline-flex shrink-0 items-center gap-1">
             <Maximize2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
             {listing.area} {t('common.units.sqm')}
           </span>
         ) : null}
         {listing.district ? (
-          <span className="inline-flex items-center gap-1 truncate max-w-[80px] sm:max-w-none">
+          <span className="inline-flex min-w-0 items-center gap-1 truncate max-w-[80px] sm:max-w-none">
             <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" aria-hidden="true" />
             {listing.district}
           </span>
@@ -454,7 +501,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
         transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised
         focus-visible:outline-none
         ${promoted ? 'border-warning/40 ring-1 ring-warning/20' : 'border-line'}
-        ${isList ? 'flex h-36 sm:h-44' : 'flex flex-col'}`}
+        ${isList ? 'flex h-36 sm:h-44' : 'flex h-full flex-col'}`}
     >
       {media}
       {body}
@@ -468,12 +515,15 @@ export const ListingCardSkeleton: React.FC<{ variant?: 'grid' | 'list' }> = ({
 }) => (
   <div
     className={`overflow-hidden rounded-2xl border border-line bg-surface ${
-      variant === 'list' ? 'flex h-36 sm:h-44' : ''
+      // Same height contract as the real card: the skeleton grid is the first
+      // thing a visitor sees, and a row of ragged placeholders resolving into
+      // a row of even cards reads as the page settling twice.
+      variant === 'list' ? 'flex h-36 sm:h-44' : 'flex h-full flex-col'
     }`}
     aria-hidden="true"
   >
     <div
-      className={`animate-shimmer ${
+      className={`animate-shimmer shrink-0 ${
         variant === 'list' ? 'h-full w-36 sm:w-52' : 'aspect-[4/3] w-full'
       }`}
     />

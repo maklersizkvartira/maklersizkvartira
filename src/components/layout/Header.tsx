@@ -1,21 +1,36 @@
 /**
  * Top bar and mobile drawer.
  *
- * The bar IS a search bar. On a rental marketplace the one thing every
- * visitor arrives wanting to do is look for somewhere to live, and the old
- * header answered that with a magnifier that navigated to the catalogue —
- * `layout.header.searchPlaceholder` had sat in all three dictionaries, unused
- * by anybody, since the day it was written. A real `<form role="search">`
- * with a real `<input>` now occupies the middle of the bar at every width
- * including 360px, which is also what fills the ~200px of dead blue the phone
- * used to get between its wordmark and its hamburger.
+ * The middle of the bar is NAVIGATION, not a search field. A `<form
+ * role="search">` lived here for one release and the owner asked for it back
+ * out: the catalogue owns search — its sticky bar carries the canonical box,
+ * wired to the filter sheet and to the draft state the chips read — the home
+ * page opens a search modal of its own, and a third box in the chrome only
+ * gave the visitor two near-identical placeholders writing the same store key
+ * and no way to reach the main pages without opening a menu first. What the
+ * bar owes a visitor is a map of the site, so the four `PRIMARY_NAV` links
+ * are back in it as real anchors, centred rather than crowded against the
+ * wordmark, with the categories disclosure at the end of the same run.
  *
- * Everything else is demoted, because BottomNav already carries navigation,
- * favourites, chat, profile and post-a-listing in the thumb zone. Below `lg`
- * the bar is exactly three objects — brand, search, you — and the drawer
- * holds the rest. At `lg+` the four nav links and the ten categories collapse
- * into one browse panel, language and appearance share one popover, and the
- * cluster ends with the only solid shape in the bar (the CTA) and the avatar.
+ * Below `lg` the bar is deliberately sparse — brand and the you/menu trigger,
+ * nothing else. BottomNav already carries home, map, listings, post, chat,
+ * favourites and profile in the thumb zone at those widths, and the drawer
+ * behind that trigger holds the full navigation, the settings and the ten
+ * categories. Duplicating any of it in a 64px band the thumb cannot reach
+ * buys nothing.
+ *
+ * Two controls are held back to `xl` rather than shrunk, because 1024px is
+ * the narrowest desktop and Russian is the longest of the three languages
+ * ("Программа для студентов" alone is ~180px, and the post-a-listing CTA is
+ * "Разместить объявление"):
+ *
+ *   - `HOME` appears at `xl`. It is the one link the bar can drop without
+ *     losing a destination — the wordmark an inch to its left is the same
+ *     link — and dropping it is what buys the student programme its row at
+ *     1024px.
+ *   - The favourites+chat capsule appears at `xl`. Both destinations are in
+ *     the account menu at every width, so nothing becomes unreachable; the
+ *     capsule's ~105px is what the section links need at 1024px.
  *
  * There is no `ICON_BUTTON` any more. Five controls used to wear the same
  * 12px-radius box — a white border at 20% over a white fill at 10% — at three
@@ -23,25 +38,27 @@
  * striped band with nowhere for the eye to land. (The values are spelled out
  * rather than written as class names on purpose: Tailwind v4 scans this file
  * as raw text, so a dead utility quoted in a comment is a dead utility
- * shipped in the stylesheet.) Secondary icons are now bare glyphs on the
- * band — no border, no resting fill — so the bar contains exactly three
- * filled shapes: the translucent field, the white CTA, the avatar. A border
- * appears in one place only, around the favourites+chat capsule, where it now
- * means "these two belong together" instead of meaning nothing.
+ * shipped in the stylesheet.) Secondary icons are bare glyphs on the band —
+ * no border, no resting fill — so the bar contains exactly two filled shapes:
+ * the white CTA and the avatar. A border appears in one place only, around
+ * the favourites+chat capsule, where it means "these two belong together"
+ * instead of meaning nothing.
  *
  * The active-state collision went with it. One fill — white at 20% — used to
  * mean the current page, a hovered chip AND an open menu simultaneously.
- * Nothing in this file spends that value now; an open menu has its own, and
- * "current page" is stated inside the panels, where a fill can differ from a
- * hover by weight as well as colour.
+ * `HEADER_OPEN` is now spent on an open menu and on nothing else, which is
+ * why the current section is marked with an underline rather than a fill: a
+ * fill there would put the bar straight back where it started.
  *
- * The bar's height lives in headerMetrics.ts, not here — App.tsx and
- * ListingsPage.tsx both have to start below it, and three hand-copied numbers
- * is how they drifted 30px apart.
+ * The bar's height lives in headerMetrics.ts, not here — App.tsx,
+ * entry-server.tsx and ListingsPage.tsx all have to start below it, and three
+ * hand-copied numbers is how they drifted 30px apart. Removing the field did
+ * not change it: the field was 44px inside a 64px row.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ArrowRight,
   BarChart3,
   ChevronDown,
   Gift,
@@ -57,7 +74,6 @@ import {
   Search,
   ShieldCheck,
   User as UserIcon,
-  X,
 } from 'lucide-react';
 
 import { useTranslation, type TranslationKey } from '../../i18n';
@@ -76,6 +92,7 @@ import { canPublishListings, roleLabelKey } from '../../types/roles';
 import { AppLink } from '../../router/AppLink';
 import { authTabForView } from '../../router/views';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 interface NavItem {
   view: ViewState;
@@ -87,14 +104,20 @@ interface NavItem {
    * learned the house icon at the bottom of the screen should not have to
    * read the word at the side of it. Where BottomNav has no tab — the student
    * programme — the icon is new but chosen in the same register.
+   *
+   * The desktop bar sets these aside: five glyphs beside five words in a
+   * 64px band is the striped-stripe problem again, and the words are short
+   * enough to carry themselves at that size.
    */
   icon: React.ComponentType<{ className?: string }>;
   ownerOnly?: boolean;
   authOnly?: boolean;
+  /** Held back to `xl`; see the note at the top of this file. */
+  wideOnly?: boolean;
 }
 
 const PRIMARY_NAV: NavItem[] = [
-  { view: 'HOME', labelKey: 'layout.nav.home', icon: Home },
+  { view: 'HOME', labelKey: 'layout.nav.home', icon: Home, wideOnly: true },
   { view: 'LISTINGS', labelKey: 'layout.nav.listings', icon: Search },
   { view: 'MAP', labelKey: 'layout.nav.map', icon: MapIcon },
   { view: 'STUDENT_PROGRAM', labelKey: 'layout.nav.studentProgram', icon: GraduationCap },
@@ -143,6 +166,10 @@ interface HeaderCategory {
  * The strings are `layout.categories.*` — the same keys the home page's
  * category cards read. Two copies of "Qizlarga" would be two things to
  * reword, and the one nobody remembered to reword is the one in the header.
+ *
+ * Ten is not an accident either: the browse panel lays them out two-up and
+ * five-up, and both of those divide ten exactly. A column count that leaves
+ * two cells of a four-wide row empty is the thing the owner objected to.
  */
 const CATEGORIES: HeaderCategory[] = [
   {
@@ -208,14 +235,30 @@ const CATEGORIES: HeaderCategory[] = [
 ];
 
 /**
- * `search` is `max_length=120` server-side.
+ * How long the browse panel takes to peel out of the bar, in one place.
  *
- * ListingsPage holds its own copy of this number. Importing it from there
- * would be worse than duplicating it: this component is in the entry chunk
- * and that one is a page, so the import would drag a page module into every
- * first paint to fetch an integer. If the server limit moves, both move.
+ * The number is shared by a Tailwind `duration-300` class and by the timer
+ * that keeps the panel mounted through its exit, and the two have to agree:
+ * a timer shorter than the transition tears the panel off screen mid-slide,
+ * a longer one leaves an invisible element holding the tab order. Written as
+ * a constant with `duration-300` spelled out literally in the class list,
+ * because Tailwind v4 scans this file as text and would generate nothing at
+ * all for `` `duration-${PANEL_MS}` ``.
  */
-const MAX_SEARCH_LENGTH = 120;
+const PANEL_MS = 300;
+
+/**
+ * Room below the panel for its own shadow.
+ *
+ * The wrapper is `overflow-hidden` — that clip is what makes the panel look
+ * like it is coming out from behind the bar's bottom edge — and a clip tight
+ * to the panel's box would cut off the `shadow-raised` that lifts it away
+ * from the page. So the wrapper is padded by this much and the animated
+ * max-height carries the same amount, leaving a transparent strip the shadow
+ * can fall into. The strip is `pointer-events-none`; the panel inside it
+ * takes its clicks back.
+ */
+const PANEL_SHADOW_ROOM = 40;
 
 /**
  * The four recipes, and each one means something different.
@@ -243,6 +286,21 @@ const HEADER_GHOST_PILL =
   'transition-colors hover:bg-white/12 hover:text-white ' +
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80';
 
+/**
+ * (2) SECTION LINK — the four `PRIMARY_NAV` destinations in the middle.
+ *
+ * `min-w-0` and a `truncate`d label are a pressure valve, not a layout. The
+ * row fits every one of the three languages at 1024px with room to spare, but
+ * the widths above are estimates of text nobody has measured on the visitor's
+ * actual font stack; if one of them is wrong the longest label loses its tail
+ * instead of the row overflowing and the avatar being clipped off the right
+ * edge by the `overflow-x: hidden` on <body>.
+ */
+const HEADER_NAV_LINK =
+  'press relative flex min-h-11 min-w-0 touch-manipulation items-center rounded-full px-2.5 ' +
+  'text-[13px] transition-colors ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80';
+
 /** Resting. One idle colour for the whole run, so nothing is odd one out. */
 const HEADER_IDLE = 'text-white/80';
 
@@ -250,7 +308,7 @@ const HEADER_IDLE = 'text-white/80';
 const HEADER_OPEN = 'bg-white/18 text-white';
 
 /**
- * (2) HAIRLINE GROUP — the only bordered treatment in the bar.
+ * (3) HAIRLINE GROUP — the only bordered treatment in the bar.
  *
  * The rule this encodes: the border and the fill live ONCE, on the container,
  * and never on a member. That is the whole difference between five bordered
@@ -261,19 +319,28 @@ const HEADER_CAPSULE =
   'flex items-center gap-0.5 rounded-full p-0.5 ring-1 ring-inset ring-white/15';
 
 /**
- * The two controls inside the search field.
+ * (4) HAIRLINE FIELD — the ten categories, in the panel and in the drawer.
  *
- * 36px visually so they sit inside a 44px pill without crowding it, with an
- * `::after` overlay expanding the hit area back out to 48px — that is how the
- * project's 44px floor survives a control that has to look smaller than it is.
+ * The owner's complaint about the old panel was that it read as a pile of
+ * loose parts: ten bordered cards, each with its own edge, floating on a
+ * shared background with gutters between them. This is the same ten rows as
+ * one object. The list paints `bg-line` and the CELLS paint `bg-surface`, so
+ * the only thing that shows through the 1px gaps is the divider colour — a
+ * table's rules, drawn without a border on anything. The cells sit on the
+ * same surface as the panel around them, so the eye reads a single field
+ * divided up, not ten tiles set down.
+ *
+ * `p-px` closes the outer edge with the same hairline, which is why no member
+ * carries a border of its own. Adding one back puts the gutters back.
  */
-const HEADER_IN_FIELD_BUTTON =
-  "press relative grid h-9 w-9 shrink-0 touch-manipulation place-items-center rounded-full text-white/75 " +
-  "transition-colors hover:bg-white/15 hover:text-white after:absolute after:-inset-[6px] after:content-[''] " +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80';
+const HEADER_FIELD = 'grid gap-px overflow-hidden rounded-2xl bg-line p-px';
+
+/** A cell of that field. The fill is here, not on the `<li>`, so hover covers it. */
+const HEADER_FIELD_CELL =
+  'press flex w-full touch-manipulation items-center bg-surface transition-colors hover:bg-surface-2';
 
 /** The house eyebrow, above every section of every panel this file opens. */
-const EYEBROW = 'mb-2 text-[11px] font-black uppercase tracking-wider text-subtle';
+const EYEBROW = 'text-[11px] font-black uppercase tracking-wider text-subtle';
 
 type HeaderMenu = 'browse' | 'settings' | 'account';
 
@@ -281,16 +348,15 @@ export const Header: React.FC = () => {
   const { t, language } = useTranslation();
   const currentUser = useAppStore((state) => state.currentUser);
   const currentView = useAppStore((state) => state.currentView);
-  const searchInHeader = currentView !== 'LISTINGS';
   const setCurrentView = useAppStore((state) => state.setCurrentView);
   const setShowAuth = useAppStore((state) => state.setShowAuth);
   const setFilters = useAppStore((state) => state.setFilters);
   const logout = useAppStore((state) => state.logout);
   const favorites = useAppStore((state) => state.favoriteIds);
   const unreadChatCount = useAppStore((state) => state.unreadChatCount);
-  const committedSearch = useAppStore((state) => state.filters.search);
 
   const requireAuth = useRequireAuth();
+  const reducedMotion = useReducedMotion();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   /**
@@ -302,20 +368,70 @@ export const Header: React.FC = () => {
    */
   const [openMenu, setOpenMenu] = useState<HeaderMenu | null>(null);
   const [elevated, setElevated] = useState(false);
-  const [query, setQuery] = useState(committedSearch);
 
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const browseTriggerRef = useRef<HTMLButtonElement>(null);
   const settingsTriggerRef = useRef<HTMLButtonElement>(null);
   const accountTriggerRef = useRef<HTMLButtonElement>(null);
 
+  const browseOpen = openMenu === 'browse';
+
   /**
-   * The field mirrors the store, so a category tile, a catalogue chip or a
-   * pasted URL is reflected back in the bar rather than leaving it stale.
+   * Three pieces of state for one panel, because a panel that animates OUT
+   * cannot be a plain `{open && …}`.
+   *
+   * `browseMounted` is "in the DOM": it turns on with the menu and turns off
+   * one transition later, which is the only way the closing half of the
+   * animation has anything to run on. `browseExpanded` is the flag the
+   * transition classes read — it is deliberately switched a frame AFTER the
+   * mount, because a browser interpolates between two rendered values and an
+   * element born at its final height simply appears there. `browseHeight` is
+   * the measured height that `max-height` animates to; a hard-coded ceiling
+   * would finish the wipe early and then spend the rest of the duration
+   * animating nothing, which is exactly the "bir daniga" pop the owner was
+   * objecting to.
+   */
+  const [browseMounted, setBrowseMounted] = useState(false);
+  const [browseExpanded, setBrowseExpanded] = useState(false);
+  const [browseHeight, setBrowseHeight] = useState(0);
+  const browsePanelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (browseOpen) {
+      setBrowseMounted(true);
+      return;
+    }
+    setBrowseExpanded(false);
+    // Under `prefers-reduced-motion` index.css has already clamped every
+    // transition to 0.01ms, so there is nothing left to wait for — and
+    // waiting anyway would leave a fully-visible panel sitting on the page
+    // for a third of a second after it was dismissed.
+    const timer = window.setTimeout(() => setBrowseMounted(false), reducedMotion ? 0 : PANEL_MS);
+    return () => window.clearTimeout(timer);
+  }, [browseOpen, reducedMotion]);
+
+  /**
+   * Measure, then expand on the next frame.
+   *
+   * `browseOpen` is in the dependency list as well as `browseMounted` so that
+   * closing and re-opening inside one transition re-expands: on that path the
+   * element never unmounts, so `browseMounted` does not change and an effect
+   * keyed only on it would never run again — the panel would stay collapsed
+   * with the menu flagged open.
+   *
+   * `language` is here for the same reason: the panel's height depends on how
+   * many lines its labels take, and Russian is not Uzbek.
    */
   useEffect(() => {
-    setQuery(committedSearch);
-  }, [committedSearch]);
+    if (!browseOpen || !browseMounted) return;
+    const measure = () => setBrowseHeight(browsePanelRef.current?.offsetHeight ?? 0);
+    measure();
+    const frame = requestAnimationFrame(() => setBrowseExpanded(true));
+    window.addEventListener('resize', measure);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', measure);
+    };
+  }, [browseOpen, browseMounted, language]);
 
   /**
    * One dismiss handler for all three popovers.
@@ -392,40 +508,6 @@ export const Header: React.FC = () => {
 
   const toggleMenu = (menu: HeaderMenu) =>
     setOpenMenu((current) => (current === menu ? null : menu));
-
-  const go = (view: ViewState) => {
-    setCurrentView(view);
-    closeMenus();
-  };
-
-  /**
-   * A header submit patches `search` and nothing else, deliberately.
-   *
-   * The store treats a patch whose only key is `search` as a real search —
-   * that is the `search_submit` branch in `setFilters` — and because it is a
-   * patch rather than a whole filter set it leaves an active quick filter
-   * alone, which `activeQuickFilter` carries the query across for. Committing
-   * a `quickFilterState` here instead would silently widen the visitor's
-   * result set every time they pressed Enter.
-   *
-   * No debounce: the bar commits on submit only. ListingsPage keeps its own
-   * debounced box, and two debouncers racing over one store field is how a
-   * caret ends up yanked mid-word.
-   */
-  const submitSearch = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setFilters({ search: query.trim() });
-    setCurrentView('LISTINGS');
-    closeMenus();
-    // Dismisses the on-screen keyboard as the catalogue arrives; without it
-    // the results render behind it and the visitor has to tap away first.
-    searchInputRef.current?.blur();
-  };
-
-  const clearSearch = () => {
-    setQuery('');
-    searchInputRef.current?.focus();
-  };
 
   /**
    * A category commits a whole filter set in one call — the store's delta over
@@ -523,54 +605,69 @@ export const Header: React.FC = () => {
   /**
    * The ten categories, in two densities from one definition.
    *
-   * `panel` is the wide browse dropdown, which has the width for a
-   * description; `tiles` is the drawer, where ten two-line illustrated rows
-   * pushed the settings section — the thing a first-time visitor most often
-   * opens the drawer for — most of a screen below the fold.
+   * `panel` is the browse dropdown, wide enough to set the illustration, the
+   * name and a description on one line; `tiles` is the drawer, where the
+   * widest cell a 360px phone can give is ~134px and a horizontal row would
+   * leave the name about 78 pixels — half of "Yuqori ishonchli". So the
+   * drawer stacks its cell instead and hands the label the whole width.
+   *
+   * What they share is the field: one surface, hairline rules, no gutters and
+   * no border on any member (see `HEADER_FIELD`). The drawer's ten bordered
+   * cards had the same pile-of-parts problem the panel did, and mobile is
+   * where most of this product is used.
+   *
+   * Two columns and five, never three or four: ten divides evenly into both,
+   * so no row ever ends half-empty.
    */
   const renderCategories = (variant: 'panel' | 'tiles') => (
-    <ul className={variant === 'tiles' ? 'grid grid-cols-2 gap-2' : 'grid gap-1 sm:grid-cols-2 lg:grid-cols-3'}>
+    <ul
+      aria-label={t('layout.categories.label')}
+      className={`${HEADER_FIELD} ${variant === 'panel' ? 'grid-cols-2 xl:grid-cols-5' : 'grid-cols-2'}`}
+    >
       {CATEGORIES.map((category) => (
-        <li key={category.id}>
+        // The `<li>` is a flex container purely so its single child stretches
+        // to the row's height; a short cell would otherwise leave a stripe of
+        // the list's divider colour showing under it.
+        <li key={category.id} className="flex">
           <button
             type="button"
             onClick={() => openCategory(category.id)}
-            className={
-              variant === 'tiles'
-                ? 'press flex min-h-11 w-full touch-manipulation flex-col items-center gap-1 rounded-xl border border-line bg-surface-2 px-2 py-2.5 text-center transition-colors hover:bg-surface-3'
-                : 'press flex w-full touch-manipulation items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-surface-2'
-            }
+            className={`${HEADER_FIELD_CELL} ${
+              variant === 'panel'
+                ? 'min-h-14 gap-2.5 px-3 py-2 text-left'
+                : 'min-h-11 flex-col justify-center gap-1 px-2 py-2.5 text-center'
+            }`}
           >
             <img
               src={category.image}
               alt=""
               aria-hidden="true"
-              width={variant === 'tiles' ? 32 : 44}
-              height={variant === 'tiles' ? 32 : 44}
+              width={variant === 'panel' ? 36 : 32}
+              height={variant === 'panel' ? 36 : 32}
               loading="lazy"
               decoding="async"
               className={`shrink-0 select-none object-contain ${
-                variant === 'tiles' ? 'h-8 w-8' : 'h-11 w-11'
+                variant === 'panel' ? 'h-9 w-9' : 'h-8 w-8'
               }`}
             />
-            {variant === 'tiles' ? (
-              <span className="w-full truncate text-[11px] font-bold text-content">
+            <span className={variant === 'panel' ? 'min-w-0 flex-1' : 'w-full min-w-0'}>
+              <span
+                className={`block truncate font-bold text-content ${
+                  variant === 'panel' ? 'text-[13px]' : 'text-[11px]'
+                }`}
+              >
                 {t(category.titleKey)}
               </span>
-            ) : (
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-bold text-content">
-                  {t(category.titleKey)}
-                </span>
-                {/* Two lines, like the home page's tiles: half of these
-                    descriptions are longer than the ~186px a cell of this
-                    dropdown leaves for an 11px line — in Uzbek as much as in
-                    Russian — and a single truncated line cut them mid-word. */}
-                <span className="line-clamp-2 text-[11px] leading-snug text-muted">
+              {/* One line, clipped — not the two-line clamp this used to run.
+                  A row whose height depends on how long its own sentence is
+                  makes the grid ragged, and a ragged grid is the thing that
+                  stopped these ten reading as one list. */}
+              {variant === 'panel' && (
+                <span className="block truncate text-[11px] leading-snug text-muted">
                   {t(category.descriptionKey)}
                 </span>
-              </span>
-            )}
+              )}
+            </span>
           </button>
         </li>
       ))}
@@ -587,11 +684,11 @@ export const Header: React.FC = () => {
   const settingsBlock = (
     <div className="space-y-4">
       <div>
-        <p className={EYEBROW}>{t('common.language.label')}</p>
+        <p className={`${EYEBROW} mb-2`}>{t('common.language.label')}</p>
         <LanguageSwitcher inline />
       </div>
       <div>
-        <p className={EYEBROW}>{t('common.theme.label')}</p>
+        <p className={`${EYEBROW} mb-2`}>{t('common.theme.label')}</p>
         <ThemeToggle compact={false} />
       </div>
     </div>
@@ -599,12 +696,39 @@ export const Header: React.FC = () => {
 
   const drawerSection = (titleKey: TranslationKey, children: React.ReactNode) => (
     <section className="pt-5">
-      <h3 className={EYEBROW}>{t(titleKey)}</h3>
+      <h3 className={`${EYEBROW} mb-2`}>{t(titleKey)}</h3>
       {children}
     </section>
   );
 
-  const browseOpen = openMenu === 'browse';
+  /** One section link in the middle of the bar. */
+  const barNavLink = (item: NavItem) => {
+    const active = currentView === item.view;
+    return (
+      <AppLink
+        key={item.view}
+        view={item.view}
+        onNavigate={closeMenus}
+        aria-current={active ? 'page' : undefined}
+        className={`${HEADER_NAV_LINK} ${item.wideOnly ? 'hidden xl:flex' : ''} ${
+          active ? 'font-black text-white' : `font-bold ${HEADER_IDLE} hover:bg-white/12 hover:text-white`
+        }`}
+      >
+        <span className="truncate">{t(item.labelKey)}</span>
+        {/* The current section is underlined, not filled. `HEADER_OPEN` is
+            the bar's one fill and it means "this menu is open"; spending it
+            here as well is precisely the collision the redesign removed. The
+            rule is outside the truncating span because `truncate` clips
+            everything that overflows the label's box, including this. */}
+        {active && (
+          <span
+            className="absolute inset-x-2.5 bottom-1.5 h-0.5 rounded-full bg-white"
+            aria-hidden="true"
+          />
+        )}
+      </AppLink>
+    );
+  };
 
   return (
     <>
@@ -630,8 +754,11 @@ export const Header: React.FC = () => {
         <div className={`gutter-safe mx-auto flex ${HEADER_H} max-w-7xl items-center gap-2 sm:gap-3`}>
           {/* 1 — brand. Below 390px only the mark survives: 118px of white
               wordmark is the most expensive thing on a 328px row, and a bare
-              app icon is what a native app shows anyway. `-ml-1` pulls the
-              hover circle's optical edge back onto the gutter line. */}
+              app icon is what a native app shows anyway. The full lockup waits
+              for `xl` now rather than `sm`, because between 1024 and 1279 the
+              ~25px it costs is the difference between the section links
+              fitting and the row overflowing. `-ml-1` pulls the hover circle's
+              optical edge back onto the gutter line. */}
           <AppLink
             view="HOME"
             onNavigate={closeMenus}
@@ -641,125 +768,67 @@ export const Header: React.FC = () => {
             <span className="min-[390px]:hidden">
               <Logo size="sm" markOnly />
             </span>
-            <span className="hidden min-[390px]:block sm:hidden">
+            <span className="hidden min-[390px]:block xl:hidden">
               <Logo size="sm" inverted />
             </span>
-            <span className="hidden sm:block">
+            <span className="hidden xl:block">
               <Logo size="md" inverted />
             </span>
           </AppLink>
 
-          {/* 2 — browse. The four nav links and the ten categories are both
-              behind this one control. HOME is the logo, E'LONLAR is the field
-              beside it, XARITA is the button inside that field — and all four
-              are still real `<a href>` links one click deep. At `lg` it is
-              icon and chevron only; the label arrives at `xl`, which is the
-              ~120px the field needs at 1024px. */}
-          <button
-            type="button"
-            ref={browseTriggerRef}
-            data-header-menu
-            onClick={() => toggleMenu('browse')}
-            aria-haspopup="true"
-            aria-expanded={browseOpen}
-            aria-controls="header-browse"
-            className={`${HEADER_GHOST_PILL} hidden px-3 text-sm font-bold lg:flex xl:px-4 ${
-              browseOpen ? HEADER_OPEN : HEADER_IDLE
-            }`}
+          {/* 2 — the main pages, in the middle of the bar.
+              `flex-1` rather than a fixed width: the group centres itself in
+              whatever is left between the wordmark and the cluster, which is
+              what stops it hugging the logo. Below `lg` it is not rendered at
+              all and the cluster's `ml-auto` takes over, leaving the phone
+              exactly two objects. */}
+          <nav
+            aria-label={t('layout.header.browseSections')}
+            className="hidden min-w-0 flex-1 items-center justify-center gap-0.5 lg:flex"
           >
-            <LayoutGrid className="h-5 w-5 shrink-0" aria-hidden="true" />
-            <span className="hidden xl:inline">{t('layout.categories.label')}</span>
-            <ChevronDown
-              className={`h-4 w-4 shrink-0 transition-transform ${browseOpen ? 'rotate-180' : ''}`}
-              aria-hidden="true"
-            />
-          </button>
+            {PRIMARY_NAV.map(barNavLink)}
 
-          {/* 3 — the search form, at every breakpoint including 360px.
-
-              Except on the catalogue, which owns search itself: its sticky bar
-              carries the canonical box, wired to the filter sheet and to the
-              draft state the chips read. Rendering this one there put two
-              fields with near-identical placeholders sixty pixels apart, both
-              writing the same store key. The spacer keeps the row's geometry —
-              without it the browse trigger and the right-hand cluster collapse
-              together and the bar visibly reflows on every navigation. */}
-          {searchInHeader ? (
-          <form role="search" onSubmit={submitSearch} className="min-w-0 flex-1 lg:max-w-2xl">
-            <div className="flex h-11 w-full items-center gap-2 rounded-full bg-white/14 pl-3.5 pr-1.5 ring-1 ring-inset ring-white/22 transition-colors focus-within:bg-white/22 focus-within:ring-2 focus-within:ring-white/70 sm:h-12 sm:pl-4">
-              <Search className="h-5 w-5 shrink-0 text-white/70" aria-hidden="true" />
-              {/* `text-base` is load-bearing and must never be shrunk: iOS
-                  Safari zooms the viewport for any field under 16px and never
-                  zooms back, which inside a `fixed` bar is unrecoverable.
-                  `<TextInput>` is deliberately not reused — its
-                  `bg-surface-2 border-line` skin belongs on a white page. */}
-              <input
-                ref={searchInputRef}
-                type="search"
-                name="q"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                inputMode="search"
-                enterKeyHint="search"
-                autoComplete="off"
-                maxLength={MAX_SEARCH_LENGTH}
-                placeholder={t('layout.header.searchPlaceholder')}
-                aria-label={t('layout.header.searchAria')}
-                // `self-stretch` is a tap-target fix, not cosmetics. The pill
-                // is 44px (48 at `sm`) but an `<input>` centred in it is only
-                // as tall as its own line box — about 24px — so the top and
-                // bottom ~10px of the visible field belonged to the wrapper
-                // and a tap there focused nothing. Stretching the control to
-                // the row's height is what makes the thing you can see and
-                // the thing you can press the same object.
-                className="header-search-input min-w-0 flex-1 self-stretch touch-manipulation bg-transparent text-base font-medium text-white outline-none placeholder:text-white/60"
+            {/* The ten categories are one press behind this, and the panel it
+                opens is anchored to the bar rather than to the button. The
+                label waits for `xl` for the same width reason as the wordmark;
+                the grid glyph and the chevron say "this opens something" on
+                their own. */}
+            <button
+              type="button"
+              ref={browseTriggerRef}
+              data-header-menu
+              onClick={() => toggleMenu('browse')}
+              aria-haspopup="true"
+              aria-expanded={browseOpen}
+              aria-controls="header-browse"
+              className={`${HEADER_GHOST_PILL} px-2.5 text-[13px] font-bold ${
+                browseOpen ? HEADER_OPEN : HEADER_IDLE
+              }`}
+            >
+              <LayoutGrid className="h-5 w-5 shrink-0" aria-hidden="true" />
+              <span className="hidden xl:inline">{t('layout.categories.label')}</span>
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 transition-transform duration-300 ease-out ${
+                  browseOpen ? 'rotate-180' : ''
+                }`}
+                aria-hidden="true"
               />
+            </button>
+          </nav>
 
-              {query.length > 0 && (
-                <button
-                  type="button"
-                  onClick={clearSearch}
-                  aria-label={t('common.action.clear')}
-                  className={HEADER_IN_FIELD_BUTTON}
-                >
-                  <X className="h-4 w-4" aria-hidden="true" />
-                </button>
-              )}
-
-              {/* The map lives in BottomNav below `sm`, and 360px has no room
-                  for a second control in the field. */}
-              <span className="hidden h-6 w-px shrink-0 bg-white/25 sm:block" aria-hidden="true" />
-              <button
-                type="button"
-                onClick={() => go('MAP')}
-                aria-label={t('layout.header.mapSearchAria')}
-                title={t('layout.header.mapSearchAria')}
-                className={`${HEADER_IN_FIELD_BUTTON} hidden sm:grid`}
-              >
-                <MapIcon className="h-5 w-5" aria-hidden="true" />
-              </button>
-
-              {/* Enter already submits; this is the control a screen reader
-                  and a switch user need to reach the same action. */}
-              <button type="submit" className="sr-only">
-                {t('common.action.search')}
-              </button>
-            </div>
-          </form>
-          ) : (
-            <div className="min-w-0 flex-1" aria-hidden="true" />
-          )}
-
-          {/* 4-7 — the cluster. Two pitches only: 2px inside the capsule,
+          {/* 3-6 — the cluster. Two pitches only: 2px inside the capsule,
               12px between everything else. The old bar ran six children at a
-              flat 6px with no divider and no grouping anywhere. */}
-          <div className="flex shrink-0 items-center gap-3">
-            {/* 4 — "your stuff". The one bordered object in the bar, and it
-                renders only for a signed-in visitor: a heart that opens a
-                login dialog is a control that blocks the person pressing it.
-                Below `lg` both of these are BottomNav tabs. */}
+              flat 6px with no divider and no grouping anywhere. `ml-auto`
+              only does anything below `lg`, where the nav that would otherwise
+              absorb the free space is not rendered. */}
+          <div className="ml-auto flex shrink-0 items-center gap-3">
+            {/* 3 — "your stuff". The one bordered object in the bar. It
+                renders only for a signed-in visitor — a heart that opens a
+                login dialog is a control that blocks the person pressing it —
+                and only at `xl`: below that it is the account menu's job, and
+                below `lg` both of these are BottomNav tabs. */}
             {currentUser && (
-              <div className={`hidden ${HEADER_CAPSULE} lg:flex`}>
+              <div className={`hidden ${HEADER_CAPSULE} xl:flex`}>
                 <AppLink
                   view="FAVORITES"
                   onNavigate={closeMenus}
@@ -781,7 +850,7 @@ export const Header: React.FC = () => {
               </div>
             )}
 
-            {/* 5 — language and appearance behind one glyph. The two-letter
+            {/* 4 — language and appearance behind one glyph. The two-letter
                 code is the icon: strictly more informative than a globe, and
                 the same 44px circle as everything else in the run rather than
                 the odd-width chip the old globe-plus-code chip was. */}
@@ -814,7 +883,7 @@ export const Header: React.FC = () => {
               )}
             </div>
 
-            {/* 6 — the money action, and the only fully-filled shape in the
+            {/* 5 — the money action, and the only fully-filled shape in the
                 bar. Solid white on saturated blue needs no shadow to sit
                 forward; the old `shadow-md` was a black shadow on dark blue
                 and only muddied the edge. Not rendered below `lg` because
@@ -828,7 +897,7 @@ export const Header: React.FC = () => {
               {t('layout.header.createListingCta')}
             </button>
 
-            {/* 7 — account. A circle when signed in, a borderless word when
+            {/* 6 — account. A circle when signed in, a borderless word when
                 not: "E'lon berish" and "Kirish" used to be the same rectangle
                 at the same radius, height, padding and size, differing only
                 in fill — a filled/ghost pair, which is exactly the wrong
@@ -903,13 +972,14 @@ export const Header: React.FC = () => {
               </button>
             )}
 
-            {/* The trailing control below `lg`. Showing the face inside the
-                menu trigger is also what closes the 640-1023px identity hole:
-                the old account button was `lg:inline-flex`, so a signed-in
-                visitor on a tablet saw no avatar, no name and no route to
-                their profile anywhere in the bar. The label finally flips to
-                "close" when the drawer is open — the key has existed and gone
-                unused since it was written. */}
+            {/* The trailing control below `lg`, and the only one there besides
+                the brand. Showing the face inside the menu trigger is also
+                what closes the 640-1023px identity hole: the old account
+                button was `lg:inline-flex`, so a signed-in visitor on a tablet
+                saw no avatar, no name and no route to their profile anywhere
+                in the bar. The label finally flips to "close" when the drawer
+                is open — the key has existed and gone unused since it was
+                written. */}
             <button
               type="button"
               // A toggle, because the markup already claims to be one:
@@ -935,57 +1005,62 @@ export const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* 2a — the browse panel, anchored to the header's own `max-w-7xl`
-            grid rather than hanging off a trigger 380px into the bar, so it
-            lines up with the logo on the left and the avatar on the right.
-            The old `role="menu"` wrapping a `<ul>` of `<li>`s whose buttons
-            carried no `role="menuitem"` is gone: this is a plain container
-            holding a real `<nav>` and a labelled group, which needs no roving
-            tabindex to be correct. */}
-        {browseOpen && (
+        {/* 2a — the browse panel, and the animation the owner asked for.
+            It has to look like it is peeling out from behind the bar's own
+            bottom edge, not appearing there. Three things do that, all on
+            these two elements and none of them in index.css, which belongs to
+            another part of the app:
+
+              - the outer element is `overflow-hidden` with an animated
+                `max-height`, so at rest the panel is a zero-height slot under
+                the bar and the reveal is a wipe downward, clipped by the
+                header's edge for the whole of it;
+              - the inner panel starts 16px higher and transparent and settles
+                into place as the slot opens, which is what makes the surface
+                look like it is being drawn out rather than uncovered;
+              - both run 300ms on `ease-out`, and the panel stays mounted for
+                the same 300ms after the menu closes so the exit is the
+                entrance in reverse instead of a disappearance.
+
+            The height is measured rather than guessed — see the state block
+            at the top of the component. `prefers-reduced-motion` is honoured
+            twice over: index.css clamps the two transitions to nothing, and
+            the translate is dropped here so the panel does not jump 16px. */}
+        {browseMounted && (
           <div
             id="header-browse"
             data-header-menu
-            className="animate-fade-in absolute inset-x-0 top-full hidden lg:block"
+            className="pointer-events-none absolute inset-x-0 top-full hidden overflow-hidden pb-10 transition-[max-height] duration-300 ease-out lg:block"
+            style={{ maxHeight: browseExpanded ? browseHeight + PANEL_SHADOW_ROOM : 0 }}
           >
             <div className="gutter-safe mx-auto max-w-7xl">
-              <div className="rounded-b-3xl border-x border-b border-line bg-surface p-4 text-content shadow-raised">
-                <nav aria-label={t('layout.header.browseSections')}>
-                  <p className={EYEBROW}>{t('layout.header.browseSections')}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {PRIMARY_NAV.map((item) => {
-                      const active = currentView === item.view;
-                      return (
-                        <AppLink
-                          key={item.view}
-                          view={item.view}
-                          onNavigate={closeMenus}
-                          aria-current={active ? 'page' : undefined}
-                          // Both the weight and the fill change with state.
-                          // The bar's old active link differed from a hover
-                          // by a `shadow-xs` nobody could see on blue.
-                          className={`press flex min-h-11 items-center gap-2 rounded-full px-4 text-sm transition-colors ${
-                            active
-                              ? 'bg-brand-soft font-black text-brand-text'
-                              : 'bg-surface-2 font-bold text-muted hover:text-content'
-                          }`}
-                        >
-                          <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                          {t(item.labelKey)}
-                        </AppLink>
-                      );
-                    })}
-                  </div>
-                </nav>
-
-                <div
-                  role="group"
-                  aria-label={t('layout.categories.label')}
-                  className="mt-4 border-t border-line pt-4"
-                >
-                  <p className={EYEBROW}>{t('layout.categories.chooseSection')}</p>
-                  {renderCategories('panel')}
+              <div
+                ref={browsePanelRef}
+                className={`pointer-events-auto rounded-b-3xl border-x border-b border-line bg-surface px-4 pb-4 pt-3 text-content shadow-raised transition duration-300 ease-out ${
+                  browseExpanded || reducedMotion
+                    ? 'translate-y-0 opacity-100'
+                    : '-translate-y-4 opacity-0'
+                }`}
+              >
+                {/* One header line, and the panel's only other control sits on
+                    the end of it rather than on a row of its own underneath —
+                    a single button alone on a line is exactly the "1 ta oʻzi 1
+                    ta qatorni egallab" shape the owner objected to. */}
+                <div className="flex items-center justify-between gap-3 pb-2.5">
+                  <p className={`${EYEBROW} min-w-0 truncate`}>
+                    {t('layout.categories.chooseSection')}
+                  </p>
+                  <AppLink
+                    view="LISTINGS"
+                    onNavigate={closeMenus}
+                    className="press flex min-h-11 shrink-0 touch-manipulation items-center gap-1.5 rounded-full px-3 text-[13px] font-bold text-brand-text transition-colors hover:bg-brand-soft"
+                  >
+                    {t('home.categories.viewAll')}
+                    <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  </AppLink>
                 </div>
+
+                {renderCategories('panel')}
               </div>
             </div>
           </div>

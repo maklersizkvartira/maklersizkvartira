@@ -12,6 +12,13 @@
  * Tashkent), not of viloyats, and 151 was however many districts happened to
  * be listed in the data file. Both halves are derived below, and the data
  * file now holds the real division.
+ *
+ * The two illustrations flank the headline from `lg` up and drop beneath it
+ * below that; the reasoning for both halves of that is at the grid itself.
+ * They are laid out as grid tracks rather than pinned to the band's edges
+ * because absolute artwork and centred text share the same pixels the moment
+ * a translation runs long — a track cannot overlap the column beside it at
+ * any width, which is the one guarantee this composition needs.
  */
 
 import React, { useState } from 'react';
@@ -27,41 +34,137 @@ export const HeroSection: React.FC = () => {
 
   return (
     <div className="w-full">
-      <section className="gutter-safe relative overflow-hidden bg-gradient-to-b from-band to-band-2 pb-10 pt-5 text-center text-on-band sm:pb-14 sm:pt-8">
-        <div className="relative z-10 mx-auto max-w-5xl space-y-5 sm:space-y-6">
-          {/* 1. Category Cards at the top (exact match with design screenshot) */}
-          <QuickCategories />
+      <section className="gutter-safe relative overflow-hidden bg-gradient-to-b from-band to-band-2 pb-10 pt-5 text-center text-on-band sm:pb-14 sm:pt-8 lg:pb-16">
+        <div className="relative z-10 space-y-6 sm:space-y-7">
+          {/* 1. Category Cards at the top (exact match with design screenshot).
+                 Kept inside its own 5xl column so widening the artwork stage
+                 below does not also stretch the rail and change where the ten
+                 cards sit. */}
+          <div className="mx-auto max-w-5xl">
+            <QuickCategories />
+          </div>
 
-          {/* 2. Hero Title */}
-          <h1
-            className="hero-title text-balance text-2xl font-extrabold leading-tight tracking-tight text-white xs:text-3xl sm:text-5xl md:text-6xl pt-1 sm:pt-2"
-            style={{ fontFamily: "'Manrope', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" }}
+          {/* 2. The headline, the search pill and the two illustrations.
+
+                 Below `lg` the pair sits beneath the text instead of either
+                 side of it. At 360px there is no width to flank a headline
+                 without shrinking the art to a thumbnail, and the two pieces
+                 only tell their story together — the app in your hand, the
+                 verified home — so hiding one was worse than moving both. They
+                 are capped by height rather than by width down here, which is
+                 what keeps them one short band at the foot of the hero instead
+                 of a screenful: on a 360x640 phone the search pill still lands
+                 around 360px down, well inside the first viewport.
+
+                 The image tracks are fixed and the text track is the `1fr`, so
+                 the headline column only ever grows with the viewport.
+
+                 The left track is the wider of the two, which looks backwards
+                 against the file sizes but is what makes the pair balance. The
+                 phone illustration is drawn inside a soft halo and only about
+                 two thirds of its 717x840 frame is the subject; the house fills
+                 roughly nine tenths of its own. Matched by frame the house
+                 would out-weigh the phone by a third, so the tracks are sized
+                 to make the two subjects read at the same height instead. */}
+          <div
+            className="mx-auto grid max-w-[90rem] grid-cols-2 items-end gap-x-3 gap-y-7 sm:gap-x-6 lg:grid-cols-[16rem_minmax(0,1fr)_14rem] lg:items-center lg:gap-x-6 xl:grid-cols-[18rem_minmax(0,1fr)_16rem] xl:gap-x-8 2xl:grid-cols-[20rem_minmax(0,1fr)_18rem] 2xl:gap-x-10"
           >
-            {t('home.hero.title')}
-          </h1>
+            {/* Text first in the DOM: the illustrations are decoration and are
+                hidden from assistive tech, so source order should read as the
+                hero's meaning does. Explicit column and row starts place them
+                visually. Deliberately no `col-span-*` anywhere in here — that
+                utility is the `grid-column` shorthand and would reset the
+                `col-start` beside it depending on which one Tailwind emits
+                last. Longhand starts and ends cannot collide. */}
+            <div className="col-start-1 col-end-3 row-start-1 space-y-5 sm:space-y-6 lg:col-start-2 lg:col-end-3">
+              <h1
+                /* The type ramp steps back down at `lg`. Up to `md` the
+                   headline owns the full width of the band; from `lg` it
+                   shares the row with two illustrations and the column it is
+                   left with is 464px, where 60px would break the title across
+                   four lines. It climbs again at `xl` and `2xl` as the column
+                   widens to 640px and 752px. */
+                className="hero-title text-balance text-2xl font-extrabold leading-tight tracking-tight text-white xs:text-3xl sm:text-5xl md:text-6xl pt-1 sm:pt-2 lg:text-4xl xl:text-5xl 2xl:text-6xl"
+                style={{ fontFamily: "'Manrope', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" }}
+              >
+                {t('home.hero.title')}
+              </h1>
 
-          {/* 3. Search Bar Button */}
-          <div className="mx-auto max-w-3xl px-1">
-            <button
-              type="button"
-              onClick={() => setShowSearchModal(true)}
-              aria-haspopup="dialog"
-              aria-expanded={showSearchModal}
-              className="press group flex w-full items-center gap-3 rounded-full border border-line bg-surface p-3 shadow-raised hover:bg-surface-2 sm:p-4 transition-all duration-300 hover:border-brand/40 hover:shadow-brand/10"
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-on-brand transition-transform group-hover:scale-105 sm:h-11 sm:w-11 shadow-sm">
-                <Search className="h-5 w-5 sm:h-5.5 sm:w-5.5" aria-hidden="true" />
-              </span>
-              <span className="min-w-0 flex-1 text-left">
-                <span className="block truncate text-sm font-black text-content sm:text-base">
-                  {t('home.hero.searchTitle')}
-                </span>
-                <span className="block truncate text-xs font-medium text-subtle">
-                  <span className="sm:hidden">{t('home.hero.searchHintShort')}</span>
-                  <span className="hidden sm:inline">{t('home.hero.searchHintLong')}</span>
-                </span>
-              </span>
-            </button>
+              <div className="mx-auto max-w-3xl px-1">
+                <button
+                  type="button"
+                  onClick={() => setShowSearchModal(true)}
+                  aria-haspopup="dialog"
+                  aria-expanded={showSearchModal}
+                  className="press group flex w-full items-center gap-3 rounded-full border border-line bg-surface p-3 shadow-raised hover:bg-surface-2 sm:p-4 transition-all duration-300 hover:border-brand/40 hover:shadow-brand/10"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-on-brand transition-transform group-hover:scale-105 sm:h-11 sm:w-11 shadow-sm">
+                    <Search className="h-5 w-5 sm:h-5.5 sm:w-5.5" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0 flex-1 text-left">
+                    <span className="block truncate text-sm font-black text-content sm:text-base">
+                      {t('home.hero.searchTitle')}
+                    </span>
+                    <span className="block truncate text-xs font-medium text-subtle">
+                      <span className="sm:hidden">{t('home.hero.searchHintShort')}</span>
+                      <span className="hidden sm:inline">{t('home.hero.searchHintLong')}</span>
+                    </span>
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* The artwork is named for where it goes: left-img on the left,
+                right-img on the right. The animation lives on these wrappers
+                rather than on the <img> so the light pool travels with the
+                piece it belongs to; `.hero-art-left` / `.hero-art-right` set
+                nothing but `animation` — see the note in index.css about why a
+                `display` here would break the `lg:` placement above.
+
+                Both are eager: they are above the fold and lazy-loading them
+                paints an empty hero that fills in a beat later. Neither is
+                fetchPriority="high" — 260KB of decoration should not outrank
+                the headline's font and the first paint of the text. */}
+            <div className="hero-art-left relative col-start-1 col-end-2 row-start-2 flex justify-center lg:row-start-1">
+              {/* A pool of lighter brand blue at the foot of each piece. Both
+                  illustrations bottom out in deep navy — the phone's city slab
+                  and the house's base plinth — and the band ends on #071a5c, so
+                  the one thing that would not separate them is a shadow: dark
+                  on dark behind dark. A lighter blue behind the base silhouettes
+                  them upward instead, and being a blurred ellipse rather than a
+                  panel it never reads as a card around the artwork. */}
+              <span
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 rounded-[50%] bg-brand/45 blur-2xl"
+                aria-hidden="true"
+              />
+              <img
+                src="/img/left-img.webp"
+                alt=""
+                aria-hidden="true"
+                width={717}
+                height={840}
+                loading="eager"
+                decoding="async"
+                className="relative h-[170px] w-auto max-w-full select-none object-contain xs:h-[190px] sm:h-[232px] md:h-[264px] lg:h-auto lg:w-full"
+              />
+            </div>
+
+            <div className="hero-art-right relative col-start-2 col-end-3 row-start-2 flex justify-center lg:col-start-3 lg:col-end-4 lg:row-start-1">
+              <span
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 rounded-[50%] bg-brand/45 blur-2xl"
+                aria-hidden="true"
+              />
+              <img
+                src="/img/right-img.webp"
+                alt=""
+                aria-hidden="true"
+                width={840}
+                height={770}
+                loading="eager"
+                decoding="async"
+                className="relative h-[118px] w-auto max-w-full select-none object-contain xs:h-[132px] sm:h-[162px] md:h-[184px] lg:h-auto lg:w-full"
+              />
+            </div>
           </div>
         </div>
 

@@ -26,7 +26,6 @@ export const layout = {
     createListingCta: 'E’lon berish',
     savedCount: 'Saqlanganlar ({count})',
     loginOrRegister: 'Kirish / Ro‘yxatdan o‘tish',
-    searchPlaceholder: 'Qidirish...',
     openMenu: 'Menyuni ochish',
     closeMenu: 'Menyuni yopish',
     // The header drawer is a Sheet now, so it has a real heading instead of
@@ -37,10 +36,10 @@ export const layout = {
     drawerQuickLinks: 'Tezkor havolalar',
     drawerSettings: 'Sozlamalar',
     skipToContent: 'Asosiy mazmunga o‘tish',
-    searchAria: 'E’lonlar bo‘yicha qidirish',
-    // The eyebrow over the four section links at the top of the browse
-    // panel — distinct from `categories.chooseSection`, which heads the ten
-    // category tiles below them in the same panel.
+    // The accessible name of the primary <nav> in the middle of the bar —
+    // the four section links themselves, which are visible text and need no
+    // eyebrow. Distinct from `categories.chooseSection`, which heads the ten
+    // category tiles inside the browse panel that nav's last control opens.
     browseSections: 'Bo‘limlar',
     // The bar carries one glyph for both preferences now, so its label has to
     // name both; neither `common.language.label` nor `common.theme.label`
@@ -133,8 +132,10 @@ export const layout = {
     // footer's link label and the footer still renders it.
     supportBlock: {
       title: 'Yordam kerakmi?',
-      feedback: 'Taklif va shikoyatlar uchun:',
-      phoneAria: '{phone} raqamiga qo‘ng‘iroq qilish',
+      // The row's own call to action. It is a word, not an icon, because the
+      // row is a `tel:` link and nothing else on it says what pressing does.
+      call: 'Qoʻngʻiroq',
+      phoneAria: '{phone} raqamiga qoʻngʻiroq qilish',
       hours: 'Har kuni 09:00 – 21:00',
     },
   },

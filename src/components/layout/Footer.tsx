@@ -23,23 +23,11 @@ import { ThemeToggle } from './ThemeToggle';
 interface SupportContact {
   dial: string;
   label: string;
-  telegramUsername: string;
-  telegramLabel: string;
 }
 
 const SUPPORT_CONTACTS: SupportContact[] = [
-  {
-    dial: '+998937188885',
-    label: '+998 93 718 88 85',
-    telegramUsername: 'LOGO_55',
-    telegramLabel: '@LOGO_55',
-  },
-  {
-    dial: '+998777850737',
-    label: '+998 77 785 07 37',
-    telegramUsername: 'karimov_developer',
-    telegramLabel: '@karimov',
-  },
+  { dial: '+998937188885', label: '+998 93 718 88 85' },
+  { dial: '+998777850737', label: '+998 77 785 07 37' },
 ];
 
 const InstagramIcon: React.FC<{ className?: string }> = ({ className = 'h-4 w-4' }) => (
@@ -119,52 +107,53 @@ export const Footer: React.FC = () => {
             {/* Maklersiz uy va kvartira ijarasi matni olib tashlandi */}
 
             {/*
-              The helpline, written as a column like the ones beside it: a
-              heading, then one thing to press.
+              The helpline: one quiet card holding both numbers.
+
+              It briefly grew a Telegram handle beside every number, which
+              turned a two-line block into four competing chips in two brand
+              colours and buried the thing a visitor came here for — the
+              number. The support Telegram is still one press away in the
+              social row at the bottom of the footer, where the one account
+              belongs; here the card is numbers only.
 
               The `tel:` href is not optional. index.html carries
               `format-detection: telephone=no`, which is what stops iOS from
               turning every price and area figure on the site into a phone
-              link — and it stops this number from linkifying too. Without an
-              explicit anchor the support line is text a visitor has to copy
-              by hand.
+              link — and it stops these numbers from linkifying too. Without
+              an explicit anchor the support line is text a visitor has to
+              copy by hand.
             */}
-            <div>
-              <h2 className="mb-1 text-xs font-black uppercase tracking-wide text-content">
-                {t('layout.footer.supportBlock.title')}
-              </h2>
-              <p className="mb-3 text-[11px] font-bold text-brand-text">
-                {t('layout.footer.supportBlock.feedback' as never) || 'Taklif va shikoyatlar uchun:'}
-              </p>
-              <ul className="flex flex-col gap-2.5">
+            <div className="rounded-2xl border border-line bg-surface-2/60 p-3.5 transition-colors hover:border-brand/40">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-text">
+                  <Phone className="h-3.5 w-3.5" aria-hidden="true" />
+                </span>
+                <h2 className="text-[11px] font-black uppercase tracking-wider text-content">
+                  {t('layout.footer.supportBlock.title')}
+                </h2>
+              </div>
+              {/* The rows are the one thing in this card that gets pressed, so
+                  they carry the 44px target the old card never had — the row
+                  is the hit area, not the digits inside it. */}
+              <ul className="mt-2.5">
                 {SUPPORT_CONTACTS.map((contact) => (
-                  <li key={contact.dial} className="flex flex-wrap items-center gap-2">
+                  <li key={contact.dial}>
                     <a
                       href={`tel:${contact.dial}`}
                       aria-label={t('layout.footer.supportBlock.phoneAria', {
                         phone: contact.label,
                       })}
-                      className="press inline-flex min-h-10 items-center gap-2 rounded-xl border border-line bg-surface-2/60 px-3 py-1.5 text-xs sm:text-sm font-black text-content transition-colors hover:border-brand/40 hover:text-brand-text"
+                      className="press group flex min-h-11 items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-xs transition-colors hover:bg-surface-2"
                     >
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-text">
-                        <Phone className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span className="font-semibold text-content">{contact.label}</span>
+                      <span className="shrink-0 text-[11px] font-bold text-brand-text group-hover:underline">
+                        {t('layout.footer.supportBlock.call')}
                       </span>
-                      {contact.label}
-                    </a>
-                    <a
-                      href={`https://t.me/${contact.telegramUsername}`}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      aria-label={`Telegram: ${contact.telegramLabel}`}
-                      className="press inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[#229ED9]/30 bg-[#229ED9]/10 px-2.5 py-1.5 text-xs font-bold text-[#229ED9] transition-colors hover:bg-[#229ED9]/20"
-                    >
-                      <Send className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>{contact.telegramLabel}</span>
                     </a>
                   </li>
                 ))}
               </ul>
-              <p className="mt-2 text-[11px] text-subtle">
+              <p className="mt-1.5 px-2 text-[11px] text-subtle">
                 {t('layout.footer.supportBlock.hours')}
               </p>
             </div>
