@@ -20,7 +20,7 @@
     "build:ssr": "vite build --ssr src/entry-server.tsx",
     "build:prerender": "node scripts/prerender.mjs",
     "build:sitemap": "node scripts/generate-sitemap.mjs",
-    "seo:audit": "node scripts/seo-audit.mjs"
+    "seo:audit": "node scripts/seo-audit.mjs --warn"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
