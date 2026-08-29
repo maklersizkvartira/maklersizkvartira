@@ -85,6 +85,10 @@ export const layout = {
       title: 'В центре',
       description: 'Жильё в центральных районах города',
     },
+    hovli: {
+      title: 'Свой дом',
+      description: 'Дома с двором — отдельный вход и собственный участок',
+    },
   },
 
   sidebar: {

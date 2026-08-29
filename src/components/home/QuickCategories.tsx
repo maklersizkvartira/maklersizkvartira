@@ -5,31 +5,25 @@
  */
 
 import React, { useRef } from 'react';
-import {
-  ChevronRight,
-  Flower2,
-  GraduationCap,
-  Handshake,
-  Home,
-  Landmark,
-  ShieldCheck,
-  Sofa,
-  TrainFront,
-  TrendingDown,
-  Users,
-} from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
-import { cn } from '../../lib/cn';
 import { useHaptics } from '../../hooks/useHaptics';
-import { quickFilterState, useAppStore, type QuickFilterId, DEFAULT_FILTERS } from '../../stores/useAppStore';
+import { quickFilterState, useAppStore, type QuickFilterId } from '../../stores/useAppStore';
 import { AppLink } from '../../router/AppLink';
 
 interface HomeCategory {
-  id: Exclude<QuickFilterId, 'all'> | 'house';
+  id: Exclude<QuickFilterId, 'all'>;
   title: { uz: string; ru: string; en: string };
-  icon: React.ComponentType<{ className?: string }>;
-  tone: string;
+  /**
+   * The category illustration from `public/img`.
+   *
+   * These replaced a set of lucide glyphs in tinted tiles. They are painted
+   * artwork, not line icons: they carry their own colour, so the pastel tile
+   * behind them was two backgrounds fighting for the same 44px. Sourced at
+   * 256px for a 44px slot so they stay sharp on a 3x phone screen.
+   */
+  image: string;
   landing?: string;
 }
 
@@ -38,65 +32,55 @@ const CATEGORIES: HomeCategory[] = [
     id: 'roommate',
     landing: '/sheriklikka-ijara',
     title: { uz: 'Sheriklikka', ru: 'Совместно', en: 'Roommate' },
-    icon: Handshake,
-    tone: 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400',
+    image: '/img/sheriklika.webp',
   },
   {
     id: 'student',
     landing: '/talabalar-uchun-ijara',
     title: { uz: 'Talabalar', ru: 'Студентам', en: 'Students' },
-    icon: GraduationCap,
-    tone: 'bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400',
+    image: '/img/talaba.webp',
   },
   {
     id: 'family',
     landing: '/oilalar-uchun-ijara',
     title: { uz: 'Oilaviy', ru: 'Семейным', en: 'Family' },
-    icon: Users,
-    tone: 'bg-purple-50 text-purple-600 dark:bg-purple-950/50 dark:text-purple-400',
+    image: '/img/oila.webp',
   },
   {
-    id: 'house',
+    id: 'hovli',
     title: { uz: 'Hovli', ru: 'Дома', en: 'House' },
-    icon: Home,
-    tone: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400',
+    image: '/img/hovli.webp',
   },
   {
     id: 'qizlarga',
     title: { uz: 'Qizlarga', ru: 'Девушкам', en: 'Girls' },
-    icon: Flower2,
-    tone: 'bg-pink-50 text-pink-600 dark:bg-pink-950/50 dark:text-pink-400',
+    image: '/img/qizlar.webp',
   },
   {
     id: 'komfort',
     title: { uz: 'Komfort', ru: 'Комфорт', en: 'Comfort' },
-    icon: Sofa,
-    tone: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400',
+    image: '/img/qulay.webp',
   },
   {
     id: 'center',
     title: { uz: 'Markazda', ru: 'В центре', en: 'Center' },
-    icon: Landmark,
-    tone: 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400',
+    image: '/img/markaz.webp',
   },
   {
     id: 'metro',
     title: { uz: 'Metro', ru: 'У метро', en: 'Metro' },
-    icon: TrainFront,
-    tone: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-950/50 dark:text-cyan-400',
+    image: '/img/metro.webp',
   },
   {
     id: 'budget',
     landing: '/arzon-ijara',
     title: { uz: 'Arzon', ru: 'Недорого', en: 'Budget' },
-    icon: TrendingDown,
-    tone: 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400',
+    image: '/img/arzonroq.webp',
   },
   {
     id: 'premium',
     title: { uz: 'Ishonchli', ru: 'Надёжные', en: 'Verified' },
-    icon: ShieldCheck,
-    tone: 'bg-teal-50 text-teal-600 dark:bg-teal-950/50 dark:text-teal-400',
+    image: '/img/ishonchli.webp',
   },
 ];
 
@@ -109,11 +93,10 @@ export const QuickCategories: React.FC = () => {
 
   const openCategory = (id: HomeCategory['id']) => {
     haptics.select();
-    if (id === 'house') {
-      setFilters({ ...DEFAULT_FILTERS, propertyType: 'HOUSE' });
-    } else {
-      setFilters(quickFilterState(id));
-    }
+    // Every card, including Hovli, reads the store's one quick-filter map:
+    // the special case this replaces was a second definition of the same
+    // search, and the catalogue's chip rail could not light up for it.
+    setFilters(quickFilterState(id));
     setCurrentView('LISTINGS');
   };
 
@@ -132,19 +115,20 @@ export const QuickCategories: React.FC = () => {
         className="flex items-center gap-2.5 sm:gap-3 overflow-x-auto pb-1 pt-1 hide-scrollbar snap-x snap-mandatory justify-start md:justify-center w-full px-1"
       >
         {CATEGORIES.map((category) => {
-          const Icon = category.icon;
           const label = category.title[currentLang] || category.title.uz;
 
           const inner = (
             <>
-              <span
-                className={cn(
-                  'flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-105',
-                  category.tone,
-                )}
-              >
-                <Icon className="h-5 w-5 sm:h-5.5 sm:w-5.5" aria-hidden="true" />
-              </span>
+              <img
+                src={category.image}
+                alt=""
+                aria-hidden="true"
+                width={44}
+                height={44}
+                loading="lazy"
+                decoding="async"
+                className="h-10 w-10 shrink-0 select-none object-contain transition-transform duration-200 group-hover:scale-105 sm:h-11 sm:w-11"
+              />
 
               <span className="mt-1 block w-full truncate text-[11px] sm:text-xs font-black text-slate-800 dark:text-content text-center leading-none">
                 {label}

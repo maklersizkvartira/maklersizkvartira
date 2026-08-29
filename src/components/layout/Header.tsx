@@ -19,21 +19,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ChevronDown,
-  GraduationCap,
-  Handshake,
   Heart,
-  Landmark,
   LogOut,
   Menu,
   Plus,
   Search,
-  ShieldCheck,
-  Sofa,
-  TrainFront,
-  TrendingDown,
   User as UserIcon,
-  Users,
-  Venus,
 } from 'lucide-react';
 
 import { useTranslation, type TranslationKey } from '../../i18n';
@@ -91,7 +82,8 @@ interface HeaderCategory {
   id: Exclude<QuickFilterId, 'all'>;
   titleKey: TranslationKey;
   descriptionKey: TranslationKey;
-  icon: React.ComponentType<{ className?: string }>;
+  /** The category illustration from `public/img`, shared with the home cards. */
+  image: string;
 }
 
 /**
@@ -106,55 +98,61 @@ const CATEGORIES: HeaderCategory[] = [
     id: 'roommate',
     titleKey: 'layout.categories.roommate.title',
     descriptionKey: 'layout.categories.roommate.description',
-    icon: Handshake,
+    image: '/img/sheriklika.webp',
   },
   {
     id: 'student',
     titleKey: 'layout.categories.student.title',
     descriptionKey: 'layout.categories.student.description',
-    icon: GraduationCap,
+    image: '/img/talaba.webp',
   },
   {
     id: 'family',
     titleKey: 'layout.categories.family.title',
     descriptionKey: 'layout.categories.family.description',
-    icon: Users,
+    image: '/img/oila.webp',
   },
   {
     id: 'qizlarga',
     titleKey: 'layout.categories.qizlarga.title',
     descriptionKey: 'layout.categories.qizlarga.description',
-    icon: Venus,
+    image: '/img/qizlar.webp',
   },
   {
     id: 'komfort',
     titleKey: 'layout.categories.komfort.title',
     descriptionKey: 'layout.categories.komfort.description',
-    icon: Sofa,
+    image: '/img/qulay.webp',
   },
   {
     id: 'metro',
     titleKey: 'layout.categories.metro.title',
     descriptionKey: 'layout.categories.metro.description',
-    icon: TrainFront,
+    image: '/img/metro.webp',
   },
   {
     id: 'center',
     titleKey: 'layout.categories.center.title',
     descriptionKey: 'layout.categories.center.description',
-    icon: Landmark,
+    image: '/img/markaz.webp',
+  },
+  {
+    id: 'hovli',
+    titleKey: 'layout.categories.hovli.title',
+    descriptionKey: 'layout.categories.hovli.description',
+    image: '/img/hovli.webp',
   },
   {
     id: 'budget',
     titleKey: 'layout.categories.budget.title',
     descriptionKey: 'layout.categories.budget.description',
-    icon: TrendingDown,
+    image: '/img/arzonroq.webp',
   },
   {
     id: 'premium',
     titleKey: 'layout.categories.premium.title',
     descriptionKey: 'layout.categories.premium.description',
-    icon: ShieldCheck,
+    image: '/img/ishonchli.webp',
   },
 ];
 
@@ -256,9 +254,16 @@ export const Header: React.FC = () => {
             onClick={() => openCategory(category.id)}
             className="press flex w-full touch-manipulation items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-surface-2"
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-text">
-              <category.icon className="h-5 w-5" aria-hidden="true" />
-            </span>
+            <img
+              src={category.image}
+              alt=""
+              aria-hidden="true"
+              width={40}
+              height={40}
+              loading="lazy"
+              decoding="async"
+              className="h-10 w-10 shrink-0 select-none object-contain"
+            />
             <span className="min-w-0">
               <span className="block truncate text-sm font-bold text-content">
                 {t(category.titleKey)}

@@ -85,6 +85,10 @@ export const layout = {
       title: 'Markazda',
       description: 'Shaharning markaziy tumanlaridagi uylar',
     },
+    hovli: {
+      title: 'Hovli',
+      description: 'Hovlili uylar — alohida kirish va oʻz hovlisi bilan',
+    },
   },
 
   sidebar: {

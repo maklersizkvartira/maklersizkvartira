@@ -128,6 +128,7 @@ export type QuickFilterId =
   | 'qizlarga'
   | 'komfort'
   | 'center'
+  | 'hovli'
   | 'budget'
   | 'premium';
 
@@ -149,6 +150,10 @@ export const QUICK_FILTER_DELTAS: Record<QuickFilterId, Partial<Filters>> = {
   // not expressible in one query. Mirobod is the one the centre is in; the
   // district dropdown covers the rest.
   center: { district: 'Mirobod' },
+  // The one chip that narrows by what a place IS rather than by who it is
+  // for or where it stands. HOUSE is the backend's own PropertyType member —
+  // any other spelling is dropped by the filter model before it reaches SQL.
+  hovli: { propertyType: 'HOUSE' },
   // Matches the "up to 3 mln" promise in the shared category description.
   budget: { maxPrice: 3_000_000, sortBy: 'PRICE_LOW' },
   premium: { onlyVerified: true, minTrustScore: 80, sortBy: 'TRUST' },
@@ -169,6 +174,7 @@ export const QUICK_FILTER_RAIL: readonly QuickFilterId[] = [
   'qizlarga',
   'komfort',
   'center',
+  'hovli',
   'budget',
   'premium',
 ];

@@ -136,3 +136,12 @@ ui-verification/
 admin/.next/
 admin/node_modules/
 admin/.env*.local
+
+# ─── Kategoriya illyustratsiyalari ───────────────────────────────────────────
+# The 1254px PNG masters for public/img stay on the designer's machine. Each is
+# ~1.4MB and the site only ever serves the 256px WebP built from it — 13.8MB of
+# masters against 192KB of shipped assets. In git they would be downloaded by
+# every clone and every Vercel build, forever, and never requested by a browser.
+# Regenerate the WebPs after replacing a master:
+#   python -c "from PIL import Image; import glob; [Image.open(f).convert('RGBA').resize((256,256), Image.LANCZOS).save(f[:-4]+'.webp','WEBP',quality=88,method=6) for f in glob.glob('public/img/*.png')]"
+public/img/*.png

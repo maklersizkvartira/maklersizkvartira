@@ -85,6 +85,10 @@ export const layout = {
       title: 'Central',
       description: 'Homes in the central districts of the city',
     },
+    hovli: {
+      title: 'House',
+      description: 'Houses with a yard — private entrance and your own plot',
+    },
   },
 
   sidebar: {

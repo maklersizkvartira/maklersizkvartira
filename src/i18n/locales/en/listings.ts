@@ -50,6 +50,7 @@ export const listings = {
       qizlarga: 'For women',
       komfort: 'Comfort',
       center: 'Central',
+      hovli: 'House',
       verified: 'Verified',
       noDeposit: 'No deposit',
       newest: 'Newest',

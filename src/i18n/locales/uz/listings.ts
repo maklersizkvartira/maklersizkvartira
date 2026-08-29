@@ -50,6 +50,7 @@ export const listings = {
       qizlarga: 'Qizlarga',
       komfort: 'Komfort',
       center: 'Markazda',
+      hovli: 'Hovli',
       verified: 'Tasdiqlangan',
       noDeposit: 'Zakladsiz',
       newest: 'Eng yangi',

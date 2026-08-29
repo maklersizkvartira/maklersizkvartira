@@ -50,6 +50,7 @@ export const listings = {
       qizlarga: 'Для девушек',
       komfort: 'Комфорт',
       center: 'В центре',
+      hovli: 'Свой дом',
       verified: 'Проверенные',
       noDeposit: 'Без залога',
       newest: 'Самые новые',

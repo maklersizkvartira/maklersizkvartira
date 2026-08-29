@@ -24,6 +24,7 @@ import {
   Flower2,
   GraduationCap,
   Handshake,
+  Home,
   Landmark,
   LayoutGrid,
   List as ListIcon,
@@ -90,6 +91,9 @@ const QUICK_META: Record<
   qizlarga: { labelKey: 'listings.filters.quick.qizlarga', icon: Flower2 },
   komfort: { labelKey: 'listings.filters.quick.komfort', icon: Sofa },
   center: { labelKey: 'listings.filters.quick.center', icon: Landmark },
+  // The chip rail keeps a line glyph: the home cards' painted
+  // illustrations are unreadable at the 16px a chip gives them.
+  hovli: { labelKey: 'listings.filters.quick.hovli', icon: Home },
   budget: { labelKey: 'listings.filters.quick.budget', icon: TrendingDown },
   premium: { labelKey: 'listings.filters.quick.premium', icon: ShieldCheck },
 };
