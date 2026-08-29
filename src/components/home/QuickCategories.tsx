@@ -115,13 +115,13 @@ export const QuickCategories: React.FC = () => {
   };
 
   return (
-    <div className="w-full pt-1">
-      <ul className="flex overflow-x-auto gap-2 sm:gap-2.5 pb-2 pt-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-9 hide-scrollbar snap-x snap-mandatory justify-start sm:justify-center">
+    <div className="w-full">
+      <ul className="flex items-stretch gap-2.5 sm:gap-3 overflow-x-auto pb-2 pt-1 -mx-4 px-4 sm:mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory justify-start lg:justify-center">
         {CATEGORIES.map((category) => {
           const Icon = category.icon;
           const inner = (
             <>
-              {/* Glow effect on hover */}
+              {/* Glow accent */}
               <span
                 aria-hidden="true"
                 className={cn(
@@ -132,27 +132,27 @@ export const QuickCategories: React.FC = () => {
 
               <span
                 className={cn(
-                  'relative flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-2xl border shadow-xs transition-all duration-300 group-hover:scale-105 group-hover:shadow-md',
+                  'relative flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl border shadow-xs transition-all duration-300 group-hover:scale-105 group-hover:shadow-md',
                   category.tone,
                 )}
               >
                 <Icon className="h-5 w-5 sm:h-6 sm:w-6 transition-transform duration-300" />
               </span>
 
-              <span className="relative block w-full truncate text-[11px] sm:text-xs font-extrabold text-content transition-colors group-hover:text-brand-text">
+              <span className="relative mt-1.5 block w-full text-center text-[11px] sm:text-xs font-extrabold leading-snug text-content transition-colors group-hover:text-brand-text line-clamp-2">
                 {t(category.titleKey)}
               </span>
             </>
           );
 
           const itemClass =
-            'press group relative flex flex-col items-center justify-center gap-1.5 ' +
-            'rounded-2xl border border-line/70 bg-surface/90 p-2 sm:p-2.5 text-center backdrop-blur-md ' +
-            'transition-all duration-300 hover:-translate-y-1 hover:border-brand/50 hover:bg-surface ' +
-            'hover:shadow-raised active:scale-95 shrink-0 w-[78px] xs:w-[84px] sm:w-auto cursor-pointer snap-start';
+            'press group relative flex flex-col items-center justify-start ' +
+            'rounded-2xl border border-line bg-surface p-2.5 sm:p-3 text-center shadow-xs ' +
+            'transition-all duration-300 hover:-translate-y-1 hover:border-brand/40 hover:shadow-raised ' +
+            'active:scale-95 shrink-0 w-[84px] xs:w-[92px] sm:w-[100px] md:w-[106px] min-h-[92px] sm:min-h-[100px] cursor-pointer snap-start';
 
           return (
-            <li key={category.id} className="min-w-0">
+            <li key={category.id} className="shrink-0">
               {category.landing ? (
                 <AppLink to={category.landing} onClick={() => haptics.select()} className={itemClass}>
                   {inner}
