@@ -12,18 +12,22 @@ import { Monitor, Moon, Sun } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 import { useTheme, type ThemePreference } from '../../theme/ThemeProvider';
 
-export const ThemeToggle: React.FC<{ compact?: boolean }> = ({ compact = true }) => {
+export const ThemeToggle: React.FC<{ compact?: boolean; inverted?: boolean }> = ({ compact = true, inverted = false }) => {
   const { t } = useTranslation();
   const { preference, isDark, setPreference, toggle } = useTheme();
 
   if (compact) {
+    const buttonStyle = inverted
+      ? 'press flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/20'
+      : 'press flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-line bg-surface text-muted transition-colors hover:border-brand hover:text-content';
+
     return (
       <button
         type="button"
         onClick={toggle}
         aria-label={isDark ? t('common.theme.switchToLight') : t('common.theme.switchToDark')}
         title={isDark ? t('common.theme.switchToLight') : t('common.theme.switchToDark')}
-        className="press flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-line bg-surface text-muted transition-colors hover:border-brand hover:text-content"
+        className={buttonStyle}
       >
         {isDark ? (
           <Sun className="h-5 w-5" aria-hidden="true" />

@@ -242,7 +242,7 @@ export const App: React.FC = () => {
         `id` is the skip link's target, so a keyboard visitor can jump the
         whole header in one press.
       */}
-      <main id="main-content" className="flex-1 pt-[86px] sm:pt-[94px]">
+      <main id="main-content" className="flex-1 pt-14 sm:pt-16">
         {!authReady ? (
           <Loading />
         ) : (

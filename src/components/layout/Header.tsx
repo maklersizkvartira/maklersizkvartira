@@ -160,9 +160,8 @@ const CATEGORIES: HeaderCategory[] = [
 
 /** Every icon-only control in the bar, so none of them is under a thumb. */
 const ICON_BUTTON =
-  'press flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center ' +
-  'rounded-xl border border-line bg-surface text-muted transition-colors ' +
-  'hover:border-brand hover:text-content';
+  'press flex h-10 w-10 shrink-0 touch-manipulation items-center justify-center rounded-xl ' +
+  'border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/20 hover:text-white sm:h-11 sm:w-11';
 
 export const Header: React.FC = () => {
   const { t } = useTranslation();
@@ -289,12 +288,12 @@ export const Header: React.FC = () => {
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-[90] border-b border-line bg-surface/95 backdrop-blur">
+      <header className="fixed inset-x-0 top-0 z-[90] border-b border-white/10 bg-band text-white backdrop-blur">
         {/* Visible only once it has focus: the first Tab on any page offers to
             jump the whole bar instead of walking through fifteen controls. */}
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-2 focus:z-10 focus:rounded-xl focus:bg-brand focus:px-4 focus:py-3 focus:text-sm focus:font-bold focus:text-on-brand"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-2 focus:z-10 focus:rounded-xl focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:font-bold focus:text-band"
         >
           {t('layout.header.skipToContent')}
         </a>
@@ -306,19 +305,11 @@ export const Header: React.FC = () => {
             className="press flex shrink-0 items-center gap-2"
             aria-label={t('common.brand.name')}
           >
-            {/* The name is rendered at every width. It used to be the mark
-                alone below sm, to leave room for the actions — but every one
-                of those is itself hidden below sm except the menu button, so
-                the room was never needed and the brand simply went missing on
-                phones.
-
-                The wrappers own the display utility; passing `hidden` into
-                Logo would collide with its own `inline-flex`. */}
             <span className="hidden sm:block">
-              <Logo size="md" />
+              <Logo size="md" inverted />
             </span>
             <span className="sm:hidden">
-              <Logo size="sm" />
+              <Logo size="sm" inverted />
             </span>
           </AppLink>
 
@@ -334,8 +325,8 @@ export const Header: React.FC = () => {
                 aria-current={currentView === item.view ? 'page' : undefined}
                 className={`press flex min-h-11 items-center rounded-xl px-3 text-sm font-bold transition-colors ${
                   currentView === item.view
-                    ? 'bg-brand-soft text-brand-text'
-                    : 'text-muted hover:bg-surface-2 hover:text-content'
+                    ? 'bg-white/20 text-white shadow-xs'
+                    : 'text-white/80 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 {t(item.labelKey)}
@@ -350,8 +341,8 @@ export const Header: React.FC = () => {
                 aria-expanded={categoriesOpen}
                 className={`press flex min-h-11 items-center gap-1 rounded-xl px-3 text-sm font-bold transition-colors ${
                   categoriesOpen
-                    ? 'bg-surface-2 text-content'
-                    : 'text-muted hover:bg-surface-2 hover:text-content'
+                    ? 'bg-white/20 text-white'
+                    : 'text-white/80 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 {t('layout.categories.label')}
@@ -365,7 +356,7 @@ export const Header: React.FC = () => {
                 <div
                   role="menu"
                   aria-label={t('layout.categories.label')}
-                  className="animate-fade-in absolute left-0 top-full mt-2 w-[34rem] rounded-2xl border border-line bg-surface p-2 shadow-raised"
+                  className="animate-fade-in absolute left-0 top-full mt-2 w-[34rem] rounded-2xl border border-line bg-surface p-2 shadow-raised text-content"
                 >
                   <p className="px-3 pb-1 pt-2 text-[11px] font-black uppercase tracking-wider text-subtle">
                     {t('layout.categories.chooseSection')}
@@ -401,16 +392,16 @@ export const Header: React.FC = () => {
             </AppLink>
 
             <div className="hidden sm:block">
-              <LanguageSwitcher />
+              <LanguageSwitcher inverted />
             </div>
             <div className="hidden sm:block">
-              <ThemeToggle />
+              <ThemeToggle inverted />
             </div>
 
             <button
               type="button"
               onClick={postListing}
-              className="press hidden min-h-11 touch-manipulation items-center gap-1.5 rounded-xl bg-brand px-3.5 text-xs font-bold text-on-brand shadow-brand transition-colors hover:bg-brand-hover sm:inline-flex"
+              className="press hidden min-h-11 touch-manipulation items-center gap-1.5 rounded-xl bg-white text-band px-3.5 text-xs font-black shadow-md transition-all hover:bg-white/90 active:scale-95 sm:inline-flex"
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
               {t('layout.header.createListingCta')}
@@ -421,10 +412,10 @@ export const Header: React.FC = () => {
                 type="button"
                 onClick={() => go('PROFILE')}
                 aria-label={t('layout.nav.profile')}
-                className="press hidden min-h-11 touch-manipulation items-center gap-2 rounded-xl border border-line bg-surface px-2 lg:inline-flex"
+                className="press hidden min-h-11 touch-manipulation items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-2 text-white hover:bg-white/20 lg:inline-flex"
               >
                 {avatar('h-7 w-7')}
-                <span className="max-w-24 truncate text-xs font-bold text-content">
+                <span className="max-w-24 truncate text-xs font-bold text-white">
                   {currentUser.name.split(' ')[0]}
                 </span>
               </button>
@@ -432,7 +423,7 @@ export const Header: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowAuth(true, 'LOGIN')}
-                className="press hidden min-h-11 touch-manipulation items-center rounded-xl border border-line bg-surface px-3.5 text-xs font-bold text-content transition-colors hover:border-brand lg:inline-flex"
+                className="press hidden min-h-11 touch-manipulation items-center rounded-xl border border-white/20 bg-white/10 px-3.5 text-xs font-bold text-white transition-colors hover:bg-white/20 lg:inline-flex"
               >
                 {t('common.action.signIn')}
               </button>
@@ -448,11 +439,6 @@ export const Header: React.FC = () => {
               <Menu className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
-        </div>
-
-        <div className="flex h-7 items-center justify-center gap-1.5 border-t border-line bg-brand-soft text-[11px] font-bold leading-none text-brand-text">
-          <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-          {t('common.brand.shortTagline')}
         </div>
       </header>
 

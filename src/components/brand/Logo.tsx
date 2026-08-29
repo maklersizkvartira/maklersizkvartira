@@ -24,6 +24,7 @@ interface LogoProps {
   /** Adds the tagline under the wordmark. */
   tagline?: string;
   className?: string;
+  inverted?: boolean;
 }
 
 const SIZES: Record<
@@ -58,6 +59,7 @@ export const Logo: React.FC<LogoProps> = ({
   markOnly = false,
   tagline,
   className = '',
+  inverted = false,
 }) => {
   const s = SIZES[size];
 
@@ -75,11 +77,11 @@ export const Logo: React.FC<LogoProps> = ({
           className={`inline-flex items-center gap-1 font-black tracking-tight ${s.word}`}
           aria-hidden="true"
         >
-          <span className="text-brand font-black">Maklersiz</span>
-          <span className="text-content font-black">Uy</span>
+          <span className={inverted ? 'text-white font-black' : 'text-brand font-black'}>Maklersiz</span>
+          <span className={inverted ? 'text-white font-black' : 'text-content font-black'}>Uy</span>
         </span>
         {tagline && (
-          <span className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-subtle">
+          <span className={`mt-1 text-[10px] font-semibold uppercase tracking-wide ${inverted ? 'text-white/70' : 'text-subtle'}`}>
             {tagline}
           </span>
         )}

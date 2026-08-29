@@ -11,7 +11,7 @@ import { Check, Globe } from 'lucide-react';
 import { LANGUAGE_LIST, useTranslation, type Language } from '../../i18n';
 import { useAppStore } from '../../stores/useAppStore';
 
-export const LanguageSwitcher: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
+export const LanguageSwitcher: React.FC<{ compact?: boolean; inverted?: boolean }> = ({ compact = false, inverted = false }) => {
   const { t, language, setLanguage } = useTranslation();
   const setStoreLanguage = useAppStore((state) => state.setLanguage);
   const [open, setOpen] = useState(false);
@@ -43,6 +43,10 @@ export const LanguageSwitcher: React.FC<{ compact?: boolean }> = ({ compact = fa
 
   const active = LANGUAGE_LIST.find((entry) => entry.code === language);
 
+  const buttonStyle = inverted
+    ? 'press inline-flex h-10 sm:h-11 min-w-10 sm:min-w-11 shrink-0 touch-manipulation items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-2.5 text-xs font-bold text-white transition-colors hover:bg-white/20'
+    : 'press inline-flex h-11 min-w-11 shrink-0 touch-manipulation items-center justify-center gap-1.5 rounded-xl border border-line bg-surface px-2.5 text-xs font-bold text-muted transition-colors hover:border-brand hover:text-content';
+
   return (
     <div className="relative" ref={containerRef}>
       <button
@@ -51,7 +55,7 @@ export const LanguageSwitcher: React.FC<{ compact?: boolean }> = ({ compact = fa
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('common.a11y.selectLanguage')}
-        className="press inline-flex h-11 min-w-11 shrink-0 touch-manipulation items-center justify-center gap-1.5 rounded-xl border border-line bg-surface px-2.5 text-xs font-bold text-muted transition-colors hover:border-brand hover:text-content"
+        className={buttonStyle}
       >
         <Globe className="h-5 w-5" aria-hidden="true" />
         {!compact && <span className="uppercase">{language}</span>}
