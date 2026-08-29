@@ -258,11 +258,11 @@ export const Header: React.FC = () => {
               src={category.image}
               alt=""
               aria-hidden="true"
-              width={40}
-              height={40}
+              width={48}
+              height={48}
               loading="lazy"
               decoding="async"
-              className="h-10 w-10 shrink-0 select-none object-contain"
+              className="h-12 w-12 shrink-0 select-none object-contain"
             />
             <span className="min-w-0">
               <span className="block truncate text-sm font-bold text-content">

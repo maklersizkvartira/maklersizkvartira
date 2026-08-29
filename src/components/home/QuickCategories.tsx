@@ -123,11 +123,16 @@ export const QuickCategories: React.FC = () => {
                 src={category.image}
                 alt=""
                 aria-hidden="true"
-                width={44}
-                height={44}
-                loading="lazy"
+                width={60}
+                height={60}
+                /* The rail sits above the hero, so every one of these is in the
+                   first viewport. Lazy-loading them made the ten cards paint empty
+                   and fill in a beat later. Eager, but deliberately not
+                   fetchPriority="high": ten 17KB images should not outrank the
+                   hero text for bandwidth. */
+                loading="eager"
                 decoding="async"
-                className="h-10 w-10 shrink-0 select-none object-contain transition-transform duration-200 group-hover:scale-105 sm:h-11 sm:w-11"
+                className="h-[52px] w-[52px] shrink-0 select-none object-contain transition-transform duration-200 group-hover:scale-105 xs:h-[56px] xs:w-[56px] sm:h-[60px] sm:w-[60px]"
               />
 
               <span className="mt-1 block w-full truncate text-[11px] sm:text-xs font-black text-slate-800 dark:text-content text-center leading-none">
@@ -138,7 +143,7 @@ export const QuickCategories: React.FC = () => {
 
           const cardClass =
             'press group flex flex-col items-center justify-center shrink-0 ' +
-            'w-[76px] xs:w-[84px] sm:w-[92px] h-[78px] xs:h-[84px] sm:h-[90px] ' +
+            'w-[76px] xs:w-[84px] sm:w-[92px] h-[92px] xs:h-[98px] sm:h-[104px] ' +
             'rounded-2xl bg-white dark:bg-surface text-slate-800 dark:text-content ' +
             'shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95 ' +
             'transition-all duration-200 cursor-pointer snap-start border border-white/40 dark:border-line';
