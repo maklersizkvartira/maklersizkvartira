@@ -121,6 +121,7 @@ export const layout = {
     // footer's link label and the footer still renders it.
     supportBlock: {
       title: 'Need help?',
+      feedback: 'For suggestions and complaints:',
       phoneAria: 'Call {phone}',
       hours: 'Every day 09:00 – 21:00',
     },

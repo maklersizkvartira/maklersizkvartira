@@ -121,6 +121,7 @@ export const layout = {
     // footer's link label and the footer still renders it.
     supportBlock: {
       title: 'Yordam kerakmi?',
+      feedback: 'Taklif va shikoyatlar uchun:',
       phoneAria: '{phone} raqamiga qo‘ng‘iroq qilish',
       hours: 'Har kuni 09:00 – 21:00',
     },

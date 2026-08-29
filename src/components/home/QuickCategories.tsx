@@ -173,9 +173,9 @@ const CATEGORIES: HomeCategory[] = [
 ];
 
 const cardClass =
-  'press group relative flex h-full w-full flex-col gap-2.5 overflow-hidden rounded-3xl ' +
-  'border border-line bg-surface p-3 text-left transition-all duration-300 ' +
-  'hover:-translate-y-1 hover:border-brand/40 hover:shadow-raised sm:gap-3 sm:p-4';
+  'press group relative flex h-full w-full flex-col gap-2 overflow-hidden rounded-2xl ' +
+  'border border-line bg-surface p-2.5 text-left transition-all duration-300 ' +
+  'hover:-translate-y-1 hover:border-brand/40 hover:shadow-raised sm:gap-3 sm:p-4 sm:rounded-3xl';
 
 export const QuickCategories: React.FC = () => {
   const { t } = useTranslation();
@@ -223,7 +223,7 @@ export const QuickCategories: React.FC = () => {
         </AppLink>
       </div>
 
-      <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4">
+      <ul className="flex overflow-x-auto gap-2.5 pb-2 -mx-4 px-4 snap-x snap-mandatory hide-scrollbar sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:grid-cols-3 sm:gap-4">
         {CATEGORIES.map((category) => {
           const Icon = category.icon;
           const inner = (
@@ -242,33 +242,31 @@ export const QuickCategories: React.FC = () => {
 
               <span
                 className={cn(
-                  'relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl',
+                  'relative flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl',
                   'border border-line/60 transition-transform duration-300 group-hover:scale-105',
                   category.tone,
                 )}
               >
                 <Icon
-                  className={cn('h-6 w-6 transition-transform duration-300', category.iconMotion)}
+                  className={cn('h-5 w-5 sm:h-6 sm:w-6 transition-transform duration-300', category.iconMotion)}
                 />
               </span>
 
               <span className="relative block min-w-0">
-                <span className="block truncate text-sm font-black text-content transition-colors group-hover:text-brand-text">
+                <span className="block truncate text-xs sm:text-sm font-black text-content transition-colors group-hover:text-brand-text">
                   {t(category.titleKey)}
                 </span>
-                <span className="mt-1 line-clamp-2 block text-[11px] font-medium leading-snug text-subtle">
+                <span className="mt-0.5 line-clamp-1 sm:line-clamp-2 block text-[10px] sm:text-[11px] font-medium leading-snug text-subtle">
                   {t(category.descriptionKey)}
                 </span>
               </span>
 
-              {/* The tags were declared and never rendered. They are the part
-                  that says what the category actually contains, which is what
-                  "chunarliroq" was asking for. */}
+              {/* The tags */}
               <span className="relative mt-auto flex flex-wrap gap-1 pt-0.5">
                 {category.tagKeys.map((tagKey) => (
                   <span
                     key={tagKey}
-                    className="max-w-full truncate rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-bold text-muted"
+                    className="max-w-full truncate rounded-full bg-surface-2 px-1.5 py-0.5 sm:px-2 text-[9px] sm:text-[10px] font-bold text-muted"
                   >
                     {t(tagKey)}
                   </span>
@@ -278,7 +276,7 @@ export const QuickCategories: React.FC = () => {
           );
 
           return (
-            <li key={category.id} className="min-w-0">
+            <li key={category.id} className="min-w-0 shrink-0 w-[148px] snap-start sm:w-auto sm:shrink">
               {category.landing ? (
                 <AppLink to={category.landing} onClick={() => haptics.select()} className={cardClass}>
                   {inner}

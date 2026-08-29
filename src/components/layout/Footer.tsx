@@ -20,10 +20,27 @@ import { ThemeToggle } from './ThemeToggle';
  * aria-label repeated the digits a fourth time. The label is the human
  * spacing, `dial` is what `tel:` needs.
  */
-const SUPPORT_PHONES = [
-  { dial: '+998937188885', label: '+998 93 718 88 85' },
-  { dial: '+998777850737', label: '+998 77 785 07 37' },
-] as const;
+interface SupportContact {
+  dial: string;
+  label: string;
+  telegramUsername: string;
+  telegramLabel: string;
+}
+
+const SUPPORT_CONTACTS: SupportContact[] = [
+  {
+    dial: '+998937188885',
+    label: '+998 93 718 88 85',
+    telegramUsername: 'LOGO_55',
+    telegramLabel: '@LOGO_55',
+  },
+  {
+    dial: '+998777850737',
+    label: '+998 77 785 07 37',
+    telegramUsername: 'karimov_developer',
+    telegramLabel: '@karimov_developer',
+  },
+];
 
 const InstagramIcon: React.FC<{ className?: string }> = ({ className = 'h-4 w-4' }) => (
   <svg
@@ -113,23 +130,36 @@ export const Footer: React.FC = () => {
               by hand.
             */}
             <div>
-              <h2 className="mb-3 text-xs font-black uppercase tracking-wide text-content">
+              <h2 className="mb-1 text-xs font-black uppercase tracking-wide text-content">
                 {t('layout.footer.supportBlock.title')}
               </h2>
-              <ul className="flex flex-col gap-2">
-                {SUPPORT_PHONES.map((phone) => (
-                  <li key={phone.dial}>
+              <p className="mb-3 text-[11px] font-bold text-brand-text">
+                {t('layout.footer.supportBlock.feedback' as never) || 'Taklif va shikoyatlar uchun:'}
+              </p>
+              <ul className="flex flex-col gap-2.5">
+                {SUPPORT_CONTACTS.map((contact) => (
+                  <li key={contact.dial} className="flex flex-wrap items-center gap-2">
                     <a
-                      href={`tel:${phone.dial}`}
+                      href={`tel:${contact.dial}`}
                       aria-label={t('layout.footer.supportBlock.phoneAria', {
-                        phone: phone.label,
+                        phone: contact.label,
                       })}
-                      className="press inline-flex min-h-11 items-center gap-2.5 rounded-xl border border-line bg-surface-2/60 px-3 py-2 text-sm font-black text-content transition-colors hover:border-brand/40 hover:text-brand-text"
+                      className="press inline-flex min-h-10 items-center gap-2 rounded-xl border border-line bg-surface-2/60 px-3 py-1.5 text-xs sm:text-sm font-black text-content transition-colors hover:border-brand/40 hover:text-brand-text"
                     >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-text">
-                        <Phone className="h-4 w-4" aria-hidden="true" />
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-text">
+                        <Phone className="h-3.5 w-3.5" aria-hidden="true" />
                       </span>
-                      {phone.label}
+                      {contact.label}
+                    </a>
+                    <a
+                      href={`https://t.me/${contact.telegramUsername}`}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      aria-label={`Telegram: ${contact.telegramLabel}`}
+                      className="press inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[#229ED9]/30 bg-[#229ED9]/10 px-2.5 py-1.5 text-xs font-bold text-[#229ED9] transition-colors hover:bg-[#229ED9]/20"
+                    >
+                      <Send className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>{contact.telegramLabel}</span>
                     </a>
                   </li>
                 ))}
@@ -185,7 +215,7 @@ export const Footer: React.FC = () => {
         */}
 
         <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-line pt-6 sm:flex-row">
-          <p className="text-[11px] text-subtle">
+          <p className="hidden sm:block text-[11px] text-subtle">
             {t('layout.footer.rights', { year: new Date().getFullYear() })}
           </p>
           <div className="flex flex-wrap items-center gap-3">
