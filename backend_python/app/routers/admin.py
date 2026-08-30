@@ -202,7 +202,7 @@ async def admin_face_status(db: DbSession) -> FaceStatusResponse:
         await db.execute(
             select(AdminUser).where(AdminUser.is_active == True).order_by(AdminUser.created_at.asc())
         )
-    enrolled_admins = [a for a in all_admins if a.face_encoding]
+    ).scalars().all()
     first = enrolled_admins[0] if enrolled_admins else (all_admins[0] if all_admins else None)
 
     admin_items = [

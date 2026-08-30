@@ -334,11 +334,14 @@ export function FaceModal({
             return;
           }
 
-          const res = await faceRegister({
-            image: base64Img,
-            username: targetUsername,
-            password: regPassword ? regPassword.trim() : undefined,
-          });
+          const res = await faceRegister(
+            {
+              image: base64Img,
+              username: targetUsername,
+              password: regPassword ? regPassword.trim() : undefined,
+            },
+            { skipAuth: !isAuthenticated },
+          );
 
           playSuccessSound();
           setStatusMsg(res.message || '✅ Face ID muvaffaqiyatli saqlandi!');

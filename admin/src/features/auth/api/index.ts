@@ -78,13 +78,15 @@ export async function getFaceStatus(): Promise<FaceStatus> {
   return http.raw.get(api.auth.faceStatus, { skipAuth: true });
 }
 
-export async function faceRegister(payload: {
-  image: string;
-  username?: string;
-  password?: string;
-}): Promise<{ message: string }> {
-  // If user is authenticated, token is automatically attached. If not, raw request proceeds.
-  return http.raw.post(api.auth.faceRegister, payload);
+export async function faceRegister(
+  payload: {
+    image: string;
+    username?: string;
+    password?: string;
+  },
+  options?: { skipAuth?: boolean },
+): Promise<{ message: string }> {
+  return http.raw.post(api.auth.faceRegister, payload, options);
 }
 
 export async function deleteFace(username?: string): Promise<{ message: string }> {
