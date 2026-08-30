@@ -110,11 +110,23 @@ export const QuickCategories: React.FC = () => {
 
   return (
     <div className="relative w-full">
+      {/*
+        `py-4 -my-3` is padding the cards' entrance needs, taken straight back
+        out again so the layout is unchanged. It nets to the 4px this had
+        before.
+
+        The reason it is here: `overflow-x: auto` forces the other axis to
+        compute to `auto` as well, so this is a scroll container vertically too.
+        The cards rise 16px into place, and without room to rise into, that
+        16px is overflow — a vertical scrollbar appearing and vanishing on
+        every load. The same room also stops the hover lift and the card
+        shadows being clipped, which they were.
+      */}
       <ul
         ref={scrollRef}
-        className="flex items-center gap-2.5 sm:gap-3 overflow-x-auto pb-1 pt-1 hide-scrollbar snap-x snap-mandatory justify-start md:justify-center w-full px-1"
+        className="flex items-center gap-2.5 sm:gap-3 overflow-x-auto py-4 -my-3 hide-scrollbar snap-x snap-mandatory justify-start md:justify-center w-full px-1"
       >
-        {CATEGORIES.map((category) => {
+        {CATEGORIES.map((category, index) => {
           const label = category.title[currentLang] || category.title.uz;
 
           const inner = (
@@ -149,7 +161,15 @@ export const QuickCategories: React.FC = () => {
             'transition-all duration-200 cursor-pointer snap-start border border-white/40 dark:border-line';
 
           return (
-            <li key={category.id} className="shrink-0">
+            <li
+              key={category.id}
+              /* The stagger is the card's index, read by `.hero-card-in` in
+                 index.css. Inline because it is per-item data, and it ships in
+                 the server-rendered HTML so the first painted frame already
+                 has the card in its `from` state. */
+              className="hero-card-in shrink-0"
+              style={{ '--i': index } as React.CSSProperties}
+            >
               {category.landing ? (
                 <AppLink
                   to={category.landing}

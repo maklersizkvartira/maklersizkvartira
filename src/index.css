@@ -571,9 +571,16 @@ html {
    The two illustrations arrive as one motion in two halves. The keyframe sets
    are identical apart from the sign of the horizontal drift, so the left piece
    settles inward from the left and the right piece inward from the right —
-   mirrored, not two different animations — and the 90ms between their delays
-   is short enough that the pair reads as a single arrival rather than as one
-   image waiting for the other.
+   mirrored, not two different animations.
+
+   THEY SHARE ONE DELAY, and that is the whole point. This comment used to
+   claim the two were 90ms apart; the rules below actually set 220ms and 420ms,
+   a 200ms gap on a 1500ms travel. That is long enough to see, and what it
+   looked like was the right-hand picture waiting for the left one to finish
+   rather than the pair arriving together — which is exactly what the owner
+   reported. Mirrored motion only reads as one gesture when both halves start
+   on the same frame, so any future stagger belongs between the hero's
+   different PARTS, never between two halves of the same object.
 
    `both` is the fill mode that matters here, and it is why there is no flash
    of the finished hero. With `forwards` alone the elements would paint at
@@ -644,10 +651,89 @@ html {
      asked for. The badges keep their drift; they are small, cheap, and the
      movement reads on them precisely because the picture behind them is
      still. */
-  animation: hero-art-in-left 1500ms cubic-bezier(0.16, 1, 0.3, 1) 220ms both;
+  animation: hero-art-in-left 1200ms cubic-bezier(0.16, 1, 0.3, 1)
+    var(--hero-step-art) both;
 }
 .hero-art-right {
-  animation: hero-art-in-right 1500ms cubic-bezier(0.16, 1, 0.3, 1) 420ms both;
+  /* Same duration, same delay, same easing — only the keyframes differ, and
+     only in the sign of the drift. Change one of these three and you have to
+     change the other rule with it. */
+  animation: hero-art-in-right 1200ms cubic-bezier(0.16, 1, 0.3, 1)
+    var(--hero-step-art) both;
+}
+
+/* ---------------------------------------------------------------------------
+   The rest of the hero entrance.
+
+   One composed arrival, in the order the hero is meant to be read: the search
+   the visitor came to use, the two illustrations beside it, then the category
+   rail. The steps are named here rather than typed into each rule so the
+   rhythm can be read — and retimed — in one place.
+
+   THE HEADLINE IS DELIBERATELY NOT IN THIS LIST. It is the largest text in the
+   first viewport and therefore the likely Largest Contentful Paint element,
+   and an element that starts at `opacity: 0` is not painted for the purpose of
+   that measurement until it becomes visible. Fading it in would push the
+   site's LCP by however long the entrance runs, on the one page search traffic
+   lands on. So the promise is simply there on the first frame and the rest of
+   the hero assembles around it, which is also the better composition: the
+   thing you came to read does not keep you waiting.
+
+   Every animation here uses the `both` fill mode and ships its class in the
+   server-rendered HTML, so the very first painted frame is already the `from`
+   state. With `forwards` alone each element would paint finished, sit there
+   for the length of its delay, then snap back to the start.
+--------------------------------------------------------------------------- */
+:root {
+  --hero-step-search: 80ms;
+  --hero-step-art: 170ms;
+  --hero-step-rail: 260ms;
+  /* Between one category card and the next. Ten cards, so the rail's tail
+     lands at 260 + 9x50 + 620 = 1330ms — the last thing to settle, and still
+     inside the window where an entrance reads as an entrance rather than as
+     the page being slow. */
+  --hero-step-card: 50ms;
+}
+
+/* The search pill. The owner asked for it to start small and grow into place,
+   so this is a scale rather than the rise the cards below it use — and it
+   scales from 0.94, not from something dramatic. The pill is a real control
+   with real text in it: from much smaller the label reflows as it grows and
+   the whole thing reads as a zoom rather than as an arrival. */
+@keyframes hero-search-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    /* `none` rather than an identity transform, for the same reason the
+       artwork ends at `none`: with `both`, the final keyframe stays applied
+       for the life of the page, and a lingering transform holds the element on
+       its own compositor layer long after it has stopped moving. */
+    transform: none;
+  }
+}
+.hero-search-in {
+  animation: hero-search-in 620ms cubic-bezier(0.16, 1, 0.3, 1)
+    var(--hero-step-search) both;
+}
+
+/* The category cards, rising from below one after another.
+   `--i` is the card's index, set inline by the component. */
+@keyframes hero-card-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.hero-card-in {
+  animation: hero-card-in 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--hero-step-rail) + var(--i, 0) * var(--hero-step-card));
 }
 
 /* ---------------------------------------------------------------------------
@@ -771,7 +857,9 @@ html {
      outright and the end state written directly. */
   .hero-art-left,
   .hero-art-right,
-  .hero-badge {
+  .hero-badge,
+  .hero-search-in,
+  .hero-card-in {
     animation: none;
     opacity: 1;
     transform: none;

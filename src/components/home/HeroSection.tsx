@@ -173,7 +173,11 @@ export const HeroSection: React.FC = () => {
                 {t('home.hero.title')}
               </h1>
 
-              <div className="mx-auto max-w-3xl px-1">
+              {/* `hero-search-in` goes on this wrapper, not on the button: the
+                  button's own `transition-all` answers hover and press, and an
+                  entrance transform on the same element would be overwritten
+                  the moment a pointer touched it mid-animation. */}
+              <div className="hero-search-in mx-auto max-w-3xl px-1">
                 <button
                   type="button"
                   onClick={() => setShowSearchModal(true)}
