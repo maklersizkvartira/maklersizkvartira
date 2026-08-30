@@ -4,7 +4,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "trailingSlash": false,
-  "_domainRedirectNote": "The old-domain -> uyiz.uz redirects are DELIBERATELY NOT HERE YET. maklersizuy.uz is still the host this site is served from, and uyiz.uz does not resolve; a `permanent: true` redirect from the live host to a dead one takes the whole site down AND is cached by every browser that sees it once, so the outage outlives the fix. Add the two rules below only once https://uyiz.uz answers 200 on its own, and add them in the same change that points the new domain at this project:\n  {\"source\": \"/:path*\", \"has\": [{\"type\": \"host\", \"value\": \"maklersizuy.uz\"}], \"destination\": \"https://uyiz.uz/:path*\", \"permanent\": true},\n  {\"source\": \"/:path*\", \"has\": [{\"type\": \"host\", \"value\": \"www.maklersizuy.uz\"}], \"destination\": \"https://uyiz.uz/:path*\", \"permanent\": true}",
   "redirects": [
     {
       "source": "/blog/maklersiz-uy-topish",
@@ -58,14 +57,26 @@
           "key": "Strict-Transport-Security",
           "value": "max-age=63072000; includeSubDomains; preload"
         },
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
         {
           "key": "Permissions-Policy",
           "value": "geolocation=(self), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()"
         },
-        { "key": "X-DNS-Prefetch-Control", "value": "on" }
+        {
+          "key": "X-DNS-Prefetch-Control",
+          "value": "on"
+        }
       ]
     },
     {
@@ -79,7 +90,12 @@
     },
     {
       "source": "/brand/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=2592000" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=2592000"
+        }
+      ]
     },
     {
       "source": "/(.*).html",
@@ -93,7 +109,10 @@
     {
       "source": "/sitemap(.*).xml",
       "headers": [
-        { "key": "Content-Type", "value": "application/xml; charset=utf-8" },
+        {
+          "key": "Content-Type",
+          "value": "application/xml; charset=utf-8"
+        },
         {
           "key": "Cache-Control",
           "value": "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400"
@@ -103,8 +122,14 @@
     {
       "source": "/robots.txt",
       "headers": [
-        { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=3600" }
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
+        }
       ]
     }
   ]

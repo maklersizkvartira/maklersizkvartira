@@ -34,8 +34,22 @@
  * that do that, and the damage outlives the fix.
  *
  * FLIP TO 'https://uyiz.uz' IN THE SAME CHANGE THAT POINTS THE DOMAIN AT THIS
- * PROJECT — together with the three other copies named above and the two
- * old-domain redirects held in vercel.json's `_domainRedirectNote`.
+ * PROJECT — together with the four other copies named above, and add the two
+ * old-domain redirects to `vercel.json`:
+ *
+ *   { "source": "/:path*", "has": [{ "type": "host", "value": "maklersizuy.uz" }],
+ *     "destination": "https://uyiz.uz/:path*", "permanent": true }
+ *   { "source": "/:path*", "has": [{ "type": "host", "value": "www.maklersizuy.uz" }],
+ *     "destination": "https://uyiz.uz/:path*", "permanent": true }
+ *
+ * They are held here rather than in vercel.json because that file cannot carry
+ * a comment: it is validated against a strict schema and an extra key — even an
+ * underscore-prefixed one meant as a note — makes Vercel reject the whole
+ * configuration and refuse to build, which is exactly what happened once.
+ *
+ * Do not add them before https://uyiz.uz answers on its own. A `permanent: true`
+ * redirect from the live host to a dead one takes the site down AND is cached by
+ * every browser that sees it once, so the outage outlives the fix.
  */
 const RAW_SITE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SITE_URL) ||
