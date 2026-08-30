@@ -85,7 +85,11 @@ export default function LoginPage() {
       case 'account_locked':      return te('accountLocked');
       case 'rate_limited':        return te('rateLimited');
       case 'admin_forbidden':     return te('forbidden');
-      default:                    return te('unknown');
+      case 'forbidden':           return te('forbidden');
+      default:
+        return apiError.message && apiError.message !== 'error'
+          ? apiError.message
+          : te('invalidCredentials');
     }
   })();
 

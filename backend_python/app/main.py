@@ -57,6 +57,36 @@ async def lifespan(app: FastAPI):
         reveal_enabled=settings.PASSWORD_REVEAL_ENABLED,
         sms_enabled=settings.SMS_ENABLED and bool(settings.DEVSMS_API_TOKEN),
     )
+
+    # Auto-heal database schema & bootstrap default admin if missing
+    try:
+        from sqlalchemy import text, select
+        from app.core.database import session_scope
+        from app.models.user import AdminUser
+        from app.core.security import hash_password
+        from app.models.enums import AdminRole
+
+        async with session_scope() as db:
+            await db.execute(text("ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS face_image TEXT;"))
+            await db.execute(text("ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS face_encoding TEXT;"))
+
+            admin_count = (await db.execute(select(AdminUser))).scalars().all()
+            if not admin_count:
+                bootstrap_user = settings.BOOTSTRAP_ADMIN_USERNAME or "admin"
+                bootstrap_pass = settings.BOOTSTRAP_ADMIN_PASSWORD or "admin123"
+                admin_obj = AdminUser(
+                    username=bootstrap_user,
+                    full_name="Bosh administrator",
+                    password_hash=hash_password(bootstrap_pass),
+                    role=AdminRole.SUPERADMIN.value,
+                    is_active=True,
+                    must_change_password=False,
+                )
+                db.add(admin_obj)
+                log.info("bootstrap_admin_created", username=bootstrap_user)
+    except Exception as e:
+        log.warning("schema_autoheal_failed", error=str(e))
+
     yield
     await dispose_engine()
     log.info("shutdown")
