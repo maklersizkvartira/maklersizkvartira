@@ -11,7 +11,8 @@ export function useFaceLogin() {
   const setAuth = useAuthStore((s) => s.setAuth);
 
   return useMutation({
-    mutationFn: (image: string) => faceLogin(image),
+    mutationFn: ({ username, image }: { username: string; image: string }) =>
+      faceLogin(username, image),
     onSuccess: async (result) => {
       queryClient.clear();
       setAuth(result.admin, result.accessToken);

@@ -150,7 +150,13 @@ export function FaceModal({
 
       try {
         if (mode === 'login') {
-          doFaceLogin(base64Img, {
+          if (!regUsername.trim()) {
+            setErrorMsg('Avval loginni kiriting.');
+            setStatusMsg('Login kerak.');
+            setIsProcessing(false);
+            return;
+          }
+          doFaceLogin({ username: regUsername.trim(), image: base64Img }, {
             onSuccess: () => {
               playSuccessSound();
               setStatusMsg('✅ Muvaffaqiyatli tanildi!');
@@ -217,7 +223,7 @@ export function FaceModal({
 
   // Auto scan interval for login
   useEffect(() => {
-    if (isOpen && mode === 'login' && autoScan && stream && !isProcessing && !isLoggingIn) {
+    if (isOpen && mode === 'login' && autoScan && stream && !isProcessing && !isLoggingIn && regUsername.trim()) {
       autoScanTimerRef.current = setInterval(() => {
         handleScan(true);
       }, 1600);
@@ -331,6 +337,30 @@ export function FaceModal({
         )}
 
         {/* Registration Credentials Inputs (when enrolling) */}
+        {/* The login field is shown in BOTH modes now. Face matching is a 1:1
+            check against a named account — the server no longer searches every
+            enrolled admin for whoever looks closest — so login mode needs to
+            know who is claiming to be at the camera. */}
+        {mode === 'login' && (
+          <div className="mb-4 bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
+            <div className="flex items-center gap-2 text-xs font-semibold text-cyan-400 mb-2">
+              <User className="w-3.5 h-3.5" />
+              <span>Qaysi hisob bilan kirmoqchisiz?</span>
+            </div>
+            <div className="relative">
+              <User className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
+              <input
+                type="text"
+                autoComplete="username"
+                placeholder="Admin Login"
+                value={regUsername}
+                onChange={(e) => setRegUsername(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700/70 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+          </div>
+        )}
+
         {mode === 'register' && (
           <div className="mb-4 space-y-3 bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
             <div className="flex items-center gap-2 text-xs font-semibold text-cyan-400 mb-1">

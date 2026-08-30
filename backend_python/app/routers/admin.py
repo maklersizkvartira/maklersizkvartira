@@ -200,16 +200,13 @@ async def admin_face_status(db: DbSession) -> FaceStatusResponse:
             select(AdminUser).where(AdminUser.face_encoding.isnot(None), AdminUser.is_active == True)
         )
     ).scalars().all()
-    if not admins:
-        return FaceStatusResponse(enrolled=False, count=0)
-    first = admins[0]
-    return FaceStatusResponse(
-        enrolled=True,
-        count=len(admins),
-        username=first.username,
-        full_name=first.full_name,
-        face_image=first.face_image if first.face_image else None,
-    )
+    # Only whether the feature is usable, never who is enrolled. This endpoint
+    # has no auth dependency — it is read by the login screen before anyone has
+    # signed in — so returning the first admin's username, real name and stored
+    # face photo published an administrator's identity and biometric to anyone
+    # who could reach the URL. The login UI needs one bit: is there anybody to
+    # match against.
+    return FaceStatusResponse(enrolled=bool(admins), count=len(admins))
 
 
 @router.post("/auth/face-login", response_model=TokenResponse, summary="Biometric Face ID sign-in")
@@ -222,9 +219,22 @@ async def admin_face_login(payload: FaceLoginRequest, db: DbSession, ctx: Reques
     if live_encoding is None:
         raise BadRequest("face_not_detected")
 
+    # A username is required: without it this walked every enrolled admin and
+    # signed the caller in as whichever one scored highest, so a marginal match
+    # was handed the most privileged account that happened to be closest. Naming
+    # the account first turns the check into "is this that person" — one
+    # comparison against one stored encoding — which is the only shape in which
+    # a similarity score means anything.
+    if not payload.username:
+        raise BadRequest("username_required")
+
     admins = (
         await db.execute(
-            select(AdminUser).where(AdminUser.face_encoding.isnot(None), AdminUser.is_active == True)
+            select(AdminUser).where(
+                AdminUser.username == payload.username.strip().lower(),
+                AdminUser.face_encoding.isnot(None),
+                AdminUser.is_active == True,
+            )
         )
     ).scalars().all()
     if not admins:

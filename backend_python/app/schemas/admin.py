@@ -303,6 +303,9 @@ class DashboardResponse(CamelModel):
 # ---------------------------------------------------------------------------
 class FaceLoginRequest(CamelModel):
     image: str
+    #: Required. Face matching is a 1:1 check against this account, never a
+    #: search for whoever happens to look closest.
+    username: str
 
 
 class FaceRegisterRequest(CamelModel):

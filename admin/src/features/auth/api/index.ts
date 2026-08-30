@@ -31,10 +31,17 @@ export async function login(payload: LoginFormValues): Promise<LoginResult> {
   };
 }
 
-export async function faceLogin(image: string): Promise<LoginResult> {
+/**
+ * `POST /admin/auth/face-login`
+ *
+ * The username is required by the backend and is not a formality: face matching
+ * is a 1:1 check against the named account. Without it the server used to scan
+ * every enrolled admin and sign the caller in as whichever scored highest.
+ */
+export async function faceLogin(username: string, image: string): Promise<LoginResult> {
   const res = await http.raw.post<TokenResponse>(
     api.auth.faceLogin,
-    { image },
+    { username: username.trim().toLowerCase(), image },
     { skipAuth: true },
   );
 
