@@ -26,6 +26,33 @@ interface FaceModalProps {
   onSuccess?: () => void;
 }
 
+// Compress and resize image to lightweight dimensions (< 40KB) for instant upload
+function compressImage(imgSource: CanvasImageSource, srcWidth: number, srcHeight: number): string {
+  const maxDim = 480;
+  let targetWidth = srcWidth;
+  let targetHeight = srcHeight;
+
+  if (targetWidth > targetHeight) {
+    if (targetWidth > maxDim) {
+      targetHeight = Math.round((targetHeight * maxDim) / targetWidth);
+      targetWidth = maxDim;
+    }
+  } else {
+    if (targetHeight > maxDim) {
+      targetWidth = Math.round((targetWidth * maxDim) / targetHeight);
+      targetHeight = maxDim;
+    }
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = targetWidth || 480;
+  canvas.height = targetHeight || 360;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+  ctx.drawImage(imgSource, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', 0.75);
+}
+
 export function FaceModal({
   isOpen,
   onClose,
@@ -224,22 +251,10 @@ export function FaceModal({
     const video = videoRef.current;
     if (!video) return null;
 
-    let width = video.videoWidth;
-    let height = video.videoHeight;
+    const width = video.videoWidth || video.clientWidth || 640;
+    const height = video.videoHeight || video.clientHeight || 480;
 
-    if (!width || !height) {
-      width = video.clientWidth || 640;
-      height = video.clientHeight || 480;
-    }
-
-    const canvas = canvasRef.current || document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-
-    ctx.drawImage(video, 0, 0, width, height);
-    return canvas.toDataURL('image/jpeg', 0.9);
+    return compressImage(video, width, height);
   }, [capturedPreview]);
 
   // Trigger flash effect
@@ -415,9 +430,14 @@ export function FaceModal({
 
     const reader = new FileReader();
     reader.onload = () => {
-      const b64 = reader.result as string;
-      setCapturedPreview(b64);
-      handleScan(false, b64);
+      const rawB64 = reader.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const compressed = compressImage(img, img.naturalWidth || img.width, img.naturalHeight || img.height);
+        setCapturedPreview(compressed);
+        handleScan(false, compressed);
+      };
+      img.src = rawB64;
     };
     reader.readAsDataURL(file);
   };
