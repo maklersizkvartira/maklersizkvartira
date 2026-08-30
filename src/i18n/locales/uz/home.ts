@@ -26,14 +26,14 @@ export const home = {
     // float over artwork, so anything longer than two words per line covers
     // the thing it is annotating.
     badges: {
-      trustedListings: 'Ishonchli eʼlonlar',
-      directFromOwner: 'Toʻgʻridan-toʻgʻri egadan',
+      trustedListings: 'Ishonchli e’lonlar',
+      directFromOwner: 'To‘g‘ridan-to‘g‘ri egadan',
       safeAndSecure: 'Xavfsiz va ishonchli',
-      noCommission: 'Hech qanday komissiya yoʻq',
+      noCommission: 'Hech qanday komissiya yo‘q',
       fastAndEasy: 'Tez va oson ijara',
       passportChecked: 'Pasport tekshirilgan',
-      aiScreened: 'AI tekshiruvidan oʻtgan',
-      supportAlways: '24/7 qoʻllab-quvvatlash',
+      aiScreened: 'AI tekshiruvidan o‘tgan',
+      supportAlways: '24/7 qo‘llab-quvvatlash',
     },
   },
 

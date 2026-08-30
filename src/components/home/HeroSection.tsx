@@ -22,72 +22,77 @@
  */
 
 import React, { useState } from 'react';
-import {
-  BadgeCheck,
-  BadgePercent,
-  Headset,
-  Search,
-  ShieldCheck,
-  Sparkles,
-  Users,
-  Zap,
-} from 'lucide-react';
+import { BadgeCheck, BadgePercent, Search, ShieldCheck, Users, Zap } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { SearchModal } from './SearchModal';
 import { QuickCategories } from './QuickCategories';
 
 /**
- * A label tethered to a point on one of the hero illustrations.
+ * A label laid on one of the hero illustrations.
  *
- * The first version was a plain pill dropped on top of the artwork, which read
- * as a sticker: nothing said which part of the picture it was talking about.
- * It now has a leader — a hairline that runs from the pill to a ringed dot
- * sitting on the feature it names — so the label and its subject are visibly
- * one object. `side` says which edge the leader leaves from, because a line
- * has to point INTO the picture and the pills sit on both flanks of it.
+ * The previous version trailed a hairline leader out to a ringed dot, the idea
+ * being that a label should point at the feature it names. It never did. The
+ * leader's reach is a fixed pixel offset and the artwork behind it is a raster
+ * image that rescales with its grid track — 336px wide at `lg`, 448px at
+ * `2xl` — so the dot came to rest in empty blue beside the picture rather than
+ * on anything in it, which is exactly what the owner objected to. No fixed
+ * offset lands on a feature at every width, so the leader is gone and the
+ * pills moved onto the art: overlapping the phone, overlapping the house.
+ * Sitting on the picture is what makes a label belong to it, and it needs
+ * nothing lined up to work.
  *
- * Idle, each one drifts a couple of pixels on its own slow loop; the phase is
- * staggered by index so eight of them never breathe in unison. On hover the
- * pill lifts and brightens, the leader thickens and the dot pulses — the whole
- * group is `group/badge` so all three respond to one pointer.
+ * The placement percentages are load-bearing. The wrapper's box IS the image's
+ * box — the <img> is its only in-flow child and is `w-full h-auto` — so a
+ * percentage offset names the same point of the drawing at 1024px as at
+ * 1920px, which is the guarantee a pixel offset could not give.
  *
- * `backdrop-blur` over a translucent navy is what keeps the text readable
- * wherever it lands: the illustrations run from near-black plinths to bright
- * cyan highlights, and a flat fill legible over one part of them disappears
- * over another.
+ * They are also MEASURED rather than eyeballed, and that is the second half of
+ * the lesson the leader taught. Both illustrations are isometric — a diamond
+ * of drawing inside a rectangular frame — so each of the four corners of the
+ * frame is transparent, and "near the edge" reads as on the picture along the
+ * middle of a side and as floating in the band at a corner. The first pass at
+ * this put pills at `bottom-[19%] left-[5%]` and `bottom-[1%] left-[12%]`,
+ * which are the two lower corners: alpha coverage 11% and 10%, which is to
+ * say they were the leader's empty blue again with the line taken off. Every
+ * offset below sits over at least three quarters of solid artwork at `lg`,
+ * `xl` and `2xl` alike — the pill's own width is 36-39% of the drawing and
+ * changes with the breakpoint, so a spot that works at one has to be checked
+ * at all three.
+ *
+ * The plate, the icon tile and the hover live in index.css; the note there
+ * explains why the fill is frosted glass rather than a flat tint. Idle, each
+ * pill drifts on a slow loop whose phase is offset by a negative delay per
+ * index, so no two of them breathe together.
+ *
+ * `display` is set here and only here (`hidden lg:inline-flex`): below `lg`
+ * the illustrations are a short band under the headline and there is no room
+ * on them for a label that would not cover what it names.
  */
 const HeroBadge: React.FC<{
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  /** Which flank of the artwork it sits on; the leader points inward from there. */
-  side: 'left' | 'right';
-  /** Staggers the idle drift so the badges do not pulse together. */
+  /** Offsets the idle drift so the pills do not breathe in unison. */
   index?: number;
+  /** Where it sits on the artwork, in percentages of the image's own box. */
   className?: string;
-}> = ({ icon: Icon, label, side, index = 0, className = '' }) => (
+}> = ({ icon: Icon, label, index = 0, className = '' }) => (
   <span
     aria-hidden="true"
-    className={`hero-badge group/badge pointer-events-auto absolute z-20 inline-flex items-center ${
-      side === 'left' ? 'flex-row' : 'flex-row-reverse'
-    } ${className}`}
-    style={{ animationDelay: `${index * 640}ms` }}
+    className={`hero-badge pointer-events-auto absolute z-20 hidden lg:inline-flex ${className}`}
+    style={{ animationDelay: `${index * -900}ms` }}
   >
-    <span className="inline-flex max-w-[11rem] items-center gap-2 rounded-2xl border border-white/15 bg-band/70 py-2 pl-2 pr-3 shadow-raised backdrop-blur-md transition-[transform,background-color,border-color] duration-300 ease-out group-hover/badge:-translate-y-0.5 group-hover/badge:border-white/30 group-hover/badge:bg-band/85">
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-brand text-white transition-transform duration-300 ease-out group-hover/badge:scale-110">
-        <Icon className="h-3.5 w-3.5" />
+    <span className="hero-badge-pill inline-flex items-center gap-1.5 rounded-2xl py-1.5 pl-1.5 pr-2.5 xl:gap-2 xl:py-2 xl:pl-2 xl:pr-3">
+      <span className="hero-badge-icon grid h-6 w-6 shrink-0 place-items-center rounded-[0.625rem] text-white xl:h-7 xl:w-7 xl:rounded-xl">
+        <Icon className="h-3 w-3 xl:h-3.5 xl:w-3.5" />
       </span>
-      <span className="text-left text-[11px] font-bold leading-tight text-white">{label}</span>
-    </span>
-
-    {/* The leader. A 20px rule out to a ringed dot that sits on the feature
-        being named; both thicken on hover so the tether reads as live rather
-        than as a decorative tick. */}
-    <span className="flex shrink-0 items-center">
-      <span className="h-px w-5 bg-white/35 transition-[background-color,height] duration-300 ease-out group-hover/badge:h-0.5 group-hover/badge:bg-white/70" />
-      <span className="relative flex h-2 w-2 items-center justify-center">
-        <span className="absolute inset-0 rounded-full bg-white/25 transition-transform duration-500 ease-out group-hover/badge:scale-[2.2]" />
-        <span className="relative h-1.5 w-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.9)]" />
+      {/* The width cap is what shapes the pill. Left to run on one line these
+          labels are 100-140px of text beside a 24px tile, which is half the
+          width of the drawing they sit on; held to this they wrap to two or
+          three short lines and the pill stays about a third of the artwork,
+          the proportion the owner's own reference uses. */}
+      <span className="hero-badge-label max-w-[4.75rem] text-left text-[10px] font-extrabold leading-[1.25] tracking-tight text-white xl:max-w-[5.75rem] xl:text-[11px] 2xl:max-w-[7rem]">
+        {label}
       </span>
     </span>
   </span>
@@ -226,33 +231,44 @@ export const HeroSection: React.FC = () => {
                 className="relative h-auto w-full select-none object-contain"
               />
 
+              {/* Three, not four, and the artwork chose the number.
+
+                  The phone owns the middle band of this piece from 17% to 65%
+                  of its height, and its screen is carrying a listing card with
+                  a title and a price on it — a pill parked there covers the
+                  one thing in the illustration that is actually readable. So
+                  the three go on the isometric city instead, and the city is a
+                  diamond: it reaches the frame's left edge only around 60% of
+                  the way down, and its two lower corners are empty.
+
+                  One on the left flank over the tall tower and the road that
+                  runs past it (85% solid), one on the slab under the phone's
+                  foot (77%), one on the block of towers at the right (75%).
+                  The lower-LEFT corner, where the second of these used to sit,
+                  is 11% solid — it is off the drawing, which is what the pills
+                  were moved onto the artwork to stop.
+
+                  The fourth label used to say "AI tekshiruvidan o‘tgan", which
+                  is the same promise as "Ishonchli e’lonlar" said twice and the
+                  longest string of the eight; it is dropped rather than parked
+                  back out in the margin. */}
               <HeroBadge
                 icon={ShieldCheck}
                 label={t('home.hero.badges.trustedListings')}
-                side="left"
                 index={0}
-                className="left-0 top-[20%] hidden lg:inline-flex"
-              />
-              <HeroBadge
-                icon={BadgeCheck}
-                label={t('home.hero.badges.passportChecked')}
-                side="right"
-                index={1}
-                className="right-0 top-[3%] hidden lg:inline-flex"
+                className="left-[2%] top-[46%]"
               />
               <HeroBadge
                 icon={Users}
                 label={t('home.hero.badges.directFromOwner')}
-                side="left"
-                index={2}
-                className="bottom-[19%] left-0 hidden lg:inline-flex"
+                index={1}
+                className="bottom-[25%] left-[21%]"
               />
               <HeroBadge
-                icon={Sparkles}
-                label={t('home.hero.badges.aiScreened')}
-                side="right"
-                index={3}
-                className="bottom-[5%] right-0 hidden lg:inline-flex"
+                icon={BadgeCheck}
+                label={t('home.hero.badges.passportChecked')}
+                index={2}
+                className="bottom-[25%] right-[1%]"
               />
             </div>
 
@@ -272,33 +288,46 @@ export const HeroSection: React.FC = () => {
                 className="relative h-auto w-full select-none object-contain"
               />
 
+              {/* Three again, and this time the shield is what sets the
+                  count. The cutaway house is furnished room by room and the
+                  glowing shield is pinned over its left flank from 33% to 78%
+                  of the height; that shield IS the trust claim, so covering it
+                  with a pill that says "Xavfsiz va ishonchli" would be the
+                  label eating its own subject.
+
+                  Which leaves the house itself, and all three go on it: the
+                  roof and the top of the upper floor (89% solid), the upper
+                  floor's right rooms beside the shield (97%), and the ground
+                  floor's terrace on the plinth (88%).
+
+                  Not the bottom-left corner, which is where the third of these
+                  was: below the shield the plinth has already cut away to its
+                  left point, and the best any pill can do down there is 51%
+                  solid — the one it was actually at managed 10%. Nor the top
+                  right, where the first was: the roof is a peak, so at 10% of
+                  the height the drawing is 20% of the frame wide and a pill
+                  pinned to the right edge hangs off into the band (36%).
+
+                  The dropped fourth, "24/7 qo‘llab-quvvatlash", is a promise
+                  about the company rather than about the home in the picture,
+                  and there is no fourth clear face to put it on. */}
+              <HeroBadge
+                icon={Zap}
+                label={t('home.hero.badges.fastAndEasy')}
+                index={3}
+                className="left-[32%] top-[9%]"
+              />
               <HeroBadge
                 icon={ShieldCheck}
                 label={t('home.hero.badges.safeAndSecure')}
-                side="right"
                 index={4}
-                className="right-0 top-[4%] hidden lg:inline-flex"
+                className="right-[15%] top-[36%]"
               />
               <HeroBadge
                 icon={BadgePercent}
                 label={t('home.hero.badges.noCommission')}
-                side="right"
                 index={5}
-                className="bottom-[26%] right-0 hidden lg:inline-flex"
-              />
-              <HeroBadge
-                icon={Zap}
-                label={t('home.hero.badges.fastAndEasy')}
-                side="left"
-                index={6}
-                className="bottom-[4%] left-0 hidden lg:inline-flex"
-              />
-              <HeroBadge
-                icon={Headset}
-                label={t('home.hero.badges.supportAlways')}
-                side="left"
-                index={7}
-                className="left-0 top-[27%] hidden lg:inline-flex"
+                className="bottom-[20%] right-[15%]"
               />
             </div>
           </div>

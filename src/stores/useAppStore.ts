@@ -22,6 +22,7 @@ import {
   storedLanguage,
 } from '../i18n/storage';
 import { DEFAULT_LANGUAGE, type Language } from '../i18n/types';
+import { prefersReducedMotion } from '../hooks/useReducedMotion';
 import type { ViewState } from '../router/views';
 import { stripLanguagePrefix } from '../router/language';
 import {
@@ -365,6 +366,21 @@ function currentAddress(): string {
 }
 
 /**
+ * Top of the new page.
+ *
+ * `behavior` is read from the visitor's preference rather than hard-coded to
+ * 'smooth'. A behaviour passed explicitly to `scrollTo` beats the computed
+ * `scroll-behavior`, so index.css's `scroll-behavior: auto !important` under
+ * `prefers-reduced-motion` did nothing here: every navigation glided the whole
+ * document past somebody who had asked the system for less movement, which is
+ * the exact case that makes people motion-sick. Asked per call, not cached —
+ * the setting can change mid-session and there is no listener out here.
+ */
+function scrollToTop(): void {
+  window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+}
+
+/**
  * Writes a path into the address bar.
  *
  * Navigating to the address you are already at replaces instead of pushes:
@@ -376,7 +392,7 @@ function pushPath(path: string, replace = false): void {
   try {
     const same = path === currentAddress();
     window.history[replace || same ? 'replaceState' : 'pushState']({}, '', path);
-    if (!same) window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (!same) scrollToTop();
   } catch {
     /* history unavailable */
   }
@@ -409,7 +425,7 @@ function replacePath(path: string, scroll = true): void {
   if (typeof window === 'undefined') return;
   try {
     window.history.replaceState({}, '', path);
-    if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (scroll) scrollToTop();
   } catch {
     /* history unavailable */
   }

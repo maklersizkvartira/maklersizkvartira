@@ -56,7 +56,7 @@
  * not change it: the field was 44px inside a 64px row.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowRight,
   BarChart3,
@@ -248,6 +248,17 @@ const CATEGORIES: HeaderCategory[] = [
 const PANEL_MS = 300;
 
 /**
+ * How long the section marker takes to travel between two links.
+ *
+ * Same arrangement as `PANEL_MS`: the number is shared by a Tailwind
+ * `duration-300` spelled out literally in the marker's class list — Tailwind
+ * v4 scans this file as text and would generate nothing for an interpolated
+ * one — and by the window inside which a reflow is treated as part of a glide
+ * already under way rather than as a reason to snap.
+ */
+const MARKER_MS = 300;
+
+/**
  * Room below the panel for its own shadow.
  *
  * The wrapper is `overflow-hidden` — that clip is what makes the panel look
@@ -295,9 +306,14 @@ const HEADER_GHOST_PILL =
  * actual font stack; if one of them is wrong the longest label loses its tail
  * instead of the row overflowing and the avatar being clipped off the right
  * edge by the `overflow-x: hidden` on <body>.
+ *
+ * No `relative` any more. It was here to hold the current section's underline,
+ * and that rule is no longer drawn inside a link — there is one marker for the
+ * whole run and it is positioned against the <nav>, so it can travel between
+ * two words instead of blinking out from under one and in under another.
  */
 const HEADER_NAV_LINK =
-  'press relative flex min-h-11 min-w-0 touch-manipulation items-center rounded-full px-2.5 ' +
+  'press flex min-h-11 min-w-0 touch-manipulation items-center rounded-full px-2.5 ' +
   'text-[13px] transition-colors ' +
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80';
 
@@ -372,6 +388,149 @@ export const Header: React.FC = () => {
   const browseTriggerRef = useRef<HTMLButtonElement>(null);
   const settingsTriggerRef = useRef<HTMLButtonElement>(null);
   const accountTriggerRef = useRef<HTMLButtonElement>(null);
+
+  /**
+   * The travelling section marker.
+   *
+   * The bar used to draw the rule inside the active link, which is why it
+   * could only ever blink out from under one word and in under another: a
+   * border belonging to one element cannot move to a different element. There
+   * is one marker now, a sibling of the four links, and it is placed by
+   * measurement — the active label's box read against the <nav>'s own box and
+   * written to `transform` and `width` — so it slides the real distance
+   * between two words.
+   *
+   * Measured rather than computed, because the widths are not knowable from
+   * here: "Xarita", "Карта" and "Map" are three different lengths, the active
+   * label is heavier than the idle ones, and the web font that decides all of
+   * it arrives after the first paint.
+   *
+   * The styles are written to the node directly instead of through state. The
+   * marker moves on a resize, which is sixty events a second, and re-rendering
+   * the whole bar sixty times a second to slide a two-pixel rule is not a
+   * trade worth making. Nothing else reads these values.
+   */
+  const navRowRef = useRef<HTMLElement>(null);
+  const markerRef = useRef<HTMLSpanElement>(null);
+  const navLabelRefs = useRef(new Map<ViewState, HTMLElement>());
+  /** False until the marker has a position, so the first placement cannot glide in from x=0. */
+  const markerPlaced = useRef(false);
+  /**
+   * False until the arrival has finished settling.
+   *
+   * `markerPlaced` alone was not enough to keep the load quiet. The store boots
+   * at `HOME` and App adopts the URL from a mount effect, so a deep link —
+   * every prerendered landing page, which is most arrivals from search —
+   * renders `HOME` once and then the real view. Above `xl`, where the Bosh
+   * sahifa link has a box, that first render placed the marker for real and the
+   * second one was a `currentView` change with `markerPlaced` already true: the
+   * rule swept the width of the bar on page load, which is the one thing the
+   * snap-on-everything-but-navigation rule below exists to prevent.
+   *
+   * A frame is the right unit. The adoption lands in the same commit as mount,
+   * well inside the first rAF; a visitor pressing a link cannot be.
+   */
+  const settled = useRef(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      settled.current = true;
+    });
+    return () => {
+      settled.current = false;
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+  /** When the current glide started, so a reflow landing inside one does not cut it short. */
+  const glideStartedAt = useRef(0);
+
+  const placeMarker = useCallback(
+    (view: ViewState, navigated: boolean) => {
+      const marker = markerRef.current;
+      const row = navRowRef.current;
+      if (!marker || !row) return;
+
+      const box = navLabelRefs.current.get(view)?.getBoundingClientRect();
+      // Nothing to sit under. Either the visitor is on a view the middle of
+      // the bar does not carry, or they are on `HOME`, whose link is `hidden`
+      // below `xl` and so has no box at all. Both mean: draw nothing.
+      if (!box || box.width === 0) {
+        marker.style.opacity = '0';
+        markerPlaced.current = false;
+        return;
+      }
+
+      // A first placement, a resize and a font swap all move the marker
+      // without the visitor having navigated. Animating those would sweep the
+      // rule across the bar on load and have it chase the labels through a
+      // window drag, so only a navigation glides — with one exception. Landing
+      // on a page shorter than the last one takes the window's scrollbar with
+      // it, and that fires a resize a few frames into the movement; snapping
+      // there would cut the glide off partway and put a jump back in the one
+      // place this is meant to remove it. So a reflow inside the window a
+      // navigation opened keeps gliding, to wherever the labels have got to.
+      const glide =
+        markerPlaced.current &&
+        settled.current &&
+        !reducedMotion &&
+        (navigated || performance.now() - glideStartedAt.current < MARKER_MS);
+      if (navigated && glide) glideStartedAt.current = performance.now();
+
+      if (!glide) marker.style.transitionDuration = '0ms';
+      marker.style.transform = `translate3d(${box.left - row.getBoundingClientRect().left}px, 0, 0)`;
+      marker.style.width = `${box.width}px`;
+      marker.style.opacity = '1';
+      if (!glide) {
+        // Force the layout that the 0ms rule applies to before handing the
+        // transition back; without the flush the class duration is still what
+        // the browser interpolates with and the marker slides anyway.
+        void marker.offsetWidth;
+        marker.style.transitionDuration = '';
+      }
+      markerPlaced.current = true;
+    },
+    [reducedMotion],
+  );
+
+  /** A navigation — the one case that glides. */
+  useEffect(() => {
+    placeMarker(currentView, true);
+  }, [currentView, placeMarker]);
+
+  /**
+   * Everything that moves the labels without the visitor navigating, and all
+   * of it snaps: the language switch (Russian's "Программа для студентов" is
+   * half again the width of Uzbek's "Talabalar dasturi"), a window resize, and
+   * the web font landing after the first paint — a marker measured against the
+   * fallback face sits short of the word it underlines until something forces
+   * a re-read.
+   */
+  useEffect(() => {
+    const snap = () => placeMarker(useAppStore.getState().currentView, false);
+    snap();
+
+    // One rAF per burst, the same shape as the elevation listener below: a
+    // drag-resize fires far more often than there are frames to draw.
+    let frame = 0;
+    const onResize = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        snap();
+      });
+    };
+    window.addEventListener('resize', onResize);
+
+    let live = true;
+    void document.fonts?.ready.then(() => {
+      if (live) snap();
+    });
+
+    return () => {
+      live = false;
+      window.removeEventListener('resize', onResize);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [language, placeMarker]);
 
   const browseOpen = openMenu === 'browse';
 
@@ -701,7 +860,19 @@ export const Header: React.FC = () => {
     </section>
   );
 
-  /** One section link in the middle of the bar. */
+  /**
+   * One section link in the middle of the bar.
+   *
+   * The current section is marked by the travelling rule below, not by a fill.
+   * `HEADER_OPEN` is the bar's one fill and it means "this menu is open";
+   * spending it here as well is precisely the collision the redesign removed.
+   *
+   * Note that the weight still changes with the state. That is not decoration:
+   * the marker is only drawn once JavaScript has measured something, so a
+   * crawler and a visitor whose bundle has not booted yet need the active link
+   * to be legible as active on its own — which `font-black text-white` against
+   * `font-bold text-white/80` is.
+   */
   const barNavLink = (item: NavItem) => {
     const active = currentView === item.view;
     return (
@@ -714,18 +885,18 @@ export const Header: React.FC = () => {
           active ? 'font-black text-white' : `font-bold ${HEADER_IDLE} hover:bg-white/12 hover:text-white`
         }`}
       >
-        <span className="truncate">{t(item.labelKey)}</span>
-        {/* The current section is underlined, not filled. `HEADER_OPEN` is
-            the bar's one fill and it means "this menu is open"; spending it
-            here as well is precisely the collision the redesign removed. The
-            rule is outside the truncating span because `truncate` clips
-            everything that overflows the label's box, including this. */}
-        {active && (
-          <span
-            className="absolute inset-x-2.5 bottom-1.5 h-0.5 rounded-full bg-white"
-            aria-hidden="true"
-          />
-        )}
+        {/* The marker measures THIS box and not the link's, so the rule comes
+            out the width of the word rather than the word plus its padding —
+            which is what the old inset underline was hand-tuned to. */}
+        <span
+          ref={(node) => {
+            if (node) navLabelRefs.current.set(item.view, node);
+            else navLabelRefs.current.delete(item.view);
+          }}
+          className="truncate"
+        >
+          {t(item.labelKey)}
+        </span>
       </AppLink>
     );
   };
@@ -783,8 +954,9 @@ export const Header: React.FC = () => {
               all and the cluster's `ml-auto` takes over, leaving the phone
               exactly two objects. */}
           <nav
+            ref={navRowRef}
             aria-label={t('layout.header.browseSections')}
-            className="hidden min-w-0 flex-1 items-center justify-center gap-0.5 lg:flex"
+            className="relative hidden min-w-0 flex-1 items-center justify-center gap-0.5 lg:flex"
           >
             {PRIMARY_NAV.map(barNavLink)}
 
@@ -814,6 +986,27 @@ export const Header: React.FC = () => {
                 aria-hidden="true"
               />
             </button>
+
+            {/* The marker itself, and it belongs to the <nav> rather than to
+                any one link — that is the whole point, since an element can
+                only travel inside its own containing block.
+
+                It is absolutely positioned, so it is not a flex item and the
+                `gap-0.5` above never sees it. `bottom-1.5` lands exactly where
+                the old per-link underline did: this row is `items-center` and
+                every child of it is `min-h-11`, so the <nav>'s box and a
+                link's box are the same 44 pixels tall.
+
+                Born at zero width and transparent because the first paint has
+                measured nothing yet. `placeMarker` writes the transition
+                duration to 0ms for that first placement, so it appears under
+                the current section rather than sweeping in from the left edge
+                of the bar. */}
+            <span
+              ref={markerRef}
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-1.5 left-0 h-0.5 w-0 rounded-full bg-white opacity-0 transition-[transform,width,opacity] duration-300 ease-out"
+            />
           </nav>
 
           {/* 3-6 — the cluster. Two pitches only: 2px inside the capsule,

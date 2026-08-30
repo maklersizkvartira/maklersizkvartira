@@ -229,6 +229,55 @@ export const App: React.FC = () => {
     if (guarded) setShowAuth(true, authTabForView(currentView));
   }, [guarded, currentView, setShowAuth]);
 
+  /**
+   * The view actually on screen.
+   *
+   * A guarded view renders the home page rather than a dead end (see the
+   * `<main>` below), and this is the one expression that says so — it is both
+   * what `renderView` is handed and what the transition wrapper is keyed on,
+   * so signing in and having the real page swap in underneath the dialog is a
+   * transition rather than a jump cut.
+   */
+  const activeView: ViewState = guarded ? 'HOME' : currentView;
+
+  /**
+   * Has the visitor navigated yet?
+   *
+   * The first screen of a visit must not animate. `scripts/prerender.mjs`
+   * ships real HTML for the entry URL, so fading that in would put a quarter
+   * of a second of blank page in front of content the browser had already
+   * painted — a first-paint cost, for nothing.
+   *
+   * Written during render rather than from an effect, and that is the point:
+   * the flag has to be true on the very frame the new view mounts, because a
+   * class added a render later would paint one frame of the finished page
+   * before the animation pulled it back to transparent. Both writes are
+   * idempotent — the ref only ever tracks the last view rendered, and the flag
+   * only ever goes from false to true — so StrictMode's double render and a
+   * render thrown away by a suspended lazy chunk both land on the same result.
+   *
+   * The `authReady` gate is what makes "the first screen" mean the first
+   * screen and not the first *value*. The store boots at `HOME` and the URL is
+   * adopted from an effect, so on any deep link — which is every one of the
+   * 346 prerendered pages, and so most arrivals from search — the view changes
+   * once on mount, from the placeholder to the page that was asked for. Seeded
+   * unconditionally, the ref caught that swap and called it a navigation: the
+   * entry screen faded in over content the browser had already painted, which
+   * is the one thing this block exists to prevent. Nothing renders inside the
+   * wrapper until `authReady`, so nothing before it can be a navigation away
+   * from anything.
+   */
+  const renderedView = React.useRef<ViewState | null>(null);
+  const hasNavigated = React.useRef(false);
+  if (authReady) {
+    if (renderedView.current === null) {
+      renderedView.current = activeView;
+    } else if (renderedView.current !== activeView) {
+      renderedView.current = activeView;
+      hasNavigated.current = true;
+    }
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-canvas text-content">
       <Header />
@@ -259,10 +308,30 @@ export const App: React.FC = () => {
         {!authReady ? (
           <Loading />
         ) : (
-          // A guarded view renders the home page rather than a dead end: the
-          // dialog is already open over it, and signing in swaps the real
-          // page in underneath at the same URL, with no second navigation.
-          <Suspense fallback={<Loading />}>{renderView(guarded ? 'HOME' : currentView)}</Suspense>
+          /*
+            A guarded view renders the home page rather than a dead end: the
+            dialog is already open over it, and signing in swaps the real page
+            in underneath at the same URL, with no second navigation.
+
+            The key is what turns a navigation from a cut into a movement.
+            React tears the old view down and mounts the next one with
+            `.view-enter` already on it — a 240ms fade and settle described in
+            index.css — and the wrapper deliberately sits OUTSIDE `<Suspense>`.
+            Inside it, a code-split view that has not arrived yet swaps the
+            fallback in and the content back out, and each of those swaps would
+            re-run the animation: every lazy view would transition twice. Out
+            here the wrapper mounts once per navigation and stays put while the
+            chunk resolves underneath it.
+
+            Nothing waits on the animation. The new view mounts and is
+            interactive on the frame it is asked for; only the wrapper's
+            opacity and twelve pixels of horizontal offset move, and the
+            outgoing view leaves with the frame rather than being held on
+            screen to fade out.
+          */
+          <div key={activeView} className={hasNavigated.current ? 'view-enter' : undefined}>
+            <Suspense fallback={<Loading />}>{renderView(activeView)}</Suspense>
+          </div>
         )}
       </main>
 

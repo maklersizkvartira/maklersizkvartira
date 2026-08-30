@@ -22,7 +22,17 @@ import { useEffect, useState } from 'react';
 
 const QUERY = '(prefers-reduced-motion: reduce)';
 
-function prefersReducedMotion(): boolean {
+/**
+ * The same question, asked once, outside React.
+ *
+ * Exported because the store has to ask it too and a store cannot call a hook:
+ * `navigate` scrolls the window to the top of every new view, and
+ * `scrollTo({ behavior: 'smooth' })` passes its behaviour explicitly, so it
+ * overrides the `scroll-behavior: auto !important` the stylesheet sets under
+ * `prefers-reduced-motion`. Left alone it was the one piece of movement on
+ * this site that the media query could not switch off.
+ */
+export function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined' || !window.matchMedia) return false;
   return window.matchMedia(QUERY).matches;
 }

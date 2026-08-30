@@ -30,22 +30,94 @@ const SUPPORT_CONTACTS: SupportContact[] = [
   { dial: '+998777850737', label: '+998 77 785 07 37' },
 ];
 
-const InstagramIcon: React.FC<{ className?: string }> = ({ className = 'h-4 w-4' }) => (
+/**
+ * The Instagram mark.
+ *
+ * It lives here because lucide dropped its brand glyphs, not because anybody
+ * wanted to draw one: this is lucide's own instagram geometry — the same 24
+ * grid, the same round caps and joins — so that the three icons in the
+ * contact tray are one typeface rather than a hand-drawn shape standing next
+ * to two library ones. `strokeWidth` is a prop for the same reason: the tray
+ * sets one weight and all three glyphs take it.
+ */
+const InstagramIcon: React.FC<{ className?: string; strokeWidth?: number }> = ({
+  className,
+  strokeWidth = 2,
+}) => (
   <svg
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    strokeWidth="2"
+    strokeWidth={strokeWidth}
     strokeLinecap="round"
     strokeLinejoin="round"
     className={className}
-    aria-hidden="true"
   >
     <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
     <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
     <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
   </svg>
 );
+
+/**
+ * The contact tray: Instagram, Telegram, and the support mailbox.
+ *
+ * Three things about this shape are deliberate.
+ *
+ * The accent is a single colour per channel, held as a CSS variable on the
+ * link and read by the tint and the glyph. It replaced a three-stop
+ * orange-pink-purple gradient that was the loudest object in the footer and
+ * the only reason the buttons were interesting at all; a quiet chip that
+ * takes on the channel's colour says the same thing without shouting. The
+ * mailbox points its variables at the brand tokens rather than a hex pair, so
+ * it re-themes with everything else.
+ *
+ * `label` is the accessible name. The two networks are proper nouns and are
+ * not translated; the mailbox is named by its own address, on the same
+ * reasoning as SUPPORT_CONTACTS above — an address is not translated copy,
+ * and hearing it is more use than hearing the word "mail". It previously had
+ * no name at all: the icon was `aria-hidden` and nothing replaced it, so a
+ * screen reader announced the third link as its bare href.
+ */
+interface ContactLink {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  accent: string;
+  accentSoft: string;
+  /** Off-site destinations open in a new tab; `mailto:` must not. */
+  external?: boolean;
+}
+
+const SUPPORT_EMAIL = 'support@maklersizuy.uz';
+
+const CONTACT_LINKS: ContactLink[] = [
+  {
+    href: 'https://www.instagram.com/maklersizuy.uz/',
+    label: 'Instagram',
+    icon: InstagramIcon,
+    // Instagram's magenta, darkened just enough to stay legible on white and
+    // still read on the dark surface — one colour has to serve both themes.
+    accent: '#d6336c',
+    accentSoft: 'rgb(214 51 108 / 0.14)',
+    external: true,
+  },
+  {
+    href: 'https://t.me/maklersizuy',
+    label: 'Telegram',
+    icon: Send,
+    accent: '#1c8fcb',
+    accentSoft: 'rgb(34 158 217 / 0.16)',
+    external: true,
+  },
+  {
+    href: `mailto:${SUPPORT_EMAIL}`,
+    label: SUPPORT_EMAIL,
+    icon: Mail,
+    accent: 'var(--color-brand)',
+    accentSoft: 'var(--color-brand-soft)',
+  },
+];
 
 interface FooterLink {
   labelKey: string;
@@ -208,35 +280,86 @@ export const Footer: React.FC = () => {
           <p className="hidden sm:block text-[11px] text-subtle">
             {t('layout.footer.rights', { year: new Date().getFullYear() })}
           </p>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <a
-                href="https://www.instagram.com/maklersizuy.uz/"
-                target="_blank"
-                rel="noreferrer noopener"
-                aria-label="Instagram"
-                className="press group flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface-2/80 text-muted transition-all duration-200 hover:scale-105 hover:border-transparent hover:bg-gradient-to-tr hover:from-[#f09433] hover:via-[#dc2743] hover:to-[#bc1888] hover:text-white hover:shadow-md hover:shadow-pink-500/25 active:scale-95"
-              >
-                <InstagramIcon className="h-4 w-4 transition-transform group-hover:scale-110" />
-              </a>
-              <a
-                href="https://t.me/maklersizuy"
-                target="_blank"
-                rel="noreferrer noopener"
-                aria-label="Telegram"
-                className="press group flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface-2/80 text-muted transition-all duration-200 hover:scale-105 hover:border-transparent hover:bg-[#229ED9] hover:text-white hover:shadow-md hover:shadow-sky-500/25 active:scale-95"
-              >
-                <Send className="h-4 w-4 transition-transform group-hover:scale-110" aria-hidden="true" />
-              </a>
-              <a
-                href="mailto:support@maklersizuy.uz"
-                className="press group flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface-2/80 text-muted transition-all duration-200 hover:scale-105 hover:border-transparent hover:bg-brand hover:text-white hover:shadow-md hover:shadow-brand/25 active:scale-95"
-              >
-                <Mail className="h-4 w-4 transition-transform group-hover:scale-110" aria-hidden="true" />
-              </a>
-            </div>
+          {/*
+            Two groups, not five objects.
 
-            <div className="h-4 w-px bg-line" aria-hidden="true" />
+            The contact links, a hairline divider and the two switchers used
+            to sit at one level with one gap between all of them, so the row
+            read as five unrelated buttons. The links are now a tray of their
+            own — a bordered surface holding three chips — which is a stronger
+            boundary than a 1px rule ever was, so the divider is gone. What
+            separates the tray from the switchers is space: 24px between the
+            groups against 4-8px inside them.
+
+            The wrap and the centred alignment are for 360px, where the tray
+            (150px) and the two switchers (~115px) still share one line.
+          */}
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-4">
+            <nav aria-label={t('layout.footer.contact')}>
+              <ul className="flex items-center gap-1 rounded-2xl border border-line bg-surface-2/70 p-1">
+                {CONTACT_LINKS.map((link) => {
+                  const Icon = link.icon;
+                  return (
+                    <li key={link.href}>
+                      {/*
+                        One gesture, in two parts that move together: the tint
+                        rises into the chip from below while the glyph rolls
+                        up out of its window. That is why the icon is rendered
+                        twice — the track is 36px of icon in an 18px window,
+                        and hovering slides the second copy into the place the
+                        first one left, which reads as a roll rather than as
+                        two things scaling against each other. It answers
+                        `focus-visible` as well as `hover`; the old buttons
+                        gave a keyboard user nothing but the browser ring.
+
+                        Every moving utility carries `motion-safe`, so under
+                        `prefers-reduced-motion` no transform is emitted at
+                        all. The tint still arrives — it is carried by opacity
+                        on its own, which the global clamp merely makes
+                        instant — so the states still change, they just hold
+                        still. Reaching for `motion-reduce` overrides instead
+                        would have been a specificity race with the
+                        `group-hover` rules.
+
+                        The timings live on these children rather than on the
+                        anchor because `.press` is unlayered: its
+                        `transition-property`/`duration` beat any Tailwind
+                        `duration-*` on the same element and would quietly
+                        cut this to the 120ms tap feedback.
+                      */}
+                      <a
+                        href={link.href}
+                        {...(link.external
+                          ? { target: '_blank', rel: 'noreferrer noopener' }
+                          : {})}
+                        aria-label={link.label}
+                        style={
+                          {
+                            '--accent': link.accent,
+                            '--accent-soft': link.accentSoft,
+                          } as React.CSSProperties
+                        }
+                        className="press group relative flex h-11 w-11 cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-surface text-muted"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="absolute inset-0 bg-[var(--accent-soft)] opacity-0 transition duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:opacity-100 group-focus-visible:opacity-100 motion-safe:translate-y-full motion-safe:group-hover:translate-y-0 motion-safe:group-focus-visible:translate-y-0"
+                        />
+                        <span
+                          aria-hidden="true"
+                          className="relative z-10 flex h-[18px] w-[18px] flex-col overflow-hidden transition-colors duration-300 group-hover:text-[var(--accent)] group-focus-visible:text-[var(--accent)]"
+                        >
+                          <span className="flex shrink-0 flex-col transition-transform duration-[340ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe:group-hover:-translate-y-[18px] motion-safe:group-focus-visible:-translate-y-[18px]">
+                            <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} />
+                            <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} />
+                          </span>
+                        </span>
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
 
             <div className="flex items-center gap-2">
               <LanguageSwitcher />

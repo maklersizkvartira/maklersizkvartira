@@ -94,7 +94,7 @@ export const layout = {
     },
     hovli: {
       title: 'Hovli',
-      description: 'Hovlili uylar — alohida kirish va oʻz hovlisi bilan',
+      description: 'Hovlili uylar — alohida kirish va o‘z hovlisi bilan',
     },
   },
 
@@ -134,8 +134,8 @@ export const layout = {
       title: 'Yordam kerakmi?',
       // The row's own call to action. It is a word, not an icon, because the
       // row is a `tel:` link and nothing else on it says what pressing does.
-      call: 'Qoʻngʻiroq',
-      phoneAria: '{phone} raqamiga qoʻngʻiroq qilish',
+      call: 'Qo‘ng‘iroq',
+      phoneAria: '{phone} raqamiga qo‘ng‘iroq qilish',
       hours: 'Har kuni 09:00 – 21:00',
     },
   },
