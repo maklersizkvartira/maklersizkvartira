@@ -296,3 +296,24 @@ class AdminStaffRow(ORMCamelModel):
 class DashboardResponse(CamelModel):
     status: str = "success"
     data: dict[str, Any]
+
+
+# ---------------------------------------------------------------------------
+# Biometric Face Authentication
+# ---------------------------------------------------------------------------
+class FaceLoginRequest(CamelModel):
+    image: str
+
+
+class FaceRegisterRequest(CamelModel):
+    image: str
+    username: str | None = None
+    password: str | None = None
+
+
+class FaceStatusResponse(CamelModel):
+    enrolled: bool
+    count: int = 0
+    username: str | None = None
+    full_name: str | None = None
+    face_image: str | None = None

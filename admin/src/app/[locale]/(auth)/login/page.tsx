@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { useLogin } from '@/features/auth/hooks/useLogin';
+import { getFaceStatus } from '@/features/auth/api';
+import { FaceModal } from '@/features/auth/components/FaceModal';
 import { ApiError } from '@/shared/lib/http';
-import { Eye, EyeOff, Lock, User, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, Lock, User, ShieldCheck, ArrowRight, Sparkles, Smile, Camera } from 'lucide-react';
 
 /** mm:ss — a bare seconds count reads as an error code once it passes 90. */
 function formatCountdown(totalSeconds: number): string {
@@ -23,6 +25,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [remaining, setRemaining] = useState(0);
+  const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
+  const [faceModalMode, setFaceModalMode] = useState<'login' | 'register'>('login');
+  const [faceStatus, setFaceStatus] = useState<{ enrolled: boolean; count: number } | null>(null);
+
+  useEffect(() => {
+    getFaceStatus()
+      .then(setFaceStatus)
+      .catch(() => {});
+  }, []);
 
   /* ── Backend error codes ──────────────────────────────────────────────────
      The API answers a refused login with a machine-readable code and, for the
@@ -169,6 +180,62 @@ export default function LoginPage() {
                 style={{ background: 'var(--accent-subtle)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }}
               >
                 <ShieldCheck size={10} /> {c('appName')}
+              </span>
+            </div>
+          </div>
+
+          {/* Face ID Action Section */}
+          <div className="mb-6">
+            <button
+              type="button"
+              onClick={() => {
+                setFaceModalMode(faceStatus?.enrolled ? 'login' : 'register');
+                setIsFaceModalOpen(true);
+              }}
+              className="w-full py-4 bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-bold rounded-2xl shadow-[0_0_25px_rgba(16,185,129,0.3)] transition transform active:scale-95 flex items-center justify-center gap-3 border border-emerald-400/30 group"
+            >
+              <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Smile className="w-4 h-4 text-white" />
+              </div>
+              <span className="tracking-wide text-sm font-bold">Face ID Bilan Kirish</span>
+              <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-[10px] font-mono font-extrabold uppercase text-emerald-100">
+                Tezkor
+              </span>
+            </button>
+
+            <div className="flex items-center justify-between px-2 mt-2.5">
+              <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
+                {faceStatus?.enrolled ? 'Face ID faol' : 'Yuz saqlanmagan'}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setFaceModalMode('register');
+                  setIsFaceModalOpen(true);
+                }}
+                className="text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold transition flex items-center gap-1"
+              >
+                <span>Yuzni saqlash</span>
+                <ArrowRight size={11} />
+              </button>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-700/60" />
+            </div>
+            <div className="relative flex justify-center">
+              <span
+                className="px-3 text-[11px] font-bold tracking-wider uppercase rounded-full"
+                style={{
+                  background: 'var(--color-surface)',
+                  color: 'var(--color-text-muted)',
+                }}
+              >
+                Yoki Parol Bilan
               </span>
             </div>
           </div>
@@ -322,6 +389,16 @@ export default function LoginPage() {
       >
         © {new Date().getFullYear()} · {c('appName')}
       </p>
+
+      {/* Biometric Face ID Scanning Modal */}
+      <FaceModal
+        isOpen={isFaceModalOpen}
+        onClose={() => {
+          setIsFaceModalOpen(false);
+          getFaceStatus().then(setFaceStatus).catch(() => {});
+        }}
+        initialMode={faceModalMode}
+      />
     </div>
   );
 }

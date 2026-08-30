@@ -174,6 +174,11 @@ class AdminUser(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     #: Optional comma-separated CIDR allowlist. Empty means "any address".
     ip_allowlist: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    #: Base64 reference face photo for Face ID login.
+    face_image: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: JSON-serialized face feature vector for fast biometric comparison.
+    face_encoding: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     @property
     def is_superadmin(self) -> bool:
         return self.role == AdminRole.SUPERADMIN.value

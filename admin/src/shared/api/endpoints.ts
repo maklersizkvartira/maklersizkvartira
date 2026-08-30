@@ -140,6 +140,10 @@ export const api = {
    */
   auth: {
     login: '/admin/auth/login',
+    faceLogin: '/admin/auth/face-login',
+    faceRegister: '/admin/auth/face-register',
+    faceStatus: '/admin/auth/face-status',
+    faceDelete: '/admin/auth/face-delete',
     refresh: '/admin/auth/refresh',
     /** Bumps the account's token_version, killing every live access token. */
     logout: '/admin/auth/logout',

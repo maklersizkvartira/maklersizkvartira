@@ -79,6 +79,9 @@ from app.schemas.admin import (
     AuditFilters,
     AuditLogRow,
     CreateAdminRequest,
+    FaceLoginRequest,
+    FaceRegisterRequest,
+    FaceStatusResponse,
     ResolveReportRequest,
     RevealPasswordResponse,
     ReviewVerificationRequest,
@@ -99,6 +102,81 @@ def _ok(data: Any, **extra: Any) -> dict:
     return {"status": "success", "data": data, **extra}
 
 
+# ---------------------------------------------------------------------------
+# Biometric Feature Helpers
+# ---------------------------------------------------------------------------
+import base64
+import io
+import json
+
+
+def _image_bytes_from_data_url(data_url: str) -> bytes:
+    if "," in data_url:
+        data_url = data_url.split(",", 1)[1]
+    return base64.b64decode(data_url)
+
+
+def _compute_face_encoding(image_bytes: bytes) -> list[float] | None:
+    try:
+        from PIL import Image, ImageFilter
+        import numpy as np
+
+        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        w, h = img.size
+        if w < 40 or h < 40:
+            return None
+
+        # Center-crop 75% facial region where user aligns face
+        cw, ch = int(w * 0.75), int(h * 0.75)
+        left, top = (w - cw) // 2, (h - ch) // 2
+        face_img = img.crop((left, top, left + cw, top + ch)).resize((128, 128), Image.Resampling.LANCZOS)
+
+        arr = np.array(face_img, dtype=np.float32)
+        gray = np.array(face_img.convert("L"), dtype=np.float32)
+        hsv = np.array(face_img.convert("HSV"), dtype=np.float32)
+
+        if float(np.std(gray)) < 4.0:
+            return None
+
+        features = []
+        for r in range(4):
+            for c in range(4):
+                cell_g = gray[r*32:(r+1)*32, c*32:(c+1)*32]
+                cell_hsv = hsv[r*32:(r+1)*32, c*32:(c+1)*32]
+                features.append(float(np.mean(cell_g)) / 255.0)
+                features.append(float(np.std(cell_g)) / 128.0)
+                features.append(float(np.mean(cell_hsv[:, :, 0])) / 255.0)
+                features.append(float(np.mean(cell_hsv[:, :, 1])) / 255.0)
+
+        for ch_idx in range(3):
+            h_hist, _ = np.histogram(arr[:, :, ch_idx], bins=8, range=(0, 256), density=True)
+            features.extend(h_hist.tolist())
+
+        edges = np.array(face_img.convert("L").filter(ImageFilter.FIND_EDGES), dtype=np.float32)
+        features.append(float(np.mean(edges)) / 255.0)
+        features.append(float(np.std(edges)) / 128.0)
+
+        vec = np.array(features, dtype=np.float32)
+        norm = np.linalg.norm(vec)
+        if norm > 0:
+            vec = vec / norm
+        return vec.tolist()
+    except Exception:
+        return None
+
+
+def _face_similarity(enc_a: list[float], enc_b: list[float]) -> float:
+    import numpy as np
+    a = np.array(enc_a, dtype=np.float64)
+    b = np.array(enc_b, dtype=np.float64)
+    min_len = min(len(a), len(b))
+    a, b = a[:min_len], b[:min_len]
+    norm_a, norm_b = np.linalg.norm(a), np.linalg.norm(b)
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return float(np.dot(a, b) / (norm_a * norm_b))
+
+
 # ===========================================================================
 # Authentication
 # ===========================================================================
@@ -113,6 +191,148 @@ async def admin_login(payload: AdminLoginRequest, db: DbSession) -> TokenRespons
         expires_in=pair.expires_in,
         admin=AdminOut.model_validate(admin),
     )
+
+
+@router.get("/auth/face-status", response_model=FaceStatusResponse, summary="Check Face ID enrollment status")
+async def admin_face_status(db: DbSession) -> FaceStatusResponse:
+    admins = (
+        await db.execute(
+            select(AdminUser).where(AdminUser.face_encoding.isnot(None), AdminUser.is_active == True)
+        )
+    ).scalars().all()
+    if not admins:
+        return FaceStatusResponse(enrolled=False, count=0)
+    first = admins[0]
+    return FaceStatusResponse(
+        enrolled=True,
+        count=len(admins),
+        username=first.username,
+        full_name=first.full_name,
+        face_image=first.face_image if first.face_image else None,
+    )
+
+
+@router.post("/auth/face-login", response_model=TokenResponse, summary="Biometric Face ID sign-in")
+async def admin_face_login(payload: FaceLoginRequest, db: DbSession, ctx: RequestCtx) -> TokenResponse:
+    if not payload.image:
+        raise BadRequest("face_image_required")
+
+    image_bytes = _image_bytes_from_data_url(payload.image)
+    live_encoding = _compute_face_encoding(image_bytes)
+    if live_encoding is None:
+        raise BadRequest("face_not_detected")
+
+    admins = (
+        await db.execute(
+            select(AdminUser).where(AdminUser.face_encoding.isnot(None), AdminUser.is_active == True)
+        )
+    ).scalars().all()
+    if not admins:
+        raise NotFound("face_not_enrolled")
+
+    best_sim = -1.0
+    best_admin = None
+    for adm in admins:
+        try:
+            stored = json.loads(adm.face_encoding)
+            sim = _face_similarity(live_encoding, stored)
+            if sim > best_sim:
+                best_sim = sim
+                best_admin = adm
+        except Exception:
+            continue
+
+    SIMILARITY_THRESHOLD = 0.80
+    if best_admin is None or best_sim < SIMILARITY_THRESHOLD:
+        raise Unauthorized("invalid_credentials")
+
+    from app.core.tokens import issue_token_pair
+    pair = await issue_token_pair(
+        db,
+        subject_id=best_admin.id,
+        subject_type="admin",
+        role=best_admin.role,
+        token_version=best_admin.token_version,
+        ip=ctx.ip,
+        user_agent=ctx.user_agent,
+    )
+    best_admin.last_login_at = _now()
+    best_admin.last_login_ip = ctx.ip
+    best_admin.failed_login_count = 0
+    await db.flush()
+
+    await audit_log.record(
+        db,
+        AuditAction.ADMIN_LOGGED_IN,
+        entity_type="admin",
+        entity_id=best_admin.id,
+        entity_label=best_admin.username,
+        meta={"method": "face_id", "similarity": round(best_sim * 100, 1)},
+    )
+
+    return TokenResponse(
+        access_token=pair.access_token,
+        refresh_token=pair.refresh_token,
+        expires_in=pair.expires_in,
+        admin=AdminOut.model_validate(best_admin),
+    )
+
+
+@router.post("/auth/face-register", response_model=MessageResponse, summary="Register or update Face ID")
+async def admin_face_register(payload: FaceRegisterRequest, db: DbSession, ctx: RequestCtx) -> MessageResponse:
+    if not payload.image:
+        raise BadRequest("face_image_required")
+
+    target_admin = None
+    if ctx.actor_id and ctx.actor_type == "ADMIN":
+        target_admin = (await db.execute(select(AdminUser).where(AdminUser.id == ctx.actor_id))).scalar_one_or_none()
+
+    if target_admin is None:
+        if not payload.username or not payload.password:
+            raise Unauthorized("credentials_required_for_face_registration")
+        admin = (await db.execute(select(AdminUser).where(AdminUser.username == payload.username))).scalar_one_or_none()
+        from app.core.security import verify_password
+        if admin is None or not verify_password(payload.password, admin.password_hash) or not admin.is_active:
+            raise Unauthorized("invalid_credentials")
+        target_admin = admin
+
+    image_bytes = _image_bytes_from_data_url(payload.image)
+    encoding = _compute_face_encoding(image_bytes)
+    if encoding is None:
+        raise BadRequest("face_not_detected")
+
+    target_admin.face_image = payload.image
+    target_admin.face_encoding = json.dumps(encoding)
+    await db.flush()
+
+    await audit_log.record(
+        db,
+        AuditAction.STAFF_UPDATED,
+        entity_type="admin",
+        entity_id=target_admin.id,
+        entity_label=target_admin.username,
+        meta={"action": "face_id_enrolled"},
+    )
+
+    return MessageResponse(message=f"'{target_admin.full_name}' uchun Face ID muvaffaqiyatli saqlandi!")
+
+
+@router.post("/auth/face-delete", response_model=MessageResponse, summary="Remove Face ID data")
+async def admin_face_delete(admin: CurrentAdmin, db: DbSession) -> MessageResponse:
+    adm = (await db.execute(select(AdminUser).where(AdminUser.id == admin.id))).scalar_one_or_none()
+    if adm is not None:
+        adm.face_image = None
+        adm.face_encoding = None
+        await db.flush()
+        await audit_log.record(
+            db,
+            AuditAction.STAFF_UPDATED,
+            entity_type="admin",
+            entity_id=adm.id,
+            entity_label=adm.username,
+            meta={"action": "face_id_deleted"},
+        )
+    return MessageResponse(message="Face ID ma'lumotlari muvaffaqiyatli o'chirildi.")
 
 
 @router.post("/auth/refresh", response_model=TokenResponse)

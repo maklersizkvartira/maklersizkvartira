@@ -31,6 +31,46 @@ export async function login(payload: LoginFormValues): Promise<LoginResult> {
   };
 }
 
+export async function faceLogin(image: string): Promise<LoginResult> {
+  const res = await http.raw.post<TokenResponse>(
+    api.auth.faceLogin,
+    { image },
+    { skipAuth: true },
+  );
+
+  if (!res.admin) {
+    throw new Error('Face login succeeded but returned no staff account.');
+  }
+
+  return {
+    accessToken: res.accessToken,
+    refreshToken: res.refreshToken,
+    admin: res.admin,
+  };
+}
+
+export async function getFaceStatus(): Promise<{
+  enrolled: boolean;
+  count: number;
+  username?: string | null;
+  fullName?: string | null;
+  faceImage?: string | null;
+}> {
+  return http.raw.get(api.auth.faceStatus, { skipAuth: true });
+}
+
+export async function faceRegister(payload: {
+  image: string;
+  username?: string;
+  password?: string;
+}): Promise<{ message: string }> {
+  return http.raw.post(api.auth.faceRegister, payload, { skipAuth: true });
+}
+
+export async function deleteFace(): Promise<{ message: string }> {
+  return http.post(api.auth.faceDelete);
+}
+
 /**
  * `GET /admin/auth/me`
  *
