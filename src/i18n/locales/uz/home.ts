@@ -31,6 +31,9 @@ export const home = {
       safeAndSecure: 'Xavfsiz va ishonchli',
       noCommission: 'Hech qanday komissiya yoʻq',
       fastAndEasy: 'Tez va oson ijara',
+      passportChecked: 'Pasport tekshirilgan',
+      aiScreened: 'AI tekshiruvidan oʻtgan',
+      supportAlways: '24/7 qoʻllab-quvvatlash',
     },
   },
 

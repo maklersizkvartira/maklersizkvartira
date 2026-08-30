@@ -540,47 +540,82 @@ html {
    beat the grid placement that moves the artwork from below the headline to
    beside it, and both arrangements would render at once.
 --------------------------------------------------------------------------- */
+/* The hero artwork.
+
+   The first attempt was a rise-fade-scale, which is the motion every card on
+   the page already uses — the two largest objects in the hero arrived looking
+   like a list item. These are dimensional pieces, an isometric city and a
+   cutaway house, so the entrance is dimensional too: each swings in from its
+   own side around a vertical axis with the perspective set on the stage, so
+   the near edge leads and the piece settles flat. The far one starts further
+   back in Z, which is what makes it read as depth rather than as a skew.
+
+   Once landed they keep breathing on a slow six-second loop, offset between
+   the two sides so the hero never sits perfectly still. */
 @keyframes hero-art-in-left {
   from {
     opacity: 0;
-    transform: translate3d(-18px, 28px, 0) scale(0.94);
+    transform: perspective(1400px) translate3d(-64px, 26px, -180px) rotateY(16deg);
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: perspective(1400px) translate3d(0, 0, 0) rotateY(0deg);
   }
 }
 @keyframes hero-art-in-right {
   from {
     opacity: 0;
-    transform: translate3d(18px, 28px, 0) scale(0.94);
+    transform: perspective(1400px) translate3d(64px, 26px, -180px) rotateY(-16deg);
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: perspective(1400px) translate3d(0, 0, 0) rotateY(0deg);
   }
 }
 
-/* 1.5s rather than the 820ms this started at, which read as a flinch: the
-   pieces are large and detailed, and at that speed the eye registered that
-   something had moved without ever watching it arrive. The delays are longer
-   and further apart for the same reason — the two sides should land one after
-   the other, not together. */
-.hero-art-left {
-  animation: hero-art-in-left 1500ms cubic-bezier(0.16, 1, 0.3, 1) 220ms both;
+/* The resting drift. Deliberately tiny — 7px over six seconds is movement you
+   notice only if you look for it, which is the point: a hero that visibly
+   bobs is a hero nobody can read the headline on. */
+@keyframes hero-art-float {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50%      { transform: translate3d(0, -7px, 0); }
+}
+
+.hero-art-left,
+.hero-art-right {
+  /* The entrance runs once, then hands over to the loop. Two animations on one
+     element rather than a wrapper each: they both drive `transform`, and the
+     later one in the list wins after the first has finished with `forwards`. */
+  animation:
+    hero-art-in-left 1500ms cubic-bezier(0.16, 1, 0.3, 1) 220ms both,
+    hero-art-float 6000ms ease-in-out 1720ms infinite;
 }
 .hero-art-right {
-  animation: hero-art-in-right 1500ms cubic-bezier(0.16, 1, 0.3, 1) 420ms both;
+  animation:
+    hero-art-in-right 1500ms cubic-bezier(0.16, 1, 0.3, 1) 420ms both,
+    hero-art-float 6000ms ease-in-out 4920ms infinite;
+}
+
+/* The badges drift on their own slower loop, phase-staggered inline by index
+   so eight of them never breathe in unison. */
+@keyframes hero-badge-drift {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50%      { transform: translate3d(0, -4px, 0); }
+}
+.hero-badge {
+  animation: hero-badge-drift 5200ms ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* The global clamp further up only shortens the duration, which leaves the
-     art still travelling — 0.01ms of it, but the offset `from` transform is
-     applied on the first frame all the same. Somebody who asked for less
-     movement should get the finished composition and nothing else, so the
-     animation is dropped outright and the end state written directly. */
+  /* The global clamp further up only shortens durations, which leaves the art
+     still travelling — 0.01ms of it, but the offset `from` transform is applied
+     on the first frame all the same, and an infinite loop clamped to nothing
+     still repaints forever. Somebody who asked for less movement should get the
+     finished composition and nothing else, so every animation here is dropped
+     outright and the end state written directly. */
   .hero-art-left,
-  .hero-art-right {
+  .hero-art-right,
+  .hero-badge {
     animation: none;
     opacity: 1;
     transform: none;

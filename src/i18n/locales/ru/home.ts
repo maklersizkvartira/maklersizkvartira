@@ -24,6 +24,9 @@ export const home = {
       safeAndSecure: 'Безопасно и надёжно',
       noCommission: 'Никакой комиссии',
       fastAndEasy: 'Быстрая и простая аренда',
+      passportChecked: 'Паспорт проверен',
+      aiScreened: 'Проверено ИИ',
+      supportAlways: 'Поддержка 24/7',
     },
   },
 

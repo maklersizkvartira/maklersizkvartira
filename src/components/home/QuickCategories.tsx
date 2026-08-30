@@ -123,8 +123,8 @@ export const QuickCategories: React.FC = () => {
                 src={category.image}
                 alt=""
                 aria-hidden="true"
-                width={60}
-                height={60}
+                width={74}
+                height={74}
                 /* The rail sits above the hero, so every one of these is in the
                    first viewport. Lazy-loading them made the ten cards paint empty
                    and fill in a beat later. Eager, but deliberately not
@@ -132,10 +132,10 @@ export const QuickCategories: React.FC = () => {
                    hero text for bandwidth. */
                 loading="eager"
                 decoding="async"
-                className="h-[52px] w-[52px] shrink-0 select-none object-contain transition-transform duration-200 group-hover:scale-105 xs:h-[56px] xs:w-[56px] sm:h-[60px] sm:w-[60px]"
+                className="h-[54px] w-[54px] shrink-0 select-none object-contain transition-transform duration-200 group-hover:scale-105 xs:h-[58px] xs:w-[58px] sm:h-[66px] sm:w-[66px] lg:h-[74px] lg:w-[74px]"
               />
 
-              <span className="mt-1 block w-full truncate text-[11px] sm:text-xs font-black text-slate-800 dark:text-content text-center leading-none">
+              <span className="mt-1 block w-full truncate text-[11px] sm:text-xs lg:text-[13px] font-black text-slate-800 dark:text-content text-center leading-none">
                 {label}
               </span>
             </>
@@ -143,7 +143,7 @@ export const QuickCategories: React.FC = () => {
 
           const cardClass =
             'press group flex flex-col items-center justify-center shrink-0 ' +
-            'w-[76px] xs:w-[84px] sm:w-[92px] h-[92px] xs:h-[98px] sm:h-[104px] ' +
+            'w-[84px] xs:w-[92px] sm:w-[104px] lg:w-[116px] h-[104px] xs:h-[112px] sm:h-[122px] lg:h-[134px] ' +
             'rounded-2xl bg-white dark:bg-surface text-slate-800 dark:text-content ' +
             'shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95 ' +
             'transition-all duration-200 cursor-pointer snap-start border border-white/40 dark:border-line';

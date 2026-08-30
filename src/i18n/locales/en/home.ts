@@ -24,6 +24,9 @@ export const home = {
       safeAndSecure: 'Safe and trusted',
       noCommission: 'No commission at all',
       fastAndEasy: 'Fast, simple renting',
+      passportChecked: 'Passport checked',
+      aiScreened: 'Screened by AI',
+      supportAlways: 'Support around the clock',
     },
   },
 

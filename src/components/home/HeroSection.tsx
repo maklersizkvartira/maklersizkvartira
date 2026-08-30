@@ -22,38 +22,74 @@
  */
 
 import React, { useState } from 'react';
-import { BadgePercent, Search, ShieldCheck, Users, Zap } from 'lucide-react';
+import {
+  BadgeCheck,
+  BadgePercent,
+  Headset,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Users,
+  Zap,
+} from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { SearchModal } from './SearchModal';
 import { QuickCategories } from './QuickCategories';
 
 /**
- * A pill that floats on top of one of the hero illustrations.
+ * A label tethered to a point on one of the hero illustrations.
  *
- * Positioned by the caller rather than by a variant prop: each one is placed
- * against a specific feature of the artwork it annotates — the phone's screen,
- * the house's roofline — and a shared "top-left / bottom-right" vocabulary
- * would only be a worse way of writing the same four numbers.
+ * The first version was a plain pill dropped on top of the artwork, which read
+ * as a sticker: nothing said which part of the picture it was talking about.
+ * It now has a leader — a hairline that runs from the pill to a ringed dot
+ * sitting on the feature it names — so the label and its subject are visibly
+ * one object. `side` says which edge the leader leaves from, because a line
+ * has to point INTO the picture and the pills sit on both flanks of it.
  *
- * `backdrop-blur` over a translucent navy is what keeps the label readable
+ * Idle, each one drifts a couple of pixels on its own slow loop; the phase is
+ * staggered by index so eight of them never breathe in unison. On hover the
+ * pill lifts and brightens, the leader thickens and the dot pulses — the whole
+ * group is `group/badge` so all three respond to one pointer.
+ *
+ * `backdrop-blur` over a translucent navy is what keeps the text readable
  * wherever it lands: the illustrations run from near-black plinths to bright
- * cyan highlights, so a flat fill legible over one part of them is invisible
+ * cyan highlights, and a flat fill legible over one part of them disappears
  * over another.
  */
 const HeroBadge: React.FC<{
   icon: React.ComponentType<{ className?: string }>;
   label: string;
+  /** Which flank of the artwork it sits on; the leader points inward from there. */
+  side: 'left' | 'right';
+  /** Staggers the idle drift so the badges do not pulse together. */
+  index?: number;
   className?: string;
-}> = ({ icon: Icon, label, className = '' }) => (
+}> = ({ icon: Icon, label, side, index = 0, className = '' }) => (
   <span
     aria-hidden="true"
-    className={`pointer-events-none absolute z-10 inline-flex max-w-[10.5rem] items-center gap-2 rounded-2xl border border-white/15 bg-band/70 py-2 pl-2 pr-3 shadow-raised backdrop-blur-md ${className}`}
+    className={`hero-badge group/badge pointer-events-auto absolute z-20 inline-flex items-center ${
+      side === 'left' ? 'flex-row' : 'flex-row-reverse'
+    } ${className}`}
+    style={{ animationDelay: `${index * 640}ms` }}
   >
-    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-brand text-white">
-      <Icon className="h-3.5 w-3.5" />
+    <span className="inline-flex max-w-[11rem] items-center gap-2 rounded-2xl border border-white/15 bg-band/70 py-2 pl-2 pr-3 shadow-raised backdrop-blur-md transition-[transform,background-color,border-color] duration-300 ease-out group-hover/badge:-translate-y-0.5 group-hover/badge:border-white/30 group-hover/badge:bg-band/85">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-brand text-white transition-transform duration-300 ease-out group-hover/badge:scale-110">
+        <Icon className="h-3.5 w-3.5" />
+      </span>
+      <span className="text-left text-[11px] font-bold leading-tight text-white">{label}</span>
     </span>
-    <span className="text-[11px] font-bold leading-tight text-white">{label}</span>
+
+    {/* The leader. A 20px rule out to a ringed dot that sits on the feature
+        being named; both thicken on hover so the tether reads as live rather
+        than as a decorative tick. */}
+    <span className="flex shrink-0 items-center">
+      <span className="h-px w-5 bg-white/35 transition-[background-color,height] duration-300 ease-out group-hover/badge:h-0.5 group-hover/badge:bg-white/70" />
+      <span className="relative flex h-2 w-2 items-center justify-center">
+        <span className="absolute inset-0 rounded-full bg-white/25 transition-transform duration-500 ease-out group-hover/badge:scale-[2.2]" />
+        <span className="relative h-1.5 w-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.9)]" />
+      </span>
+    </span>
   </span>
 );
 
@@ -64,12 +100,25 @@ export const HeroSection: React.FC = () => {
   return (
     <div className="w-full">
       <section className="gutter-safe relative overflow-hidden bg-gradient-to-b from-band to-band-2 pb-10 pt-5 text-center text-on-band sm:pb-14 sm:pt-8 lg:pb-16">
-        <div className="relative z-10 space-y-6 sm:space-y-7">
-          {/* 1. Category Cards at the top (exact match with design screenshot).
-                 Kept inside its own 5xl column so widening the artwork stage
-                 below does not also stretch the rail and change where the ten
-                 cards sit. */}
-          <div className="mx-auto max-w-5xl">
+        <div className="relative z-10 flex flex-col gap-6 sm:gap-7">
+          {/* The category rail.
+
+              On a phone it stays where it was, directly under the bar: it is
+              the fastest route into the catalogue and burying it under a
+              headline, a search pill and nothing else would cost a scroll.
+
+              From `lg` it moves BELOW the headline and the search, which is
+              also where the artwork lives — so the eye reads the promise, then
+              the search, then the ten ways in, instead of meeting a strip of
+              small tiles before it knows what the site is. Done with flex
+              `order` rather than a second copy of the component: two instances
+              would mean two scroll containers and two sets of ten images.
+
+              It also gets a wider column down there. Up top it was held to
+              `5xl` so widening the artwork stage would not stretch it; below
+              the grid it has the full width to use, which is what lets the
+              bigger cards sit in one row instead of scrolling. */}
+          <div className="order-first mx-auto w-full max-w-5xl lg:order-last lg:max-w-7xl">
             <QuickCategories />
           </div>
 
@@ -177,20 +226,33 @@ export const HeroSection: React.FC = () => {
                 className="relative h-auto w-full select-none object-contain"
               />
 
-              {/* Placed against features of the artwork, not against the box:
-                  the top pill sits beside the phone's screen and the bottom one
-                  on the city slab, which is why the offsets are not symmetric.
-                  Both are hidden below `lg` — at md the track is 15rem and a
-                  pill would cover the phone it is meant to annotate. */}
               <HeroBadge
                 icon={ShieldCheck}
                 label={t('home.hero.badges.trustedListings')}
-                className="left-0 top-[22%] hidden lg:inline-flex"
+                side="left"
+                index={0}
+                className="left-0 top-[20%] hidden lg:inline-flex"
+              />
+              <HeroBadge
+                icon={BadgeCheck}
+                label={t('home.hero.badges.passportChecked')}
+                side="right"
+                index={1}
+                className="right-0 top-[3%] hidden lg:inline-flex"
               />
               <HeroBadge
                 icon={Users}
                 label={t('home.hero.badges.directFromOwner')}
-                className="bottom-[14%] left-[6%] hidden lg:inline-flex"
+                side="left"
+                index={2}
+                className="bottom-[19%] left-0 hidden lg:inline-flex"
+              />
+              <HeroBadge
+                icon={Sparkles}
+                label={t('home.hero.badges.aiScreened')}
+                side="right"
+                index={3}
+                className="bottom-[5%] right-0 hidden lg:inline-flex"
               />
             </div>
 
@@ -213,17 +275,30 @@ export const HeroSection: React.FC = () => {
               <HeroBadge
                 icon={ShieldCheck}
                 label={t('home.hero.badges.safeAndSecure')}
-                className="right-0 top-[10%] hidden lg:inline-flex"
+                side="right"
+                index={4}
+                className="right-0 top-[4%] hidden lg:inline-flex"
               />
               <HeroBadge
                 icon={BadgePercent}
                 label={t('home.hero.badges.noCommission')}
-                className="bottom-[16%] right-0 hidden lg:inline-flex"
+                side="right"
+                index={5}
+                className="bottom-[26%] right-0 hidden lg:inline-flex"
               />
               <HeroBadge
                 icon={Zap}
                 label={t('home.hero.badges.fastAndEasy')}
-                className="bottom-[2%] left-[4%] hidden xl:inline-flex"
+                side="left"
+                index={6}
+                className="bottom-[4%] left-0 hidden lg:inline-flex"
+              />
+              <HeroBadge
+                icon={Headset}
+                label={t('home.hero.badges.supportAlways')}
+                side="left"
+                index={7}
+                className="left-0 top-[27%] hidden lg:inline-flex"
               />
             </div>
           </div>
