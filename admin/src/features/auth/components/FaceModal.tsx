@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Camera,
   RefreshCw,
-  CheckCircle2,
   AlertCircle,
   X,
   Sparkles,
@@ -38,12 +37,12 @@ export function FaceModal({
   const isAuthenticated = useAuthStore((s) => s.status === 'authenticated');
 
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
-  const [stream, setStream] = useState<MediaStream | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isFlashing, setIsFlashing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState('Kameraga to\'g\'ri qarang...');
   const [autoScan, setAutoScan] = useState(true);
+  const [cameraReady, setCameraReady] = useState(false);
 
   // Admin selector state
   const [adminsList, setAdminsList] = useState<FaceAdminItem[]>([]);
@@ -56,6 +55,7 @@ export function FaceModal({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const autoScanTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const { mutate: doFaceLogin, isPending: isLoggingIn } = useFaceLogin();
@@ -119,87 +119,105 @@ export function FaceModal({
     }
   }, []);
 
-  // Camera start / stop with robust fallbacks
-  const startCamera = useCallback(async () => {
-    try {
-      setErrorMsg(null);
-      setStatusMsg('Kamera faollashtirilmoqda...');
-
-      let mediaStream: MediaStream;
-      try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: 'user',
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-          audio: false,
-        });
-      } catch {
-        // Fallback for browsers/devices that do not support strict facingMode
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false,
-        });
-      }
-
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        videoRef.current.play().catch(() => {});
-      }
-      setStatusMsg('Yuzingizni markazga to\'g\'rilang...');
-    } catch (err: unknown) {
-      console.error('Camera access error:', err);
-      setErrorMsg(
-        'Kameraga ulanib bo\'lmadi. Iltimos, brauzerda kameraga ruxsat bering yoki quyidagi "Fayldan rasm yuklash" tugmasidan foydalaning.',
-      );
-      setStatusMsg('Kamera ulanmadi');
-    }
-  }, []);
-
-  const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-  }, [stream]);
-
+  // Stable Camera Init Effect - runs strictly once when modal opens!
   useEffect(() => {
-    if (isOpen) {
-      startCamera();
-    } else {
-      stopCamera();
-      if (autoScanTimerRef.current) {
-        clearInterval(autoScanTimerRef.current);
+    let isMounted = true;
+    let localStream: MediaStream | null = null;
+
+    async function initCamera() {
+      if (!isOpen) return;
+      try {
+        setErrorMsg(null);
+        setStatusMsg('Kamera faollashtirilmoqda...');
+        setCameraReady(false);
+
+        let mediaStream: MediaStream;
+        try {
+          mediaStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: 'user',
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+            audio: false,
+          });
+        } catch {
+          // Fallback for devices without facingMode user
+          mediaStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+          });
+        }
+
+        if (!isMounted) {
+          mediaStream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+
+        localStream = mediaStream;
+        streamRef.current = mediaStream;
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+          videoRef.current.onloadedmetadata = () => {
+            if (isMounted) {
+              setCameraReady(true);
+              setStatusMsg('Yuzingizni markazga to\'g\'rilang...');
+              videoRef.current?.play().catch(console.error);
+            }
+          };
+          videoRef.current.play().catch(() => {});
+        }
+      } catch (err: unknown) {
+        console.error('Camera access error:', err);
+        if (isMounted) {
+          setErrorMsg(
+            'Kameraga ulanib bo\'lmadi. Brauzerda kameraga ruxsat bering yoki quyidagi "Fayldan rasm yuklash" tugmasidan foydalaning.',
+          );
+          setStatusMsg('Kamera ulanmadi');
+        }
       }
     }
+
+    if (isOpen) {
+      initCamera();
+    }
+
     return () => {
-      stopCamera();
+      isMounted = false;
+      if (localStream) {
+        localStream.getTracks().forEach((t) => t.stop());
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+      setCameraReady(false);
       if (autoScanTimerRef.current) {
         clearInterval(autoScanTimerRef.current);
       }
     };
-  }, [isOpen, startCamera, stopCamera]);
+  }, [isOpen]);
 
-  // Callback ref to guarantee stream attaches to video when rendered
-  const setVideoRef = useCallback(
-    (el: HTMLVideoElement | null) => {
-      videoRef.current = el;
-      if (el && stream) {
-        if (el.srcObject !== stream) {
-          el.srcObject = stream;
-        }
+  // Callback ref when video element mounts
+  const setVideoRef = useCallback((el: HTMLVideoElement | null) => {
+    videoRef.current = el;
+    if (el && streamRef.current) {
+      if (el.srcObject !== streamRef.current) {
+        el.srcObject = streamRef.current;
+        el.onloadedmetadata = () => {
+          setCameraReady(true);
+          el.play().catch(console.error);
+        };
         el.play().catch(() => {});
       }
-    },
-    [stream],
-  );
+    }
+  }, []);
 
-  // Capture frame from video
+  // Capture frame from video or preview
   const captureFrame = useCallback((): string | null => {
     if (capturedPreview) return capturedPreview;
 
@@ -239,7 +257,7 @@ export function FaceModal({
       if (!base64Img) {
         if (!isAuto) {
           setErrorMsg(
-            'Kameradan tasvir olinmadi. Kamera ishga tushishini kuting yoki pastdagi "Fayldan rasm yuklash" tugmasidan foydalaning.',
+            'Kameradan tasvir olinmadi. Iltimos, kamera to\'liq ishga tushishini kuting yoki pastdagi "Fayldan rasm yuklash" tugmasidan foydalaning.',
           );
         }
         return;
@@ -247,7 +265,7 @@ export function FaceModal({
 
       const targetUsername = selectedAdminUsername.trim();
       if (!targetUsername) {
-        setErrorMsg('Iltimos, qaysi admin hisobi ekanligini tanlang.');
+        setErrorMsg('Iltimos, admin hisobini tanlang.');
         return;
       }
 
@@ -268,14 +286,16 @@ export function FaceModal({
               onSuccess: () => {
                 playSuccessSound();
                 setStatusMsg('✅ Muvaffaqiyatli tanildi!');
-                stopCamera();
+                if (streamRef.current) {
+                  streamRef.current.getTracks().forEach((t) => t.stop());
+                }
                 if (onSuccess) onSuccess();
                 onClose();
               },
               onError: (err: unknown) => {
                 const msg =
                   (err as { message?: string })?.message ||
-                  'Yuz aniqlanmadi yoki ushbu hisobga mos kelmadi.';
+                  'Yuz aniqlanmadi yoki tanlangan admin hisobiga mos kelmadi.';
                 if (!isAuto) {
                   setErrorMsg(msg);
                   setStatusMsg('Yuz mos kelmadi.');
@@ -292,7 +312,7 @@ export function FaceModal({
         } else {
           // Registration mode
           if (!isAuthenticated && !regPassword) {
-            setErrorMsg('Iltimos, hisob xavfsizligi uchun admin parolini kiriting.');
+            setErrorMsg('Iltimos, ushbu admin parolini kiriting.');
             setIsProcessing(false);
             return;
           }
@@ -340,7 +360,6 @@ export function FaceModal({
       mode,
       doFaceLogin,
       playSuccessSound,
-      stopCamera,
       onSuccess,
       onClose,
       isAuthenticated,
@@ -355,7 +374,7 @@ export function FaceModal({
       isOpen &&
       mode === 'login' &&
       autoScan &&
-      stream &&
+      cameraReady &&
       !isProcessing &&
       !isLoggingIn &&
       !capturedPreview &&
@@ -374,7 +393,7 @@ export function FaceModal({
     isOpen,
     mode,
     autoScan,
-    stream,
+    cameraReady,
     isProcessing,
     isLoggingIn,
     capturedPreview,
@@ -580,7 +599,6 @@ export function FaceModal({
               autoPlay
               playsInline
               muted
-              onLoadedMetadata={() => videoRef.current?.play().catch(() => {})}
               className="absolute inset-0 w-full h-full object-cover transform -scale-x-100 block"
             />
           )}
@@ -675,7 +693,9 @@ export function FaceModal({
                 onClick={() => {
                   setCapturedPreview(null);
                   setErrorMsg(null);
-                  startCamera();
+                  if (videoRef.current && streamRef.current) {
+                    videoRef.current.play().catch(() => {});
+                  }
                 }}
                 className="w-full sm:w-auto px-4 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs transition flex items-center justify-center gap-2 border border-slate-700 cursor-pointer"
               >
