@@ -79,6 +79,8 @@ from app.schemas.admin import (
     AuditFilters,
     AuditLogRow,
     CreateAdminRequest,
+    FaceAdminItem,
+    FaceDeleteRequest,
     FaceLoginRequest,
     FaceRegisterRequest,
     FaceStatusResponse,
@@ -195,18 +197,33 @@ async def admin_login(payload: AdminLoginRequest, db: DbSession) -> TokenRespons
 
 @router.get("/auth/face-status", response_model=FaceStatusResponse, summary="Check Face ID enrollment status")
 async def admin_face_status(db: DbSession) -> FaceStatusResponse:
-    admins = (
+    all_admins = (
         await db.execute(
-            select(AdminUser).where(AdminUser.face_encoding.isnot(None), AdminUser.is_active == True)
+            select(AdminUser).where(AdminUser.is_active == True).order_by(AdminUser.created_at.asc())
         )
-    ).scalars().all()
-    # Only whether the feature is usable, never who is enrolled. This endpoint
-    # has no auth dependency — it is read by the login screen before anyone has
-    # signed in — so returning the first admin's username, real name and stored
-    # face photo published an administrator's identity and biometric to anyone
-    # who could reach the URL. The login UI needs one bit: is there anybody to
-    # match against.
-    return FaceStatusResponse(enrolled=bool(admins), count=len(admins))
+    enrolled_admins = [a for a in all_admins if a.face_encoding]
+    first = enrolled_admins[0] if enrolled_admins else (all_admins[0] if all_admins else None)
+
+    admin_items = [
+        FaceAdminItem(
+            id=a.id,
+            username=a.username,
+            full_name=a.full_name,
+            role=a.role,
+            has_face=bool(a.face_encoding),
+            face_image=a.face_image if a.face_image else None,
+        )
+        for a in all_admins
+    ]
+
+    return FaceStatusResponse(
+        enrolled=len(enrolled_admins) > 0,
+        count=len(enrolled_admins),
+        username=first.username if first else None,
+        full_name=first.full_name if first else None,
+        face_image=first.face_image if first and first.face_image else None,
+        admins=admin_items,
+    )
 
 
 @router.post("/auth/face-login", response_model=TokenResponse, summary="Biometric Face ID sign-in")
@@ -295,12 +312,19 @@ async def admin_face_register(payload: FaceRegisterRequest, db: DbSession, ctx: 
 
     target_admin = None
     if ctx.actor_id and ctx.actor_type == "ADMIN":
-        target_admin = (await db.execute(select(AdminUser).where(AdminUser.id == ctx.actor_id))).scalar_one_or_none()
+        if payload.username:
+            target_admin = (
+                await db.execute(select(AdminUser).where(AdminUser.username == payload.username.strip()))
+            ).scalar_one_or_none()
+        if target_admin is None:
+            target_admin = (await db.execute(select(AdminUser).where(AdminUser.id == ctx.actor_id))).scalar_one_or_none()
 
     if target_admin is None:
         if not payload.username or not payload.password:
             raise Unauthorized("credentials_required_for_face_registration")
-        admin = (await db.execute(select(AdminUser).where(AdminUser.username == payload.username))).scalar_one_or_none()
+        admin = (
+            await db.execute(select(AdminUser).where(AdminUser.username == payload.username.strip()))
+        ).scalar_one_or_none()
         from app.core.security import verify_password
         if admin is None or not verify_password(payload.password, admin.password_hash) or not admin.is_active:
             raise Unauthorized("invalid_credentials")
@@ -328,8 +352,20 @@ async def admin_face_register(payload: FaceRegisterRequest, db: DbSession, ctx: 
 
 
 @router.post("/auth/face-delete", response_model=MessageResponse, summary="Remove Face ID data")
-async def admin_face_delete(admin: CurrentAdmin, db: DbSession) -> MessageResponse:
-    adm = (await db.execute(select(AdminUser).where(AdminUser.id == admin.id))).scalar_one_or_none()
+async def admin_face_delete(
+    admin: CurrentAdmin,
+    db: DbSession,
+    payload: FaceDeleteRequest | None = None,
+) -> MessageResponse:
+    target_id = admin.id
+    if payload and payload.username and admin.role in ("SUPERADMIN", "ADMIN"):
+        target_adm = (
+            await db.execute(select(AdminUser).where(AdminUser.username == payload.username.strip()))
+        ).scalar_one_or_none()
+        if target_adm is not None:
+            target_id = target_adm.id
+
+    adm = (await db.execute(select(AdminUser).where(AdminUser.id == target_id))).scalar_one_or_none()
     if adm is not None:
         adm.face_image = None
         adm.face_encoding = None
