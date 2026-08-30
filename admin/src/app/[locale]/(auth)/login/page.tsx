@@ -154,11 +154,11 @@ export default function LoginPage() {
                 }}
               >
                 <Image
-                  src="/brand/mark-128.png"
+                  src="/brand/mark-lockup@2x.png"
                   alt="Uyiz"
-                  width={50}
-                  height={50}
-                  className="object-contain"
+                  width={152}
+                  height={192}
+                  className="h-[50px] w-auto"
                   priority
                 />
               </div>

@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { useUIStore } from '@/store/ui.store';
 import { Avatar } from '@/shared/ui/Avatar';
+import { Wordmark } from '@/shared/ui/Wordmark';
 import { useTheme } from '@/providers';
 import { useRole } from '@/providers/role-provider';
 import { atLeast, ROUTE_MIN_ROLE } from '@/shared/lib/permissions';
@@ -355,14 +356,12 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
               boxShadow: '0 4px 12px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.05) inset',
             }}
           >
-            <Image src="/brand/mark-128.png" alt="Uyiz" width={28} height={28} className="object-contain" priority />
+            <Image src="/brand/mark-lockup@2x.png" alt="Uyiz" width={152} height={192} className="h-7 w-auto" priority />
           </div>
 
           {!sidebarCollapsed && (
             <div className="sidebar-brand-copy min-w-0 flex-1 animate-fade-in">
-              <p className="font-bold text-[15px] leading-tight truncate" style={{ color: 'var(--color-text-primary)', letterSpacing: '-0.03em', fontFamily: 'var(--font-heading)' }}>
-                Uyiz
-              </p>
+              <Wordmark height={17} style={{ color: 'var(--color-text-primary)' }} />
               {/* Left untranslated on purpose: this line is the second half of
                   the wordmark lockup, not prose — the same treatment the mark
                   had before the rebrand. */}

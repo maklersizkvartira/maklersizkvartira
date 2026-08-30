@@ -7,7 +7,7 @@ export default function NotFound() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[var(--bg)] px-6 text-center">
-      <Image src="/brand/mark-128.png" alt="" width={56} height={56} className="object-contain" priority />
+      <Image src="/brand/mark-lockup@2x.png" alt="" width={152} height={192} className="h-14 w-auto" priority />
 
       <div className="space-y-2">
         <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">404</h2>

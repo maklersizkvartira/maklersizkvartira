@@ -10,7 +10,7 @@ export default function Loading() {
 
       <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-6">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_12px_40px_rgba(0,0,0,0.12)]">
-          <Image src="/brand/mark-128.png" alt="" width={40} height={40} className="object-contain" priority />
+          <Image src="/brand/mark-lockup@2x.png" alt="" width={152} height={192} className="h-10 w-auto" priority />
         </div>
 
         <div className="space-y-3 text-center">

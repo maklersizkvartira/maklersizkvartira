@@ -8,6 +8,7 @@ import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { useUIStore } from '@/store/ui.store';
 import { useSession } from '@/features/auth/hooks';
+import { Wordmark } from '@/shared/ui/Wordmark';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 
@@ -117,11 +118,11 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
               }}
             >
               <Image
-                src="/brand/mark-128.png"
+                src="/brand/mark-lockup@2x.png"
                 alt="Uyiz"
-                width={66}
-                height={66}
-                className="object-contain transition-transform duration-500 hover:scale-105"
+                width={152}
+                height={192}
+                className="h-[66px] w-auto transition-transform duration-500 hover:scale-105"
                 style={{
                   filter: 'drop-shadow(0 4px 10px rgba(20,71,230,0.15))',
                 }}
@@ -131,14 +132,12 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
 
           <div className="flex flex-col items-center gap-2">
-            <h1
-              className="text-2xl sm:text-3xl font-bold tracking-tight"
-              style={{
-                fontFamily: 'var(--font-heading)',
-                color: 'var(--color-text-primary)',
-              }}
-            >
-              Uyiz
+            <h1 className="flex items-center">
+              {/* The wordmark itself, not the name set in --font-heading: this
+                  splash sat next to the mark and showed a different letterform
+                  from the sidebar two pixels away. */}
+              <Wordmark height={30} style={{ color: 'var(--color-text-primary)' }} />
+              <span className="sr-only">Uyiz</span>
             </h1>
 
             {/* 'error' means the API never answered. There is nothing to wait

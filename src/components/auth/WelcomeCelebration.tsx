@@ -18,7 +18,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { useTranslation } from '../../i18n';
-import { LogoMark } from '../brand/Logo';
+import { LogoMark, LogoWordmark } from '../brand/Logo';
 
 interface WelcomeCelebrationProps {
   name: string;
@@ -92,17 +92,11 @@ export const WelcomeCelebration: React.FC<WelcomeCelebrationProps> = ({ name, on
           </span>
         </div>
 
-        <p
-          className="animate-welcome-step-1 mt-5 inline-flex items-center text-2xl font-black tracking-tight"
-          aria-hidden="true"
-        >
-          {/* Matches Logo.tsx, which is the one definition: "Uyiz" is one word
-              split in two colours, "Uy" neutral and "iz" blue, with no gap
-              between them. This copy has had the assignment reversed before,
-              which showed a different wordmark from every other surface. */}
-          <span className="text-content">Uy</span>
-          <span className="text-brand">iz</span>
-        </p>
+        {/* The real wordmark, not a hand-set copy of it. This used to be two
+            coloured spans typed out here, which drifted from Logo.tsx twice —
+            once with the colours reversed — and showed a different wordmark
+            from every other surface. There is one definition now. */}
+        <LogoWordmark size="xl" className="animate-welcome-step-1 mt-5 text-content" />
 
         <h2
           id="welcome-title"
