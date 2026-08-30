@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
-import { ShieldCheck, UserPlus } from 'lucide-react';
+import { ShieldCheck, UserPlus, Camera } from 'lucide-react';
 
 import { ApiError, http } from '@/shared/lib/http';
 import { api } from '@/shared/api/endpoints';
@@ -17,6 +17,7 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { StatusPill } from '@/shared/ui/StatusPill';
 import { toast } from '@/shared/ui/Toast';
 import { CreateStaffSheet } from './CreateStaffSheet';
+import { FaceModal } from '@/features/auth/components/FaceModal';
 
 /**
  * Every account that can sign in to this panel.
@@ -71,6 +72,7 @@ export function StaffScreen() {
   const selfId = useAuthStore((s) => s.admin?.id ?? null);
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [faceModalAdminUsername, setFaceModalAdminUsername] = useState<string | null>(null);
 
   const dateTimeFormat = useMemo(
     () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }),
@@ -179,31 +181,51 @@ export function StaffScreen() {
       key: 'actions',
       header: c('actions'),
       align: 'right',
-      // Deliberately NOT hidden on the card list: deactivation is the only
-      // lifecycle control this API has, and a phone is where it gets used.
       render: (row) => {
         const isSelf = row.id === selfId;
         return (
-          <button
-            type="button"
-            disabled={isSelf || setActive.isPending}
-            onClick={(e) => {
-              e.stopPropagation();
-              void toggle(row);
-            }}
-            title={isSelf ? t('cannotModifySelf') : undefined}
-            className="inline-flex items-center justify-center px-4 h-11 lg:h-8 w-full lg:w-auto
-                       text-xs font-semibold rounded-[var(--radius-md)] transition-all
-                       active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed
-                       disabled:active:scale-100"
-            style={{
-              background: 'var(--color-surface-2)',
-              border: '1px solid var(--color-border)',
-              color: row.isActive ? 'var(--color-danger)' : 'var(--color-text-primary)',
-            }}
-          >
-            {row.isActive ? t('deactivate') : t('activate')}
-          </button>
+          <div className="flex items-center gap-2 justify-end">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setFaceModalAdminUsername(row.username);
+              }}
+              className="inline-flex items-center justify-center gap-1.5 px-3 h-11 lg:h-8
+                         text-xs font-semibold rounded-[var(--radius-md)] transition-all
+                         active:scale-[0.97] hover:border-emerald-500/50"
+              style={{
+                background: 'rgba(16, 185, 129, 0.1)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                color: '#34d399',
+              }}
+              title="Face ID biriktirish / yangilash"
+            >
+              <Camera size={13} />
+              <span>Face ID</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={isSelf || setActive.isPending}
+              onClick={(e) => {
+                e.stopPropagation();
+                void toggle(row);
+              }}
+              title={isSelf ? t('cannotModifySelf') : undefined}
+              className="inline-flex items-center justify-center px-4 h-11 lg:h-8 w-full lg:w-auto
+                         text-xs font-semibold rounded-[var(--radius-md)] transition-all
+                         active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed
+                         disabled:active:scale-100"
+              style={{
+                background: 'var(--color-surface-2)',
+                border: '1px solid var(--color-border)',
+                color: row.isActive ? 'var(--color-danger)' : 'var(--color-text-primary)',
+              }}
+            >
+              {row.isActive ? t('deactivate') : t('activate')}
+            </button>
+          </div>
         );
       },
     },
@@ -257,6 +279,19 @@ export function StaffScreen() {
         pending={create.isPending}
         onSubmit={(payload) => create.mutate(payload)}
       />
+
+      {faceModalAdminUsername && (
+        <FaceModal
+          isOpen={!!faceModalAdminUsername}
+          onClose={() => setFaceModalAdminUsername(null)}
+          initialMode="register"
+          initialAdminUsername={faceModalAdminUsername}
+          onSuccess={() => {
+            setFaceModalAdminUsername(null);
+            void invalidate();
+          }}
+        />
+      )}
     </div>
   );
 }

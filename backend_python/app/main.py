@@ -114,10 +114,11 @@ def create_app() -> FastAPI:
     # real status instead of reporting an opaque network failure.
     app_middleware.install(app)
 
-    # -- CORS: explicit allowlist, never "*" alongside credentials -----------
+    # -- CORS: explicit allowlist with regex for Vercel preview & production origins
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
+        allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.maklersiz\.uz|https://maklersiz\.uz|http://localhost:\d+|http://127\.0\.0\.1:\d+",
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=[
@@ -126,6 +127,7 @@ def create_app() -> FastAPI:
             "Accept",
             "X-Request-ID",
             "X-Language",
+            "X-Bootstrap-Token",
         ],
         expose_headers=["X-Request-ID", "X-Response-Time", "Retry-After"],
         max_age=600,

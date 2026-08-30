@@ -56,26 +56,41 @@ export async function faceLogin(username: string, image: string): Promise<LoginR
   };
 }
 
-export async function getFaceStatus(): Promise<{
+export interface FaceAdminItem {
+  id: string;
+  username: string;
+  fullName: string;
+  role: string;
+  hasFace: boolean;
+  faceImage?: string | null;
+}
+
+export interface FaceStatus {
   enrolled: boolean;
   count: number;
   username?: string | null;
   fullName?: string | null;
   faceImage?: string | null;
-}> {
+  admins?: FaceAdminItem[];
+}
+
+export async function getFaceStatus(): Promise<FaceStatus> {
   return http.raw.get(api.auth.faceStatus, { skipAuth: true });
 }
 
-export async function faceRegister(payload: {
-  image: string;
-  username?: string;
-  password?: string;
-}): Promise<{ message: string }> {
-  return http.raw.post(api.auth.faceRegister, payload, { skipAuth: true });
+export async function faceRegister(
+  payload: {
+    image: string;
+    username?: string;
+    password?: string;
+  },
+  options?: { skipAuth?: boolean },
+): Promise<{ message: string }> {
+  return http.raw.post(api.auth.faceRegister, payload, options);
 }
 
-export async function deleteFace(): Promise<{ message: string }> {
-  return http.post(api.auth.faceDelete);
+export async function deleteFace(username?: string): Promise<{ message: string }> {
+  return http.post(api.auth.faceDelete, { username });
 }
 
 /**

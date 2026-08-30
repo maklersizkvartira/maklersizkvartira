@@ -356,9 +356,24 @@ class FaceRegisterRequest(CamelModel):
     password: str | None = None
 
 
+class FaceDeleteRequest(CamelModel):
+    username: str | None = None
+
+
+class FaceAdminItem(CamelModel):
+    id: uuid.UUID
+    username: str
+    full_name: str
+    role: str
+    has_face: bool = False
+    face_image: str | None = None
+
+
 class FaceStatusResponse(CamelModel):
     enrolled: bool
     count: int = 0
     username: str | None = None
     full_name: str | None = None
     face_image: str | None = None
+    admins: list[FaceAdminItem] = []
+
