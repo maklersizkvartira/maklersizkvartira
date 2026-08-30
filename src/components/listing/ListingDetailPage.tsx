@@ -313,7 +313,7 @@ export const ListingDetailPage: React.FC = () => {
   // -- Actions -------------------------------------------------------------
   const handleShare = useCallback(async () => {
     if (!listing) return;
-    const url = `${window.location.origin}/?listing=${encodeURIComponent(listing.id)}`;
+    const url = `${window.location.origin}${listingPath({ id: listing.id, slug: listingSlug(listing) })}`;
     const text = t('listings.card.shareText', { title: listing.title, price: priceLabel });
 
     if (typeof navigator.share === 'function') {

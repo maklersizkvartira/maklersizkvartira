@@ -145,3 +145,7 @@ admin/.env*.local
 # Regenerate the WebPs after replacing a master:
 #   python -c "from PIL import Image; import glob; [Image.open(f).convert('RGBA').resize((256,256), Image.LANCZOS).save(f[:-4]+'.webp','WEBP',quality=88,method=6) for f in glob.glob('public/img/*.png')]"
 public/img/*.png
+
+# Nested admin repository & freebuff
+Maklersizuy.Admin/
+.freebuff/

@@ -128,7 +128,7 @@ async def get_listing(listing_id: uuid.UUID, db: DbSession, viewer: OptionalUser
 
     favorite_ids = await listing_service.favorite_ids_for(db, viewer)
     payload = ListingOut.model_validate(listing)
-    if not (is_owner or is_staff) and viewer is None:
+    if not (is_owner or is_staff):
         payload.owner.phone = None
     payload.is_favorite = listing.id in favorite_ids
     return {"status": "success", "data": payload.model_dump(by_alias=True)}

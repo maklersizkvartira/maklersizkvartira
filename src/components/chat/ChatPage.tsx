@@ -25,9 +25,9 @@ const QUICK_QUESTION_KEYS = [
 
 const playNotificationSound = () => {
   try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
     const osc = ctx.createOscillator();
     const gainNode = ctx.createGain();
     
@@ -43,7 +43,9 @@ const playNotificationSound = () => {
     
     osc.start();
     osc.stop(ctx.currentTime + 0.1);
-  } catch (e) {
+    // Close the context after the sound finishes to free resources.
+    osc.onended = () => { void ctx.close(); };
+  } catch {
     // Ignore audio errors
   }
 };
