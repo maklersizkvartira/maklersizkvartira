@@ -22,6 +22,16 @@ export const home = {
     searchHintShort: 'Qidirish uchun bosing',
     searchHintLong: 'Tuman, ko‘cha, mo‘ljal yoki metro bekati',
     openSearch: 'Qidiruv oynasini ochish',
+    // The pills that sit on the two hero illustrations. Short by design: they
+    // float over artwork, so anything longer than two words per line covers
+    // the thing it is annotating.
+    badges: {
+      trustedListings: 'Ishonchli eʼlonlar',
+      directFromOwner: 'Toʻgʻridan-toʻgʻri egadan',
+      safeAndSecure: 'Xavfsiz va ishonchli',
+      noCommission: 'Hech qanday komissiya yoʻq',
+      fastAndEasy: 'Tez va oson ijara',
+    },
   },
 
   categories: {

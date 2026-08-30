@@ -18,6 +18,13 @@ export const home = {
     searchHintShort: 'Tap to search',
     searchHintLong: 'District, street, landmark or metro station',
     openSearch: 'Open the search dialog',
+    badges: {
+      trustedListings: 'Verified listings',
+      directFromOwner: 'Straight from the owner',
+      safeAndSecure: 'Safe and trusted',
+      noCommission: 'No commission at all',
+      fastAndEasy: 'Fast, simple renting',
+    },
   },
 
   categories: {

@@ -18,6 +18,13 @@ export const home = {
     searchHintShort: 'Нажмите, чтобы найти',
     searchHintLong: 'Район, улица, ориентир или станция метро',
     openSearch: 'Открыть окно поиска',
+    badges: {
+      trustedListings: 'Проверенные объявления',
+      directFromOwner: 'Напрямую от собственника',
+      safeAndSecure: 'Безопасно и надёжно',
+      noCommission: 'Никакой комиссии',
+      fastAndEasy: 'Быстрая и простая аренда',
+    },
   },
 
   categories: {

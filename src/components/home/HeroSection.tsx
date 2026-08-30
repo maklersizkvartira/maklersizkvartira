@@ -22,11 +22,40 @@
  */
 
 import React, { useState } from 'react';
-import { Search } from 'lucide-react';
+import { BadgePercent, Search, ShieldCheck, Users, Zap } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { SearchModal } from './SearchModal';
 import { QuickCategories } from './QuickCategories';
+
+/**
+ * A pill that floats on top of one of the hero illustrations.
+ *
+ * Positioned by the caller rather than by a variant prop: each one is placed
+ * against a specific feature of the artwork it annotates — the phone's screen,
+ * the house's roofline — and a shared "top-left / bottom-right" vocabulary
+ * would only be a worse way of writing the same four numbers.
+ *
+ * `backdrop-blur` over a translucent navy is what keeps the label readable
+ * wherever it lands: the illustrations run from near-black plinths to bright
+ * cyan highlights, so a flat fill legible over one part of them is invisible
+ * over another.
+ */
+const HeroBadge: React.FC<{
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  className?: string;
+}> = ({ icon: Icon, label, className = '' }) => (
+  <span
+    aria-hidden="true"
+    className={`pointer-events-none absolute z-10 inline-flex max-w-[10.5rem] items-center gap-2 rounded-2xl border border-white/15 bg-band/70 py-2 pl-2 pr-3 shadow-raised backdrop-blur-md ${className}`}
+  >
+    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-brand text-white">
+      <Icon className="h-3.5 w-3.5" />
+    </span>
+    <span className="text-[11px] font-bold leading-tight text-white">{label}</span>
+  </span>
+);
 
 export const HeroSection: React.FC = () => {
   const { t } = useTranslation();
@@ -67,7 +96,7 @@ export const HeroSection: React.FC = () => {
                  would out-weigh the phone by a third, so the tracks are sized
                  to make the two subjects read at the same height instead. */}
           <div
-            className="mx-auto grid max-w-[90rem] grid-cols-2 items-end gap-x-3 gap-y-7 sm:gap-x-6 lg:grid-cols-[16rem_minmax(0,1fr)_14rem] lg:items-center lg:gap-x-6 xl:grid-cols-[18rem_minmax(0,1fr)_16rem] xl:gap-x-8 2xl:grid-cols-[20rem_minmax(0,1fr)_18rem] 2xl:gap-x-10"
+            className="mx-auto grid max-w-[95rem] grid-cols-1 items-center gap-y-8 md:grid-cols-[15rem_minmax(0,1fr)_14rem] md:gap-x-4 lg:grid-cols-[21rem_minmax(0,1fr)_20rem] lg:gap-x-6 xl:grid-cols-[25rem_minmax(0,1fr)_24rem] xl:gap-x-8 2xl:grid-cols-[28rem_minmax(0,1fr)_27rem]"
           >
             {/* Text first in the DOM: the illustrations are decoration and are
                 hidden from assistive tech, so source order should read as the
@@ -76,7 +105,7 @@ export const HeroSection: React.FC = () => {
                 utility is the `grid-column` shorthand and would reset the
                 `col-start` beside it depending on which one Tailwind emits
                 last. Longhand starts and ends cannot collide. */}
-            <div className="col-start-1 col-end-3 row-start-1 space-y-5 sm:space-y-6 lg:col-start-2 lg:col-end-3">
+            <div className="col-start-1 row-start-1 space-y-5 sm:space-y-6 md:col-start-2">
               <h1
                 /* The type ramp steps back down at `lg`. Up to `md` the
                    headline owns the full width of the band; from `lg` it
@@ -125,7 +154,7 @@ export const HeroSection: React.FC = () => {
                 paints an empty hero that fills in a beat later. Neither is
                 fetchPriority="high" — 260KB of decoration should not outrank
                 the headline's font and the first paint of the text. */}
-            <div className="hero-art-left relative col-start-1 col-end-2 row-start-2 flex justify-center lg:row-start-1">
+            <div className="hero-art-left relative col-start-1 row-start-1 hidden justify-center md:flex">
               {/* A pool of lighter brand blue at the foot of each piece. Both
                   illustrations bottom out in deep navy — the phone's city slab
                   and the house's base plinth — and the band ends on #071a5c, so
@@ -145,11 +174,27 @@ export const HeroSection: React.FC = () => {
                 height={840}
                 loading="eager"
                 decoding="async"
-                className="relative h-[170px] w-auto max-w-full select-none object-contain xs:h-[190px] sm:h-[232px] md:h-[264px] lg:h-auto lg:w-full"
+                className="relative h-auto w-full select-none object-contain"
+              />
+
+              {/* Placed against features of the artwork, not against the box:
+                  the top pill sits beside the phone's screen and the bottom one
+                  on the city slab, which is why the offsets are not symmetric.
+                  Both are hidden below `lg` — at md the track is 15rem and a
+                  pill would cover the phone it is meant to annotate. */}
+              <HeroBadge
+                icon={ShieldCheck}
+                label={t('home.hero.badges.trustedListings')}
+                className="left-0 top-[22%] hidden lg:inline-flex"
+              />
+              <HeroBadge
+                icon={Users}
+                label={t('home.hero.badges.directFromOwner')}
+                className="bottom-[14%] left-[6%] hidden lg:inline-flex"
               />
             </div>
 
-            <div className="hero-art-right relative col-start-2 col-end-3 row-start-2 flex justify-center lg:col-start-3 lg:col-end-4 lg:row-start-1">
+            <div className="hero-art-right relative col-start-3 row-start-1 hidden justify-center md:flex">
               <span
                 className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 rounded-[50%] bg-brand/45 blur-2xl"
                 aria-hidden="true"
@@ -162,7 +207,23 @@ export const HeroSection: React.FC = () => {
                 height={770}
                 loading="eager"
                 decoding="async"
-                className="relative h-[118px] w-auto max-w-full select-none object-contain xs:h-[132px] sm:h-[162px] md:h-[184px] lg:h-auto lg:w-full"
+                className="relative h-auto w-full select-none object-contain"
+              />
+
+              <HeroBadge
+                icon={ShieldCheck}
+                label={t('home.hero.badges.safeAndSecure')}
+                className="right-0 top-[10%] hidden lg:inline-flex"
+              />
+              <HeroBadge
+                icon={BadgePercent}
+                label={t('home.hero.badges.noCommission')}
+                className="bottom-[16%] right-0 hidden lg:inline-flex"
+              />
+              <HeroBadge
+                icon={Zap}
+                label={t('home.hero.badges.fastAndEasy')}
+                className="bottom-[2%] left-[4%] hidden xl:inline-flex"
               />
             </div>
           </div>
