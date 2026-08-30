@@ -39,7 +39,9 @@ const ENTRY = path.join(ROOT, '.prerender', 'entry-server.js');
  * strips the host before comparing. Setting VITE_SITE_URL makes both
  * defaults moot, which is how it should be deployed.
  */
-const SITE_URL = (process.env.VITE_SITE_URL || 'https://uyiz.uz').replace(/\/+$/, '');
+// Still maklersizuy.uz: this must be the host the pages are SERVED from, not
+// the brand. See the long note in src/seo/config.ts — flip both together.
+const SITE_URL = (process.env.VITE_SITE_URL || 'https://maklersizuy.uz').replace(/\/+$/, '');
 
 /** Private and duplicate surfaces. Also `noindex` in the page head itself: */
 /* robots.txt only stops the crawl, and a URL linked from elsewhere can still

@@ -7,11 +7,12 @@
  * derive from it, so a domain change is a one-line change here and cannot
  * leave half the site pointing at the old host.
  *
- * Three copies of the origin live outside that graph and cannot import this
+ * Four copies of the origin live outside that graph and cannot import this
  * file. If the domain ever moves again, they move in the same commit:
  *
  *   scripts/generate-sitemap.mjs   a plain Node script, no bundler
  *   index.html                     the pre-hydration fallback head
+ *   public/CNAME                   the apex host, plain text, no comments
  *   backend_python/app/core/config.py  builds sitemap-listings.xml
  *
  * Setting VITE_SITE_URL (frontend) and SITE_URL (backend) in the deployment
@@ -19,9 +20,26 @@
  * hard-coded default is load-bearing.
  */
 
+/**
+ * THE ORIGIN LAGS THE BRAND, ON PURPOSE.
+ *
+ * The brand is Uyiz and every title, description and JSON-LD name already says
+ * so — none of that depends on the host. This constant is different: it is the
+ * host the pages are actually SERVED from, and it is still maklersizuy.uz.
+ *
+ * Pointing it at uyiz.uz before that domain resolves does not "prepare" the
+ * move, it breaks the site quietly: 346 prerendered pages would each declare a
+ * canonical, hreflang set and og:url on a host that answers nothing, and the
+ * sitemap would list URLs for a host it is not served from. Google drops pages
+ * that do that, and the damage outlives the fix.
+ *
+ * FLIP TO 'https://uyiz.uz' IN THE SAME CHANGE THAT POINTS THE DOMAIN AT THIS
+ * PROJECT — together with the three other copies named above and the two
+ * old-domain redirects held in vercel.json's `_domainRedirectNote`.
+ */
 const RAW_SITE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SITE_URL) ||
-  'https://uyiz.uz';
+  'https://maklersizuy.uz';
 
 /** No trailing slash: every path in this codebase starts with one. */
 export const SITE_URL = RAW_SITE_URL.replace(/\/+$/, '');

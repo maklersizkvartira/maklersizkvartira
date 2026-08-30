@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     #: proxied onto that host, so every <loc> they publish has to name it —
     #: a sitemap listing URLs for a host it is not served from is only honoured
     #: when both hosts are verified in Search Console.
-    SITE_URL: str = "https://uyiz.uz"
+    SITE_URL: str = "https://maklersizuy.uz"
     PORT: int = 5000
     LOG_LEVEL: str = "INFO"
     # Number of reverse proxies in front of the app. Controls how far back in

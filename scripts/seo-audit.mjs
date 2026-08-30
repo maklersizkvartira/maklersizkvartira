@@ -266,9 +266,25 @@ async function main() {
     // and the old brand ships to production on whichever pages were missed.
     // A string search over the served HTML is the only thing that sees it.
     //
-    // The storage-migration shim in index.html reads the pre-rebrand keys on
-    // purpose and is skipped: it is script, not prose or markup.
-    const shipped = html.replace(/<script(?![^>]*ld\+json)[\s\S]*?<\/script>/gi, ' ');
+    // Two things are skipped because they carry the old name on purpose.
+    //
+    // The storage-migration shim in index.html reads the pre-rebrand keys: it
+    // is script, not prose or markup.
+    //
+    // The serving ORIGIN still is maklersizuy.uz until the new domain resolves
+    // (see src/seo/config.ts), so every canonical, hreflang and og:url on the
+    // site legitimately contains it. Counting those would make this check fire
+    // on all 346 pages and mean nothing — and a check that always fails is one
+    // people learn to ignore, which is exactly when a real miss ships. Strip
+    // the origin, then look: what is left is prose and names, which is what
+    // this is actually guarding. Once the domain moves, the origin stops
+    // containing the old name and the strip quietly becomes a no-op.
+    const origin = (process.env.VITE_SITE_URL || 'https://maklersizuy.uz')
+      .replace(/\/+$/, '');
+    const shipped = html
+      .replace(/<script(?![^>]*ld\+json)[\s\S]*?<\/script>/gi, ' ')
+      .split(origin)
+      .join(' ');
     for (const term of ['maklersizuy', 'maklersiz']) {
       const count = countOf(shipped, new RegExp(term, 'gi'));
       if (count > 0) {
