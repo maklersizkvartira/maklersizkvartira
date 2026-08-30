@@ -42,7 +42,19 @@ _hasher = PasswordHasher(
     type=Type.ID,
 )
 
-_AAD = b"maklersiz.uz/password/v1"
+#: Associated data bound into every AES-GCM ciphertext. It is not secret; it
+#: ties a ciphertext to the purpose it was produced for, so a blob lifted from
+#: this column cannot be decrypted as anything else.
+_AAD = b"uyiz.uz/password/v1"
+
+#: The same binding under the previous brand. Every ``password_secret`` written
+#: before the rename was sealed with it, and AES-GCM authenticates the AAD — so
+#: decrypting one of those rows with the new value fails, ``decrypt_secret``
+#: swallows the failure and the admin panel silently reveals nothing. Reads
+#: therefore fall back to it; writes never use it, so a password re-encrypted
+#: after the rename carries the new binding. Delete this once no row predating
+#: the rename is left (every account has changed its password since).
+_LEGACY_AAD = b"maklersiz.uz/password/v1"
 
 
 # ---------------------------------------------------------------------------
@@ -77,7 +89,7 @@ def needs_rehash(stored_hash: str | None) -> bool:
         return True
 
 
-_DUMMY_HASH = _hasher.hash("maklersiz-timing-equaliser")
+_DUMMY_HASH = _hasher.hash("uyiz-timing-equaliser")
 
 
 def _dummy_verify() -> None:
@@ -110,10 +122,19 @@ def decrypt_secret(token: str | None) -> str | None:
         return None
     try:
         raw = base64.urlsafe_b64decode(token.encode("ascii"))
-        nonce, ciphertext = raw[:12], raw[12:]
-        return AESGCM(key).decrypt(nonce, ciphertext, _AAD).decode("utf-8")
-    except Exception:  # noqa: BLE001 - wrong key or tampered payload
+    except Exception:  # noqa: BLE001 - not base64 at all
         return None
+    nonce, ciphertext = raw[:12], raw[12:]
+    # Newest binding first, then the pre-rename one. Trying both costs a single
+    # extra AES-GCM open on a row that has not been re-encrypted yet, and is
+    # what keeps "reveal password" working for accounts created before the
+    # rename; see _LEGACY_AAD.
+    for aad in (_AAD, _LEGACY_AAD):
+        try:
+            return AESGCM(key).decrypt(nonce, ciphertext, aad).decode("utf-8")
+        except Exception:  # noqa: BLE001 - wrong key, wrong AAD or tampered
+            continue
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -151,6 +172,10 @@ _COMMON_PASSWORDS = {
     "11111111", "00000000", "iloveyou", "admin123", "welcome1", "abc12345",
     "parol123", "maklersiz", "toshkent1", "uzbekistan", "qwertyui", "asdfghjk",
     "1q2w3e4r", "zxcvbnm1", "letmein1", "monkey12", "dragon12", "sunshine",
+    # Both brand names, because people pick the site's own name either way and
+    # the old one stays guessable for as long as anyone remembers it. Compared
+    # against password.lower(), so every entry has to stay lowercase.
+    "uyiz1234", "uyiz2025", "uyiz2026", "uyizuyiz",
 }
 
 

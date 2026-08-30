@@ -1,5 +1,9 @@
 /**
- * Shield AI — the floating search assistant.
+ * Uyiz AI — the floating assistant.
+ *
+ * It converses, filters the listings database down to what the visitor
+ * describes, and can hand them off to a person; the file is named for the role
+ * rather than the product so the next rename is a copy change, not a move.
  *
  * The session key is issued by the server and kept in sessionStorage. The
  * previous build minted its own key (`sk-<random>-<timestamp>`) and stored it
@@ -18,8 +22,11 @@ import { useAppStore, type Filters } from '../../stores/useAppStore';
 import type { Listing } from '../../types';
 import { ListingCard } from '../listings/ListingCard';
 import { Button } from '../ui/Field';
+import { sessionStore } from '../../lib/storage';
 
-const SESSION_STORAGE_KEY = 'maklersiz.assistant.session';
+const SESSION_STORAGE_KEY = 'uyiz.assistant.session';
+/** What the key was called before the brand changed; migrated on first read. */
+const LEGACY_SESSION_STORAGE_KEY = 'maklersiz.assistant.session';
 
 const AUDIENCES = ['ALL', 'STUDENT', 'FAMILY'] as const;
 const RENTAL_TYPES = ['ALL', 'FULL', 'ROOMMATE'] as const;
@@ -55,20 +62,12 @@ let messageSequence = 0;
 // The key is per-tab on purpose: a conversation is not something to restore in
 // a browser the visitor has since handed to someone else.
 function readStoredSession(): string | null {
-  try {
-    return sessionStorage.getItem(SESSION_STORAGE_KEY);
-  } catch {
-    return null;
-  }
+  return sessionStore.read(SESSION_STORAGE_KEY, LEGACY_SESSION_STORAGE_KEY);
 }
 
 function writeStoredSession(key: string | null): void {
-  try {
-    if (key === null) sessionStorage.removeItem(SESSION_STORAGE_KEY);
-    else sessionStorage.setItem(SESSION_STORAGE_KEY, key);
-  } catch {
-    /* private mode — the conversation lives for this page view only */
-  }
+  if (key === null) sessionStore.remove(SESSION_STORAGE_KEY, LEGACY_SESSION_STORAGE_KEY);
+  else sessionStore.write(SESSION_STORAGE_KEY, key);
 }
 
 function asText(value: unknown): string | undefined {
@@ -122,7 +121,7 @@ function toFilterPatch(need: Record<string, unknown>): Partial<Filters> {
   return patch;
 }
 
-export const ShieldMascot: React.FC = () => {
+export const AiMascot: React.FC = () => {
   const { t } = useTranslation();
 
   const currentUser = useAppStore((state) => state.currentUser);
@@ -657,4 +656,4 @@ export const ShieldMascot: React.FC = () => {
   );
 };
 
-export default ShieldMascot;
+export default AiMascot;

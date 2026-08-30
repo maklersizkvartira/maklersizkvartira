@@ -18,4 +18,4 @@ Disallow: /xabarlar
 Disallow: /admin
 Disallow: /api/
 
-Sitemap: https://maklersizuy.uz/sitemap.xml
+Sitemap: https://uyiz.uz/sitemap.xml

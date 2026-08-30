@@ -7,7 +7,10 @@
  */
 
 export const BLOG_SLUGS = [
-  'maklersiz-uy-topish',
+  // Renamed from `maklersiz-uy-topish` in the Uyiz rebrand. The old path is
+  // 308-redirected to this one, per language, in vercel.json — the slug is
+  // also the join key with articles.{uz,ru,en}.ts and must match there.
+  'uy-ijaraga-olish-qollanma',
   'ijara-shartnomasi-tekshirish',
   'toshkent-ijara-narxlari',
   'ijarada-firibgarlikdan-saqlanish',

@@ -34,6 +34,7 @@ import type {
   ListingSort,
   ListingStatus,
   ReportStatus,
+  TopRequestStatus,
   UserRole,
   UserSort,
   UserStatus,
@@ -87,7 +88,15 @@ export interface ListingListParams extends PaginationParams {
   status?: ListingStatus;
   district?: string;
   isFeatured?: boolean;
-  /** 0..100. Shows only listings the risk model scored at least this high. */
+  /**
+   * 0..100. Shows only listings whose risk score is at least this high.
+   *
+   * No model produces that number any more: since publish-time AI scoring was
+   * removed the backend maintains `riskScore` as the inverse of the listing's
+   * reliability score, which moves only when a moderator confirms a complaint.
+   * So this filter now means "listings with upheld complaints against them",
+   * which is a more useful queue than the one it used to be.
+   */
   minRiskScore?: number;
   sortBy?: ListingSort;
 }
@@ -120,6 +129,11 @@ export interface ReportListParams extends PaginationParams {
 /** `GET /admin/verifications` — `status` is a bare route parameter. */
 export interface VerificationListParams extends PaginationParams {
   status?: VerificationStatus;
+}
+
+/** `GET /admin/top-requests` — `status` is a bare route parameter. */
+export interface TopRequestListParams extends PaginationParams {
+  status?: TopRequestStatus;
 }
 
 /**
@@ -225,6 +239,17 @@ export const api = {
     list: (params?: VerificationListParams) => `/admin/verifications${qs({ ...params })}`,
     /** `PATCH`, MODERATOR+. Body: `ReviewVerificationPayload`. */
     patch: (id: string) => `/admin/verifications/${id}`,
+  },
+
+  /**
+   * Owners asking for the promoted ("Top") rail. Same MODERATOR gate as
+   * `listings.feature`, because approving one does the same three writes.
+   */
+  topRequests: {
+    /** `GET`, MODERATOR+. */
+    list: (params?: TopRequestListParams) => `/admin/top-requests${qs({ ...params })}`,
+    /** `PATCH`, MODERATOR+. Body: `ReviewTopRequestPayload`. */
+    patch: (id: string) => `/admin/top-requests/${id}`,
   },
 
   ai: {

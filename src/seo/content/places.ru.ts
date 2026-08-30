@@ -5,7 +5,7 @@
  * This is a rewrite, not a translation. The Uzbek text was written for a
  * reader who calls the Politex "Politexnika"; the Russian text is written for
  * a reader who calls it "Политех", says "Чиланзар" rather than "Chilonzor",
- * and looks for a flat with the query "снять квартиру без посредников".
+ * and looks for a flat with the query "снять квартиру в Ташкенте".
  * Sentence for sentence the two files carry the same facts, but neither is a
  * word-for-word rendering of the other.
  *

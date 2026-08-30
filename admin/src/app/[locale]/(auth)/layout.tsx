@@ -13,8 +13,8 @@ import { getTranslations } from 'next-intl/server';
  *    render's request-locale scope, so the namespace-only overload can resolve
  *    against the default locale and quietly reproduce the bug it is fixing.
  *  · The title is returned bare. The root layout's `title.template` appends
- *    "| Maklersiz Admin"; the old literal carried its own "| Maklersiz" as
- *    well, so the tab read the brand twice.
+ *    "| Uyiz Admin"; the old literal carried its own "| Uyiz" as well, so the
+ *    tab read the brand twice.
  *
  * The description is gone rather than translated: `robots` keeps this page out
  * of every index and preview, so nothing renders it.

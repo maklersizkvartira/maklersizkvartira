@@ -155,7 +155,7 @@ export default function LoginPage() {
               >
                 <Image
                   src="/brand/mark-128.png"
-                  alt="Maklersiz"
+                  alt="Uyiz"
                   width={50}
                   height={50}
                   className="object-contain"

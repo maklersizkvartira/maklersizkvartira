@@ -28,9 +28,20 @@ export const REPORT_LISTING_ACTIONS: ReportListingAction[] = [
   'DELETE',
 ];
 
-/** The whole `ReportReason` enum, in the order the public report form offers
- *  it. Only used to declare what the catalogues cover — the facet dropdown is
- *  built from the rows in hand, not from this list. */
+/**
+ * The whole `ReportReason` enum. Only used to declare what the catalogues
+ * cover — the facet dropdown is built from the rows in hand, not from this
+ * list.
+ *
+ * `BROKER` is no longer offered by the public report form and no new report can
+ * carry it: the platform works with agents as well as owners, so "this is a
+ * broker" is not a violation of anything. It stays in this list, and keeps a
+ * catalogue entry, because the enum value stays in the database for the rows
+ * filed before that changed — drop it here and every one of those historical
+ * reports prints the raw wire string `BROKER` to a moderator instead of a
+ * sentence. Its label was rewritten to describe the genuine abuse behind those
+ * old reports (someone posing as the owner) rather than the broker framing.
+ */
 export const REPORT_REASONS: ReportReason[] = [
   'SCAM',
   'BROKER',

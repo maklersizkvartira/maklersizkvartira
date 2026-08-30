@@ -6,13 +6,13 @@ import { useTheme } from '@/providers';
 
 /* ─── Color Schemes ────────────────────────────────────────────────────────
    The first entry is the product default. Its id stays 'ocean' even though it
-   is now the Maklersiz brand blue: the id is the value persisted under the
+   is now the Uyiz brand blue: the id is the value persisted under the
    'accent-scheme' localStorage key and the key of two duplicate maps in
    providers/index.tsx (the SSR pre-paint script and the rehydrate helper).
    Renaming it would silently drop every existing user back to the fallback.
    All three copies must carry the same hex — change one, change all three. */
 const COLOR_SCHEMES = [
-  { id: 'ocean',   label: 'Maklersiz', primary: '#1447e6', secondary: '#06b6d4', gradient: 'linear-gradient(135deg,#1447e6,#06b6d4)' },
+  { id: 'ocean',   label: 'Uyiz', primary: '#1447e6', secondary: '#06b6d4', gradient: 'linear-gradient(135deg,#1447e6,#06b6d4)' },
   { id: 'violet',  label: 'Violet',  primary: '#7c3aed', secondary: '#a78bfa', gradient: 'linear-gradient(135deg,#7c3aed,#a78bfa)' },
   { id: 'emerald', label: 'Emerald', primary: '#059669', secondary: '#34d399', gradient: 'linear-gradient(135deg,#059669,#34d399)' },
   { id: 'rose',    label: 'Rose',    primary: '#e11d48', secondary: '#fb7185', gradient: 'linear-gradient(135deg,#e11d48,#fb7185)' },

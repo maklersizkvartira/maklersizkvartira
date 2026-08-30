@@ -14,10 +14,10 @@
  *                         and expire between deploys and a build-time copy
  *                         would be stale the day after it shipped.
  *
- * Both live on maklersizuy.uz. A sitemap that lists URLs for a host it is not
- * served from is only honoured when both hosts are verified in Search Console,
- * and publishing canonical URLs from a *.up.railway.app subdomain is not a
- * thing to build on.
+ * Both live on uyiz.uz. A sitemap that lists URLs for a host it is not served
+ * from is only honoured when both hosts are verified in Search Console, and
+ * publishing canonical URLs from a *.up.railway.app subdomain is not a thing
+ * to build on.
  */
 
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -29,7 +29,17 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
 const ENTRY = path.join(ROOT, '.prerender', 'entry-server.js');
 
-const SITE_URL = (process.env.VITE_SITE_URL || 'https://maklersizuy.uz').replace(/\/+$/, '');
+/*
+ * The origin, again.
+ *
+ * This script is plain Node and cannot import src/seo/config.ts, so the
+ * default is duplicated here on purpose. It must match `RAW_SITE_URL` there
+ * and the absolute URLs in index.html; if the canonical tags and the sitemap
+ * ever disagree about the host, nothing in the build catches it — the audit
+ * strips the host before comparing. Setting VITE_SITE_URL makes both
+ * defaults moot, which is how it should be deployed.
+ */
+const SITE_URL = (process.env.VITE_SITE_URL || 'https://uyiz.uz').replace(/\/+$/, '');
 
 /** Private and duplicate surfaces. Also `noindex` in the page head itself: */
 /* robots.txt only stops the crawl, and a URL linked from elsewhere can still
@@ -200,7 +210,7 @@ async function main() {
   ].join('\n');
 
   const robotsTxt = [
-    '# https://maklersizuy.uz',
+    `# ${SITE_URL}`,
     '',
     'User-agent: *',
     'Allow: /',

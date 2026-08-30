@@ -21,9 +21,10 @@ import { Header } from './components/layout/Header';
 import { HEADER_CLEARANCE } from './components/layout/headerMetrics';
 import { Toaster } from './components/layout/Toaster';
 import { ListingsPage } from './components/listings/ListingsPage';
-import { ShieldMascot } from './components/common/ShieldMascot';
+import { AiMascot } from './components/common/AiMascot';
 import { GlobalAINotification } from './components/common/GlobalAINotification';
 import { useTranslation } from './i18n';
+import { sessionStore } from './lib/storage';
 import { setSessionExpiredHandler } from './services/http';
 import { isAutomatedAgent } from './services/crawler';
 import { trackPageView } from './services/analytics';
@@ -31,6 +32,10 @@ import { MetaApi } from './services/listingsApi';
 import { useSeoHead } from './seo/useSeoHead';
 import { REQUIRES_AUTH, authTabForView } from './router/views';
 import { useAppStore, type ViewState } from './stores/useAppStore';
+
+/** Per-tab analytics id, and the key it lived under before the brand changed. */
+const SESSION_KEY = 'uyiz.session';
+const LEGACY_SESSION_KEY = 'maklersiz.session';
 
 const HomePage = lazy(() => import('./components/home/HomePage'));
 const ListingDetailPage = lazy(() => import('./components/listing/ListingDetailPage'));
@@ -198,10 +203,10 @@ export const App: React.FC = () => {
     if (reportedPath.current === path) return;
     reportedPath.current = path;
     try {
-      let sessionId = sessionStorage.getItem('maklersiz.session');
+      let sessionId = sessionStore.read(SESSION_KEY, LEGACY_SESSION_KEY);
       if (!sessionId) {
         sessionId = crypto.randomUUID();
-        sessionStorage.setItem('maklersiz.session', sessionId);
+        sessionStore.write(SESSION_KEY, sessionId);
       }
       void MetaApi.track(sessionId, window.location.pathname || '/', document.referrer);
     } catch {
@@ -337,7 +342,7 @@ export const App: React.FC = () => {
 
       {currentView !== 'CHAT' && <Footer />}
       <BottomNav />
-      {currentView !== 'CHAT' && <ShieldMascot />}
+      {currentView !== 'CHAT' && <AiMascot />}
       <AuthDialog />
       <Toaster />
     </div>

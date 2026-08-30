@@ -1,33 +1,35 @@
-/** Shield AI assistant and its notifications. */
+/** Uyiz AI assistant and its notifications. */
 export const assistant = {
   mascot: {
     /** A product name: never translated. */
-    name: 'Shield AI',
+    name: 'Uyiz AI',
     tagline: 'Smart home search assistant',
     shortTagline: 'Smart assistant',
-    open: 'Open the Shield AI assistant',
-    panelLabel: 'Chat with Shield AI',
+    open: 'Open the Uyiz AI assistant',
+    panelLabel: 'Chat with Uyiz AI',
   },
 
   chat: {
     welcome:
-      'Hello! I am Shield AI, the AI assistant of the MaklersizUy company 🛡️\n\n'
-      + 'I answer housing questions and pick matching listings out of our database.\n\n'
+      'Hello! I am Uyiz AI, the AI assistant of Uyiz 🏠\n\n'
+      + 'I answer housing questions, filter matching listings out of our database, and can '
+      + 'put you in touch with our team.\n\n'
       + 'For example:\n'
       + '• "I need an apartment in Chilonzor for up to 3 million"\n'
       + '• "Yunusobod, 2 rooms, for a student"\n'
       + '• "Which is better in winter, 2 or 3 rooms?"',
     welcomeNamed:
-      'Hello, {name}. I am Shield AI, the AI assistant of the MaklersizUy company 🛡️\n\n'
-      + 'Ask me a housing question, or tell me what you need — district, room count, budget.',
+      'Hello, {name}. I am Uyiz AI, the AI assistant of Uyiz 🏠\n\n'
+      + 'Ask me a housing question, or tell me what you need — district, room count, budget. '
+      + 'I will filter the matching listings out of our database.',
     log: 'Conversation history',
     you: 'You',
-    inputLabel: 'Message to Shield AI',
+    inputLabel: 'Message to Uyiz AI',
     inputPlaceholder: 'Chilonzor, up to 3 million...',
-    inputThinking: 'Shield AI is thinking...',
+    inputThinking: 'Uyiz AI is thinking...',
     inputDisabled: 'Daily limit reached',
     send: 'Send message',
-    thinking: 'Shield AI is preparing a reply',
+    thinking: 'Uyiz AI is preparing a reply',
     loadingHistory: 'Loading the conversation',
     reset: 'End and clear the conversation',
     close: 'Close the chat',
@@ -63,11 +65,16 @@ export const assistant = {
     confirm: 'Yes, end it',
   },
 
+  /**
+   * The listing warning banner. It used to carry the verdict of an automatic check
+   * that ran at publication; that check is gone, so the copy now talks about a
+   * report an administrator has confirmed.
+   */
   notice: {
-    regionLabel: 'AI warnings about your listings',
-    title: 'Heads up! Your listing is not shown publicly',
-    body: '"{title}" — {reason} If you do not edit it, the listing will be removed.',
-    defaultReason: 'It appears to have been copied from another source.',
+    regionLabel: 'Warnings about your listings',
+    title: 'Heads up! A report about your listing was confirmed',
+    body: '"{title}" — {reason} Your reliability score has dropped as a result.',
+    defaultReason: 'A moderator found the report justified.',
     fix: 'Edit',
     confirmDelete: 'Delete this listing permanently?',
   },

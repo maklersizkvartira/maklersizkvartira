@@ -70,6 +70,7 @@ const ROUTE_TABLE = {
   '/dashboard': 'MODERATOR',
   '/listings': 'MODERATOR',
   '/reports': 'MODERATOR',
+  '/top-requests': 'MODERATOR',
   '/verifications': 'MODERATOR',
   '/ai': 'MODERATOR',
   '/audit': 'MODERATOR',
@@ -109,6 +110,9 @@ export const ACTION_MIN_ROLE = {
   listingModerate: 'MODERATOR',
   /** `PATCH /admin/listings/{id}/feature` */
   listingFeature: 'MODERATOR',
+  /** `PATCH /admin/top-requests/{id}` — an approval does the same three writes
+   *  as `listingFeature`, so it sits on the same rung. */
+  topRequestReview: 'MODERATOR',
   /** `DELETE /admin/listings/{id}` */
   listingDelete: 'ADMIN',
   /** `POST /admin/settings/toggle-monetization` */

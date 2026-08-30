@@ -1,4 +1,4 @@
-"""The actions Shield AI is allowed to take, and the rules around them.
+"""The actions Uyiz AI is allowed to take, and the rules around them.
 
 This module is the boundary between a language model and the database. Its
 whole job is to make that boundary safe, which comes down to four rules that
@@ -33,11 +33,10 @@ from typing import Any, Awaitable, Callable
 
 import structlog
 
-from app.core.config import settings
 from app.core.phone import format_display, is_valid_phone, normalise_phone
 from app.models.enums import ListingStatus, PUBLISHER_ROLE_VALUES, UserRole
 from app.services import listings as listing_service
-from app.services import shield_ai
+from app.services import uyiz_ai
 
 log = structlog.get_logger(__name__)
 
@@ -120,26 +119,26 @@ def _listing_public(row: Any, *, position: int | None = None) -> dict[str, Any]:
     deliberate act on the listing page that increments a counter and writes an
     audit row; it is not something a chat turn does in passing.
     """
-    brief = shield_ai._listing_brief(row, position or 0)
+    brief = uyiz_ai._listing_brief(row, position or 0)
     brief.pop("n", None)
     if position is not None:
         brief["ref"] = position
     brief["status"] = row.status
-    brief["images"] = len(row.images or [])
     return brief
 
 
 def _listing_owner_view(row: Any, position: int) -> dict[str, Any]:
-    """The extra numbers an owner may see about their own listing."""
+    """The extra numbers a publisher may see about their own listing."""
     view = _listing_public(row, position=position)
+    # ``riskScore`` and ``aiRiskReasons`` are deliberately absent. They hold
+    # verdicts from a publish-time automatic check that no longer exists, and
+    # reading them back would have the assistant telling a publisher, in
+    # production, that a machine flagged their listing — from stale rows.
     view.update(
         {
             "views": row.views_count,
             "favorites": row.favorites_count,
             "contactsRevealed": row.contact_count,
-            "trustScore": row.trust_score,
-            "riskScore": row.risk_score,
-            "riskReasons": list(row.ai_risk_reasons or [])[:6],
             "safetyBadges": list(row.safety_badges or []),
             "isFeatured": row.is_featured,
             "moderationNote": (row.moderation_note or "")[:200] or None,
@@ -201,26 +200,50 @@ def _remember(ctx: ToolContext, rows: list[Any]) -> None:
 async def _search_listings(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
     """Search the live catalogue.
 
-    Reuses :func:`shield_ai.search_for_intent` rather than querying directly,
+    Reuses :func:`uyiz_ai.search_for_intent` rather than querying directly,
     so the loosening ladder — budget first, then rooms, then neighbouring
     districts — behaves identically whether the agent or the older two-pass
     path asked for it.
     """
-    intent = shield_ai.SearchIntent(
-        district=shield_ai.normalise_district(args.get("district")),
-        region=shield_ai.normalise_region(args.get("region")),
-        rooms=shield_ai._safe_int(args.get("rooms")),
-        max_price=shield_ai._safe_float(args.get("max_price")),
+    intent = uyiz_ai.SearchIntent(
+        district=uyiz_ai.normalise_district(args.get("district")),
+        region=uyiz_ai.normalise_region(args.get("region")),
+        metro_station=uyiz_ai.normalise_metro(
+            args.get("metro_station"), require_keyword=False
+        ),
+        university_name=uyiz_ai._safe_text(args.get("university_name"), 120),
+        property_type=uyiz_ai._safe_choice(
+            args.get("property_type"), uyiz_ai.PROPERTY_TYPES
+        ),
+        rooms=uyiz_ai._safe_int(args.get("rooms")),
+        min_area=uyiz_ai._safe_area(args.get("min_area")),
+        min_price=uyiz_ai._safe_float(args.get("min_price")),
+        max_price=uyiz_ai._safe_float(args.get("max_price")),
         audience=str(args.get("audience") or "ALL").upper(),
         rental_type=str(args.get("rental_type") or "ALL").upper(),
+        roommate_gender=uyiz_ai._safe_choice(
+            args.get("roommate_gender"), uyiz_ai.ROOMMATE_GENDERS
+        ),
+        # Only a true is a filter. A false would mean "must not have a
+        # washing machine", which nobody asks for and the catalogue cannot
+        # express, so it is folded into "did not ask".
+        furnished=uyiz_ai._safe_wanted(args.get("furnished")),
+        parking=uyiz_ai._safe_wanted(args.get("parking")),
+        internet=uyiz_ai._safe_wanted(args.get("internet")),
+        air_conditioning=uyiz_ai._safe_wanted(args.get("air_conditioning")),
+        washing_machine=uyiz_ai._safe_wanted(args.get("washing_machine")),
+        pets_allowed=uyiz_ai._safe_wanted(args.get("pets_allowed")),
+        only_verified=args.get("only_verified") is True,
+        sort_by=uyiz_ai._safe_choice(args.get("sort_by"), uyiz_ai.SORT_ORDERS)
+        or "RECOMMENDED",
     )
-    intent.region = shield_ai.region_of(intent.district) or intent.region
+    intent.region = uyiz_ai.region_of(intent.district) or intent.region
     if intent.audience not in {"ALL", "STUDENT", "FAMILY"}:
         intent.audience = "ALL"
     if intent.rental_type not in {"ALL", "FULL", "ROOMMATE"}:
         intent.rental_type = "ALL"
 
-    rows, relaxation, searched_district, total = await shield_ai.search_for_intent(
+    rows, relaxation, searched_district, total = await uyiz_ai.search_for_intent(
         ctx.db, intent, limit=MAX_ROWS
     )
     _remember(ctx, rows)
@@ -235,12 +258,17 @@ async def _search_listings(ctx: ToolContext, args: dict[str, Any]) -> dict[str, 
         "matchQuality": relaxation,
         "searchedDistrict": searched_district,
         "requestedDistrict": intent.district,
+        # The criteria this search stopped filtering on in order to find
+        # anything. Empty on an exact match.
+        "droppedCriteria": intent.dropped_labels(ctx.language),
         "listings": [
             _listing_public(row, position=i + 1) for i, row in enumerate(rows)
         ],
         "note": (
             "These are the only rows that exist for this search. Do not "
-            "mention any apartment that is not in this list."
+            "mention any apartment that is not in this list. If "
+            "droppedCriteria is not empty, tell the visitor which of their "
+            "conditions was relaxed."
         ),
     }
 
@@ -303,16 +331,21 @@ async def _list_favorites(ctx: ToolContext, args: dict[str, Any]) -> dict[str, A
 # ---------------------------------------------------------------------------
 # Owner-side tools
 # ---------------------------------------------------------------------------
-#: What each listing status means, in terms an owner can act on. The model is
+#: What each listing status means, in terms a publisher can act on. The model is
 #: given this rather than being left to guess what "WARNING" implies.
 _STATUS_MEANING: dict[str, str] = {
     ListingStatus.DRAFT.value: "not submitted yet — nobody can see it",
-    ListingStatus.PENDING.value: "waiting for moderation, usually within a day",
+    ListingStatus.PENDING.value: "waiting for an administrator to look at it",
     ListingStatus.APPROVED.value: "live and visible in search",
-    ListingStatus.WARNING.value: "live, but flagged — fixing the reasons raises its ranking",
-    ListingStatus.REJECTED.value: "not published; the moderation note says why",
+    ListingStatus.WARNING.value: (
+        "live, but a confirmed report has lowered its reliability percentage "
+        "— the moderation note says what the report was about"
+    ),
+    ListingStatus.REJECTED.value: (
+        "taken down by an administrator; the moderation note says why"
+    ),
     ListingStatus.UNDER_REVIEW.value: "being re-checked by a moderator",
-    ListingStatus.ARCHIVED.value: "taken down by the owner",
+    ListingStatus.ARCHIVED.value: "taken down by its publisher",
 }
 
 
@@ -359,11 +392,14 @@ def _advice_for(row: Any) -> list[dict[str, Any]]:
         items.append({"issue": f"almost no amenities ticked ({', '.join(missing[:4])})", "impact": "medium",
                       "fix": "tick everything the place actually has — each one is a filter someone searches by"})
 
-    if row.trust_score < 70:
-        reasons = list(row.ai_risk_reasons or [])[:3]
-        items.append({"issue": f"trust score is {row.trust_score} of 100", "impact": "high",
-                      "fix": "the automatic check flagged: " + (", ".join(reasons) if reasons else "broker-like wording or an unusual price"),
-                      "detail": "trust score decides ranking order among similar listings"})
+    if row.trust_score < 100:
+        # The score only moves when an administrator confirms a report, so
+        # this is never a machine's opinion of the listing and must not be
+        # phrased as one. The old wording read the retired publish-time check
+        # back to publishers out of stale rows.
+        items.append({"issue": f"reliability percentage is {row.trust_score} of 100", "impact": "high",
+                      "fix": "a report about this listing was confirmed by an administrator — read the moderation note, fix what was reported, and contact support if you believe the decision was wrong",
+                      "detail": "the reliability percentage falls only on a confirmed report, and it decides ranking order among similar listings"})
 
     if row.views_count >= 30 and row.contact_count == 0:
         items.append({"issue": f"{row.views_count} views but nobody asked for the number", "impact": "high",
@@ -446,25 +482,32 @@ async def _how_tenants_search(ctx: ToolContext, args: dict[str, Any]) -> dict[st
     """The filters that actually exist, so advice matches the real product."""
     return {
         "filtersTenantsUse": [
-            "district", "number of rooms", "maximum price", "metro station",
-            "nearest university", "furnished", "internet", "air conditioning",
-            "washing machine", "parking", "pets allowed", "minimum area",
-            "verified owners only", "minimum trust score",
-            "whole place or roommate", "students / families",
+            "district", "region", "number of rooms", "minimum and maximum price",
+            "metro station", "nearest university", "property type",
+            "minimum floor area", "furnished", "internet", "air conditioning",
+            "washing machine", "parking", "pets allowed",
+            "verified publishers only", "whole place or roommate",
+            "roommate gender", "students / families",
         ],
         "sortOrders": [
-            "RECOMMENDED (default — trust score and freshness together)",
-            "NEWEST", "PRICE_LOW", "PRICE_HIGH", "TRUST", "POPULAR",
+            "RECOMMENDED (default — approved Top placements first, then "
+            "reliability and freshness)",
+            "NEWEST", "PRICE_LOW", "PRICE_HIGH", "POPULAR",
         ],
         "whatRankingRewards": [
-            "a high trust score",
+            "an approved Top placement, which an administrator grants after "
+            "the publisher requests it",
+            "a listing with no confirmed reports against it",
             "recent publication or a recent update",
             "complete fields, because an empty field fails the filter that asks for it",
             "photos, which decide whether a result gets clicked at all",
         ],
         "note": (
             "This is the real filter list from the product. Advise only on "
-            "these; do not invent a filter or a ranking factor."
+            "these; do not invent a filter or a ranking factor. The "
+            "reliability percentage is not a lever a publisher can pull — it "
+            "starts full and only falls on a confirmed report — so never "
+            "coach anyone on 'raising' it."
         ),
     }
 
@@ -473,14 +516,48 @@ async def _how_tenants_search(ctx: ToolContext, args: dict[str, Any]) -> dict[st
 # Support handoff
 # ---------------------------------------------------------------------------
 async def _support_contacts(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
-    """Our own numbers. These are published on the site, so they are public."""
-    return {
-        "phones": [format_display(p) for p in settings.support_phones],
-        "hint": (
-            "Give these to the visitor and offer the alternative: you can "
-            "take their number instead and have support call them."
-        ),
-    }
+    """Our own contact routes. These are published on the site, so they are
+    public.
+
+    They come from configuration rather than literals here: they change, they
+    appear in several places, and settings is the one place that gets to decide
+    them. A route that is not configured is left OUT of the payload entirely
+    rather than sent as an empty string, so the model cannot read a blank as
+    something it may offer.
+    """
+    phones = uyiz_ai.support_phone_list()
+    telegram = uyiz_ai.support_telegram()
+    hours = uyiz_ai.support_hours()
+
+    routes: list[str] = []
+    if phones:
+        routes.append("call one of these numbers")
+    if telegram:
+        routes.append("write to us on Telegram")
+    routes.append(
+        "leave their own number and have support call them back via "
+        "request_support_callback"
+    )
+
+    contacts: dict[str, Any] = {"phones": phones}
+    if telegram:
+        contacts["telegram"] = telegram
+    if hours:
+        contacts["hours"] = hours
+        contacts["hoursNote"] = (
+            "A person answers between these hours. Outside them a callback is "
+            "still recorded, but say it will be returned in working hours "
+            "rather than promising an immediate call."
+        )
+    contacts["hint"] = (
+        "Offer the routes in one sentence and let them pick: they can "
+        + ", or ".join(routes)
+        + ". Do not make them choose in the abstract."
+        if len(routes) > 1
+        else "No support number or Telegram is configured. Do not invent one: "
+        "offer to take their number instead, via request_support_callback."
+    )
+    return contacts
 
 
 async def _request_callback(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
@@ -519,7 +596,7 @@ async def _request_callback(ctx: ToolContext, args: dict[str, Any]) -> dict[str,
 
     who = ctx.viewer.name if ctx.viewer else "Mehmon"
     body = (
-        "☎️ <b>Qo'ng'iroq so'raldi — Shield AI</b>\n\n"
+        "☎️ <b>Qo'ng'iroq so'raldi — Uyiz AI</b>\n\n"
         f"👤 <b>Mijoz:</b> {who}\n"
         f"📱 <b>Telefon:</b> {format_display(phone)}\n"
         + (("\n" + " • ".join(details) + "\n") if details else "")
@@ -574,17 +651,39 @@ def _register(tool: Tool) -> None:
 _register(Tool(
     name="search_listings",
     description=(
-        "Search MaklersizUy's live listing database. Call this whenever the "
-        "visitor is looking for somewhere to live and has given at least one "
-        "criterion. Returns only listings that really exist right now."
+        "Search Uyiz's live listing database. Call this whenever the visitor "
+        "is looking for somewhere to live and has given at least one "
+        "criterion. Pass EVERY criterion they stated, not only the district "
+        "and the price — an amenity you leave out is one they asked for and "
+        "will silently not get. The search loosens the soft criteria first "
+        "if nothing matches, and tells you in droppedCriteria what it gave "
+        "up. Returns only listings that really exist right now."
     ),
     parameters=_params({
         "district": {"type": "string", "description": "District or city, as the visitor said it (Chilonzor, Yunusobod, Samarqand...)."},
         "region": {"type": "string", "description": "Province, when they named one instead of a district."},
+        "metro_station": {"type": "string", "description": "Tashkent metro station, when they want to be near one (Bodomzor, Chorsu, Oybek...)."},
+        "university_name": {"type": "string", "description": "University, when they want to be near one."},
+        "property_type": {"type": "string", "enum": ["APARTMENT", "HOUSE", "ROOM", "STUDIO", "DORMITORY"]},
         "rooms": {"type": "integer", "minimum": 1, "maximum": 20},
+        "min_area": {"type": "number", "description": "Floor area in m². Only when they stated a MINIMUM; there is no maximum-area filter."},
+        "min_price": {"type": "number", "description": "Price floor in Uzbek so'm. Rarely needed."},
         "max_price": {"type": "number", "description": "Budget ceiling in Uzbek so'm. Convert dollars before passing."},
         "audience": {"type": "string", "enum": ["ALL", "STUDENT", "FAMILY"]},
         "rental_type": {"type": "string", "enum": ["ALL", "FULL", "ROOMMATE"]},
+        "roommate_gender": {"type": "string", "enum": ["BOYS", "GIRLS", "ANY"], "description": "Only for a shared room, when they said who it is for."},
+        "furnished": {"type": "boolean", "description": "True only when they asked for furniture. Never false: the catalogue cannot search for the absence of something."},
+        "parking": {"type": "boolean", "description": "True only when they asked for parking."},
+        "internet": {"type": "boolean", "description": "True only when they asked for internet."},
+        "air_conditioning": {"type": "boolean", "description": "True only when they asked for air conditioning."},
+        "washing_machine": {"type": "boolean", "description": "True only when they asked for a washing machine."},
+        "pets_allowed": {"type": "boolean", "description": "True only when they said they have a pet."},
+        "only_verified": {"type": "boolean", "description": "True when they want listings from verified publishers only."},
+        "sort_by": {
+            "type": "string",
+            "enum": ["RECOMMENDED", "NEWEST", "PRICE_LOW", "PRICE_HIGH", "POPULAR"],
+            "description": "PRICE_LOW for 'eng arzon' / 'подешевле', NEWEST for 'eng yangi'. RECOMMENDED otherwise.",
+        },
     }),
     handler=_search_listings,
     progress={"uz": "Kvartiralarni qidiryapman", "ru": "Ищу квартиры", "en": "Searching listings"},
@@ -635,9 +734,9 @@ _register(Tool(
 _register(Tool(
     name="my_listings",
     description=(
-        "The listings this owner has published, with their status, trust "
-        "score, views, favourites and how many people asked for their number. "
-        "Only for owner accounts."
+        "The listings this publisher has posted, with their status, "
+        "reliability percentage, views, favourites and how many people asked "
+        "for their number. Only for publisher accounts — owners and agents."
     ),
     parameters=_params({}),
     handler=_my_listings,
@@ -649,10 +748,10 @@ _register(Tool(
 _register(Tool(
     name="listing_performance",
     description=(
-        "How one of the owner's own listings is doing, measured against "
+        "How one of the publisher's own listings is doing, measured against "
         "similar listings in the same district, plus a computed list of what "
         "is holding it back. Use this for 'why is nobody calling', 'how is my "
-        "listing doing', 'how do I raise my trust score'."
+        "listing doing', 'why did my reliability percentage fall'."
     ),
     parameters=_params({"listing_ref": _REF_PARAM}, ["listing_ref"]),
     handler=_listing_performance,
@@ -664,8 +763,8 @@ _register(Tool(
 _register(Tool(
     name="how_tenants_search",
     description=(
-        "The filters and sort orders tenants really have, and what the "
-        "ranking rewards. Use it before advising an owner how to be found."
+        "The filters and sort orders renters really have, and what the "
+        "ranking rewards. Use it before advising a publisher how to be found."
     ),
     parameters=_params({}),
     handler=_how_tenants_search,
@@ -675,8 +774,11 @@ _register(Tool(
 _register(Tool(
     name="get_support_contacts",
     description=(
-        "MaklersizUy's own support phone numbers. Use when the visitor asks "
-        "to speak to a person or asks for our number."
+        "Uyiz's own support routes: phone numbers, the support Telegram and "
+        "the hours a person is there. Use when the visitor asks to speak to "
+        "someone, asks for our contacts, or is stuck on something you cannot "
+        "do for them — offering a human is part of helping. Only offer the "
+        "routes that come back; a missing one is not configured."
     ),
     parameters=_params({}),
     handler=_support_contacts,

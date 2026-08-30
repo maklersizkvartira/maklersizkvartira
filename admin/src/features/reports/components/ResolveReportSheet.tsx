@@ -26,11 +26,19 @@ import {
 } from '../constants';
 
 /**
- * One report and the single call that closes it.
+ * One report and the single call that settles it.
  *
- * `PATCH /admin/reports/{id}` resolves the report and acts on the listing in
- * one transaction, so the two decisions are one form here rather than two trips
+ * `PATCH /admin/reports/{id}` settles the report and acts on the listing in one
+ * transaction, so the two decisions are one form here rather than two trips
  * through two screens.
+ *
+ * The word to be careful with on this screen is "resolve". RESOLVED means the
+ * moderator CONFIRMED the complaint — it is the only event on the platform that
+ * lowers a listing's reliability score, and the backend recomputes that score
+ * from the confirmed reports as part of this same call. REJECTED means the
+ * complaint was dismissed and nothing moves. The status labels and the line
+ * under the picker both spell that out, because "resolved" on its own reads
+ * like "dealt with", which is exactly the wrong thing to believe here.
  *
  * Mount with `key={row.id}` — the form is seeded from the row.
  */
@@ -67,9 +75,14 @@ export function ResolveReportSheet({
   const locale = useLocale();
 
   const [status, setStatus] = useState<string>(
-    // A report already settled reopens on its own status; an open one defaults
-    // to the outcome the moderator is here to record.
-    row.status === 'OPEN' || row.status === 'UNDER_REVIEW' ? 'RESOLVED' : row.status,
+    // Every report opens on its OWN status, settled or not. It used to default
+    // an open report to RESOLVED, on the reading that "resolved" just meant
+    // "dealt with". It no longer does: RESOLVED now confirms the complaint and
+    // is the one action on the platform that lowers a listing's public
+    // reliability score. A pre-selected default would let a moderator move that
+    // number by submitting the form without ever touching the picker, so the
+    // outcome has to be chosen deliberately.
+    row.status,
   );
   const [note, setNote] = useState(row.resolutionNote ?? '');
   const [listingAction, setListingAction] = useState<ReportListingAction>('NONE');
@@ -119,6 +132,11 @@ export function ResolveReportSheet({
         />
         <Badge variant="neutral" label={priorityLabel(row.priority)} />
         <Badge variant="neutral" label={reasonLabel(row.reason)} />
+        {/* Still called `aiRiskScore` on the wire, but nothing scores a listing
+            at publication any more: the backend now maintains it as the
+            inverse of the reliability score, so it rises only as complaints
+            against this listing are confirmed. Reading it beside the decision
+            is the point — it says how much has already been upheld. */}
         <RiskPill score={row.aiRiskScore} label={l('moderation.riskScore')} />
       </div>
 
@@ -126,7 +144,7 @@ export function ResolveReportSheet({
         <KeyValue label={t('columns.listing')} value={row.listingTitle ?? c('unknown')} />
         <KeyValue label={t('columns.reporter')} value={row.reporterLabel ?? c('unknown')} />
         <KeyValue label={t('columns.created')} value={showDate(row.createdAt)} />
-        {row.resolvedAt && <KeyValue label={t('resolve')} value={showDate(row.resolvedAt)} />}
+        {row.resolvedAt && <KeyValue label={t('decidedAt')} value={showDate(row.resolvedAt)} />}
         {row.description && (
           <p
             className="text-sm mt-3 pt-3"
@@ -143,7 +161,14 @@ export function ResolveReportSheet({
         )}
       </SheetSection>
 
-      {/* ── The decision ─────────────────────────────────────────────────── */}
+      {/* ── The decision ──────────────────────────────────────────────────
+          RESOLVED and REJECTED are not "done" and "not done": RESOLVED means
+          the moderator CONFIRMS the complaint, and confirming is the only
+          thing on the whole platform that moves a listing's reliability score
+          — the backend recomputes it from the confirmed reports against that
+          listing the moment this call lands. REJECTED dismisses the complaint
+          and moves nothing. The two labels say so, and the line underneath
+          says what the labels cannot: that a number changes. */}
       <SheetSection title={t('columns.status')}>
         <Select
           className={TOUCH_SELECT}
@@ -151,6 +176,9 @@ export function ResolveReportSheet({
           onChange={setStatus}
           options={REPORT_STATUSES.map((value) => ({ value, label: statusLabel(value) }))}
         />
+        <p className="text-xs mt-2.5" style={{ color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+          {t('trustPenalty')}
+        </p>
       </SheetSection>
 
       <SheetSection title={t('note')}>

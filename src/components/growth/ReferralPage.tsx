@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
+import { SITE_URL } from '../../seo/config';
 import { useAppStore } from '../../stores/useAppStore';
 import { Button } from '../ui/Field';
 
@@ -48,8 +49,11 @@ export const ReferralPage: React.FC = () => {
   const [copied, setCopied] = useState(false);
 
   const referralCode = currentUser?.referralCode ?? null;
+  // The origin comes from `SITE_URL`, the one place the canonical host is
+  // written down. A second hardcoded copy here is how a link the user is about
+  // to paste into Telegram ends up pointing at a domain the site has left.
   const referralLink = referralCode
-    ? `https://maklersizuy.uz/r/${encodeURIComponent(referralCode)}`
+    ? `${SITE_URL}/r/${encodeURIComponent(referralCode)}`
     : null;
 
   const handleCopy = async () => {

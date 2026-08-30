@@ -1,12 +1,15 @@
 /**
- * The four-step "post a listing" wizard.
+ * The three-step "post a listing" wizard.
  *
- * What changed with the API migration:
- *  - Moderation is no longer decided in the browser. The old build shipped a
- *    Gemini key to every visitor and let the client mark its own listing as
- *    approved; now `ListingsApi.scan()` previews the verdict and the server
- *    has the final say inside `ListingsApi.create()`.
- *  - Nothing server-owned (status, trust/risk scores, counters, owner) is sent:
+ * How publishing works:
+ *  - A listing that passes this form's own validation is published. There is
+ *    no check to wait for and no verdict to argue with — a 201 from
+ *    `ListingsApi.create()` means the listing is live.
+ *  - Being seen sooner is a separate, optional request: the owner can ask for
+ *    Top on the last step, which is free, is sent after the listing exists,
+ *    and only takes effect once an admin approves it. It can never delay or
+ *    block the publish itself.
+ *  - Nothing server-owned (status, trust score, counters, owner) is sent:
  *    the API rejects unknown fields with 422.
  *  - Images travel as base64 data URLs inside the JSON body, so they are
  *    downscaled before they are encoded and the wizard shows the running
@@ -21,8 +24,8 @@
  *    flat that claimed 65 m², a 4.5M price, parking and a five-minute walk to
  *    Yunusobod. A seeded value reads as an answer; a placeholder reads as an
  *    example.
- *  - **Nothing is lost.** Four steps is long enough that a mis-tapped back
- *    gesture used to empty all four, photos included. The answers are kept in
+ *  - **Nothing is lost.** Three steps is long enough that a mis-tapped back
+ *    gesture used to empty all three, photos included. The answers are kept in
  *    a local draft and leaving is confirmed.
  */
 
@@ -42,19 +45,23 @@ import {
   MapPin,
   MessageSquare,
   Phone,
+  Rocket,
   ShieldCheck,
-  Sparkles,
   Trash2,
   Upload,
   Users,
-  Video,
 } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { UZBEKISTAN_REGIONS, TASHKENT_METRO_LINES } from '../../data/mockLocations';
 import { AMENITIES, NO_AMENITIES, type AmenityState } from '../../data/amenities';
 import { ApiError } from '../../services/http';
-import { ListingsApi, type ModerationResult } from '../../services/listingsApi';
+import {
+  DEFAULT_TOP_DAYS,
+  ListingsApi,
+  MAX_TOP_NOTE_LENGTH,
+  TOP_DAYS_OPTIONS,
+} from '../../services/listingsApi';
 import { useAppStore } from '../../stores/useAppStore';
 import { useHaptics } from '../../hooks/useHaptics';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
@@ -73,10 +80,18 @@ import {
 const METRO_NONE = 'NONE';
 
 const MAX_IMAGES = 12;
-const MIN_IMAGES = 3;
+/**
+ * One photo, not three.
+ *
+ * A listing with no picture at all is not worth publishing — nobody rents a
+ * flat they cannot see — but demanding three of them turned away owners who
+ * had one good photo of the room and nothing else on the phone in their hand.
+ * The copy asks for more; the gate insists on one.
+ */
+const MIN_IMAGES = 1;
 /** The JSON body carries the photos, so the whole request must stay small. */
 const MAX_PAYLOAD_MB = 6;
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 3;
 
 /**
  * Longest edge a stored photo is allowed to have.
@@ -101,10 +116,20 @@ const REENCODE_ABOVE_BYTES = 400 * 1024;
  * and photos already in the form, ready to publish under their own name.
  * `logout` never cleared it either, so signing out did not help.
  */
-const DRAFT_KEY_PREFIX = 'maklersiz.owner.createDraft';
-/** The key from before the split, deleted rather than adopted — see above. */
-const LEGACY_DRAFT_KEY = DRAFT_KEY_PREFIX;
-const DRAFT_VERSION = 1;
+const DRAFT_KEY_PREFIX = 'uyiz.owner.createDraft';
+/** The pre-rebrand prefix. Its per-account drafts are adopted once and the old
+ *  keys removed, so nobody loses work to the rename. */
+const LEGACY_DRAFT_KEY_PREFIX = 'maklersiz.owner.createDraft';
+/** The key from before the per-account split, deleted rather than adopted. */
+const LEGACY_SHARED_DRAFT_KEY = LEGACY_DRAFT_KEY_PREFIX;
+/**
+ * Bumped to 2 with the video field and the fourth step.
+ *
+ * A version-1 draft carries a `videoUrl` that no longer has a home and a
+ * `step` that can be 4, which this wizard cannot render. It is discarded
+ * rather than half-restored.
+ */
+const DRAFT_VERSION = 2;
 const DRAFT_DEBOUNCE_MS = 800;
 /**
  * A draft older than this is not a draft, it is a memory. Coming back to a
@@ -127,6 +152,12 @@ const MAX_TITLE_LENGTH = 160;
 const MAX_DESCRIPTION_LENGTH = 5000;
 const MAX_CONTACT_TIME_LENGTH = 64;
 
+/** Whichever step the draft claims, it has to be one this wizard renders. */
+function clampStep(step: number): number {
+  if (!Number.isFinite(step)) return 1;
+  return Math.min(Math.max(1, Math.round(step)), TOTAL_STEPS);
+}
+
 /**
  * Which field a 422 is about, and where it lives.
  *
@@ -146,9 +177,8 @@ const SERVER_FIELDS: Record<string, { step: number; field: string }> = {
   floor: { step: 2, field: 'floor' },
   totalFloors: { step: 2, field: 'floor' },
   images: { step: 3, field: 'images' },
-  videoUrl: { step: 3, field: 'videoUrl' },
-  contactTelegram: { step: 4, field: 'telegram' },
-  preferredContactTime: { step: 4, field: 'preferredTime' },
+  contactTelegram: { step: 3, field: 'telegram' },
+  preferredContactTime: { step: 3, field: 'preferredTime' },
 };
 
 const GPS_ERROR_KEYS: Record<number, string> = {
@@ -197,9 +227,12 @@ interface Draft {
   roommateGender: RoommateGender;
   roommateSpots: number;
   images: string[];
-  videoUrl: string;
   telegram: string;
   preferredTime: string;
+  /** The Top choice made on the last step, kept so a reload does not lose it. */
+  topRequested: boolean;
+  topDays: number;
+  topNote: string;
   /** True when this copy was stored without its photos — see `writeDraft`. */
   photosDropped?: boolean;
 }
@@ -290,18 +323,37 @@ function draftKeyFor(userId: string): string {
   return `${DRAFT_KEY_PREFIX}.${userId}`;
 }
 
-function readDraft(key: string | null): Draft | null {
+function legacyDraftKeyFor(userId: string): string {
+  return `${LEGACY_DRAFT_KEY_PREFIX}.${userId}`;
+}
+
+function readDraft(key: string | null, legacyKey: string | null): Draft | null {
   if (!key) return null;
   try {
-    // One-time migration. The old shared draft is not adopted into this
+    // One-time migration off the old brand's key. The value is moved rather
+    // than read in place, so the rename cannot orphan a draft; whether it is
+    // then restorable is the version check's business, a few lines down.
+    if (legacyKey) {
+      const legacy = localStorage.getItem(legacyKey);
+      if (legacy !== null && localStorage.getItem(key) === null) {
+        localStorage.setItem(key, legacy);
+      }
+      localStorage.removeItem(legacyKey);
+    }
+    // The draft from before the per-account split is not adopted into this
     // account — it may belong to whoever used the browser last — it is thrown
     // away, photos and all, so it stops leaking and stops taking up quota.
-    localStorage.removeItem(LEGACY_DRAFT_KEY);
+    localStorage.removeItem(LEGACY_SHARED_DRAFT_KEY);
 
     const raw = localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Draft;
-    if (!parsed || parsed.version !== DRAFT_VERSION) return null;
+    // A draft from an older shape is cleared, not just refused: left in place
+    // it would sit in the quota forever, being re-read and re-rejected.
+    if (!parsed || parsed.version !== DRAFT_VERSION) {
+      clearDraft(key);
+      return null;
+    }
     // A missing `savedAt` is a draft from before this check, so it is treated
     // as old rather than as an age of NaN.
     if (
@@ -365,7 +417,7 @@ function clearDraft(key: string | null): void {
 }
 
 export const CreateListingPage: React.FC = () => {
-  const { t, tRaw, formatPrice, formatNumber, formatDate } = useTranslation();
+  const { t, tRaw, formatPrice, formatDate } = useTranslation();
 
   const currentUser = useAppStore((state) => state.currentUser);
   const setCurrentView = useAppStore((state) => state.setCurrentView);
@@ -386,11 +438,12 @@ export const CreateListingPage: React.FC = () => {
   // line runs before that gate does. `null` when nobody is signed in, and every
   // draft helper does nothing with a null key.
   const draftKey = currentUser ? draftKeyFor(currentUser.id) : null;
+  const legacyDraftKey = currentUser ? legacyDraftKeyFor(currentUser.id) : null;
 
   // Read once, so every field below can open on the value the owner left.
-  const [initialDraft] = useState<Draft | null>(() => readDraft(draftKey));
+  const [initialDraft] = useState<Draft | null>(() => readDraft(draftKey, legacyDraftKey));
 
-  const [step, setStep] = useState(initialDraft?.step ?? 1);
+  const [step, setStep] = useState(() => clampStep(initialDraft?.step ?? 1));
 
   // -- Step 1: location ------------------------------------------------------
   const [region, setRegion] = useState(initialDraft?.region ?? TASHKENT_CITY);
@@ -437,21 +490,24 @@ export const CreateListingPage: React.FC = () => {
   );
   const [roommateSpots, setRoommateSpots] = useState(initialDraft?.roommateSpots ?? 1);
 
-  // -- Step 3: media ---------------------------------------------------------
+  // -- Step 3: photos, contact, top, submit ----------------------------------
   const [images, setImages] = useState<string[]>(initialDraft?.images ?? []);
-  const [videoUrl, setVideoUrl] = useState(initialDraft?.videoUrl ?? '');
   const [processingImages, setProcessingImages] = useState(false);
   const [dragOverDropzone, setDragOverDropzone] = useState(false);
-
-  // -- Step 4: contact, moderation, submit -----------------------------------
   const [telegram, setTelegram] = useState(initialDraft?.telegram ?? '');
   const [preferredTime, setPreferredTime] = useState(initialDraft?.preferredTime ?? '');
-  const [scan, setScan] = useState<ModerationResult | null>(null);
-  const [scanning, setScanning] = useState(false);
-  const [scanError, setScanError] = useState<string | null>(null);
+  const [topRequested, setTopRequested] = useState(initialDraft?.topRequested ?? false);
+  const [topDays, setTopDays] = useState<number>(initialDraft?.topDays ?? DEFAULT_TOP_DAYS);
+  const [topNote, setTopNote] = useState(initialDraft?.topNote ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [rejection, setRejection] = useState<ModerationResult | null>(null);
+  /**
+   * What to say once the listing is live: nothing, "the Top request is with
+   * the admins", or "published, but the Top request did not go through".
+   * Never null while the sheet is open, and the sheet is the only thing that
+   * moves the owner on to their listings.
+   */
+  const [topOutcome, setTopOutcome] = useState<'sent' | 'failed' | null>(null);
 
   const [draftRestoredAt, setDraftRestoredAt] = useState<number | null>(
     initialDraft?.savedAt ?? null,
@@ -492,11 +548,8 @@ export const CreateListingPage: React.FC = () => {
   }, [hasMetro, metro]);
 
   const payloadBytes = useMemo(
-    () =>
-      // The video is an https link now, not an inline file, so it costs its
-      // own length and nothing more.
-      images.reduce((sum, image) => sum + dataUrlBytes(image), 0) + videoUrl.length,
-    [images, videoUrl],
+    () => images.reduce((sum, image) => sum + dataUrlBytes(image), 0),
+    [images],
   );
   const payloadMb = payloadBytes / (1024 * 1024);
   const payloadTooLarge = payloadMb > MAX_PAYLOAD_MB;
@@ -580,15 +633,17 @@ export const CreateListingPage: React.FC = () => {
       roommateGender,
       roommateSpots,
       images,
-      videoUrl,
       telegram,
       preferredTime,
+      topRequested,
+      topDays,
+      topNote,
     }),
     [
       step, region, district, address, metro, metroMinutes, latitude, longitude,
       title, description, price, deposit, rooms, area, floor, totalFloors,
-      amenities, isRoommate, roommateGender, roommateSpots, images, videoUrl,
-      telegram, preferredTime,
+      amenities, isRoommate, roommateGender, roommateSpots, images,
+      telegram, preferredTime, topRequested, topDays, topNote,
     ],
   );
 
@@ -655,16 +710,6 @@ export const CreateListingPage: React.FC = () => {
       set(raw === '' ? '' : Number(raw));
       clearError(field);
     };
-
-  /**
-   * A verdict belongs to the text it was computed from.
-   *
-   * `runScan` sends the title, description, price and rooms, so an edit to any
-   * of them retires it. Without this the owner rewrote the flagged sentence,
-   * walked back to step 4 and found the same red card and the same disabled
-   * submit button, both describing wording that no longer exists.
-   */
-  const invalidateScan = () => setScan(null);
 
   // -- Media handlers --------------------------------------------------------
   const addFiles = async (files: File[]) => {
@@ -845,17 +890,12 @@ export const CreateListingPage: React.FC = () => {
       }
     }
 
+    // Photos and contact share the last step, so they share its rules. The
+    // photo gate is the only blocking one: at least one picture, and a body
+    // the gateway will still accept.
     if (target === 3) {
       if (images.length < MIN_IMAGES) errors.images = 'owner.create.validation.images';
       if (payloadTooLarge) errors.payload = 'owner.create.validation.imagesTooLarge';
-      // The API only stores an https link, so anything else is a 422 that
-      // takes the whole listing with it.
-      if (videoUrl.trim() && !/^https:\/\/\S+$/i.test(videoUrl.trim())) {
-        errors.videoUrl = 'common.error.validation';
-      }
-    }
-
-    if (target === 4) {
       if ((currentUser.phone ?? '').replace(/\D/g, '').length < 9) {
         errors.phone = 'owner.create.validation.phone';
       }
@@ -890,7 +930,7 @@ export const CreateListingPage: React.FC = () => {
   };
 
   const firstInvalidStep = (): number | null => {
-    for (const candidate of [1, 2, 3, 4]) {
+    for (const candidate of [1, 2, 3]) {
       const errors = validateStep(candidate);
       if (Object.keys(errors).length > 0) {
         setFormErrors(errors);
@@ -899,28 +939,6 @@ export const CreateListingPage: React.FC = () => {
     }
     setFormErrors({});
     return null;
-  };
-
-  // -- Moderation preview ----------------------------------------------------
-  const runScan = async (): Promise<ModerationResult | null> => {
-    setScanning(true);
-    setScanError(null);
-    setScan(null);
-    try {
-      const result = await ListingsApi.scan({
-        title: title.trim(),
-        description: description.trim(),
-        price: price === '' ? undefined : price,
-        rooms: rooms === '' ? undefined : rooms,
-      });
-      setScan(result);
-      return result;
-    } catch {
-      setScanError(t('owner.create.moderation.failed'));
-      return null;
-    } finally {
-      setScanning(false);
-    }
   };
 
   // -- Submit ----------------------------------------------------------------
@@ -949,23 +967,8 @@ export const CreateListingPage: React.FC = () => {
       return;
     }
 
-    // The preview card used to be advisory in the literal sense: it could read
-    // "blocked" while the button next to it happily sent the listing. If the
-    // scan has not run, run it now; if it says no, the owner edits the text.
-    let verdict = scan;
-    if (!verdict) {
-      setSubmitting(true);
-      verdict = await runScan();
-      setSubmitting(false);
-    }
-    if (verdict && !verdict.allowed) {
-      haptics.warn();
-      return;
-    }
-
     setSubmitting(true);
     setSubmitError(null);
-    setRejection(null);
 
     const point = coordinates();
     // Only owner-editable fields: anything the server owns (status, scores,
@@ -998,7 +1001,6 @@ export const CreateListingPage: React.FC = () => {
       airConditioning: amenities.airConditioning,
       washingMachine: amenities.washingMachine,
       images,
-      videoUrl: videoUrl.trim() || null,
       hasVirtualTour: false,
       contactTelegram: telegram.trim() || null,
       preferredContactTime: preferredTime.trim() || null,
@@ -1009,19 +1011,33 @@ export const CreateListingPage: React.FC = () => {
 
     try {
       const response = await ListingsApi.create(payload);
-      void fetchMyListings();
-
-      if (!response.moderation.allowed) {
-        // The work is kept: the owner edits the text and updates the listing
-        // instead of losing everything they just typed.
-        setRejection(response.moderation);
-        pushToast('layout.toast.listingRejected', 'error');
-        return;
-      }
-
+      // A 201 is the whole answer: the listing is published. Everything below
+      // is about the optional promotion, and none of it can undo that.
       clearDraft(draftKey);
       haptics.success();
       pushToast('layout.toast.listingCreated', 'success');
+
+      if (topRequested) {
+        // The listing id exists only now, so this is the one moment the Top
+        // request can be sent without making the owner go and find the
+        // listing again. A failure here is a failed promotion, never a failed
+        // publish, and the sheet says so in those words.
+        try {
+          await ListingsApi.requestTop(response.data.id, {
+            days: topDays,
+            note: topNote.trim() || null,
+          });
+          setTopOutcome('sent');
+        } catch {
+          setTopOutcome('failed');
+        }
+        void fetchMyListings();
+        // The sheet is what moves the owner on, so the view does not change
+        // out from under the message that has just been put in front of them.
+        return;
+      }
+
+      void fetchMyListings();
       setCurrentView('MY_LISTINGS');
     } catch (error) {
       // Five creates an hour is a real cap and the bare catch used to render it
@@ -1094,11 +1110,14 @@ export const CreateListingPage: React.FC = () => {
     setRoommateGender('ANY');
     setRoommateSpots(1);
     setImages([]);
-    setVideoUrl('');
     setTelegram('');
     setPreferredTime('');
     setFormErrors({});
-    setScan(null);
+    // A discarded draft takes the Top choice with it: the listing the owner
+    // rebuilds from scratch is not the one they asked to promote.
+    setTopRequested(false);
+    setTopDays(DEFAULT_TOP_DAYS);
+    setTopNote('');
     pushToast('owner.create.draft.discarded', 'info');
   };
 
@@ -1110,12 +1129,17 @@ export const CreateListingPage: React.FC = () => {
     setConfirmLeave(true);
   };
 
+  /** The only way out of the Top confirmation, whichever way it went. */
+  const finishAfterTop = () => {
+    setTopOutcome(null);
+    setCurrentView('MY_LISTINGS');
+  };
+
   // -- Render helpers --------------------------------------------------------
   const stepMeta = [
     { num: 1, title: t('owner.create.steps.locationTitle'), hint: t('owner.create.steps.locationHint') },
     { num: 2, title: t('owner.create.steps.detailsTitle'), hint: t('owner.create.steps.detailsHint') },
     { num: 3, title: t('owner.create.steps.photosTitle'), hint: t('owner.create.steps.photosHint') },
-    { num: 4, title: t('owner.create.steps.contactTitle'), hint: t('owner.create.steps.contactHint') },
   ];
 
   // Deduplicated: two fields can now fail on the same shared message, and the
@@ -1214,7 +1238,7 @@ export const CreateListingPage: React.FC = () => {
             {photosDropped && (
               <p className="flex items-start gap-2 text-xs font-semibold text-warning">
                 <AlertTriangle className="mt-px h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{t('owner.create.validation.images')}</span>
+                <span>{t('owner.create.draft.photosDropped')}</span>
               </p>
             )}
           </div>
@@ -1240,8 +1264,8 @@ export const CreateListingPage: React.FC = () => {
       {/*
         Step navigation, in two forms.
 
-        On a phone the four cards below stacked into a 2x2 block that pushed
-        the first field most of a screen down — on every step, so the form was
+        On a phone the cards below stacked into a block that pushed the first
+        field most of a screen down — on every step, so the form was
         the thing you had to scroll to reach. The compact bar shows the same
         state in one row: which step, how many are left, and how far along the
         page is. The cards return from `sm:` up, where the width is free.
@@ -1283,7 +1307,7 @@ export const CreateListingPage: React.FC = () => {
       </div>
 
       {/* Step navigation. Completed steps stay reachable; future ones do not. */}
-      <ol className="hidden gap-2.5 sm:grid sm:grid-cols-4 sm:gap-3">
+      <ol className="hidden gap-2.5 sm:grid sm:grid-cols-3 sm:gap-3">
         {stepMeta.map((item) => {
           const isActive = step === item.num;
           const isDone = step > item.num;
@@ -1719,7 +1743,6 @@ export const CreateListingPage: React.FC = () => {
                     onChange={(event) => {
                       setTitle(event.target.value);
                       clearError('title');
-                      invalidateScan();
                     }}
                     placeholder={t('owner.create.details.titlePlaceholder')}
                   />
@@ -1742,38 +1765,12 @@ export const CreateListingPage: React.FC = () => {
                     onChange={(event) => {
                       setDescription(event.target.value);
                       clearError('description');
-                      invalidateScan();
                     }}
                     placeholder={t('owner.create.details.descriptionPlaceholder')}
                     className={textareaClass}
                   />
                 )}
               </Field>
-
-              {/* The in-browser copywriter and price estimator ran on a Gemini
-                  key shipped to every visitor. They are disabled until the
-                  server exposes the same helpers.
-
-                  Hidden on phones rather than removed: two buttons that cannot
-                  be pressed are a screenful of nothing in the middle of the
-                  longest step, and on a narrow screen that is the difference
-                  between reaching the price field and giving up. They stay on
-                  desktop so the feature is not forgotten. */}
-              <div className="hidden space-y-2 rounded-2xl border border-line bg-surface-2 p-4 sm:block">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Button variant="secondary" type="button" disabled>
-                    <Sparkles className="h-4 w-4" aria-hidden="true" />
-                    <span>{t('owner.create.ai.writeCopy')}</span>
-                  </Button>
-                  <Button variant="secondary" type="button" disabled>
-                    <Sparkles className="h-4 w-4" aria-hidden="true" />
-                    <span>{t('owner.create.ai.suggestPrice')}</span>
-                  </Button>
-                </div>
-                <p className="text-xs font-medium text-subtle">
-                  {t('owner.create.ai.unavailable')}
-                </p>
-              </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field
@@ -1800,10 +1797,7 @@ export const CreateListingPage: React.FC = () => {
                       min={0}
                       step={100000}
                       value={price === '' ? '' : price}
-                      onChange={(event) => {
-                        numberHandler(setPrice, 'price')(event);
-                        invalidateScan();
-                      }}
+                      onChange={numberHandler(setPrice, 'price')}
                       placeholder={t('owner.create.details.pricePlaceholder')}
                     />
                   )}
@@ -1845,7 +1839,6 @@ export const CreateListingPage: React.FC = () => {
                       onChange={(event) => {
                         setRooms(event.target.value === '' ? '' : Number(event.target.value));
                         clearError('rooms');
-                        invalidateScan();
                       }}
                     >
                       {/* Disabled, so it can be shown as the unanswered state
@@ -2140,90 +2133,19 @@ export const CreateListingPage: React.FC = () => {
                 </p>
               )}
 
-              {/* The video card used to be a file picker whose only outcome was
-                  a toast saying files are not supported — so `videoUrl` could
-                  never become non-empty. The API stores an https link, so that
-                  is what this asks for. */}
-              <Card tone="nested" padding="none" className="space-y-3 p-4 sm:p-5">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-xs font-extrabold text-content">
-                    <Video className="h-4 w-4 text-danger" aria-hidden="true" />
-                    <span>{t('owner.create.photos.videoLabel')}</span>
-                  </span>
-                  <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-bold text-subtle">
-                    {t('common.state.optional')}
-                  </span>
-                </div>
-
-                <Field
-                  label={t('owner.create.photos.videoDropTitle')}
-                  hint={t('owner.create.photos.videoUploadUnsupported')}
-                  error={formErrors.videoUrl ? tRaw(formErrors.videoUrl) : undefined}
-                >
-                  {({ id, describedBy, invalid }) => (
-                    <TextInput
-                      id={id}
-                      aria-describedby={describedBy}
-                      invalid={invalid}
-                      type="url"
-                      inputMode="url"
-                      value={videoUrl}
-                      onChange={(event) => {
-                        setVideoUrl(event.target.value);
-                        clearError('videoUrl');
-                      }}
-                      placeholder="https://youtu.be/..."
-                    />
-                  )}
-                </Field>
-
-                {videoUrl.trim() !== '' && !formErrors.videoUrl && (
-                  <p className="flex items-center gap-1 text-[11px] font-bold text-brand-text">
-                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                    {t('owner.create.photos.videoUploaded')}
-                  </p>
-                )}
-              </Card>
-
-              {/* Photo-based condition and price analysis ran in the browser on
-                  a shared API key. The card stays so the feature is not lost
-                  silently; it turns back on when the server exposes it.
-
-                  Both panels are `Card tone="nested"` rather than two
-                  hand-typed strings: stacked directly on top of each other they
-                  had 24px and 16px corners, which is the accident Card was
-                  extracted to stop. The padding stays on the class list because
-                  neither of Card's presets is `p-4 sm:p-5`. */}
-              <Card tone="nested" padding="none" className="space-y-2 p-4 sm:p-5">
-                <p className="flex items-center gap-2 text-sm font-black text-content">
-                  <Sparkles className="h-5 w-5 text-brand" aria-hidden="true" />
-                  {t('owner.create.ai.photoTitle')}
+              {/* Contact used to be a step of its own. With the video card and
+                  the pre-publish check gone it was two optional boxes behind a
+                  "next" press, so it moved here: the last step now asks for
+                  the photos, who to ring, and nothing else. */}
+              <div className="min-w-0 border-t border-line pt-5">
+                <h3 className={headingClass}>
+                  <Phone className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
+                  {t('owner.create.contact.heading')}
+                </h3>
+                <p className="mt-0.5 text-xs text-subtle">
+                  {t('owner.create.contact.subheading')}
                 </p>
-                <p className="text-xs font-medium leading-relaxed text-muted">
-                  {t('owner.create.ai.photoBody')}
-                </p>
-                <p className="text-xs font-semibold text-subtle">
-                  {t('owner.create.ai.unavailable')}
-                </p>
-              </Card>
-            </section>
-          )}
-
-          {/* ---------------------------------------------------- STEP 4 --- */}
-          {step === 4 && (
-            <section className="space-y-6" aria-labelledby="owner-step-contact">
-              <header className="flex items-start justify-between gap-3 border-b border-line pb-3">
-                <div className="min-w-0">
-                  <h2 id="owner-step-contact" ref={headingRef} tabIndex={-1} className={headingClass}>
-                    <Phone className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
-                    {t('owner.create.contact.heading')}
-                  </h2>
-                  <p className="mt-0.5 text-xs text-subtle">
-                    {t('owner.create.contact.subheading')}
-                  </p>
-                </div>
-                {stepBadge}
-              </header>
+              </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {/* The API takes the phone number from the account, so this is a
@@ -2288,148 +2210,116 @@ export const CreateListingPage: React.FC = () => {
                 )}
               </Field>
 
-              {/* Moderation preview. Advisory about the wording, but binding on
-                  this button: a "blocked" card can no longer sit next to a
-                  submit that would have sent the listing anyway. */}
-              <div aria-live="polite">
-                {scanning ? (
-                  <div className="space-y-3 rounded-3xl border border-line bg-brand-soft p-6 text-center">
-                    <span
-                      className="mx-auto block h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent"
-                      aria-hidden="true"
-                    />
-                    <h3 className="text-base font-extrabold text-brand-text">
-                      {t('owner.create.moderation.scanning')}
-                    </h3>
-                    <p className="text-xs font-medium text-muted">
-                      {t('owner.create.moderation.scanningBody')}
+              {/*
+                The Top offer, in the place the pre-publish check used to sit.
+
+                It is a choice, not a gate: ticking it queues a request that is
+                sent once the listing exists, and leaving it alone publishes
+                exactly as before. Every button in here carries `type="button"`
+                — the panel is inside the <form>, so an unmarked one would
+                publish the listing instead of doing its own job.
+              */}
+              <Card tone="nested" padding="none" className="space-y-3 p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="flex items-center gap-2 text-sm font-black text-content">
+                    <Rocket className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
+                    {t('owner.create.top.title')}
+                  </p>
+                  <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-0.5 text-[10px] font-black text-brand-text">
+                    {t('owner.create.top.free')}
+                  </span>
+                </div>
+
+                <p className="text-xs font-medium leading-relaxed text-muted">
+                  {t('owner.create.top.body')}
+                </p>
+                <p className="text-xs font-medium leading-relaxed text-subtle">
+                  {t('owner.create.top.howItWorks')}
+                </p>
+
+                {topRequested ? (
+                  <div className="space-y-3">
+                    <p className="flex items-start gap-2 text-xs font-extrabold text-brand-text">
+                      <CheckCircle2 className="mt-px h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span>{t('owner.create.top.selected')}</span>
                     </p>
-                  </div>
-                ) : scan === null ? (
-                  <div className="space-y-4 rounded-3xl border border-line bg-surface-2 p-6 text-center">
-                    <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-info-soft text-info">
-                      <Sparkles className="h-6 w-6" aria-hidden="true" />
-                    </span>
-                    <div>
-                      <h3 className="text-base font-extrabold text-content">
-                        {t('owner.create.moderation.title')}
-                      </h3>
-                      <p className="mt-1 text-xs text-subtle">
-                        {t('owner.create.moderation.body')}
-                      </p>
-                    </div>
-                    <FormError message={scanError} />
-                    <Button
+                    <p className="text-[11px] font-medium leading-relaxed text-subtle">
+                      {t('owner.create.top.selectedBody')}
+                    </p>
+
+                    <fieldset className="space-y-1.5">
+                      <legend className="text-xs font-bold uppercase tracking-wider text-muted">
+                        {t('owner.create.top.daysLabel')}
+                      </legend>
+                      <div className="grid grid-cols-3 gap-2">
+                        {TOP_DAYS_OPTIONS.map((days) => (
+                          <button
+                            key={days}
+                            type="button"
+                            onClick={() => {
+                              setTopDays(days);
+                              haptics.select();
+                            }}
+                            aria-pressed={topDays === days}
+                            className={cn(
+                              'press flex min-h-11 items-center justify-center rounded-2xl border',
+                              'p-2.5 text-xs font-black transition-all',
+                              topDays === days
+                                ? 'border-brand bg-brand text-on-brand shadow-brand'
+                                : 'border-line bg-surface-2 text-content hover:bg-surface-3',
+                            )}
+                          >
+                            {t('owner.create.top.daysOption', { count: days })}
+                          </button>
+                        ))}
+                      </div>
+                    </fieldset>
+
+                    <Field label={t('owner.create.top.noteLabel')}>
+                      {({ id }) => (
+                        <TextInput
+                          id={id}
+                          value={topNote}
+                          maxLength={MAX_TOP_NOTE_LENGTH}
+                          onChange={(event) => setTopNote(event.target.value)}
+                          placeholder={t('owner.create.top.notePlaceholder')}
+                        />
+                      )}
+                    </Field>
+
+                    <button
                       type="button"
                       onClick={() => {
-                        void runScan();
+                        setTopRequested(false);
+                        haptics.tap();
                       }}
+                      className="press min-h-11 text-xs font-extrabold text-danger underline"
                     >
-                      <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                      {t('owner.create.moderation.runCta')}
-                    </Button>
-                  </div>
-                ) : scan.allowed ? (
-                  <div className="space-y-2 rounded-3xl border border-brand/40 bg-brand-soft p-5">
-                    <h3 className="flex items-center gap-2 text-base font-extrabold text-brand-text">
-                      <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
-                      {t('owner.create.moderation.passedTitle')}
-                    </h3>
-                    <p className="text-xs font-medium text-muted">
-                      {t('owner.create.moderation.passedBody')}
-                    </p>
-                    <p className="text-[11px] font-semibold text-subtle">
-                      {t('common.badge.trustScore', { score: formatNumber(scan.trustScore) })}
-                      {' · '}
-                      {t('owner.create.moderation.provider', { provider: scan.provider })}
-                    </p>
+                      {t('owner.create.top.cancel')}
+                    </button>
                   </div>
                 ) : (
-                  <div className="space-y-3 rounded-3xl border border-danger/30 bg-danger-soft p-5">
-                    <h3 className="flex items-center gap-2 text-base font-black text-danger">
-                      <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden="true" />
-                      {t('owner.create.moderation.blockedTitle')}
-                    </h3>
-                    <p className="text-xs font-medium text-muted">
-                      {t('owner.create.moderation.blockedBody')}
-                    </p>
-                    {scan.reasons.length > 0 && (
-                      <div className="space-y-1">
-                        <p className="text-xs font-extrabold text-content">
-                          {t('owner.create.moderation.reasonsTitle')}
-                        </p>
-                        <ul className="list-inside list-disc space-y-1 text-xs text-muted">
-                          {scan.reasons.map((reason) => (
-                            <li key={reason}>{reason}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    <p className="text-[11px] font-semibold text-subtle">
-                      {t('owner.create.moderation.riskScore', {
-                        score: formatNumber(scan.riskScore),
-                      })}
-                    </p>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <Button type="button" className="flex-1" onClick={() => setStep(2)}>
-                        {t('owner.create.moderation.editCta')}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="flex-1"
-                        onClick={() => {
-                          void runScan();
-                        }}
-                      >
-                        {t('owner.create.moderation.rerunCta')}
-                      </Button>
-                    </div>
-                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="press"
+                    onClick={() => {
+                      setTopRequested(true);
+                      haptics.select();
+                    }}
+                  >
+                    <Rocket className="h-4 w-4" aria-hidden="true" />
+                    <span>{t('owner.create.top.cta')}</span>
+                  </Button>
                 )}
-              </div>
-
-              {rejection && (
-                <div
-                  role="alert"
-                  className="space-y-3 rounded-3xl border border-danger/30 bg-danger-soft p-5"
-                >
-                  <h3 className="flex items-center gap-2 text-base font-black text-danger">
-                    <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden="true" />
-                    {t('owner.create.moderation.rejectedTitle')}
-                  </h3>
-                  <p className="text-xs font-medium text-muted">
-                    {t('owner.create.moderation.rejectedBody')}
-                  </p>
-                  {rejection.reasons.length > 0 && (
-                    <ul className="list-inside list-disc space-y-1 text-xs text-muted">
-                      {rejection.reasons.map((reason) => (
-                        <li key={reason}>{reason}</li>
-                      ))}
-                    </ul>
-                  )}
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <Button type="button" className="flex-1" onClick={() => setStep(2)}>
-                      {t('owner.create.moderation.editCta')}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="flex-1"
-                      onClick={() => setCurrentView('MY_LISTINGS')}
-                    >
-                      {t('owner.create.moderation.goToMyListings')}
-                    </Button>
-                  </div>
-                </div>
-              )}
+              </Card>
 
               <FormError message={submitError} />
             </section>
           )}
 
           {/*
-            One action row for all four steps.
+            One action row for all three steps.
 
             It follows the form down the page and parks itself just above the
             bottom navigation on a phone, which is where a thumb already is —
@@ -2461,18 +2351,18 @@ export const CreateListingPage: React.FC = () => {
                 <span>
                   {step === 1
                     ? t('owner.create.next.toDetails')
-                    : step === 2
-                      ? t('owner.create.next.toPhotos')
-                      : t('owner.create.next.toContact')}
+                    : t('owner.create.next.toPhotos')}
                 </span>
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Button>
             ) : (
+              // Only the payload cap can hold this button. Nothing about the
+              // Top request may ever stop a listing being published.
               <Button
                 type="submit"
                 className="press w-2/3"
-                loading={submitting || scanning}
-                disabled={payloadTooLarge || (scan !== null && !scan.allowed)}
+                loading={submitting}
+                disabled={payloadTooLarge}
               >
                 <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
                 <span>
@@ -2488,7 +2378,7 @@ export const CreateListingPage: React.FC = () => {
 
           There is no rail on a phone — the column stacks, so this advice sat
           between the last field and the bottom of the page on every one of the
-          four steps. Below `lg` it collapses to its header and opens on a tap;
+          steps. Below `lg` it collapses to its header and opens on a tap;
           from `lg` up the column exists, so the toggle is hidden and the body
           is always shown regardless of the toggle's state.
         */}
@@ -2605,6 +2495,49 @@ export const CreateListingPage: React.FC = () => {
         <p className="flex items-start gap-2 text-sm font-semibold text-muted">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
           <span>{t('owner.create.draft.saved')}</span>
+        </p>
+      </Sheet>
+
+      {/*
+        The Top confirmation, and the reason `window.alert` is not used for it:
+        an alert freezes the app behind it and cannot say two different things.
+
+        By the time this opens the listing is already published, so neither
+        branch may read as a failed publish — the failed one says the listing
+        is live in its first line and offers the request again from the
+        dashboard. Every way out of the sheet lands on My Listings.
+      */}
+      <Sheet
+        open={topOutcome !== null}
+        onClose={finishAfterTop}
+        title={
+          topOutcome === 'failed'
+            ? t('owner.create.top.failedTitle')
+            : t('owner.create.top.sentTitle')
+        }
+        description={
+          topOutcome === 'failed'
+            ? t('owner.create.top.failedBody')
+            : t('owner.create.top.sentBody')
+        }
+        size="sm"
+        footer={
+          <Button type="button" fullWidth className="press" onClick={finishAfterTop}>
+            {t('owner.create.top.sentCta')}
+          </Button>
+        }
+      >
+        <p className="flex items-start gap-2 text-sm font-semibold text-muted">
+          {topOutcome === 'failed' ? (
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+          ) : (
+            <Rocket className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+          )}
+          <span>
+            {topOutcome === 'failed'
+              ? t('owner.my.top.failed')
+              : t('owner.create.top.howItWorks')}
+          </span>
         </p>
       </Sheet>
     </div>

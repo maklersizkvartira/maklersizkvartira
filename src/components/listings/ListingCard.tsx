@@ -31,7 +31,6 @@ import {
   Sparkles,
   Train,
   Users,
-  Video,
 } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
@@ -315,9 +314,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
       </button>
 
       {/* The count pill said "5" and did nothing. Dots say the same number,
-          say which one you are on, and are the control for getting there.
-          Drawn before the video badge so the scrim behind them does not wash
-          over it. */}
+          say which one you are on, and are the control for getting there. */}
       {hasPhoto && images.length > 1 && (
         <div
           role="group"
@@ -352,15 +349,6 @@ export const ListingCard: React.FC<ListingCardProps> = ({
           ))}
         </div>
       )}
-
-      {/* Bottom-right media hints */}
-      <div className="absolute bottom-2 right-2 flex gap-1.5">
-        {listing.videoUrl && (
-          <span className="rounded-md bg-black/70 p-1.5 text-white" title={t('listings.amenities.video')}>
-            <Video className="h-3 w-3" aria-hidden="true" />
-          </span>
-        )}
-      </div>
     </div>
   );
 
@@ -375,7 +363,10 @@ export const ListingCard: React.FC<ListingCardProps> = ({
         </p>
         <span
           className={`inline-flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-0.5 sm:px-2 sm:py-1 text-[9px] sm:text-[10px] font-black ${trust.className}`}
-          title={t('common.badge.trustScore', { score: listing.trustScore })}
+          /* The bare number plus an icon is the whole explanation here, so the
+             hover text has to carry the meaning: the figure starts at 100 and
+             only a confirmed complaint moves it. Nothing about it is a scan. */
+          title={t('listings.detail.trustTooltip', { score: listing.trustScore })}
         >
           <ShieldCheck className="h-2.5 w-2.5 sm:h-3 sm:w-3" aria-hidden="true" />
           {listing.trustScore}
@@ -427,7 +418,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
           optional metro line and the closing row leave under ten pixels of
           slack at 144. A second meta line costs ~21px, so on a narrow phone a
           listing that has rooms AND area AND district AND a metro station
-          pushed the closing row — the no-commission badge and the age of the
+          pushed the closing row — the direct-contact badge and the age of the
           listing — out through the bottom edge, where the clip silently ate
           it. This is the same call the title makes two rows up and for the
           same reason: in the list variant a row that can grow is a row that
@@ -476,7 +467,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
 
       <div className="mt-auto flex items-center justify-between gap-2 pt-1">
         <span className="inline-flex items-center gap-1 rounded-md bg-brand-soft px-1.5 py-0.5 text-[9px] sm:text-[10px] font-black text-brand-text">
-          {t('common.badge.noCommission')}
+          {t('listings.card.directContact')}
         </span>
         <span className="text-[10px] sm:text-[11px] text-subtle">
           {listing.createdAt ? formatRelativeTime(listing.createdAt) : null}

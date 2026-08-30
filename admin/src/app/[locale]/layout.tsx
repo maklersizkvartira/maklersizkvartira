@@ -5,11 +5,11 @@ import "../globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: 'Maklersiz Admin',
-    template: '%s | Maklersiz Admin',
+    default: 'Uyiz Admin',
+    template: '%s | Uyiz Admin',
   },
   description:
-    "Maklersiz uy ijara platformasi uchun boshqaruv paneli: eʼlonlar moderatsiyasi, foydalanuvchilar va tizim jurnallari.",
+    "Uyiz ijara platformasi uchun boshqaruv paneli: eʼlonlar moderatsiyasi, foydalanuvchilar va tizim jurnallari.",
   icons: { icon: '/brand/favicon.ico' },
   // A staff-only console has nothing to gain from search traffic and plenty to
   // lose: listing IDs and usernames leak through indexed URLs. vercel.json

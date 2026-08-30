@@ -8,7 +8,7 @@ Why the OTP path uses the provider's own templates
 --------------------------------------------------
 DevSMS forwards to Eskiz, and Eskiz will not deliver arbitrary text: a message
 has to match a template that was submitted and approved in advance. A hand
-written "Maklersiz.uz ro'yxatdan o'tish kodi: 1234" is refused, which is a
+written "Uyiz ro'yxatdan o'tish kodi: 1234" is refused, which is a
 particularly bad failure because it happens per message, silently, and only
 for real users — never in a test that stubs the provider out.
 
@@ -44,24 +44,24 @@ _TIMEOUT = httpx.Timeout(15.0, connect=5.0)
 #: Message text per language, for non-OTP sends and for part estimation.
 TEMPLATES: dict[str, dict[str, str]] = {
     "otp_register": {
-        "uz": "Maklersiz.uz ro‘yxatdan o‘tish kodi: {code}. Hech kimga bermang.",
-        "ru": "Код регистрации Maklersiz.uz: {code}. Никому не сообщайте.",
-        "en": "Your Maklersiz.uz registration code: {code}. Do not share it.",
+        "uz": "Uyiz ro‘yxatdan o‘tish kodi: {code}. Hech kimga bermang.",
+        "ru": "Код регистрации Uyiz: {code}. Никому не сообщайте.",
+        "en": "Your Uyiz registration code: {code}. Do not share it.",
     },
     "otp_login": {
-        "uz": "Maklersiz.uz kirish kodi: {code}. Hech kimga bermang.",
-        "ru": "Код входа Maklersiz.uz: {code}. Никому не сообщайте.",
-        "en": "Your Maklersiz.uz sign-in code: {code}. Do not share it.",
+        "uz": "Uyiz kirish kodi: {code}. Hech kimga bermang.",
+        "ru": "Код входа Uyiz: {code}. Никому не сообщайте.",
+        "en": "Your Uyiz sign-in code: {code}. Do not share it.",
     },
     "otp_password_reset": {
-        "uz": "Maklersiz.uz parolni tiklash kodi: {code}. Hech kimga bermang.",
-        "ru": "Код сброса пароля Maklersiz.uz: {code}. Никому не сообщайте.",
-        "en": "Your Maklersiz.uz password reset code: {code}. Do not share it.",
+        "uz": "Uyiz parolni tiklash kodi: {code}. Hech kimga bermang.",
+        "ru": "Код сброса пароля Uyiz: {code}. Никому не сообщайте.",
+        "en": "Your Uyiz password reset code: {code}. Do not share it.",
     },
     "otp_phone_change": {
-        "uz": "Maklersiz.uz raqam tasdiqlash kodi: {code}.",
-        "ru": "Код подтверждения номера Maklersiz.uz: {code}.",
-        "en": "Your Maklersiz.uz phone verification code: {code}.",
+        "uz": "Uyiz raqam tasdiqlash kodi: {code}.",
+        "ru": "Код подтверждения номера Uyiz: {code}.",
+        "en": "Your Uyiz phone verification code: {code}.",
     },
 }
 

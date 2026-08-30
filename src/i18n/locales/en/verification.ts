@@ -30,7 +30,7 @@ export const verification = {
     beforeTag: 'Standard',
     beforeOwner: 'Owner: Dilshod',
     beforeTrust: 'Trust score: {score}',
-    beforeConBadge: 'No badge — tenants may suspect a broker',
+    beforeConBadge: 'No badge — tenants trust the listing less',
     beforeConRank: 'Appears lower in search results',
     afterLabel: 'Verified, trusted listing',
     afterHint: '3x more enquiries',
@@ -180,7 +180,7 @@ export const verification = {
 
   checker: {
     title: 'Check a phone number for trustworthiness',
-    subtitle: 'To see whether a number belongs to a real owner or to a broker.',
+    subtitle: 'To see whether a number belongs to a verified user.',
     placeholder: '+998 90 123 45 67',
     submit: 'Check',
     unavailable:

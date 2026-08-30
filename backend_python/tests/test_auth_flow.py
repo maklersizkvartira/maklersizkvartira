@@ -156,8 +156,12 @@ async def test_token_signed_with_another_secret_is_rejected(client, unique_phone
             "sid": user_id,
             "exp": 9_999_999_999,
             "iat": 1_700_000_000,
-            "iss": "maklersiz.uz",
-            "aud": "maklersiz.uz/api",
+            # The claims a real token carries, so the ONLY thing wrong with
+            # this one is the signing secret. Keep them in step with
+            # app/core/tokens.py or the test starts passing for the wrong
+            # reason and stops covering signature forgery.
+            "iss": "uyiz.uz",
+            "aud": "uyiz.uz/api",
         },
         "an-attacker-chosen-secret",
         algorithm="HS256",

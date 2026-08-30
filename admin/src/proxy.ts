@@ -5,7 +5,7 @@ import { routing } from './i18n/routing';
 
 const intlMiddleware = createMiddleware(routing);
 
-// The maklersiz admin API has no staff self-registration and no admin password
+// The Uyiz admin API has no staff self-registration and no admin password
 // reset — an account is created by a superadmin and its password is set there —
 // so /login is the only unauthenticated page left.
 const PUBLIC_PATHS = ['/login', '/api/auth'];

@@ -3,7 +3,7 @@
 import { type ReactNode } from 'react';
 
 /**
- * Maps maklersiz status enums to the .badge-* palette in globals.css.
+ * Maps Uyiz status enums to the .badge-* palette in globals.css.
  *
  * The backend sends these SCREAMING_CASE; keys are matched case-insensitively
  * so a lowercased value from a filter dropdown lands on the same colour as the

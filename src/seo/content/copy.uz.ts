@@ -4,7 +4,7 @@
  * Two rules the text here follows, and the reason for each:
  *
  *  - A page says what it is once, in the language people search in, and then
- *    spends the rest of its words being useful. Repeating "maklersiz kvartira
+ *    spends the rest of its words being useful. Repeating "kvartira ijarasi
  *    Toshkent" six times is what keyword stuffing looks like, and Google has
  *    been demoting it since 2011.
  *  - Nothing claims a number the platform cannot prove. There is no "10 000
@@ -16,7 +16,7 @@ import { UZ_ARTICLES, UZ_HELP } from './articles.uz';
 import { UZ_DISTRICT_PROFILES, UZ_REGION_PROFILES } from './places.uz';
 import type { CategoryWords, CopyPack, FaqEntry, PlaceProfile, PlaceWords } from './types';
 
-const SUFFIX = ' | Maklersizuy.uz';
+const SUFFIX = ' | Uyiz.uz';
 
 /** `Samarqand sh.` is how it is stored; `Samarqand shahri` is how it reads. */
 export function displayPlaceName(name: string): string {
@@ -52,7 +52,7 @@ const CATEGORIES: Record<string, CategoryWords> = {
     noun: 'kvartira',
     plural: 'kvartiralar',
     label: 'Kvartira ijarasi',
-    headline: 'maklersiz kvartira ijarasi',
+    headline: 'kvartira ijarasi',
     blurb:
       'Ko‘p qavatli uylardagi alohida kvartiralar — oila, juftlik yoki yolg‘iz yashovchi uchun.',
   },
@@ -60,28 +60,28 @@ const CATEGORIES: Record<string, CategoryWords> = {
     noun: 'uy',
     plural: 'uylar',
     label: 'Uy ijarasi',
-    headline: 'maklersiz uy ijarasi',
+    headline: 'uy ijarasi',
     blurb: 'Hovlili uylar va yakka tartibdagi turar joylar — ko‘proq joy va alohida kirish.',
   },
   room: {
     noun: 'xona',
     plural: 'xonalar',
     label: 'Xona ijarasi',
-    headline: 'maklersiz xona ijarasi',
+    headline: 'xona ijarasi',
     blurb: 'Umumiy kvartiradagi alohida xona — eng arzon va eng tez topiladigan variant.',
   },
   studio: {
     noun: 'studiya',
     plural: 'studiyalar',
     label: 'Studiya ijarasi',
-    headline: 'maklersiz studiya ijarasi',
+    headline: 'studiya ijarasi',
     blurb: 'Yotoq va oshxona bir xonada — yolg‘iz yashovchi va yosh juftliklar uchun.',
   },
   roommate: {
     noun: 'sherikchilik',
     plural: 'sherikchilik e’lonlari',
     label: 'Sheriklikka ijara',
-    headline: 'sheriklikka maklersiz ijara',
+    headline: 'sheriklikka ijara',
     blurb:
       'Ijara haqini bo‘lishib to‘laydigan sherik izlayotganlar uchun. Jins bo‘yicha alohida tanlash bor.',
   },
@@ -89,7 +89,7 @@ const CATEGORIES: Record<string, CategoryWords> = {
     noun: 'talabalar uchun uy',
     plural: 'talabalar uchun uylar',
     label: 'Talabalar uchun ijara',
-    headline: 'talabalar uchun maklersiz ijara',
+    headline: 'talabalar uchun ijara',
     blurb:
       'Universitetga yaqin, yotoqxonaga muqobil bo‘ladigan narxdagi uylar va sherikchilik.',
   },
@@ -97,21 +97,28 @@ const CATEGORIES: Record<string, CategoryWords> = {
     noun: 'oilaviy kvartira',
     plural: 'oilaviy kvartiralar',
     label: 'Oilalar uchun ijara',
-    headline: 'oilalar uchun maklersiz ijara',
+    headline: 'oilalar uchun ijara',
     blurb: 'Ikki va undan ortiq xonali, uzoq muddatga topshiriladigan turar joylar.',
   },
   budget: {
     noun: 'arzon ijara',
     plural: 'arzon variantlar',
     label: 'Arzon ijara',
-    headline: 'arzon maklersiz ijara',
+    headline: 'arzon ijara',
     blurb: 'Oyiga 3 million so‘mgacha bo‘lgan e’lonlar, narx bo‘yicha saralangan.',
   },
 };
 
-const NO_BROKER_LINE =
-  'Bu yerdagi har bir e’lonni uy egasining o‘zi joylaydi: siz bilan gaplashadigan odam ham o‘sha. '
-  + 'Vositachilik haqi yo‘q, komissiya 0%.';
+/**
+ * The one sentence every landing page's first paragraph ends with.
+ *
+ * It describes how the marketplace works — the number is in the advert and the
+ * two sides talk to each other — and deliberately says nothing about who the
+ * other side is. Uy egasi ham, agentlik ham e’lon joylaydi.
+ */
+const MARKETPLACE_LINE =
+  'Har bir e’londa telefon raqam ochiq: kelishuvni e’lon beruvchi bilan '
+  + 'to‘g‘ridan-to‘g‘ri o‘zingiz qilasiz.';
 
 function placeIntro(
   place: PlaceWords,
@@ -121,8 +128,8 @@ function placeIntro(
 ): string[] {
   const what = category ? category.plural : 'uy va kvartiralar';
   const paragraphs: string[] = [
-    `${place.inPlace} ijaraga beriladigan ${what} — to‘g‘ridan-to‘g‘ri uy egalaridan. `
-      + NO_BROKER_LINE,
+    `${place.inPlace} ijaraga beriladigan ${what} — bitta ro‘yxatda. `
+      + MARKETPLACE_LINE,
   ];
 
   if (profile?.about) paragraphs.push(profile.about);
@@ -136,9 +143,9 @@ function placeIntro(
   }
 
   paragraphs.push(
-    'Har bir e’lon joylanishidan oldin avtomatik tekshiruvdan o‘tadi: takroriy rasm, makler '
-      + 'uslubidagi matn va real bo‘lmagan narx belgilanadi. Shubhali e’lonni bir bosishda '
-      + 'shikoyat qilib qoldirishingiz mumkin.',
+    'Har bir e’londa ishonchlilik foizi ko‘rsatiladi. Shikoyat kelib, moderator uni '
+      + 'tasdiqlasa, foiz pasayadi — shubhali e’lonni bir bosishda belgilab qoldirishingiz '
+      + 'mumkin.',
   );
 
   return paragraphs;
@@ -148,11 +155,11 @@ function placeFaq(place: PlaceWords, category: CategoryWords | null): FaqEntry[]
   const what = category ? category.noun : 'uy';
   return [
     {
-      q: `${place.inPlace} maklersiz ${what} qanday topiladi?`,
+      q: `${place.inPlace} ${what} qanday topiladi?`,
       a:
-        `Ushbu sahifadagi e’lonlarning barchasi uy egalarining o‘zi tomonidan joylangan. `
-        + `Sizga yoqqanini oching, telefon raqamni ko‘ring va to‘g‘ridan-to‘g‘ri qo‘ng‘iroq qiling. `
-        + `Oraliqda hech kim turmaydi va hech kimga foiz to‘lamaysiz.`,
+        `Yuqoridagi ro‘yxatni narx, xonalar soni va hudud bo‘yicha filtrlang. `
+        + `Sizga yoqqan e’lonni oching, telefon raqamni ko‘ring va e’lon beruvchining `
+        + `o‘ziga qo‘ng‘iroq qiling.`,
     },
     {
       q: `${place.inPlace} ijara narxi qancha turadi?`,
@@ -164,14 +171,15 @@ function placeFaq(place: PlaceWords, category: CategoryWords | null): FaqEntry[]
     {
       q: 'Komissiya yoki xizmat haqi bormi?',
       a:
-        'Yo‘q. Platformadan foydalanish ijarachi uchun ham, uy egasi uchun ham bepul. '
-        + 'Agar kimdir sizdan "sayt uchun" pul so‘rasa, bu makler — e’lonni shikoyat qiling.',
+        'Platformadan foydalanish bepul: qidiruv, e’lon ko‘rish va e’lon joylash uchun haq '
+        + 'olinmaydi. Kelishuv shartlari e’lon beruvchi bilan sizning o‘rtangizda hal '
+        + 'qilinadi.',
     },
     {
       q: 'E’lon haqiqiyligiga qanday ishonch hosil qilaman?',
       a:
-        'Uy egasining ishonch reytingi va tasdiqlash darajasi har bir e’londa ko‘rsatilgan. '
-        + 'Pasport va kadastr hujjati tekshirilgan e’lonlar alohida belgi oladi. '
+        'E’lon beruvchining ishonchlilik foizi va tasdiqlash darajasi har bir e’londa '
+        + 'ko‘rsatilgan. Pasport va kadastr hujjati tekshirilgan e’lonlar alohida belgi oladi. '
         + 'Uyni ko‘rmasdan turib oldindan pul o‘tkazmang.',
     },
   ];
@@ -182,12 +190,11 @@ export const UZ_COPY: CopyPack = {
   ogLocale: 'uz_UZ',
 
   brand: {
-    name: 'Maklersiz Uy',
-    tagline: 'Uy egasidan to‘g‘ridan-to‘g‘ri, 0% komissiya',
+    name: 'Uyiz',
+    tagline: 'O‘zbekistondagi uy-joy ijarasi platformasi',
     about:
-      'Maklersiz Uy — O‘zbekistonda uy va kvartirani vositachisiz, to‘g‘ridan-to‘g‘ri '
-      + 'egasidan ijaraga olish platformasi. Har bir e’lon avtomatik tekshiruvdan o‘tadi, '
-      + 'komissiya olinmaydi.',
+      'Uyiz — O‘zbekistonda uy, kvartira va xona ijarasi uchun e’lonlar platformasi. '
+      + 'E’lonlar hudud, narx va xonalar soni bo‘yicha filtrlanadi.',
   },
 
   common: {
@@ -235,42 +242,43 @@ export const UZ_COPY: CopyPack = {
   country: { name: 'O‘zbekiston', short: 'O‘zbekiston', inPlace: 'O‘zbekistonda' },
 
   home: {
-    title: `Maklersiz uy va kvartira ijarasi${SUFFIX}`,
+    title: `Kvartira va uy ijarasi O‘zbekistonda${SUFFIX}`,
     description:
-      'Uy egasidan to‘g‘ridan-to‘g‘ri, maklersiz ijara. O‘zbekiston bo‘ylab tekshirilgan '
-      + 'kvartira, uy va xona e’lonlari. Komissiya 0%.',
-    h1: 'Maklersiz uy va kvartira ijarasi',
+      'Uyiz — O‘zbekiston bo‘ylab kvartira, uy va xona ijarasi e’lonlari. Hudud, narx, '
+      + 'xonalar soni va metro bekati bo‘yicha filtrlab, o‘zingizga mosini toping.',
+    h1: 'O‘zbekistonda uy va kvartira ijarasi',
     intro: [
-      'Maklersiz Uy uy egasi bilan ijarachini to‘g‘ridan-to‘g‘ri bog‘laydi. '
-        + 'E’lonni uyning egasi joylaydi, raqamni siz ko‘rasiz, kelishuvni ikkovingiz qilasiz — '
-        + 'oraliqda vositachi ham, uning foizi ham yo‘q.',
+      'Uyiz — O‘zbekistondagi ijara e’lonlari platformasi. E’lonni uy egasi ham, agentlik '
+        + 'ham joylashi mumkin; telefon raqam e’londa ochiq va kelishuvni tomonlar o‘zaro '
+        + 'qiladi.',
       'Kvartira, hovlili uy, studiya, alohida xona va sheriklikka joy — barchasi bitta joyda. '
         + 'Tuman, metro bekati, universitetga yaqinlik va narx bo‘yicha filtrlab, o‘zingizga '
         + 'to‘g‘ri keladiganini toping.',
-      'Har bir e’lon joylanishidan oldin avtomatik tekshiruvdan o‘tadi: takroriy rasmlar, '
-        + 'makler uslubidagi matn va bozorga mos kelmaydigan narx belgilanadi. Uy egalari '
-        + 'pasport va mulk hujjatini tasdiqlab, ishonch reytingini oshirishi mumkin.',
+      'Har bir e’londa ishonchlilik foizi ko‘rsatiladi: shikoyat kelib, moderator uni '
+        + 'tasdiqlasa, foiz pasayadi. E’lon beruvchilar pasport va mulk hujjatini tasdiqlab, '
+        + 'alohida belgi olishi mumkin.',
     ],
     faq: [
       {
-        q: 'Maklersiz uy topish nimani anglatadi?',
+        q: 'Uyiz nima?',
         a:
-          'E’lonni uyning egasi joylaydi va u bilan siz bevosita gaplashasiz. '
-          + 'Vositachi bo‘lmagani uchun bir oylik ijara haqiga teng keladigan komissiya to‘lamaysiz, '
-          + 'uy haqidagi savollarga esa haqiqiy javob olasiz.',
+          'Uyiz — O‘zbekiston bo‘ylab uy, kvartira va xona ijarasi e’lonlari to‘planadigan '
+          + 'platforma. E’lonni ko‘rasiz, telefon raqamni olasiz va kelishuvni e’lon beruvchi '
+          + 'bilan o‘zingiz qilasiz.',
       },
       {
         q: 'Saytdan foydalanish pulikmi?',
         a:
           'Yo‘q. Qidirish, e’lon ko‘rish, raqam olish va e’lon joylash — hammasi bepul. '
-          + 'Xizmat haqi so‘ragan har qanday odam makler hisoblanadi va shikoyat qilinishi kerak.',
+          + 'Platforma nomidan pul so‘ragan har qanday odam qoidabuzar hisoblanadi va shikoyat '
+          + 'qilinishi kerak.',
       },
       {
-        q: 'Maklerlar e’lon joylay olmaydimi?',
+        q: 'E’lonni kim joylay oladi?',
         a:
-          'Urinishlari bo‘ladi. Shuning uchun har bir e’lon matni va rasmlari avtomatik '
-          + 'tahlildan o‘tadi, uy egasi esa pasport va kadastr hujjatini tasdiqlashi mumkin. '
-          + 'Shubhali e’lonni foydalanuvchilar bir bosishda belgilaydi va moderator ko‘rib chiqadi.',
+          'Uy egasi ham, professional agentlik ham. Har bir e’londa uni kim joylagani va qay '
+          + 'darajada tasdiqlangani ko‘rinadi, shuning uchun qo‘ng‘iroq qilishdan oldin kim bilan '
+          + 'gaplashishingizni bilasiz.',
       },
       {
         q: 'Qaysi shaharlarda ishlaydi?',
@@ -282,17 +290,17 @@ export const UZ_COPY: CopyPack = {
         q: 'Uy egasi bo‘lsam, e’lonni qanday joylayman?',
         a:
           'Ro‘yxatdan o‘ting, telefon raqamingizni tasdiqlang va "E’lon berish" tugmasini bosing. '
-          + 'Rasm, narx va manzilni kiritganingizdan so‘ng e’lon tekshiruvdan o‘tib chop etiladi. '
-          + 'Bu ham bepul.',
+          + 'Kamida bitta rasm, narx va manzilni kiritganingizdan so‘ng e’lon darhol chop '
+          + 'etiladi. Bu ham bepul.',
       },
     ],
   },
 
   catalog: {
-    title: `Barcha ijara e’lonlari — maklersiz${SUFFIX}`,
+    title: `Barcha ijara e’lonlari${SUFFIX}`,
     description:
-      'O‘zbekiston bo‘ylab barcha maklersiz ijara e’lonlari. Tuman, narx, xonalar soni va '
-      + 'metro bekati bo‘yicha filtrlang.',
+      'O‘zbekiston bo‘ylab barcha faol ijara e’lonlari: kvartira, uy, xona va studiya. '
+      + 'Tuman, narx, xonalar soni va metro bekati bo‘yicha filtrlang.',
     h1: 'Barcha ijara e’lonlari',
     intro: [
       'Platformadagi barcha faol e’lonlar shu yerda. Filtrlar yordamida tumanni, narx '
@@ -301,30 +309,32 @@ export const UZ_COPY: CopyPack = {
   },
 
   landing: {
+    // A category page names no place, so the country carries the search
+    // intent instead: "Kvartira ijarasi" on its own is too thin to rank.
     categoryTitle: (category) =>
-      `${category.headline.charAt(0).toUpperCase()}${category.headline.slice(1)}${SUFFIX}`,
+      `${category.headline.charAt(0).toUpperCase()}${category.headline.slice(1)}`
+      + ` — O‘zbekiston${SUFFIX}`,
     categoryDescription: (category) =>
-      `${category.blurb} Uy egasidan to‘g‘ridan-to‘g‘ri, komissiyasiz. `
-      + `O‘zbekiston bo‘ylab tekshirilgan e’lonlar.`,
+      `${category.blurb} O‘zbekiston bo‘ylab e’lonlar — narx va hudud bo‘yicha filtrlang.`,
     categoryH1: (category) =>
       `${category.headline.charAt(0).toUpperCase()}${category.headline.slice(1)}`,
     categoryIntro: (category) => [
-      `${category.blurb} ${NO_BROKER_LINE}`,
+      `${category.blurb} ${MARKETPLACE_LINE}`,
       'Quyidagi ro‘yxat real vaqtda yangilanadi. Hududni tanlang yoki narx bo‘yicha saralang — '
         + 'kerakli variantni tezroq topasiz.',
     ],
 
-    regionTitle: (place) => `${place.inPlace} maklersiz ijara${SUFFIX}`,
+    regionTitle: (place) => `${place.inPlace} uy va kvartira ijarasi${SUFFIX}`,
     regionDescription: (place) =>
-      `${place.inPlace} uy egalaridan to‘g‘ridan-to‘g‘ri ijaraga beriladigan kvartira, uy va `
-      + `xonalar. Vositachisiz, komissiya 0%.`,
-    regionH1: (place) => `${place.inPlace} maklersiz uy-joy ijarasi`,
+      `${place.inPlace} ijaraga beriladigan kvartira, uy va xonalar. Narx, xonalar soni, `
+      + `metro bekati va qulayliklar bo‘yicha filtrlab toping.`,
+    regionH1: (place) => `${place.inPlace} uy-joy ijarasi`,
 
     placeCategoryTitle: (place, category) =>
       `${place.inPlace} ${category.headline}${SUFFIX}`,
     placeCategoryDescription: (place, category) =>
-      `${place.inPlace} ijaraga beriladigan ${category.plural}. `
-      + `Uy egasidan to‘g‘ridan-to‘g‘ri, maklersiz va komissiyasiz.`,
+      `${place.inPlace} ijaraga beriladigan ${category.plural}. Narx, xonalar soni va metro `
+      + `bekati bo‘yicha filtrlang, e’lon beruvchi bilan bog‘laning.`,
     placeCategoryH1: (place, category) => `${place.inPlace} ${category.headline}`,
 
     placeIntro,
@@ -333,19 +343,19 @@ export const UZ_COPY: CopyPack = {
 
   views: {
     map: {
-      title: `Xaritada maklersiz uy va kvartiralar${SUFFIX}`,
+      title: `Xaritada ijara e’lonlari${SUFFIX}`,
       description:
-        'Ijaraga beriladigan uy va kvartiralarni xaritada ko‘ring: qaysi ko‘chada, '
-        + 'metroga qancha yaqin. Barchasi uy egalaridan, komissiyasiz.',
+        'Ijaraga beriladigan uy va kvartiralarni xaritada ko‘ring: qaysi ko‘chada '
+        + 'joylashgan va metro bekatiga qancha yaqin ekani darhol ko‘rinadi.',
     },
     studentProgram: {
       title: `Talabalar uchun ijara dasturi${SUFFIX}`,
       description:
         'Universitetga yaqin, yotoqxonaga muqobil narxdagi uylar va sheriklik. '
-        + 'Talabalar uchun alohida shartlar, maklersiz.',
+        + 'Talabalar uchun alohida shartlar va filtrlar.',
     },
     ecosystem: {
-      title: `Maklersiz Uy ekotizimi — nima ustida ishlayapmiz${SUFFIX}`,
+      title: `Uyiz ekotizimi — nima ustida ishlayapmiz${SUFFIX}`,
       description:
         'Platformaning keyingi bosqichlari: tekshiruv, shartnoma, to‘lov va uy egasi '
         + 'uchun asboblar. Qaysi biri tayyor, qaysi biri yo‘lda.',
@@ -367,7 +377,7 @@ export const UZ_COPY: CopyPack = {
         district ? displayPlaceName(district) : null,
         price,
       ].filter(Boolean);
-      return `${bits.join(' · ')}. ${title}. Maklersiz, uy egasidan to‘g‘ridan-to‘g‘ri.`.slice(
+      return `${bits.join(' · ')}. ${title}. Uyiz — ijara e’lonlari.`.slice(
         0,
         300,
       );

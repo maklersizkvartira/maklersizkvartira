@@ -1,6 +1,8 @@
 README-6 — DATABASE & ADMIN PANEL SYSTEM
 
-Project: Maklersiz.uz
+> **Tarixiy hujjat.** Bu spetsifikatsiya loyiha hali Maklersiz.uz deb atalgan paytda yozilgan; hozirgi mahsulot [`README.md`](./README.md) da tasvirlangan va nizo bo‘lsa README.md ustun turadi.
+
+Project: Uyiz.uz
 Purpose: Database architecture, admin panel, moderation, analytics, operations and platform management.
 
 1. MAQSAD
@@ -158,11 +160,11 @@ ownerType
 INDIVIDUAL
 BUSINESS
 
-Maklerlik ehtimoli alohida:
+E‘lonning ishonch foizi alohida:
 
-brokerRiskScore
+trustScore
 
-orqali saqlanishi mumkin.
+orqali saqlanadi. U 100 dan boshlanadi va faqat admin tasdiqlagan shikoyatlar orqali tushadi (qarang: 80-bo‘lim).
 
 8. PROPERTY
 properties
@@ -1354,7 +1356,7 @@ imkoniyatlariga ega bo‘lishi kerak.
 
 79. FINAL VISION
 
-Maklersiz.uz admin paneli oddiy CMS emas.
+Uyiz.uz admin paneli oddiy CMS emas.
 
 U:
 
@@ -1369,3 +1371,66 @@ SEE → ANALYZE → DECIDE → ACT → MEASURE
 modeli orqali boshqara olishi kerak.
 
 Platforma kattalashgan sari yangi funksiyalar qo‘shilishi mumkin, lekin database va admin architecture qayta yozilishga majbur qiladigan darajada qattiq bog‘lanmagan bo‘lishi kerak.
+
+
+80. TOP SO‘ROVLARI (rebrand bilan qo‘shilgan)
+
+Admin panelda yangi navbat: **Top so‘rovlari**.
+
+E‘lon egasi e‘lonini ko‘tarishni so‘raydi — bu bepul va avtomatik emas.
+Tugma bosilganda foydalanuvchiga "so‘rov yuborildi" deb aytiladi va e‘londa
+hech narsa o‘zgarmaydi. Faqat admin tasdiqlagandan keyin e‘lon haqiqatan
+ko‘tariladi.
+
+top_requests jadvali:
+
+id
+listingId
+ownerId
+requestedDays
+note
+status            PENDING | APPROVED | REJECTED
+rejectionReason
+grantedDays
+grantedWeight
+grantedUntil
+reviewedAt
+reviewedById
+createdAt
+
+Admin ro‘yxatda ko‘radi: e‘lon sarlavhasi, tumani, narxi, bitta rasmi,
+hozir Top holatidami, egasining ismi va telefoni, so‘ralgan kun soni va izohi.
+
+Admin ikki tugma:
+
+TASDIQLASH  -> e‘longa is_featured = true, promotion_weight (odatda 100) va
+               featured_until = hozir + kun soni yoziladi
+
+RAD ETISH   -> faqat sabab yoziladi, e‘lon o‘zgarmaydi
+
+Bir marta ko‘rilgan so‘rovni qayta ko‘rib bo‘lmaydi. Minimal rol:
+MODERATOR. Dashboardda kutayotgan so‘rovlar soni ko‘rsatiladi.
+
+---
+
+81. SHIKOYATNI TASDIQLASH ISHONCH FOIZINI TUSHIRADI
+
+Shikoyat statusi ikki xil ma‘noni bildiradi va bu admin paneldagi yorliqlarda
+uch tilda ham aniq yozilishi kerak:
+
+RESOLVED   -> admin shikoyatni TASDIQLADI (shikoyat asosli)
+REJECTED   -> admin shikoyatni RAD ETDI (asossiz)
+
+Faqat RESOLVED e‘lonning ishonch foizini tushiradi. Foiz ayirilmaydi — status
+yozilgandan keyin noldan qayta hisoblanadi:
+
+trust_score = max(10, 100 - shu e‘lonning barcha RESOLVED shikoyatlari
+                  jarimalari yig‘indisi)
+
+CRITICAL 25, HIGH 15, MEDIUM 10, LOW 5.
+
+Shuning uchun tasdiqni bekor qilish (RESOLVED -> REJECTED) foizni o‘z joyiga
+qaytaradi, va bir shikoyatni ikki marta yopish foizni ikki marta tushirmaydi.
+
+risk_score = 100 - trust_score. U alohida o‘lchanmaydi, faqat admin filtri va
+saralashi ishlashda davom etishi uchun saqlanadi.

@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "Maklersiz Admin",
+    "appName": "Uyiz Admin",
     "loading": "Загрузка...",
     "save": "Сохранить",
     "cancel": "Отмена",
@@ -72,6 +72,7 @@
     "moderation": "Модерация",
     "listings": "Объявления",
     "reports": "Жалобы",
+    "topRequests": "Заявки на Топ",
     "verifications": "Верификации",
     "people": "Люди",
     "users": "Пользователи",
@@ -80,7 +81,7 @@
     "audit": "Все действия",
     "security": "Безопасность",
     "sms": "Журнал SMS",
-    "ai": "Shield AI",
+    "ai": "Uyiz AI",
     "settings": "Настройки",
     "overview": "Обзор",
     "signOut": "Выйти",
@@ -181,6 +182,7 @@
       "totalViews": "Просмотров",
       "openReports": "Открытых жалоб",
       "pendingVerifications": "Ожидают верификации",
+      "pendingTopRequests": "Заявки на Топ",
       "aiSessions": "Сессий AI",
       "guests": "Гостей",
       "aiQueries": "Запросов к AI",
@@ -246,7 +248,7 @@
       "note": "Заметка модератора",
       "notePlaceholder": "Опишите причину решения",
       "riskScore": "Оценка риска",
-      "riskReasons": "Причины AI",
+      "riskReasons": "Причины риска",
       "approveConfirm": "Одобрить это объявление?",
       "rejectConfirm": "Отклонить это объявление?",
       "deleteConfirm": "Удалить это объявление?",
@@ -261,6 +263,10 @@
       "district": "По району",
       "featuredOnly": "Только продвигаемые",
       "minRisk": "Минимальный риск"
+    },
+    "safetyBadges": {
+      "VERIFIED_OWNER": "Проверенный владелец",
+      "PROPERTY_VERIFIED": "Объект проверен"
     }
   },
   "reports": {
@@ -277,8 +283,8 @@
     "status": {
       "OPEN": "Открыта",
       "UNDER_REVIEW": "На рассмотрении",
-      "RESOLVED": "Обработана",
-      "REJECTED": "Отклонена"
+      "RESOLVED": "Жалоба подтверждена",
+      "REJECTED": "Жалоба отклонена"
     },
     "listingAction": {
       "NONE": "Ничего",
@@ -288,7 +294,7 @@
     },
     "reason": {
       "SCAM": "Мошенничество",
-      "BROKER": "Объявление посредника",
+      "BROKER": "Владелец объявления указан неверно",
       "FAKE_LISTING": "Поддельное объявление",
       "FAKE_PHOTOS": "Фото от другой квартиры",
       "WRONG_PRICE": "Неверная цена",
@@ -302,10 +308,51 @@
       "MEDIUM": "Средний",
       "LOW": "Низкий"
     },
-    "resolve": "Обработать",
-    "resolveTitle": "Обработка жалобы",
+    "resolve": "Сохранить решение",
+    "resolveTitle": "Решение по жалобе",
     "note": "Заметка",
-    "notePlaceholder": "Какое решение принято?"
+    "notePlaceholder": "Какое решение принято?",
+    "decidedAt": "Дата решения",
+    "trustPenalty": "«Жалоба подтверждена» означает, что жалоба обоснована: надёжность объявления сразу снижается. «Жалоба отклонена» — жалоба отклоняется и ничего не меняется."
+  },
+  "topRequests": {
+    "title": "Заявки на Топ",
+    "subtitle": "Заявки на поднятие объявления в начало списка",
+    "columns": {
+      "listing": "Объявление",
+      "owner": "Владелец",
+      "days": "Срок",
+      "note": "Комментарий",
+      "status": "Статус",
+      "created": "Отправлена"
+    },
+    "status": {
+      "PENDING": "На рассмотрении",
+      "APPROVED": "Одобрена",
+      "REJECTED": "Отклонена"
+    },
+    "actions": {
+      "approve": "Поднять в Топ",
+      "reject": "Отклонить"
+    },
+    "review": {
+      "title": "Рассмотреть заявку на Топ",
+      "requestedDays": "Запрошенный срок",
+      "days": "Дней",
+      "weight": "Приоритет",
+      "reason": "Причина отказа",
+      "reasonPlaceholder": "Опишите причину отказа — владелец увидит этот текст",
+      "effect": "После одобрения объявление сразу попадёт в Топ и останется в начале списка {days} дн.",
+      "approveConfirm": "Поднять это объявление в Топ?",
+      "rejectConfirm": "Отклонить эту заявку?",
+      "grantedUntil": "Топ до",
+      "reviewedAt": "Рассмотрена",
+      "alreadyLive": "Сейчас в Топе"
+    },
+    "filters": {
+      "status": "По статусу"
+    },
+    "empty": "Заявок нет"
   },
   "verifications": {
     "title": "Верификации",
@@ -515,8 +562,8 @@
     }
   },
   "ai": {
-    "title": "Диалоги Shield AI",
-    "subtitle": "Диалоги с AI-помощником на сайте",
+    "title": "Диалоги Uyiz AI",
+    "subtitle": "Диалоги с помощником Uyiz AI на сайте",
     "columns": {
       "session": "Сессия",
       "user": "Клиент",
@@ -529,7 +576,7 @@
     "messagesCapped": "Показаны только последние {limit} сообщений.",
     "noMessages": "Сообщений нет",
     "user": "Клиент",
-    "assistant": "Shield AI"
+    "assistant": "Uyiz AI"
   },
   "settings": {
     "title": "Настройки",
@@ -632,6 +679,7 @@
     "LISTING_REPORTED": "Жалоба на объявление",
     "LISTING_AI_APPROVED": "AI одобрил объявление",
     "LISTING_AI_REJECTED": "AI отклонил объявление",
+    "LISTING_TOP_REQUESTED": "Отправлена заявка на Топ",
     "ADMIN_LOGIN_SUCCESS": "Вход администратора",
     "ADMIN_LOGIN_FAILED": "Неудачный вход администратора",
     "ADMIN_LOGOUT": "Выход администратора",
@@ -644,14 +692,16 @@
     "ADMIN_USER_SESSIONS_REVOKED": "Админ завершил сессии",
     "ADMIN_LISTING_STATUS_CHANGED": "Админ изменил статус объявления",
     "ADMIN_LISTING_FEATURED": "Админ добавил в продвижение",
+    "ADMIN_TOP_APPROVED": "Админ одобрил заявку на Топ",
+    "ADMIN_TOP_REJECTED": "Админ отклонил заявку на Топ",
     "ADMIN_LISTING_DELETED": "Админ удалил объявление",
     "ADMIN_REPORT_RESOLVED": "Админ обработал жалобу",
     "ADMIN_VERIFICATION_REVIEWED": "Админ рассмотрел верификацию",
     "ADMIN_SETTINGS_CHANGED": "Настройки изменены",
     "ADMIN_ACCOUNT_CREATED": "Создан новый администратор",
     "ADMIN_EXPORT": "Админ выгрузил данные",
-    "AI_CHAT_MESSAGE": "Сообщение Shield AI",
-    "AI_CHAT_CLOSED": "Диалог Shield AI завершён",
+    "AI_CHAT_MESSAGE": "Сообщение Uyiz AI",
+    "AI_CHAT_CLOSED": "Диалог Uyiz AI завершён",
     "AI_LIMIT_REACHED": "Достигнут лимит AI",
     "SMS_SENT": "SMS отправлено",
     "SMS_FAILED": "SMS не отправлено",

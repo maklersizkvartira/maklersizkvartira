@@ -1,32 +1,44 @@
 /**
  * Site-level SEO constants.
  *
- * `SITE_URL` is the one place the canonical origin is written down. Canonical
- * tags, hreflang alternates, Open Graph URLs, JSON-LD `@id`s and both sitemaps
- * derive from it, so a domain change is a one-line change and cannot leave
- * half the site pointing at the old host.
+ * `SITE_URL` is the one place the canonical origin is written down for
+ * everything that goes through the TypeScript module graph. Canonical tags,
+ * hreflang alternates, Open Graph URLs, JSON-LD `@id`s and the page sitemap
+ * derive from it, so a domain change is a one-line change here and cannot
+ * leave half the site pointing at the old host.
+ *
+ * Three copies of the origin live outside that graph and cannot import this
+ * file. If the domain ever moves again, they move in the same commit:
+ *
+ *   scripts/generate-sitemap.mjs   a plain Node script, no bundler
+ *   index.html                     the pre-hydration fallback head
+ *   backend_python/app/core/config.py  builds sitemap-listings.xml
+ *
+ * Setting VITE_SITE_URL (frontend) and SITE_URL (backend) in the deployment
+ * environment overrides all of them, which is the safer arrangement: then no
+ * hard-coded default is load-bearing.
  */
 
 const RAW_SITE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SITE_URL) ||
-  'https://maklersizuy.uz';
+  'https://uyiz.uz';
 
 /** No trailing slash: every path in this codebase starts with one. */
 export const SITE_URL = RAW_SITE_URL.replace(/\/+$/, '');
 
-export const SITE_NAME = 'Maklersiz Uy';
+export const SITE_NAME = 'Uyiz';
 
 /** Legal entity name used in Organization structured data. */
-export const ORGANISATION_NAME = 'Maklersiz Uy';
+export const ORGANISATION_NAME = 'Uyiz';
 
 export const OG_IMAGE_PATH = '/brand/og-image.png';
 export const LOGO_PATH = '/logo-org.png';
 
 export const CONTACT = {
   phones: ['+998937188885', '+998777850737'],
-  email: 'support@maklersizuy.uz',
-  telegram: 'https://t.me/maklersizuy',
-  instagram: 'https://www.instagram.com/maklersizuy.uz/',
+  email: 'support@uyiz.uz',
+  telegram: 'https://t.me/uyiz',
+  instagram: 'https://www.instagram.com/uyiz.uz/',
 } as const;
 
 /** Where the platform operates, for LocalBusiness / areaServed. */

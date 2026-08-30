@@ -1,7 +1,7 @@
 """The listing sitemap, and the facet counts the build uses to prune it.
 
 Listings appear and expire between deploys, so their sitemap cannot be a build
-artefact — it is served here and proxied onto ``maklersizuy.uz`` by a rewrite,
+artefact — it is served here and proxied onto ``uyiz.uz`` by a rewrite,
 which keeps every URL it publishes on the same host that serves them.
 
 Two rules this module exists to enforce:
@@ -100,7 +100,7 @@ def _escape(value: str) -> str:
 def _url_for(path: str, language: str) -> str:
     # The trailing slash is stripped here rather than trusted from config: the
     # build-time generator strips it too, and one of the two keeping it would
-    # publish `https://maklersizuy.uz//e/...` for every listing.
+    # publish `https://uyiz.uz//e/...` for every listing.
     origin = settings.SITE_URL.rstrip("/")
     prefix = LANGUAGE_PREFIX[language]
     return f"{origin}{prefix}{path}"

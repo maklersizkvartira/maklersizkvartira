@@ -1,5 +1,7 @@
 # README-2
 
+> **Tarixiy hujjat.** Bu spetsifikatsiya loyiha hali Maklersiz.uz deb atalgan paytda yozilgan; hozirgi mahsulot [`README.md`](./README.md) da tasvirlangan va nizo bo‘lsa README.md ustun turadi.
+
 # UI/UX DESIGN SYSTEM & BRAND IDENTITY
 
 ## Objective
@@ -235,7 +237,7 @@ Og‘ir shadow ishlatilmaydi.
 
 # Brand Mascot
 
-## Shield AI
+## Uyiz AI
 
 Platformaning AI yordamchisi.
 
@@ -286,11 +288,11 @@ Profile
 
 Sarlavha:
 
-Maklersiz kvartira toping
+Ijaraga uy toping
 
 Subtitle:
 
-AI tomonidan tekshirilgan e'lonlar
+Haqiqiy e'lonlar — egasi bilan to'g'ridan-to'g'ri
 
 ---
 
@@ -556,7 +558,7 @@ No Messages
 
 No Notifications
 
-Har birida Shield AI ishlatiladi.
+Har birida Uyiz AI ishlatiladi.
 
 ---
 
@@ -584,19 +586,19 @@ Support Button
 
 Screen 1
 
-Maklersiz kvartira toping
+Ijaraga uy toping
 
 ---
 
 Screen 2
 
-AI tekshirgan e'lonlar
+E'lon joylash bepul
 
 ---
 
 Screen 3
 
-Ishonchli egalar
+Tasdiqlangan e'lon egalari
 
 ---
 

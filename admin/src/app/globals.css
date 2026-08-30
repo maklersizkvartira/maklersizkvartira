@@ -14,10 +14,10 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   THEME TOKENS  (default: dark + Maklersiz brand blue)
+   THEME TOKENS  (default: dark + Uyiz brand blue)
    ═══════════════════════════════════════════════════════════════════════════ */
 :root {
-  /* ── Accent (Maklersiz #1447e6 by default, user can change via ThemePalette).
+  /* ── Accent (Uyiz #1447e6 by default, user can change via ThemePalette).
         light/dark are the brand hex shifted ±25 per channel — the same formula
         ThemePalette's adj() applies at runtime, so the CSS default and the
         JS-applied default land on identical values. ── */
@@ -1410,7 +1410,7 @@ html[data-theme="light"] .apple-glass-item[data-active="true"] {
 }
 
 /* ── Numbers and micro-labels ──────────────────────────────────────────────
-   Maklersiz has ONE font family, so the display/mono/sans split a three-font
+   Uyiz has ONE font family, so the display/mono/sans split a three-font
    system would use is not available here. The contrast has to come from
    weight, tracking and size instead. Tabular figures are load-bearing rather
    than decorative: they are the reason an animated counter can tick from 0 to
@@ -1425,7 +1425,7 @@ html[data-theme="light"] .apple-glass-item[data-active="true"] {
 }
 
 /* Deliberately identical to PageHeader's eyebrow, so the micro-label reads as
-   native Maklersiz vocabulary rather than as an import from another product. */
+   native Uyiz vocabulary rather than as an import from another product. */
 .stat-label {
   font-size: 11px;
   font-weight: 600;

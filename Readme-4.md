@@ -1,5 +1,7 @@
 # README-4
 
+> **Tarixiy hujjat — katta qismi bekor qilingan.** Bu spetsifikatsiya loyiha hali Maklersiz.uz deb atalgan paytda yozilgan va e'lonni chop etishdan oldin AI tekshiruvidan o'tkazish hamda maklerlarni aniqlash doktrinasi ustiga qurilgan. **Ikkalasi ham mahsulotdan olib tashlandi**: platforma endi agentliklar bilan ham ishlaydi va e'lon darhol chop etiladi. Hozirgi mahsulot [`README.md`](./README.md) da tasvirlangan va nizo bo'lsa README.md ustun turadi.
+
 # AI TRUST & ANTI-SCAM ENGINE
 
 ## 1. MAQSAD
@@ -10,7 +12,6 @@ Platforma faqat kvartira e'lonlarini joylashtiradigan marketplace bo'lmasligi ke
 
 Platforma:
 
-* Maklerlarni aniqlashi
 * Firibgarlarni aniqlashi
 * Soxta e'lonlarni aniqlashi
 * Soxta rasmlarni aniqlashi
@@ -23,7 +24,7 @@ kerak.
 
 MUHIM:
 
-AI hech qachon faqat bitta belgiga qarab foydalanuvchini "firibgar" yoki "makler" deb hukm qilmasligi kerak.
+AI hech qachon faqat bitta belgiga qarab foydalanuvchini "firibgar" deb hukm qilmasligi kerak.
 
 AI riskni baholaydi.
 
@@ -38,26 +39,24 @@ Tizim quyidagi asosiy modullardan tashkil topadi:
 1. Identity Verification
 2. Owner Verification
 3. Property Verification
-4. AI Listing Analysis
-5. AI Image Analysis
-6. Duplicate Detection
-7. Broker/Makler Risk Detection
-8. Fraud Detection
-9. Multi-Account Detection
-10. Behavioral Risk Engine
-11. Review Fraud Detection
-12. Complaint Analysis
-13. Trust Score Engine
-14. Risk Score Engine
-15. Moderation Queue
-16. Appeal System
-17. Continuous Monitoring
+4. AI Image Analysis
+5. Duplicate Detection
+6. Fraud Detection
+7. Multi-Account Detection
+8. Behavioral Risk Engine
+9. Review Fraud Detection
+10. Complaint Analysis
+11. Trust Score Engine
+12. Risk Score Engine
+13. Moderation Queue
+14. Appeal System
+15. Continuous Monitoring
 
 ---
 
-# 3. TRUST SCORE
+# 3. TRUST SCORE (ISHONCH FOIZI)
 
-Har bir foydalanuvchida:
+Har bir **e'londa**:
 
 TRUST SCORE
 
@@ -65,71 +64,46 @@ bo'ladi.
 
 Range:
 
-0–100
+10–100
 
-Bu score foydalanuvchining platformadagi ishonchlilik signalari asosida hisoblanadi.
-
----
-
-# 4. TRUST SCORE COMPONENTS
-
-Score quyidagi signallardan tashkil topadi:
-
-## Identity
-
-Telefon tasdiqlanganmi?
-
-Email tasdiqlanganmi?
-
-Identity verification o'tganmi?
+Har bir yangi e'lon **100** dan boshlanadi. Bu bahoni AI qo'ymaydi — u faqat
+tasdiqlangan shikoyatlar orqali tushadi.
 
 ---
 
-## Profile
+# 4. TRUST SCORE HISOBI
 
-Profil to'liqmi?
+Foiz ayirilmaydi. Har safar **noldan** hisoblanadi:
 
-Profil rasmi bormi?
+```
+trust_score = max(10, 100 − Σ jarima(shu e'lonning TASDIQLANGAN shikoyatlari))
+```
 
-Profil qancha vaqtdan beri mavjud?
+Jarima og'irlik bo'yicha:
 
----
+| Og'irlik | Jarima |
+|---|---|
+| CRITICAL | 25 |
+| HIGH | 15 |
+| MEDIUM | 10 |
+| LOW | 5 |
 
-## Property
+"Tasdiqlangan" degani — admin shikoyatni **RESOLVED** qilgan. **REJECTED** —
+rad etilgan, ya'ni hech narsa o'zgarmaydi.
 
-Kvartira hujjatlari tasdiqlanganmi?
-
-Kvartira ma'lumotlari izchilmi?
-
----
-
-## Reputation
-
-Ijobiy reviewlar.
-
-Muvaffaqiyatli ijara tarixlari.
-
----
-
-## Behavior
-
-Platformadagi xatti-harakatlar.
-
----
-
-## Complaints
-
-Shikoyatlar soni va turi.
+Nega ayirish emas, qayta hisoblash? Chunki ayirilsa, bitta shikoyatni ikki
+marta yopish foizni ikki marta tushirardi, va tasdiqni bekor qilish foizni
+qaytara olmasdi. Qayta hisoblashda ikkalasi ham o'z-o'zidan to'g'ri ishlaydi.
 
 ---
 
 # 5. TRUST LEVELS
 
-## 0–29
+## 10–29
 
 HIGH RISK
 
-Qizil status.
+Qizil status. Bir nechta tasdiqlangan jiddiy shikoyat.
 
 ---
 
@@ -149,7 +123,7 @@ Yashil status.
 
 ---
 
-## 70–89
+## 70–99
 
 HIGHLY TRUSTED
 
@@ -157,190 +131,53 @@ Kuchli yashil status.
 
 ---
 
-## 90–100
+## 100
 
-VERIFIED TRUST
-
-Premium trust status.
+Shikoyatsiz. Barcha yangi e'lonlarning boshlang'ich holati.
 
 ---
 
 # 6. RISK SCORE
 
-Trust Score'dan alohida:
+`risk_score` alohida o'lchanmaydi. U shunchaki:
 
-RISK SCORE
+```
+risk_score = 100 − trust_score
+```
 
-bo'lishi kerak.
-
-Risk Score:
-
-0–100
-
-0 = minimal risk
-
-100 = juda yuqori risk.
-
-Bu score:
-
-* E'lon
-* Foydalanuvchi
-* Telefon
-* Qurilma
-* Rasm
-* Xatti-harakat
-
-uchun alohida hisoblanishi mumkin.
+Faqat admin paneldagi filtr va saralash ishlashda davom etishi uchun
+saqlanadi.
 
 ---
 
-# 7. AI LISTING ANALYSIS
-
-Har bir yangi e'lon AI tomonidan tekshiriladi.
-
-Tekshiruv:
-
-* Title
-* Description
-* Price
-* Location
-* Phone
-* Images
-* Owner profile
-* Listing history
-
----
-
-# 8. TEXT ANALYSIS
-
-AI e'lon matnini tahlil qiladi.
-
-Shubhali patternlar:
-
-* Juda umumiy matn
-* Bir xil matnni ko'p e'lonlarda ishlatish
-* Haddan tashqari shoshiltirish
-* Oldindan pul talab qilish
-* "Faqat hozir"
-* "Zudlik bilan pul o'tkazing"
-
-kabi risk signallari.
-
-AI avtomatik ravishda risk signalari yaratadi.
-
----
-
-# 9. MAKLER DETECTION
-
-Bu platformaning asosiy funksiyalaridan biri.
-
-Maklerlar ko'pincha o'zlarini "makler" deb yozmaydi.
-
-Shuning uchun tizim behavior-based detection ishlatadi.
-
----
-
-# 10. BROKER RISK SIGNALS
-
-AI quyidagilarni tekshiradi:
-
-### Listing Volume
-
-Bir foydalanuvchi qancha e'lon joylayapti?
-
----
-
-### Listing Frequency
-
-Kuniga nechta e'lon?
-
----
-
-### Geographic Spread
-
-Bir foydalanuvchi:
-
-Chilonzor
-
-Yunusobod
-
-Sergeli
-
-Olmazor
-
-Yashnobod
-
-kabi juda ko'p hududlarda e'lon joylayaptimi?
-
----
-
-### Phone Reuse
-
-Bir telefon raqami nechta e'lon bilan bog'langan?
-
----
-
-### Image Reuse
-
-Bir xil rasmlar nechta e'londa ishlatilgan?
-
----
-
-### Description Reuse
-
-Bir xil tavsiflar takrorlanadimi?
-
----
-
-### Behavior
-
-Foydalanuvchi faqat e'lon joylaydimi?
-
-Muloqot qiladimi?
-
-Reviewlar bormi?
-
----
-
-# 11. BROKER RISK SCORE
-
-AI:
-
-Broker Probability
-
-hisoblaydi.
-
-Masalan:
-
-0–30%
-
-Normal owner
-
----
-
-31–60%
-
-Suspicious
-
----
-
-61–80%
-
-High risk
-
----
-
-81–100%
-
-Strong broker signal
-
----
-
-MUHIM:
-
-Bu "foydalanuvchi makler" degan yakuniy hukm emas.
-
-Bu moderation signalidir.
+# 7–11. OLIB TASHLANDI
+
+Bu yerda avval beshta bo'lim turardi: chop etishdan oldingi AI tekshiruvi
+(AI LISTING ANALYSIS, TEXT ANALYSIS) va makler aniqlash mexanizmi (MAKLER
+DETECTION, BROKER RISK SIGNALS, BROKER RISK SCORE — e'lonlar soni, chastotasi,
+hududiy tarqoqligi, telefon va rasm takrorlanishi bo'yicha).
+
+**Ikkalasi ham mahsulotdan chiqarildi.**
+
+**Nega makler aniqlash yo'q.** Platforma endi agentliklar bilan ham ishlaydi.
+Professional agent — bu ogohlantirish belgisi emas, oddiy foydalanuvchi. Uy
+egasi ham, o'ttizta kvartira joylagan agent ham bu yerda bir xil akkaunt.
+"Ko'p e'lon joylagan" degan signal endi hech narsani anglatmaydi.
+
+**Nega chop etishdan oldin tekshiruv yo'q.** E'lon yuborilgan zahoti
+`APPROVED` bo'ladi va katalogda paydo bo'ladi. Kutish navbati yo'q, mashina
+qarori yo'q. Yagona shart — kamida bitta rasm.
+
+**O'rniga nima keldi.** Ishonch chop etilgandan keyin, odam qo'li bilan
+quriladi: §3–§5 dagi ishonch foizi faqat admin shikoyatni tasdiqlaganda
+tushadi. Firibgarlikka qarshi maslahatlar (uyni ko'rmasdan, kalit va hujjatni
+olmasdan pul yubormang) esa joyida qoladi — u firibgarlik haqida, e'lonni kim
+joylagani haqida emas.
+
+Quyidagi bo'limlar (§12 dan boshlab) o'z raqamlarida qoldirildi, chunki
+hujjatning qolgan qismi ularga havola qiladi. Lekin ularning ham firibgarlik
+va takroriy e'longa tegishli qismlarigina dolzarb; makler yoki chop etish
+oldidan qaror bilan bog'liq har qanday joyi bekor.
 
 ---
 
@@ -555,7 +392,6 @@ tugmasini bosadi.
 Sabab:
 
 * Scam
-* Broker
 * Fake listing
 * Fake photos
 * Wrong price
@@ -822,37 +658,23 @@ Firibgar yoki shubhali e'lon yuqoriga chiqarilmasligi kerak.
 
 # 39. SAFETY BADGES
 
-Listingda:
+Listingda bitta badge qoldi:
 
 VERIFIED OWNER
 
-PROPERTY VERIFIED
+E'lon egasi verifikatsiyadan o'tgan bo'lsa qo'yiladi, aks holda badge yo'q.
 
-AI CHECKED
-
-TRUSTED OWNER
-
-kabi badge'lar bo'lishi mumkin.
-
-Badge faqat haqiqiy verification natijasiga asoslangan bo'lishi kerak.
+AI CHECKED, NO COMMISSION va STUDENT FRIENDLY badge'lari olib tashlandi:
+birinchisi endi mavjud bo'lmagan tekshiruvni, ikkinchisi endi berilmaydigan
+va'dani bildirardi.
 
 ---
 
 # 40. AI STATUS
 
-Har bir e'lon uchun:
-
-AI Checked
-
-yoki
-
-Verification Required
-
-yoki
-
-Under Review
-
-statusi.
+Olib tashlandi. E'londa AI statusi yo'q, chunki chop etishdan oldin AI qarori
+ham yo'q. E'lon statusi oddiy: chop etilgan, admin tomonidan olib tashlangan,
+yoki muddati tugagan.
 
 ---
 
@@ -894,15 +716,13 @@ High Risk Users
 
 High Risk Listings
 
-Broker Signals
-
 Duplicate Images
 
 Complaint Trends
 
 Verification Queue
 
-AI Decisions
+Top Requests
 
 ---
 
@@ -1043,79 +863,45 @@ kabi ehtiyotkor statuslardan foydalanadi.
 
 ---
 
-# 53. FINAL AI FLOW
+# 53. FINAL FLOW
 
 User creates listing
 
 ↓
 
-Identity check
+Kamida 1 ta rasm bormi?
 
 ↓
 
-Property check
+APPROVED — darhol chop etiladi, ishonch foizi 100
 
 ↓
 
-Text analysis
+(ixtiyoriy) Egasi "Top" so'raydi → admin tasdiqlaydi → e'lon ko'tariladi
 
 ↓
 
-Image analysis
+Kimdir shikoyat qiladi
 
 ↓
 
-Phone analysis
+Admin tasdiqlaydi (RESOLVED) yoki rad etadi (REJECTED)
 
 ↓
 
-Duplicate detection
-
-↓
-
-Behavior analysis
-
-↓
-
-Complaint history
-
-↓
-
-Risk Engine
-
-↓
-
-Trust Engine
-
-↓
-
-Decision
-
-↓
-
-Approved
-
-OR
-
-Verification Required
-
-OR
-
-Manual Review
-
-OR
-
-Temporary Restriction
+Tasdiqlansa — ishonch foizi qayta hisoblanadi
 
 ---
 
 # 54. CORE PRINCIPLE
 
-AI platformaning ko'rinmas xavfsizlik qatlami bo'lishi kerak.
+Ishonch — chop etish oldidagi to'siq emas, chop etilgandan keyingi javobgarlik.
 
-Foydalanuvchi AI qanday ishlayotganini bilishi shart emas.
+E'lon joylash oson va tez bo'lishi kerak, aks holda e'lon umuman bo'lmaydi.
+Lekin har bir e'lon o'z tarixini ko'tarib yuradi: shikoyat tushib, admin uni
+tasdiqlasa, buni hamma ko'radi.
 
-Lekin foydalanuvchi uning natijasini his qilishi kerak:
+Foydalanuvchi his qilishi kerak bo'lgan narsa:
 
 "Bu yerda menga kimdir tuzoq qo'ya olmaydi."
 

@@ -1,6 +1,12 @@
 apply plugin: 'com.android.application'
 
 android {
+    // The brand is Uyiz, but namespace and applicationId deliberately still say
+    // maklersizuy. An application id is not a name: it is the app's identity in
+    // Google Play, the FileProvider authority AndroidManifest.xml derives as
+    // ${applicationId}.fileprovider, and the deep-link scheme in strings.xml.
+    // Changing it publishes a different app that existing installs never update
+    // to. The user-visible label lives in res/values/strings.xml and says Uyiz.
     namespace = "uz.maklersizuy.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {

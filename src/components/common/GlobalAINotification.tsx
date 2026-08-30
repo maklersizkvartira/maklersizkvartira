@@ -1,5 +1,12 @@
 /**
- * A banner for the owner's own listings that moderation flagged.
+ * A banner for the owner's own listings that an administrator flagged.
+ *
+ * It used to fire on the publish-time AI verdict (`aiCheckStatus === 'WARNING'`
+ * with the reason read out of `aiRiskReasons`). That scanner is gone: nothing
+ * writes those fields any more, so the banner would have been permanently
+ * invisible. It now watches the real signal that replaced it - a moderator
+ * setting the listing to WARNING after confirming a report - and quotes the
+ * moderation note they left, which is the owner's only explanation.
  *
  * It used to mount <EditListingModal /> app-wide so its "edit" button could
  * open it through a store field. That coupling is gone: the banner now just
@@ -33,7 +40,9 @@ export const GlobalAINotification: React.FC = () => {
     const byId = new Map<string, Listing>();
     for (const listing of [...myListings, ...listings]) {
       if (listing.owner?.id !== currentUser.id) continue;
-      if (listing.aiCheckStatus !== 'WARNING') continue;
+      // `status` is the live field. `aiCheckStatus` is only read as the legacy
+      // alias an older container still sends, never as an AI verdict.
+      if ((listing.status ?? listing.aiCheckStatus) !== 'WARNING') continue;
       byId.set(listing.id, listing);
     }
     return [...byId.values()];
@@ -72,7 +81,9 @@ export const GlobalAINotification: React.FC = () => {
                   <p className="mt-1 text-xs leading-snug text-muted sm:text-sm">
                     {t('assistant.notice.body', {
                       title: listing.title,
-                      reason: listing.aiRiskReasons?.[0] ?? t('assistant.notice.defaultReason'),
+                      reason:
+                        listing.moderationNote?.trim() ||
+                        t('assistant.notice.defaultReason'),
                     })}
                   </p>
                 </div>

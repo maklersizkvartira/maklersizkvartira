@@ -64,7 +64,7 @@ def _listing(**over):
         metro_station="Chilonzor", metro_distance_minutes=7,
         furnished=True, internet=True, air_conditioning=True,
         washing_machine=True, parking=True, pets_allowed=False,
-        is_roommate=False, trust_score=85, risk_score=5, ai_risk_reasons=[],
+        is_roommate=False, trust_score=100, risk_score=0, ai_risk_reasons=[],
         safety_badges=["VERIFIED_OWNER"], images=["a", "b", "c", "d"],
         status="APPROVED", views_count=10, favorites_count=2, contact_count=1,
         is_featured=False, moderation_note=None, published_at=None,
@@ -206,12 +206,18 @@ def test_views_without_contacts_is_reported_as_the_real_problem():
     assert any("nobody asked" in item["issue"] for item in advice)
 
 
-def test_a_low_trust_score_quotes_the_actual_reasons():
+def test_a_low_reliability_score_is_reported_as_a_confirmed_report():
+    # The score no longer carries a machine verdict, so the advice must not
+    # quote one: it points the owner at the administrator's decision instead.
     advice = ai_tools._advice_for(
-        _listing(trust_score=40, ai_risk_reasons=["broker tili", "narx past"])
+        _listing(
+            trust_score=40,
+            ai_risk_reasons=["Firibgarlik — tasdiqlangan shikoyat (-25)"],
+        )
     )
-    hit = next(i for i in advice if "trust score" in i["issue"])
-    assert "broker tili" in hit["fix"]
+    hit = next(i for i in advice if "reliability percentage" in i["issue"])
+    assert "40 of 100" in hit["issue"]
+    assert "confirmed by an administrator" in hit["fix"]
 
 
 def test_advice_is_capped_so_one_bad_listing_cannot_flood_the_prompt():
@@ -322,7 +328,7 @@ def test_the_prompt_names_the_company_on_a_first_turn():
     prompt = ai_agent.build_system_prompt(
         language="uz", viewer=None, user_name=None, is_first_turn=True, summary=None
     )
-    assert "MaklersizUy kompaniyasining AI yordamchisiman" in prompt
+    assert "Uyiz kompaniyasining AI yordamchisiman" in prompt
 
 
 def test_a_later_turn_is_told_not_to_greet_again():

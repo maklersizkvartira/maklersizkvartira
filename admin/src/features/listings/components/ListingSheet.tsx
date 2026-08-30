@@ -78,6 +78,26 @@ export function ListingSheet({
   // The owner block reuses `users.columns.*` rather than inventing a second
   // set of labels for phone / role / trust; they are the same three fields.
   const u = useTranslations('users');
+
+  /* ── Safety badges ────────────────────────────────────────────────────────
+     The wire sends bare enum values, and this sheet is the only surface in the
+     product that renders them, so an unknown value used to print as raw
+     SCREAMING_CASE ("AI CHECKED", "NO COMMISSION"). Only VERIFIED_OWNER and
+     PROPERTY_VERIFIED are written any more; AI_CHECKED, NO_COMMISSION and
+     STUDENT_FRIENDLY are retired and survive only on rows the data migration
+     has not cleaned. Known values get a real label; anything else is dropped
+     rather than shown, because a badge a moderator cannot interpret is worse
+     than no badge. next-intl throws on a missing key, hence the explicit set
+     rather than a try/catch. */
+  const badgeLabels = useMemo(() => {
+    const TRANSLATED = new Set(['VERIFIED_OWNER', 'PROPERTY_VERIFIED']);
+    return row.safetyBadges
+      .filter((badge) => TRANSLATED.has(badge))
+      .map((badge) => ({
+        value: badge,
+        label: t(`safetyBadges.${badge}` as Parameters<typeof t>[0]),
+      }));
+  }, [row.safetyBadges, t]);
   const locale = useLocale();
   const confirm = useConfirm();
 
@@ -195,14 +215,18 @@ export function ListingSheet({
           />
           <RiskPill score={row.riskScore} label={t('moderation.riskScore')} />
           {featured && <Badge variant="info" label={t('columns.featured')} />}
-          {row.safetyBadges.map((badge) => (
-            <Badge key={badge} variant="neutral" label={badge.replace(/_/g, ' ')} />
+          {badgeLabels.map((badge) => (
+            <Badge key={badge.value} variant="neutral" label={badge.label} />
           ))}
         </div>
 
-        {/* ── AI risk reasons ──────────────────────────────────────────────
-            Free-form strings written by the risk model, so they are printed as
-            they arrive rather than looked up in the catalogues. */}
+        {/* ── Risk reasons ─────────────────────────────────────────────────
+            Historical only. Listings are no longer scanned at publication, so
+            nothing writes `aiRiskReasons` any more and this section simply
+            never renders for a listing created since. It stays for the rows
+            that already carry reasons from before that check was removed: they
+            are free-form strings, so they are printed as they arrive rather
+            than looked up in the catalogues. */}
         {row.aiRiskReasons.length > 0 && (
           <SheetSection title={t('moderation.riskReasons')}>
             <ul className="flex flex-col gap-1.5">

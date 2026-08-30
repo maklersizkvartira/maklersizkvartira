@@ -14,7 +14,7 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { Spinner } from '@/shared/ui/Spinner';
 
 /**
- * One Shield AI conversation, read end to end.
+ * One Uyiz AI conversation, read end to end.
  *
  * Three things about `GET /admin/ai/sessions/{id}/messages` shape this file:
  *

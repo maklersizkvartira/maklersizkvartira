@@ -100,7 +100,7 @@ export const layout = {
 
   sidebar: {
     guestTitle: 'Xush kelibsiz',
-    guestSubtitle: 'E’lon joylash va uy egalari bilan bevosita bog‘lanish uchun kiring',
+    guestSubtitle: 'E’lon joylash va e’lon egalari bilan bevosita bog‘lanish uchun kiring',
     level: '{level}-daraja',
     xpPoints: '{count} XP',
     xpToNext: 'Keyingi darajagacha {count} XP',
@@ -110,8 +110,8 @@ export const layout = {
   footer: {
     about: 'Platforma haqida',
     aboutText:
-      'Maklersiz Uy — O‘zbekistonda uy-joy ijarasini vositachisiz, to‘g‘ridan-to‘g‘ri '
-      + 'uy egasidan topish platformasi. Komissiya 0%.',
+      'Uyiz — O‘zbekistonda uy-joy ijarasi uchun e’lonlar platformasi. '
+      + 'E’lon joylash bepul, aloqa e’lon egasi bilan to‘g‘ridan-to‘g‘ri.',
     forTenants: 'Ijarachilar uchun',
     forOwners: 'Uy egalari uchun',
     company: 'Kompaniya',
@@ -124,7 +124,7 @@ export const layout = {
     support: 'Qo‘llab-quvvatlash',
     faq: 'Ko‘p so‘raladigan savollar',
     followUs: 'Ijtimoiy tarmoqlar',
-    rights: '© {year} Maklersiz Uy. Barcha huquqlar himoyalangan.',
+    rights: '© {year} Uyiz. Barcha huquqlar himoyalangan.',
     madeIn: 'O‘zbekistonda ishlab chiqildi',
     // The helpline is a separate group from the `support` link above it: that
     // one goes to a page, this one is the number somebody can dial now. It is
@@ -148,7 +148,6 @@ export const layout = {
     listingCreated: 'E’lon muvaffaqiyatli joylandi!',
     listingUpdated: 'E’lon tahrirlandi.',
     listingDeleted: 'E’lon o‘chirildi.',
-    listingRejected: 'E’lon moderatsiyadan o‘tmadi.',
     favoriteAdded: 'Saqlanganlarga qo‘shildi.',
     favoriteRemoved: 'Saqlanganlardan olib tashlandi.',
     roleSwitched: 'Rol “{role}” ga o‘zgartirildi.',
@@ -158,7 +157,7 @@ export const layout = {
     copiedLink: 'Havola nusxalandi.',
     xpEarned: '+{amount} XP — {reason}',
     welcomeOwner: 'Xush kelibsiz! Endi e’lon joylashingiz mumkin.',
-    welcomeStudent: 'Xush kelibsiz! Kvartirani maklersiz tanlang.',
+    welcomeStudent: 'Xush kelibsiz! Kvartirangizni tanlang.',
     sessionExpired: 'Sessiya muddati tugadi. Qaytadan kiring.',
   },
 

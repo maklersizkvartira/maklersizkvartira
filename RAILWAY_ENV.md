@@ -71,7 +71,22 @@ PASSWORD_REVEAL_ENABLED=true
 # site, and the admin panel, which is its own Vercel project on its own
 # domain and has no proxy in front of it. Leave the admin origin out and the
 # panel loads fine and then fails on every request. See the section below.
-CORS_ORIGINS=https://maklersizuy.uz,https://www.maklersizuy.uz,https://admin.maklersizuy.uz
+#
+# ORDERING: paste this and deploy BEFORE uyiz.uz points at Vercel. Matching is
+# exact, there are no wildcards, and a new origin that serves before it is
+# listed here fails every request with an opaque network error.
+#
+# The three maklersizuy.uz entries stay while the old domain is still served
+# and 301-ing. Remove them once it is retired — not before.
+CORS_ORIGINS=https://uyiz.uz,https://www.uyiz.uz,https://admin.uyiz.uz,https://maklersizuy.uz,https://www.maklersizuy.uz,https://admin.maklersizuy.uz
+
+# ── Public site origin ───────────────────────────────────────────────────
+# The domain the SITE is served from. The API builds every <loc> in
+# sitemap-listings.xml out of it. It is easy to miss because nothing crashes
+# without it: the app falls back to a hard-coded default and publishes a whole
+# sitemap of URLs for a host it is not served from, which Google honours none
+# of. Set it explicitly.
+SITE_URL=https://uyiz.uz
 
 # ── Auth policy ──────────────────────────────────────────────────────────
 ACCESS_TOKEN_TTL_MINUTES=15
@@ -105,7 +120,12 @@ DEVSMS_API_TOKEN=PASTE_DEVSMS_TOKEN
 # The company name inside a verification SMS. The provider screens it on every
 # send and twenty consecutive rejections suspend the account for a day, so it
 # is a variable: if screening ever objects, change it without a deploy.
-DEVSMS_SERVICE_NAME=MaklersizUy
+#
+# ⚠ REGISTER "Uyiz" WITH THE PROVIDER AND WAIT FOR APPROVAL BEFORE PASTING IT.
+# An unapproved name is refused per message, silently, and only for real users:
+# signup simply stops working, with nothing wrong in the app or in these logs.
+# Until the approval lands, leave the previously approved name in place.
+DEVSMS_SERVICE_NAME=Uyiz
 
 # ── Telegram operations group ────────────────────────────────────────────
 TELEGRAM_GROUP_ID=-1003935734144
@@ -113,8 +133,8 @@ TELEGRAM_BOT_TOKEN=PASTE_ROTATED_TELEGRAM_TOKEN
 
 # ── AI (server-side only) ────────────────────────────────────────────────
 OPENAI_API_KEY=PASTE_ROTATED_OPENAI_KEY
-# The everyday model: classification, moderation, and the assistant's first
-# call of each turn — the majority of requests by volume.
+# The everyday model: classification and the assistant's first call of each
+# turn — the majority of requests by volume.
 OPENAI_MODEL=gpt-4o-mini
 # The reasoning tier, used only once a turn has already called a tool and has
 # something to make sense of. Leave EMPTY to run everything on OPENAI_MODEL;
@@ -127,10 +147,21 @@ AI_MAX_TOOL_STEPS=4
 # Numbers the assistant may hand out when someone asks to speak to a person.
 # Comma-separated, highest priority first.
 SUPPORT_PHONES=+998937188885,+998777850737
+# The other two ways to reach a person. Leave either blank to stop the
+# assistant offering that route - it omits an unset value rather than handing
+# out an empty one.
+SUPPORT_TELEGRAM=https://t.me/uyiz
+SUPPORT_HOURS=09:00-21:00
 
 # ── Google sign-in ───────────────────────────────────────────────────────
 # Public config, not a secret. Empty disables Google sign-in rather than
 # accepting unverified identities.
+#
+# Still reads maklersiz-uy on purpose: a Firebase project id is IMMUTABLE, only
+# its display label can be renamed. It must equal the frontend's
+# VITE_FIREBASE_PROJECT_ID exactly — a mismatch rejects every Google ID token
+# with no client-side error. Add uyiz.uz and admin.uyiz.uz to that project's
+# Authorized Domains, which is a console change, not a variable.
 FIREBASE_PROJECT_ID=maklersiz-uy
 
 # ── Misc ─────────────────────────────────────────────────────────────────
@@ -154,8 +185,9 @@ your public git history or were shipped to browsers, so they are compromised.
 | `DATABASE_URL` | nothing to paste — use "Add all from Postgres" in the API service, or the reference form |
 
 Also revoke the **Gemini** key (`AQ.Ab8RN6Ka…`) — it was shipped to every
-visitor in the old JS bundle. Nothing needs it any more; AI moderation runs
-server-side through `OPENAI_API_KEY`.
+visitor in the old JS bundle. Nothing needs it any more. The only AI left is
+Uyiz AI, the assistant, and it runs server-side through `OPENAI_API_KEY`;
+listings are not machine-checked at publish time at all.
 
 ---
 
@@ -170,8 +202,9 @@ Two deployments call this API from a browser, and both must be listed:
 
 | Origin | What it is |
 |---|---|
-| `https://maklersizuy.uz` (and the `www.` host, if you serve it) | the site — the Vite SPA on Vercel |
-| `https://admin.<your domain>` | the admin panel — the Next.js app in `admin/`, a **separate** Vercel project with Root Directory `admin` |
+| `https://uyiz.uz` (and the `www.` host, if you serve it) | the site — the Vite SPA on Vercel |
+| `https://admin.uyiz.uz` | the admin panel — the Next.js app in `admin/`, a **separate** Vercel project with Root Directory `admin` |
+| `https://maklersizuy.uz`, `https://www.maklersizuy.uz`, `https://admin.maklersizuy.uz` | the previous domain, kept listed while it is still served and 301-ing to the new one |
 
 The admin panel used to be served by this API itself, at `/admin`, which is
 why it never needed an entry. It is its own deployment now, on its own
@@ -315,18 +348,32 @@ The SPA is deployed separately. It needs only:
 
 ```env
 VITE_API_URL=https://<your-service>.up.railway.app/api/v1
+
+# The site's own public origin. Canonicals, hreflang, og:url, sitemap.xml and
+# robots.txt are all built from it. Set it — the build's fallback is only a
+# guess, and a wrong one ships a sitemap Google ignores, with a green build.
+VITE_SITE_URL=https://uyiz.uz
+
+# Same immutable project id as the API's FIREBASE_PROJECT_ID above; the two
+# must be identical or Google sign-in fails silently.
 VITE_FIREBASE_API_KEY=<your firebase web api key>
 VITE_FIREBASE_AUTH_DOMAIN=maklersiz-uy.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=maklersiz-uy
 VITE_FIREBASE_APP_ID=<your firebase app id>
 
-# Yandex — optional, but this is what makes the map and the GPS button good
+# Yandex — optional, but this is what makes the map and the GPS button good.
+# Add uyiz.uz to the key's allowed referrers in the Yandex console before the
+# domain goes live, or the map and the GPS button die on the new host.
 VITE_YANDEX_MAPS_API_KEY=<JavaScript API and Geocoder key>
+
+# Google Analytics 4. Empty means nothing is fetched and no cookie is written.
+VITE_GA_MEASUREMENT_ID=
 ```
 
 ## Admin panel (Vercel, separate project)
 
-Same repository, **Root Directory `admin`**, its own domain. One variable:
+Same repository, **Root Directory `admin`**, its own domain —
+`https://admin.uyiz.uz`. One variable:
 
 ```env
 NEXT_PUBLIC_API_URL=https://<your-service>.up.railway.app/api/v1

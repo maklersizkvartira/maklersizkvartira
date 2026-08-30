@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "Maklersiz Admin",
+    "appName": "Uyiz Admin",
     "loading": "Yuklanmoqda...",
     "save": "Saqlash",
     "cancel": "Bekor qilish",
@@ -72,6 +72,7 @@
     "moderation": "Moderatsiya",
     "listings": "Eʼlonlar",
     "reports": "Shikoyatlar",
+    "topRequests": "Top soʻrovlari",
     "verifications": "Tasdiqlashlar",
     "people": "Odamlar",
     "users": "Foydalanuvchilar",
@@ -80,7 +81,7 @@
     "audit": "Barcha harakatlar",
     "security": "Xavfsizlik",
     "sms": "SMS jurnali",
-    "ai": "Shield AI",
+    "ai": "Uyiz AI",
     "settings": "Sozlamalar",
     "overview": "Umumiy",
     "signOut": "Chiqish",
@@ -181,6 +182,7 @@
       "totalViews": "Koʻrishlar",
       "openReports": "Ochiq shikoyatlar",
       "pendingVerifications": "Kutilayotgan tasdiqlar",
+      "pendingTopRequests": "Kutayotgan Top soʻrovlari",
       "aiSessions": "AI suhbatlari",
       "guests": "Mehmonlar",
       "aiQueries": "AI soʻrovlari",
@@ -246,7 +248,7 @@
       "note": "Moderator izohi",
       "notePlaceholder": "Qaroringiz sababini yozing",
       "riskScore": "Xavf ballari",
-      "riskReasons": "AI sabablari",
+      "riskReasons": "Xavf sabablari",
       "approveConfirm": "Bu eʼlon tasdiqlansinmi?",
       "rejectConfirm": "Bu eʼlon rad etilsinmi?",
       "deleteConfirm": "Bu eʼlon oʻchirilsinmi?",
@@ -261,6 +263,10 @@
       "district": "Tuman boʻyicha",
       "featuredOnly": "Faqat reklamadagilar",
       "minRisk": "Minimal xavf"
+    },
+    "safetyBadges": {
+      "VERIFIED_OWNER": "Tasdiqlangan uy egasi",
+      "PROPERTY_VERIFIED": "Obyekt tekshirilgan"
     }
   },
   "reports": {
@@ -277,8 +283,8 @@
     "status": {
       "OPEN": "Ochiq",
       "UNDER_REVIEW": "Koʻrib chiqilmoqda",
-      "RESOLVED": "Hal qilingan",
-      "REJECTED": "Rad etilgan"
+      "RESOLVED": "Shikoyat tasdiqlandi",
+      "REJECTED": "Shikoyat rad etildi"
     },
     "listingAction": {
       "NONE": "Hech narsa",
@@ -288,7 +294,7 @@
     },
     "reason": {
       "SCAM": "Firibgarlik",
-      "BROKER": "Makler eʼloni",
+      "BROKER": "Eʼlon egasi notoʻgʻri koʻrsatilgan",
       "FAKE_LISTING": "Soxta eʼlon",
       "FAKE_PHOTOS": "Rasmlar boshqa uyniki",
       "WRONG_PRICE": "Narx notoʻgʻri",
@@ -302,10 +308,51 @@
       "MEDIUM": "Oʻrtacha",
       "LOW": "Past"
     },
-    "resolve": "Hal qilish",
-    "resolveTitle": "Shikoyatni hal qilish",
+    "resolve": "Qarorni saqlash",
+    "resolveTitle": "Shikoyat boʻyicha qaror",
     "note": "Izoh",
-    "notePlaceholder": "Qanday qaror qabul qilindi?"
+    "notePlaceholder": "Qanday qaror qabul qilindi?",
+    "decidedAt": "Qaror sanasi",
+    "trustPenalty": "«Shikoyat tasdiqlandi» — shikoyat oʻrinli degani: eʼlonning ishonchlilik foizi shu zahoti kamayadi. «Shikoyat rad etildi» — shikoyat bekor qilinadi va hech narsa oʻzgarmaydi."
+  },
+  "topRequests": {
+    "title": "Top soʻrovlari",
+    "subtitle": "Eʼlonni roʻyxat boshiga chiqarish soʻrovlari",
+    "columns": {
+      "listing": "Eʼlon",
+      "owner": "Egasi",
+      "days": "Muddat",
+      "note": "Izoh",
+      "status": "Holat",
+      "created": "Yuborilgan"
+    },
+    "status": {
+      "PENDING": "Kutilmoqda",
+      "APPROVED": "Tasdiqlangan",
+      "REJECTED": "Rad etilgan"
+    },
+    "actions": {
+      "approve": "Topga chiqarish",
+      "reject": "Rad etish"
+    },
+    "review": {
+      "title": "Top soʻrovini koʻrib chiqish",
+      "requestedDays": "Soʻralgan muddat",
+      "days": "Necha kun",
+      "weight": "Ustuvorlik",
+      "reason": "Rad etish sababi",
+      "reasonPlaceholder": "Nega rad etilganini yozing — egasi shu izohni koʻradi",
+      "effect": "Tasdiqlansangiz, eʼlon shu zahoti Topga chiqadi va {days} kun davomida roʻyxat boshida turadi.",
+      "approveConfirm": "Bu eʼlon Topga chiqarilsinmi?",
+      "rejectConfirm": "Bu soʻrov rad etilsinmi?",
+      "grantedUntil": "Top muddati",
+      "reviewedAt": "Koʻrib chiqilgan",
+      "alreadyLive": "Hozir Topda"
+    },
+    "filters": {
+      "status": "Holat boʻyicha"
+    },
+    "empty": "Soʻrovlar yoʻq"
   },
   "verifications": {
     "title": "Tasdiqlashlar",
@@ -515,8 +562,8 @@
     }
   },
   "ai": {
-    "title": "Shield AI suhbatlari",
-    "subtitle": "Saytdagi AI yordamchisi bilan suhbatlar",
+    "title": "Uyiz AI suhbatlari",
+    "subtitle": "Saytdagi Uyiz AI yordamchisi bilan suhbatlar",
     "columns": {
       "session": "Sessiya",
       "user": "Mijoz",
@@ -529,7 +576,7 @@
     "messagesCapped": "Faqat oxirgi {limit} ta xabar koʻrsatilmoqda.",
     "noMessages": "Xabarlar yoʻq",
     "user": "Mijoz",
-    "assistant": "Shield AI"
+    "assistant": "Uyiz AI"
   },
   "settings": {
     "title": "Sozlamalar",
@@ -632,6 +679,7 @@
     "LISTING_REPORTED": "Eʼlon ustidan shikoyat",
     "LISTING_AI_APPROVED": "AI eʼlonni tasdiqladi",
     "LISTING_AI_REJECTED": "AI eʼlonni rad etdi",
+    "LISTING_TOP_REQUESTED": "Top soʻrovi yuborildi",
     "ADMIN_LOGIN_SUCCESS": "Admin tizimga kirdi",
     "ADMIN_LOGIN_FAILED": "Admin kirishi muvaffaqiyatsiz",
     "ADMIN_LOGOUT": "Admin chiqdi",
@@ -644,14 +692,16 @@
     "ADMIN_USER_SESSIONS_REVOKED": "Admin sessiyalarni bekor qildi",
     "ADMIN_LISTING_STATUS_CHANGED": "Admin eʼlon holatini oʻzgartirdi",
     "ADMIN_LISTING_FEATURED": "Admin eʼlonni reklamaga qoʻydi",
+    "ADMIN_TOP_APPROVED": "Admin Top soʻrovini tasdiqladi",
+    "ADMIN_TOP_REJECTED": "Admin Top soʻrovini rad etdi",
     "ADMIN_LISTING_DELETED": "Admin eʼlonni oʻchirdi",
     "ADMIN_REPORT_RESOLVED": "Admin shikoyatni hal qildi",
     "ADMIN_VERIFICATION_REVIEWED": "Admin tasdiqlashni koʻrib chiqdi",
     "ADMIN_SETTINGS_CHANGED": "Sozlamalar oʻzgartirildi",
     "ADMIN_ACCOUNT_CREATED": "Yangi admin yaratildi",
     "ADMIN_EXPORT": "Admin maʼlumotlarni yuklab oldi",
-    "AI_CHAT_MESSAGE": "Shield AI xabari",
-    "AI_CHAT_CLOSED": "Shield AI suhbati yakunlandi",
+    "AI_CHAT_MESSAGE": "Uyiz AI xabari",
+    "AI_CHAT_CLOSED": "Uyiz AI suhbati yakunlandi",
     "AI_LIMIT_REACHED": "AI limiti tugadi",
     "SMS_SENT": "SMS yuborildi",
     "SMS_FAILED": "SMS yuborilmadi",

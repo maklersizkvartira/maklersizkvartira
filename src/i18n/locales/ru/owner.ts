@@ -23,7 +23,7 @@ export const owner = {
     breadcrumb: 'Разместить объявление',
     title: 'Размещение объявления',
     subtitle:
-      '4 простых шага — объявление готово за 3 минуты. Без посредников, напрямую с арендаторами.',
+      '3 простых шага — объявление готово за 3 минуты. Размещение бесплатное.',
     stepCounter: 'Шаг {current} из {total}',
     stepBadge: 'Шаг {step}',
     errorsTitle: 'Пожалуйста, исправьте следующие поля:',
@@ -33,16 +33,13 @@ export const owner = {
       locationHint: 'Где находится жильё?',
       detailsTitle: '2. О жилье',
       detailsHint: 'Комнаты, площадь, цена',
-      photosTitle: '3. Фотографии',
-      photosHint: 'Минимум 3 фотографии',
-      contactTitle: '4. Контакты',
-      contactHint: 'Как с вами связаться?',
+      photosTitle: '3. Фото и контакты',
+      photosHint: 'Минимум 1 фото и контакты',
     },
 
     next: {
       toDetails: 'Далее: о жилье',
-      toPhotos: 'Далее: фотографии',
-      toContact: 'Далее: контакты и проверка',
+      toPhotos: 'Далее: фото и контакты',
     },
 
     location: {
@@ -134,8 +131,8 @@ export const owner = {
     },
 
     photos: {
-      heading: 'Фотографии и видео квартиры',
-      subheading: 'Загрузите минимум 3 качественных фото — больше фото, больше арендаторов.',
+      heading: 'Фотографии квартиры',
+      subheading: 'Загрузите минимум 1 качественное фото — больше фото, больше арендаторов.',
       dropTitle: 'Нажмите, чтобы загрузить фотографии',
       dropBody: 'Выберите фото с телефона или из галереи (JPG, PNG, WEBP).',
       dropCta: 'Выбрать файлы (загружено: {count})',
@@ -143,27 +140,18 @@ export const owner = {
       coverBadge: 'Главное фото',
       imageAlt: 'Фото {index}',
       removeImage: 'Удалить фото {index}',
-      emptyHint: 'Вы ещё не загрузили фотографии. Нажмите на область выше и выберите фото.',
+      emptyHint: 'Нужно минимум 1 фото. Нажмите на область выше и выберите фото.',
       limitNotice: 'Можно загрузить не более {max} фотографий.',
       limitReached: 'Достигнут предел фотографий: {max}.',
       sizeNotice: 'Загруженный объём: {size} МБ из {max} МБ.',
       readFailed: 'Некоторые файлы не удалось прочитать. Выберите другие фото.',
-      videoLabel: 'Видеообзор квартиры',
-      videoDropTitle: 'Выберите видео с телефона',
-      videoDropBody: 'Короткое видео в формате MP4, MOV или WEBM.',
-      videoCta: 'Загрузить видео',
-      videoUploaded: 'Видео загружено',
-      videoRemove: 'Удалить видео',
-      videoUploadUnsupported: 'Загрузка видео файлом пока недоступна. Загрузите ролик на YouTube и вставьте ссылку.',
       // Said once, before the upload, instead of only as an error afterwards.
-      countHint: 'Минимум {min}, максимум {max} фотографий.',
-      sizeHint: 'Все файлы вместе — до {max} МБ.',
       countAndSizeHint: '{min}–{max} фотографий, суммарно до {size} МБ.',
       remainingHint: 'Можно добавить ещё {count} фото.',
     },
 
     contact: {
-      heading: 'Контакты и проверка безопасности',
+      heading: 'Контактные данные',
       subheading: 'Как арендаторы свяжутся с вами?',
       phoneLabel: 'Ваш номер телефона',
       phoneHint: 'Номер берётся из вашего профиля. Изменить его можно в профиле.',
@@ -175,47 +163,49 @@ export const owner = {
       timePlaceholder: 'Ежедневно 09:00 – 21:00',
     },
 
-    moderation: {
-      title: 'Проверьте объявление',
-      body: 'Перед публикацией отправьте заголовок, описание и цену на автоматическую проверку.',
-      runCta: 'Начать проверку',
-      rerunCta: 'Проверить снова',
-      scanning: 'Объявление проверяется...',
-      scanningBody: 'Анализируются признаки посредничества, мошенничества и логика цены.',
-      passedTitle: 'Проверка пройдена успешно',
-      passedBody: 'Объявление соответствует правилам. Теперь его можно опубликовать.',
-      blockedTitle: 'Объявление не прошло проверку',
-      blockedBody: 'Исправьте перечисленные причины и проверьте ещё раз.',
-      reasonsTitle: 'Причины',
-      riskScore: 'Уровень риска: {score}',
-      provider: 'Проверил: {provider}',
-      failed: 'Не удалось выполнить проверку. Попробуйте позже.',
-      editCta: 'Редактировать текст',
-      rejectedTitle: 'Объявление не прошло модерацию',
-      rejectedBody:
-        'Объявление сохранено, но пока не отображается, так как не прошло модерацию. Исправьте следующее.',
-      goToMyListings: 'Мои объявления',
-    },
-
-    ai: {
-      writeCopy: 'Пусть ИИ напишет текст',
-      suggestPrice: 'Пусть ИИ предложит цену',
-      photoTitle: 'Анализ фото и рекомендация цены от ИИ',
-      photoBody:
-        'ИИ определяет состояние квартиры по фотографиям и предлагает цену на основе объявлений района.',
-      unavailable:
-        'Функция временно недоступна: анализ ИИ перенесён на сервер. Введите текст и цену самостоятельно.',
+    /**
+     * The Top promotion, offered on the last step.
+     *
+     * Nothing here may promise a position that has not been granted: the
+     * request is free, it goes to the admins, and the listing moves only
+     * after they approve it. Publication never waits for any of that.
+     */
+    top: {
+      title: 'Поднимите объявление в Топ',
+      body:
+        'Объявление в Топе стоит в самом начале списка — его видит в несколько раз больше арендаторов.',
+      free: 'Бесплатно',
+      howItWorks:
+        'Запрос рассматривают администраторы. Объявление поднимется только после их подтверждения.',
+      daysLabel: 'На какой срок?',
+      daysOption: '{count} дней',
+      noteLabel: 'Комментарий администраторам',
+      notePlaceholder: 'Например: квартиру нужно сдать срочно',
+      cta: 'Запросить Топ',
+      selected: 'Запрос на Топ выбран',
+      selectedBody:
+        'Запрос уйдёт сразу после публикации объявления. На саму публикацию это никак не влияет.',
+      cancel: 'Отменить',
+      sentTitle: 'Запрос на Топ отправлен',
+      sentBody:
+        'Запрос отправлен администраторам. После подтверждения объявление поднимется в начало списка — до этого оно показывается как обычно.',
+      failedTitle: 'Объявление опубликовано, запрос на Топ не отправлен',
+      failedBody:
+        'Объявление уже на сайте. Запросить Топ можно ещё раз в разделе «Мои объявления».',
+      sentCta: 'Мои объявления',
     },
 
     /**
      * Draft persistence.
      *
-     * The wizard is four steps long and a mis-tapped back gesture used to
-     * empty all four, so the answers are kept and the exit is confirmed.
+     * The wizard is three steps long and a mis-tapped back gesture used to
+     * empty all three, so the answers are kept and the exit is confirmed.
      */
     draft: {
       restored: 'Сохранённый черновик восстановлен.',
       restoredAt: 'Восстановлен черновик от {time}.',
+      photosDropped:
+        'При сохранении черновика фотографии не поместились — их нужно загрузить заново.',
       discard: 'Удалить черновик',
       discarded: 'Черновик удалён.',
       saved: 'Черновик сохранён',
@@ -239,7 +229,7 @@ export const owner = {
       terms: 'Чётко опишите условия по депозиту и коммунальным платежам.',
       freeTitle: '100% бесплатное размещение',
       freeBody:
-        'Размещение объявления полностью бесплатно. Мы не берём комиссию — арендатор связывается с вами напрямую.',
+        'Размещение объявления полностью бесплатно. Арендаторы связываются напрямую с тем, кто разместил объявление.',
       badgeTitle: 'Значок проверенного собственника',
       badgeCta: 'Получить значок доверия',
     },
@@ -253,9 +243,9 @@ export const owner = {
       deposit: 'Депозит должен быть равен 0 или больше.',
       area: 'Укажите корректную площадь.',
       floor: 'Этаж должен быть от 1 до общего количества этажей.',
-      images: 'Загрузите минимум 3 настоящие фотографии.',
+      images: 'Загрузите минимум 1 настоящую фотографию.',
       imagesTooLarge:
-        'Объём фото и видео — {size} МБ, что превышает предел ({max} МБ). Загрузите меньше файлов или уменьшите их.',
+        'Объём фотографий — {size} МБ, что превышает предел ({max} МБ). Загрузите меньше фото или уменьшите их.',
       phone: 'Добавьте в профиль действующий номер телефона.',
       telegram: 'Неверное имя пользователя Telegram. Например: @dilshod_karimov',
       limitReached: 'Достигнут лимит активных объявлений ({max}). Сначала удалите одно из старых.',
@@ -303,7 +293,7 @@ export const owner = {
 
     empty: {
       title: 'Вы ещё не размещали объявлений',
-      body: 'Разместите свою квартиру бесплатно и без комиссии.',
+      body: 'Разместите свою квартиру совершенно бесплатно.',
       cta: 'Разместить объявление',
     },
 
@@ -316,11 +306,34 @@ export const owner = {
     deleteConfirm: 'Удалить это объявление? Отменить действие будет невозможно.',
     openListing: 'Открыть объявление',
 
-    moderation: {
-      title: 'Статус модерации',
-      reasons: 'Комментарии модератора',
-      verificationRequired: 'Требуется подтверждение',
-      noReasons: 'Дополнительных комментариев нет.',
+    /**
+     * What an administrator wrote when they warned about or took down this
+     * listing. With the publish-time check gone this note is the owner's only
+     * explanation, so it is printed in full rather than summarised, and only
+     * ever on their own listings - the API sends it to nobody else.
+     */
+    moderationNote: 'Комментарий администратора: {note}',
+
+    /**
+     * The Top state of one listing, on its own row.
+     *
+     * A listing whose request is waiting or already granted is not offered
+     * the button again — the state line is the whole answer there.
+     */
+    top: {
+      title: 'Топ-объявление',
+      body: 'Запрос бесплатный. После подтверждения администраторами объявление поднимется в начало списка.',
+      badge: 'ТОП',
+      cta: 'Запросить Топ',
+      pending: 'Запрос на Топ отправлен — администраторы его рассматривают.',
+      active: 'Топ активен — объявление стоит в начале списка.',
+      activeUntil: 'Топ активен — объявление стоит в начале списка до {date}.',
+      rejected: 'Запрос на Топ отклонён. Вы можете отправить его снова.',
+      send: 'Отправить запрос',
+      sending: 'Отправляем...',
+      alreadyPending: 'Запрос по этому объявлению уже отправлен.',
+      notPublic: 'В Топ можно поднять только опубликованное объявление.',
+      failed: 'Не удалось отправить запрос. Попробуйте позже.',
     },
   },
 

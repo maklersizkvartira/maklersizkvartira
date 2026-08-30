@@ -15,7 +15,7 @@ import { useLogout } from '@/features/auth/hooks';
 /* ─── Icons ──────────────────────────────────────────────────────────────────
    Inline rather than imported: at 17×17 / strokeWidth 1.8 the nav glyphs sit
    on the pixel grid exactly as drawn, and a nav that renders on every page
-   should not wait on an icon package chunk. Only the glyphs the maklersiz nav
+   should not wait on an icon package chunk. Only the glyphs the Uyiz nav
    and the sidebar chrome actually use live here. */
 const Icons = {
   dashboard: (
@@ -37,6 +37,11 @@ const Icons = {
   reports: (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 8 2a6 6 0 0 0 2.6-.6.5.5 0 0 1 .7.5v9.8a1 1 0 0 1-.4.8A6 6 0 0 1 16 15c-3 0-5-2-8-2a6 6 0 0 0-4 1.3" />
+    </svg>
+  ),
+  topRequests: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z" />
     </svg>
   ),
   verifications: (
@@ -168,7 +173,7 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-/** The maklersiz admin surface. Header's command palette reads the same list,
+/** The Uyiz admin surface. Header's command palette reads the same list,
  *  so a route added here becomes searchable without a second registration. */
 export const NAV_GROUPS: NavGroup[] = [
   {
@@ -180,6 +185,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: 'listings', href: '/listings', icon: Icons.listings },
       { key: 'reports', href: '/reports', icon: Icons.reports },
+      { key: 'topRequests', href: '/top-requests', icon: Icons.topRequests },
       { key: 'verifications', href: '/verifications', icon: Icons.verifications },
     ],
   },
@@ -349,13 +355,13 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
               boxShadow: '0 4px 12px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.05) inset',
             }}
           >
-            <Image src="/brand/mark-128.png" alt="Maklersiz" width={28} height={28} className="object-contain" priority />
+            <Image src="/brand/mark-128.png" alt="Uyiz" width={28} height={28} className="object-contain" priority />
           </div>
 
           {!sidebarCollapsed && (
             <div className="sidebar-brand-copy min-w-0 flex-1 animate-fade-in">
               <p className="font-bold text-[15px] leading-tight truncate" style={{ color: 'var(--color-text-primary)', letterSpacing: '-0.03em', fontFamily: 'var(--font-heading)' }}>
-                Maklersiz
+                Uyiz
               </p>
               {/* Left untranslated on purpose: this line is the second half of
                   the wordmark lockup, not prose — the same treatment the mark

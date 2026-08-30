@@ -5,7 +5,7 @@ connected nobody can complete registration. This seeds an account directly:
 phone already verified, status ACTIVE, password set.
 
     python -m scripts.create_account --phone "+998 77 785 07 37" \
-        --password "MaklersizUy!" --name "Test Akkaunt" --role OWNER
+        --password "Uyiz2026!" --name "Test Akkaunt" --role OWNER
 
 Re-running with the same phone updates that account instead of failing, so it
 doubles as a password reset for a seeded user.

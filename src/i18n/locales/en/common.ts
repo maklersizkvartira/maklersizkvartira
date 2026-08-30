@@ -6,9 +6,9 @@
  */
 export const common = {
   brand: {
-    name: 'Maklersiz Uy',
+    name: 'Uyiz',
     tagline: 'Connecting landlords and tenants directly',
-    shortTagline: 'No brokers. No commission.',
+    shortTagline: 'Trusted rental listings.',
   },
 
   role: {
@@ -81,7 +81,6 @@ export const common = {
     updated: 'Updated',
     deleted: 'Deleted',
     required: 'Required field',
-    optional: 'Optional',
   },
 
   filters: {
@@ -155,13 +154,10 @@ export const common = {
   badge: {
     verifiedOwner: 'Verified landlord',
     propertyVerified: 'Documents checked',
-    aiChecked: 'AI checked',
-    noCommission: '0% commission',
     studentFriendly: 'Student friendly',
     roommate: 'Shared / roommate',
     featured: 'Recommended',
     new: 'New',
-    video: 'Video available',
     virtualTour: '3D tour',
     trustScore: 'Trust: {score}',
     verificationLevel: 'Level {level}',

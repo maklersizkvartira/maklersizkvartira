@@ -83,7 +83,7 @@ async def send_chat_summary(
     phone = format_display(user_phone) if user_phone else "Kiritilmadi"
 
     text = (
-        "📋 <b>Shield AI — suhbat xulosasi</b> 🛡️\n\n"
+        "📋 <b>Uyiz AI — suhbat xulosasi</b> 🛡️\n\n"
         f"👤 <b>Mijoz:</b> {_esc(user_name)}\n"
         f"📱 <b>Telefon:</b> {_esc(phone)}\n\n"
         f"{block}"
@@ -91,18 +91,22 @@ async def send_chat_summary(
         f"📊 <b>Jami xabarlar:</b> {message_count} ta\n"
         f"⏰ <i>{_esc(now)}</i>"
     )
-    return await send_message(db, text, context="shield_ai_summary")
+    return await send_message(db, text, context="uyiz_ai_summary")
 
 
 async def notify_new_listing(db, *, listing, owner_name: str) -> bool:
+    # No status/risk line any more. A new listing is published straight away,
+    # so its status is always APPROVED here, and the reliability score only
+    # moves later, when an admin confirms a complaint about it. Printing two
+    # constants on every notification taught the ops group to stop reading the
+    # last line.
     price = f"{int(listing.price):,}".replace(",", " ")
     text = (
         "🏠 <b>Yangi e'lon joylandi</b>\n\n"
         f"<b>{_esc(listing.title)}</b>\n"
         f"📍 {_esc(listing.district or '—')} • {_esc(listing.rooms)} xona\n"
         f"💰 {price} so'm/oy\n"
-        f"👤 {_esc(owner_name)}\n"
-        f"🛡 Status: <b>{_esc(listing.status)}</b> (risk {listing.risk_score})"
+        f"👤 {_esc(owner_name)}"
     )
     return await send_message(db, text, context="new_listing")
 

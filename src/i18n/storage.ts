@@ -7,10 +7,22 @@
  * component depends on is a fragile place to have one.
  */
 
+import { localStore } from '../lib/storage';
 import { stripLanguagePrefix } from '../router/language';
 import { DEFAULT_LANGUAGE, isLanguage, type Language } from './types';
 
-export const LANGUAGE_STORAGE_KEY = 'maklersiz.language';
+export const LANGUAGE_STORAGE_KEY = 'uyiz.language';
+/**
+ * What the key was called before the brand changed.
+ *
+ * Migrated on first read rather than dropped: a returning visitor whose stored
+ * choice vanished would fall back to Uzbek, and `browserLanguage` then feeds a
+ * redirect — so a Russian reader would be bounced to `/ru/` from an address
+ * they had already picked, on the first load after the deploy.
+ *
+ * index.html's pre-paint bootstrap reads this pair too, to set `<html lang>`.
+ */
+export const LEGACY_LANGUAGE_STORAGE_KEY = 'maklersiz.language';
 
 /**
  * The language the current URL renders in.
@@ -71,19 +83,10 @@ export function browserLanguage(): Language | null {
 
 /** The language a returning visitor last chose, ignoring the current URL. */
 export function storedLanguage(): Language | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    return isLanguage(stored) ? stored : null;
-  } catch {
-    return null;
-  }
+  const stored = localStore.read(LANGUAGE_STORAGE_KEY, LEGACY_LANGUAGE_STORAGE_KEY);
+  return isLanguage(stored) ? stored : null;
 }
 
 export function persistLanguage(language: Language): void {
-  try {
-    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
-  } catch {
-    /* ignore */
-  }
+  localStore.write(LANGUAGE_STORAGE_KEY, language);
 }

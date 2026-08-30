@@ -119,7 +119,7 @@ function rehydrateThemePalette() {
     // script below and COLOR_SCHEMES in ThemePalette.tsx. All three must carry
     // the same hex per id, and `ocean` must match --accent in globals.css, or
     // the accent visibly changes between the pre-paint, the rehydrate and the
-    // palette's own swatch. `ocean` is the Maklersiz brand blue #1447e6.
+    // palette's own swatch. `ocean` is the Uyiz brand blue #1447e6.
     const SCHEMES: Record<string, { p: string; s: string; g: string }> = {
       ocean:   { p: '#1447e6', s: '#06b6d4', g: 'rgba(20,71,230,0.4)' },
       violet:  { p: '#7c3aed', s: '#a78bfa', g: 'rgba(124,58,237,0.4)' },

@@ -86,17 +86,25 @@ function clamp(text: string, max = DESCRIPTION_MAX): string {
   return `${cut.slice(0, lastSpace > 60 ? lastSpace : max - 1).trimEnd()}…`;
 }
 
-const BRAND_SUFFIX = ' | Maklersizuy.uz';
+/**
+ * The brand tail every title ends with.
+ *
+ * It is duplicated, by necessity, as `const SUFFIX` in each of the three copy
+ * packs — they build their titles before this module sees them. The two must
+ * stay byte-identical or `fitTitle` below stops recognising the brand and
+ * trims nothing. Nothing else in the codebase may write this string inline.
+ */
+const BRAND_SUFFIX = ' | Uyiz.uz';
 
 /**
  * Keeps a title inside what a result actually shows.
  *
  * Beyond roughly sixty characters Google truncates, and what it truncates is
- * the end — which in a title like "Qoraqalpogʻistonda maklersiz kvartira
- * ijarasi | Maklersizuy.uz" is the half that says what the page is. The brand
- * is the part worth losing, so it goes first; a title still over the limit
- * after that is left whole rather than cut mid-word, because a clipped word
- * reads worse in a result than a long phrase does.
+ * the end — which in a title like "Qoraqalpogʻistonda uy va kvartira ijarasi
+ * | Uyiz.uz" is the half that says what the page is. The brand is the part
+ * worth losing, so it goes first; a title still over the limit after that is
+ * left whole rather than cut mid-word, because a clipped word reads worse in
+ * a result than a long phrase does.
  */
 function fitTitle(title: string): string {
   const clean = title.replace(/\s+/g, ' ').trim();
@@ -199,7 +207,7 @@ function rawPageCopy(
         intro: copy.landing.categoryIntro(category),
         // A category page is about a kind of home, not a place, so the FAQ
         // asks about the country. It used to be handed the brand name here,
-        // and asked how to find a flat "in Maklersiz Uy".
+        // and asked how to find a flat "in Uyiz".
         faq: copy.landing.placeFaq(
           copy.country ?? { name: '', short: '', inPlace: copy.brand.name },
           category,
@@ -331,7 +339,7 @@ function rawPageCopy(
 
     case 'BLOG_INDEX':
       return {
-        title: `${copy.common.blogHeading} | Maklersizuy.uz`,
+        title: `${copy.common.blogHeading}${BRAND_SUFFIX}`,
         description: clamp(copy.common.blogIntro),
         h1: copy.common.blogHeading,
         intro: [copy.common.blogIntro],
@@ -343,7 +351,7 @@ function rawPageCopy(
       const article = articleFor(language, route.slug ?? '');
       if (!article) break;
       return {
-        title: `${article.title} | Maklersizuy.uz`,
+        title: `${article.title}${BRAND_SUFFIX}`,
         description: clamp(article.summary),
         h1: article.h1,
         intro: [article.intro],
@@ -359,7 +367,7 @@ function rawPageCopy(
     case 'HELP': {
       if (!route.slug) {
         return {
-          title: `${copy.common.helpHeading} | Maklersizuy.uz`,
+          title: `${copy.common.helpHeading}${BRAND_SUFFIX}`,
           description: clamp(copy.common.helpIntro),
           h1: copy.common.helpHeading,
           intro: [copy.common.helpIntro],
@@ -370,7 +378,7 @@ function rawPageCopy(
       const article = helpFor(language, route.slug);
       if (!article) break;
       return {
-        title: `${article.title} | Maklersizuy.uz`,
+        title: `${article.title}${BRAND_SUFFIX}`,
         description: clamp(article.summary),
         h1: article.h1,
         intro: [article.intro],
@@ -408,7 +416,7 @@ function rawPageCopy(
 
     case 'NOT_FOUND':
       return {
-        title: `${copy.common.notFoundTitle} | Maklersizuy.uz`,
+        title: `${copy.common.notFoundTitle}${BRAND_SUFFIX}`,
         description: clamp(copy.common.notFoundBody),
         h1: copy.common.notFoundTitle,
         intro: [copy.common.notFoundBody],
@@ -420,8 +428,8 @@ function rawPageCopy(
       break;
   }
 
-  // Private app views: a real title so the browser tab is not "Maklersiz Uy"
-  // on every screen, but no descriptive copy — they are noindex anyway.
+  // Private app views: a real title so the browser tab is not "Uyiz" on
+  // every screen, but no descriptive copy — they are noindex anyway.
   return {
     title: `${copy.brand.name} — ${copy.brand.tagline}`,
     description: clamp(copy.brand.about),

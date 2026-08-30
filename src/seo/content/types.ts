@@ -36,7 +36,7 @@ export interface CategoryWords {
   plural: string;
   /** Menu / breadcrumb label: "Kvartira ijarasi". */
   label: string;
-  /** Headline phrase: "maklersiz kvartira ijarasi". */
+  /** Headline phrase: "kvartira ijarasi". */
   headline: string;
   /** One sentence describing who this category is for. */
   blurb: string;
@@ -142,7 +142,7 @@ export interface CopyPack {
    * Category pages are about a kind of home rather than a place, but their
    * FAQ is still phrased "how do I find X in Y". Without this the builder
    * substituted the brand name for Y and asked "how do I find a flat in
-   * Maklersiz Uy".
+   * Uyiz".
    */
   country?: PlaceWords;
 

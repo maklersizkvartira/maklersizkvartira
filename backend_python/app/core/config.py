@@ -41,13 +41,13 @@ class Settings(BaseSettings):
 
     # -- Runtime -------------------------------------------------------------
     ENVIRONMENT: Environment = "development"
-    APP_NAME: str = "Maklersiz.uz API"
+    APP_NAME: str = "Uyiz API"
     API_PREFIX: str = "/api/v1"
     #: The public origin of the SITE, not of this API. Sitemaps served here are
     #: proxied onto that host, so every <loc> they publish has to name it —
     #: a sitemap listing URLs for a host it is not served from is only honoured
     #: when both hosts are verified in Search Console.
-    SITE_URL: str = "https://maklersizuy.uz"
+    SITE_URL: str = "https://uyiz.uz"
     PORT: int = 5000
     LOG_LEVEL: str = "INFO"
     # Number of reverse proxies in front of the app. Controls how far back in
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     TRUSTED_PROXY_COUNT: int = 1
 
     # -- Database ------------------------------------------------------------
-    DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@localhost:5432/maklersiz"
+    DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@localhost:5432/uyiz"
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
     DB_POOL_RECYCLE_SECONDS: int = 1800
@@ -90,8 +90,19 @@ class Settings(BaseSettings):
     #
     # In production this default is replaced wholesale by the Railway
     # variable, which must name the site origin AND the admin origin; see
-    # RAILWAY_ENV.md.
+    # RAILWAY_ENV.md. The production origins are still listed here so that a
+    # deploy whose variable was forgotten degrades to "the real site works"
+    # rather than to "every request fails with no Access-Control-Allow-Origin".
+    #
+    # Both domains are listed on purpose. uyiz.uz is the brand; maklersizuy.uz
+    # is the previous one and stays alive as a permanent 301 onto it, so for as
+    # long as anything still resolves there its origins have to be allowed too —
+    # CORS matching is exact, with no wildcards. Drop the maklersizuy.uz entries
+    # once the old domain no longer serves the app at all.
     CORS_ORIGINS: str = (
+        "https://uyiz.uz,https://www.uyiz.uz,https://admin.uyiz.uz,"
+        "https://maklersizuy.uz,https://www.maklersizuy.uz,"
+        "https://admin.maklersizuy.uz,"
         "http://localhost:3000,http://127.0.0.1:3000,"
         "http://localhost:3001,http://127.0.0.1:3001,"
         "http://localhost:5173"
@@ -130,8 +141,11 @@ class Settings(BaseSettings):
     DEVSMS_SENDER: str = "4546"
     #: The company name inside a verification SMS. Screened by the provider on
     #: every send, and twenty consecutive rejections suspend the account for a
-    #: day — so it has to be changeable without a deploy.
-    DEVSMS_SERVICE_NAME: str = "MaklersizUy"
+    #: day — so it has to be changeable without a deploy. The new brand name has
+    #: to be registered with DevSMS/Eskiz BEFORE this is switched over in
+    #: Railway; until it is approved, sends are rejected one by one and nobody
+    #: can register, sign in by code or reset a password.
+    DEVSMS_SERVICE_NAME: str = "Uyiz"
     SMS_ENABLED: bool = True
 
     TELEGRAM_BOT_TOKEN: str = ""
@@ -154,6 +168,14 @@ class Settings(BaseSettings):
     #: Support numbers the assistant may hand out, highest priority first.
     #: Comma-separated so they can be changed without a deploy.
     SUPPORT_PHONES: str = "+998937188885,+998777850737"
+    #: The support Telegram, for people who would rather write than call.
+    #: Empty means "we do not offer this route": the assistant omits it rather
+    #: than handing out a link that goes nowhere.
+    SUPPORT_TELEGRAM: str = "https://t.me/uyiz"
+    #: When a human is actually there, in the site's own timezone. The
+    #: assistant quotes it so it can say "they will call you back in the
+    #: morning" instead of promising a call at midnight.
+    SUPPORT_HOURS: str = "09:00-21:00"
 
     @property
     def openai_model_smart(self) -> str:

@@ -24,8 +24,20 @@ from app.core.config import settings
 from app.core.security import generate_token, hash_token
 from app.models.auth import RefreshToken
 
-ISSUER = "maklersiz.uz"
-AUDIENCE = "maklersiz.uz/api"
+ISSUER = "uyiz.uz"
+AUDIENCE = "uyiz.uz/api"
+
+#: The claims the brand used before the rename to Uyiz. Every access token
+#: minted from now on carries the new pair, but tokens issued by the previous
+#: release are still inside their 15-minute (user) / 30-minute (admin) window
+#: when the new one starts serving, and rejecting them would fail one request
+#: per active client. `decode_access_token` therefore accepts either pair.
+#:
+#: Delete both constants — and the fallback in decode_access_token — once the
+#: longest access-token TTL has elapsed since the deploy. Nothing else depends
+#: on them: refresh tokens are opaque random rows with no issuer inside.
+LEGACY_ISSUER = "maklersiz.uz"
+LEGACY_AUDIENCE = "maklersiz.uz/api"
 
 SubjectType = Literal["user", "admin"]
 
@@ -103,14 +115,24 @@ def decode_access_token(token: str) -> AccessTokenClaims:
             token,
             settings.JWT_SECRET,
             algorithms=[settings.JWT_ALGORITHM],
-            audience=AUDIENCE,
-            issuer=ISSUER,
-            options={"require": ["exp", "iat", "sub", "typ", "sid"]},
+            # A list of audiences means "any one of these", which is exactly
+            # the transition rule: new tokens carry the new audience, tokens
+            # still in flight from the previous release carry the old one.
+            audience=[AUDIENCE, LEGACY_AUDIENCE],
+            options={"require": ["exp", "iat", "sub", "typ", "sid", "iss"]},
         )
     except jwt.ExpiredSignatureError as exc:
         raise TokenError("token_expired") from exc
     except jwt.InvalidTokenError as exc:
         raise TokenError("token_invalid") from exc
+
+    # The issuer is checked here rather than through jwt.decode's `issuer=`
+    # kwarg because that argument takes a single value in the PyJWT releases
+    # this project has to run on, and during the rename two are valid. The
+    # claim itself is still mandatory - it is in the `require` list above - so
+    # a token without one never reaches this comparison.
+    if payload.get("iss") not in (ISSUER, LEGACY_ISSUER):
+        raise TokenError("token_invalid")
 
     try:
         subject_id = uuid.UUID(payload["sub"])

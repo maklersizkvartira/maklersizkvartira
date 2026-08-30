@@ -21,7 +21,7 @@ export const owner = {
     breadcrumb: 'Post a listing',
     title: 'Post your listing',
     subtitle:
-      'Four simple steps — your listing is ready in three minutes. No brokers, straight to tenants.',
+      'Three simple steps — your listing is ready in three minutes. Posting is free.',
     stepCounter: 'Step {current} of {total}',
     stepBadge: 'Step {step}',
     errorsTitle: 'Please fix the following fields:',
@@ -31,16 +31,13 @@ export const owner = {
       locationHint: 'Where is the property?',
       detailsTitle: '2. Property details',
       detailsHint: 'Rooms, area, price',
-      photosTitle: '3. Photos',
-      photosHint: 'At least 3 photos',
-      contactTitle: '4. Contact',
-      contactHint: 'How will tenants reach you?',
+      photosTitle: '3. Photos and contact',
+      photosHint: 'At least 1 photo and contact',
     },
 
     next: {
       toDetails: 'Next: property details',
-      toPhotos: 'Next: photos',
-      toContact: 'Next: contact and review',
+      toPhotos: 'Next: photos and contact',
     },
 
     location: {
@@ -132,8 +129,8 @@ export const owner = {
     },
 
     photos: {
-      heading: 'Apartment photos and video',
-      subheading: 'Upload at least 3 good photos — more photos means more tenants.',
+      heading: 'Apartment photos',
+      subheading: 'Upload at least 1 good photo — more photos means more tenants.',
       dropTitle: 'Click to upload photos',
       dropBody: 'Pick photos from your phone or gallery (JPG, PNG, WEBP).',
       dropCta: 'Choose files ({count} uploaded)',
@@ -141,27 +138,18 @@ export const owner = {
       coverBadge: 'Cover photo',
       imageAlt: 'Photo {index}',
       removeImage: 'Remove photo {index}',
-      emptyHint: 'You have not uploaded any photos yet. Click the area above to pick some.',
+      emptyHint: 'At least 1 photo is required. Click the area above to pick some.',
       limitNotice: 'You can upload up to {max} photos.',
       limitReached: 'Photo limit reached: {max}.',
       sizeNotice: 'Uploaded size: {size} MB of {max} MB.',
       readFailed: 'Some files could not be read. Please choose different photos.',
-      videoLabel: 'Apartment video tour',
-      videoDropTitle: 'Pick a video from your phone',
-      videoDropBody: 'A short clip in MP4, MOV or WEBM format.',
-      videoCta: 'Upload video',
-      videoUploaded: 'Video uploaded',
-      videoRemove: 'Remove video',
-      videoUploadUnsupported: 'Direct video upload is not available yet. Upload the clip to YouTube and paste the link.',
       // Said once, before the upload, instead of only as an error afterwards.
-      countHint: 'At least {min} photos, at most {max}.',
-      sizeHint: 'All files together up to {max} MB.',
       countAndSizeHint: '{min}–{max} photos, up to {size} MB in total.',
       remainingHint: 'You can add {count} more photos.',
     },
 
     contact: {
-      heading: 'Contact and safety check',
+      heading: 'Contact details',
       subheading: 'How will tenants get in touch with you?',
       phoneLabel: 'Your phone number',
       phoneHint: 'The number comes from your profile. Change it in your profile settings.',
@@ -173,47 +161,49 @@ export const owner = {
       timePlaceholder: 'Every day 09:00 – 21:00',
     },
 
-    moderation: {
-      title: 'Run the listing check',
-      body: 'Send the title, description and price through the automated check before publishing.',
-      runCta: 'Start the check',
-      rerunCta: 'Check again',
-      scanning: 'Checking your listing...',
-      scanningBody: 'Broker signals, fraud patterns and price sanity are being analysed.',
-      passedTitle: 'The check passed',
-      passedBody: 'Your listing follows the rules. You can publish it now.',
-      blockedTitle: 'The listing did not pass the check',
-      blockedBody: 'Fix the reasons listed below and run the check again.',
-      reasonsTitle: 'Reasons',
-      riskScore: 'Risk level: {score}',
-      provider: 'Checked by: {provider}',
-      failed: 'The check could not be completed. Please try again later.',
-      editCta: 'Edit the text',
-      rejectedTitle: 'The listing did not pass moderation',
-      rejectedBody:
-        'Your listing was saved but is not visible yet because it did not pass moderation. Fix the points below.',
-      goToMyListings: 'My listings',
-    },
-
-    ai: {
-      writeCopy: 'Let AI write the text',
-      suggestPrice: 'Let AI suggest a price',
-      photoTitle: 'AI photo analysis and price suggestion',
-      photoBody:
-        'AI reads the condition of the apartment from your photos and suggests a price based on nearby listings.',
-      unavailable:
-        'This feature is unavailable for now: AI analysis moved to the server. Please write the text and set the price yourself.',
+    /**
+     * The Top promotion, offered on the last step.
+     *
+     * Nothing here may promise a position that has not been granted: the
+     * request is free, it goes to the admins, and the listing moves only
+     * after they approve it. Publication never waits for any of that.
+     */
+    top: {
+      title: 'Put your listing on Top',
+      body:
+        'A Top listing sits at the very start of the results — several times as many tenants see it.',
+      free: 'Free',
+      howItWorks:
+        'Admins review the request. Your listing only moves up once they approve it.',
+      daysLabel: 'For how long?',
+      daysOption: '{count} days',
+      noteLabel: 'Note for the admins',
+      notePlaceholder: 'For example: I need to rent the apartment out quickly',
+      cta: 'Request Top',
+      selected: 'Top request selected',
+      selectedBody:
+        'The request is sent as soon as the listing is published. It does not affect publishing at all.',
+      cancel: 'Cancel',
+      sentTitle: 'Top request sent',
+      sentBody:
+        'Your request went to the admins. Once they approve it your listing moves to the start of the results — until then it appears as usual.',
+      failedTitle: 'Listing published, Top request not sent',
+      failedBody:
+        'Your listing is live. You can request Top again from “My listings”.',
+      sentCta: 'My listings',
     },
 
     /**
      * Draft persistence.
      *
-     * The wizard is four steps long and a mis-tapped back gesture used to
-     * empty all four, so the answers are kept and the exit is confirmed.
+     * The wizard is three steps long and a mis-tapped back gesture used to
+     * empty all three, so the answers are kept and the exit is confirmed.
      */
     draft: {
       restored: 'Your saved draft was restored.',
       restoredAt: 'Restored the draft saved at {time}.',
+      photosDropped:
+        'The photos did not fit when the draft was saved — you need to upload them again.',
       discard: 'Discard the draft',
       discarded: 'The draft was discarded.',
       saved: 'Draft saved',
@@ -237,7 +227,7 @@ export const owner = {
       terms: 'Spell out the deposit and utility terms in the description.',
       freeTitle: '100% free to post',
       freeBody:
-        'Posting a listing is completely free. We take no commission — tenants contact you directly.',
+        'Posting a listing is completely free. Tenants contact whoever published the listing directly.',
       badgeTitle: 'Verified owner badge',
       badgeCta: 'Get the trust badge',
     },
@@ -251,9 +241,9 @@ export const owner = {
       deposit: 'The deposit must be 0 or more.',
       area: 'Enter a valid area.',
       floor: 'The floor must be between 1 and the total number of floors.',
-      images: 'Upload at least 3 real photos.',
+      images: 'Upload at least 1 real photo.',
       imagesTooLarge:
-        'Photos and video add up to {size} MB, over the {max} MB limit. Upload fewer or smaller files.',
+        'Photos add up to {size} MB, over the {max} MB limit. Upload fewer or smaller photos.',
       phone: 'Add a working phone number to your profile.',
       telegram: 'That Telegram username is not valid. For example: @dilshod_karimov',
       limitReached: 'You have reached the limit of {max} active listings. Delete an old one first.',
@@ -300,7 +290,7 @@ export const owner = {
 
     empty: {
       title: 'You have not posted a listing yet',
-      body: 'Post your apartment for free, with no commission.',
+      body: 'Post your apartment completely free of charge.',
       cta: 'Post a listing',
     },
 
@@ -313,11 +303,34 @@ export const owner = {
     deleteConfirm: 'Delete this listing? This cannot be undone.',
     openListing: 'Open the listing',
 
-    moderation: {
-      title: 'Moderation status',
-      reasons: 'Moderator notes',
-      verificationRequired: 'Verification required',
-      noReasons: 'No further notes.',
+    /**
+     * What an administrator wrote when they warned about or took down this
+     * listing. With the publish-time check gone this note is the owner's only
+     * explanation, so it is printed in full rather than summarised, and only
+     * ever on their own listings - the API sends it to nobody else.
+     */
+    moderationNote: 'Administrator’s note: {note}',
+
+    /**
+     * The Top state of one listing, on its own row.
+     *
+     * A listing whose request is waiting or already granted is not offered
+     * the button again — the state line is the whole answer there.
+     */
+    top: {
+      title: 'Top listing',
+      body: 'The request is free. Once admins approve it, the listing moves to the start of the results.',
+      badge: 'TOP',
+      cta: 'Request Top',
+      pending: 'Top request sent — the admins are reviewing it.',
+      active: 'Top is active — the listing sits at the start of the results.',
+      activeUntil: 'Top is active — the listing sits at the start of the results until {date}.',
+      rejected: 'The Top request was rejected. You can send it again.',
+      send: 'Send the request',
+      sending: 'Sending...',
+      alreadyPending: 'A request for this listing has already been sent.',
+      notPublic: 'Only a published listing can be put on Top.',
+      failed: 'The request could not be sent. Please try again later.',
     },
   },
 

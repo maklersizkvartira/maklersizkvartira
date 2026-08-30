@@ -33,24 +33,24 @@ import type { Article, HelpArticle } from './types';
 
 export const EN_ARTICLES: Article[] = [
   {
-    slug: 'maklersiz-uy-topish',
-    title: 'How to rent from the owner, with no agent involved',
+    slug: 'uy-ijaraga-olish-qollanma',
+    title: 'Renting a flat in Uzbekistan: a practical guide',
     summary:
-      'How to reach the actual owner of a flat, and how to tell in the first phone call that '
-      + 'the person you are speaking to is an agent.',
+      'How to check the listing, the flat and the deal before any money changes hands, in the '
+      + 'order the checks are actually useful.',
     publishedAt: '2025-11-18',
     updatedAt: '2026-06-12',
     readingMinutes: 6,
-    h1: 'Renting without an agent, and spotting one on the first call',
+    h1: 'Checking a flat and a landlord before you pay',
     intro:
       'In Tashkent and in every regional city, the search usually starts the same way: you open '
-      + 'a list of adverts, scroll through dozens of flats, call one of them — and the person on '
-      + 'the other end is not the owner but a middleman. He takes you to the flat, shows you the '
-      + 'keys, and then asks for a fee that often equals a month’s rent. That money pays for no '
-      + 'repairs and no paperwork; it is charged purely for knowing a phone number. Reaching the '
-      + 'owner directly is entirely possible: it takes starting the search in the right place and '
-      + 'knowing a handful of simple signals. Below are those signals, and the practical order of '
-      + 'events from the first viewing to the handshake.',
+      + 'a list of adverts, scroll through dozens of flats, call one of them — and this is where '
+      + 'most of the mistakes begin. Money is sent before anyone has seen the place, what the '
+      + 'price includes is agreed verbally, and the deposit is written down nowhere at all. In '
+      + 'practice almost every rental dispute is closed in advance by a handful of plain checks: '
+      + 'establish that the listing is real, ask the right questions on the first call, see the '
+      + 'flat with your own eyes, and hand over money only after a contract. Below is that '
+      + 'sequence, from the first listing to the keys.',
     sections: [
       {
         heading: 'Set three limits before you start looking',
@@ -77,30 +77,30 @@ export const EN_ARTICLES: Article[] = [
         ],
       },
       {
-        heading: 'How to tell who actually posted the listing',
+        heading: 'How to check that a listing is real',
         paragraphs: [
-          'An agent’s advert usually gives itself away; you only need to know where to look. An '
-            + 'owner photographs their own flat once, thoroughly: the rooms, the kitchen, the '
-            + 'bathroom, the entrance, the view from the window. An agent’s photos tend to show '
-            + 'the two best corners and nothing else — no stairwell, no courtyard — because the '
-            + 'point is not to show you the flat, it is to make you call.',
-          'The writing tells you as much as the pictures. An owner writes "my flat is free from '
-            + 'the first, long term preferred". An agent writes "we have many options in our '
-            + 'database", "tell us the area and we will pick something for you". A missing '
-            + 'address, or even a missing landmark, is another reliable sign: an owner has no '
-            + 'reason to hide which street the flat is on.',
-          'Checking by phone is easier still. Ask the things only an owner would know: whose name '
-            + 'is on the ownership document, whether the meters are installed, who the '
-            + 'neighbours are, when the flat was last redecorated. An agent answers in '
-            + 'generalities or says "you will see when you get there". An owner answers without '
-            + 'hesitating, because it is their flat.',
+          'A listing may be posted by the owner or by a letting agency, and either is perfectly '
+            + 'normal. What has to be checked is something else: whether the advert is really '
+            + 'about that flat, and whether the person who posted it is actually entitled to let '
+            + 'it. Most of the answer is visible in the listing itself.',
+          'Start with the photographs. A real listing shows the whole flat: the rooms, the '
+            + 'kitchen, the bathroom, the entrance, the view from the window. If only the two '
+            + 'best corners are shown, there is no stairwell and no courtyard, and the image '
+            + 'quality jumps between shots, the pictures may well have been collected from '
+            + 'different sources. Running one photo through a reverse image search takes a '
+            + 'minute.',
+          'Checking by phone is easier still. Ask the specifics: whose name is on the ownership '
+            + 'document, who will sign the contract, whether the meters are installed, when the '
+            + 'flat was last redecorated. An owner, and an agent who knows the flat, both answer '
+            + 'those calmly. "You will see when you get there" means the conversation is not '
+            + 'worth continuing.',
         ],
         bullets: [
-          'One phone number appears on dozens of adverts across unrelated districts.',
-          'The photos are attractive but there is no wide shot, no stairwell, no courtyard.',
-          'The text talks about a "database", "options", "we will select something for you".',
-          'No address is given, and the landmark is left as "we will tell you later".',
-          'The price is far below similar flats nearby — usually bait rather than a bargain.',
+          'The photographs are of one flat and were taken recently.',
+          'There is a wide shot, a stairwell and a courtyard, not just two corners.',
+          'An address, or at least a precise landmark, is given.',
+          'It is clear whose name is on the document and who will sign the contract.',
+          'The price is not far below similar flats nearby — that is usually bait.',
         ],
       },
       {
@@ -162,26 +162,27 @@ export const EN_ARTICLES: Article[] = [
     ],
     faq: [
       {
-        q: 'Is it realistic to rent without an agent at all?',
+        q: 'What should I check first when looking for a flat?',
         a:
-          'Yes, because most owners would rather let the place themselves — they do not want to '
-          + 'give away a percentage either. What matters is searching where owners post their '
-          + 'own adverts, and asking in the first conversation whose name is on the ownership '
-          + 'document.',
+          'Three things: whether the advert is really about that flat, whose name is on the '
+          + 'ownership document, and who will sign the contract. Once those are clear, the rest '
+          + '— price, utilities, term — is an ordinary negotiation.',
       },
       {
-        q: 'What if the agent introduces himself as the owner?',
+        q: 'What if the person showing the flat is not the owner?',
         a:
-          'It comes out when the contract is signed: the document is in someone else’s name and '
-          + 'you are told "the owner will come later". Stop there. Never hand over money for a '
-          + 'deal the owner is not part of and for which no power of attorney is shown.',
+          'That is not a problem in itself: an owner’s representative may let a flat. What '
+          + 'matters is that they hold written authority — a power of attorney — by the time the '
+          + 'contract is signed. If you are told "the owner will come later", stop there and '
+          + 'hand over nothing.',
       },
       {
-        q: 'The owner is asking for a deposit — is that normal?',
+        q: 'They are asking for a deposit — is that normal?',
         a:
-          'Yes. A deposit is standard practice in Uzbekistan and it is not an agent’s fee: it is '
-          + 'security against damage and it comes back if nothing is damaged. The only condition '
-          + 'is that the amount and the terms of its return are written into the contract.',
+          'Yes. A deposit is standard practice in Uzbekistan: it is security against damage and '
+          + 'it comes back if nothing is damaged, and it is not a fee for a service. The only '
+          + 'condition is that the amount and the terms of its return are written into the '
+          + 'contract.',
       },
     ],
   },
@@ -834,7 +835,7 @@ export const EN_ARTICLES: Article[] = [
       {
         q: 'Does it cost anything to post a listing?',
         a:
-          'No. Posting, editing and verifying a listing are all free for the owner. No commission '
+          'No. Posting, editing and verifying a listing are all free for the owner. Nothing '
           + 'is taken from you at any point.',
       },
       {
@@ -864,7 +865,7 @@ export const EN_ARTICLES: Article[] = [
     h1: 'The rental deposit: how it is paid, what it covers and how it comes back',
     intro:
       'The most argued-over money in any tenancy is the deposit — the zakladka, as it is called '
-      + 'in Uzbekistan. It is neither rent nor an agent’s fee, yet it is the payment that hurts '
+      + 'in Uzbekistan. It is neither rent nor a fee for a service, yet it is the payment that hurts '
       + 'most in the month you move in, and it is the one that turns into a row on the day you '
       + 'move out. The reason is almost always the same: the zakladka is agreed verbally. "I will '
       + 'give it back if you do not damage anything," someone says, both sides nod — and a year '
@@ -889,8 +890,8 @@ export const EN_ARTICLES: Article[] = [
             + 'them is right in their own terms, because nobody ever wrote it down. One sentence '
             + 'in the contract — does the deposit count as the final month, or is it returned '
             + 'separately — closes the argument entirely.',
-          'The second misunderstanding comes from confusing the deposit with an agent’s '
-            + 'commission. What a broker takes is a fee for a service and it does not come back; '
+          'The second misunderstanding comes from confusing the deposit with a letting fee. '
+            + 'What an agency takes is payment for its work and it does not come back; '
             + 'the zakladka is returnable money and it is handed to the owner of the flat and to '
             + 'nobody else. If the person asking you for a "deposit" is not the owner and holds '
             + 'no written authority from them, that is already a completely different '
@@ -1591,9 +1592,9 @@ export const EN_HELP: HelpArticle[] = [
       + 'for tenants and for owners.',
     h1: 'How the platform works',
     intro:
-      'Maklersiz Uy is a listings board. Owners post their own adverts here and tenants find '
-      + 'them directly. There is no middleman in between and no commission. Both sides of the '
-      + 'process are explained below, end to end.',
+      'Uyiz is a listings board for rentals. Owners and agencies post their adverts here, the '
+      + 'phone number is on the listing, and the two sides settle the terms between themselves. '
+      + 'Both sides of the process are explained below, end to end.',
     sections: [
       {
         heading: 'For tenants: from the search to the keys',
@@ -1617,7 +1618,7 @@ export const EN_HELP: HelpArticle[] = [
         paragraphs: [
           'Register and confirm your phone number. Then, in the "Post a listing" section, enter '
             + 'the property type, the address, the number of rooms, the price and the photos. The '
-            + 'listing passes an automatic check and is published.',
+            + 'listing is published straight away.',
           'You can edit a listing at any time, hide it temporarily or delete it altogether. '
             + 'Closing the listing once the flat is let is simply good manners: it stops tenants '
             + 'wasting their time calling about a property that is no longer available.',
@@ -1626,21 +1627,21 @@ export const EN_HELP: HelpArticle[] = [
       {
         heading: 'Checks and trust badges',
         paragraphs: [
-          'Every listing goes through an automatic check before it is published: duplicated '
-            + 'photos, agent-style wording and prices that do not fit the market are flagged. '
-            + 'Users can also report any listing with a single tap, and a reported listing goes '
-            + 'to a moderator.',
-          'An owner can additionally verify their identity and their ownership document. Verified '
-            + 'listings carry a badge. The badge is not a guarantee of the property’s quality — '
-            + 'it only means the person who posted it has been checked.',
+          'A listing is published straight away and is then watched by the people using the '
+            + 'site: any listing can be reported with a single tap, and the report goes to a '
+            + 'moderator. If the moderator upholds it, the listing’s trust rating drops; if the '
+            + 'report is dismissed, the rating is untouched.',
+          'Whoever posts a listing can additionally verify their identity and the ownership '
+            + 'document. Verified listings carry a badge. The badge is not a guarantee of the '
+            + 'property’s quality — it only means the person who posted it has been checked.',
         ],
       },
       {
         heading: 'What is free',
         paragraphs: [
           'All of it. Searching, browsing, getting a phone number, posting a listing and having '
-            + 'it verified are free for tenants and owners alike. The platform takes no '
-            + 'commission, agency fee or service charge.',
+            + 'it verified are free for tenants and for whoever posts. The platform takes nothing '
+            + 'out of the deal.',
           'If somebody asks you for money "for the site", "to process the contract" or "for '
             + 'access to the database", they do not work here. Report that listing immediately.',
         ],
@@ -1648,9 +1649,9 @@ export const EN_HELP: HelpArticle[] = [
       {
         heading: 'If something goes wrong',
         paragraphs: [
-          'Any problem with a listing — wrong information, photos of a different flat, an agent, '
-            + 'a demand for money — is reported with the report button. Keep a screenshot of the '
-            + 'correspondence too, if you can.',
+          'Any problem with a listing — wrong information, photos of a different flat, a demand '
+            + 'for money before the viewing — is reported with the report button. Keep a '
+            + 'screenshot of the correspondence too, if you can.',
           'The platform is not a party to the rental agreement, so it cannot settle a dispute '
             + 'between the two sides over money or contract terms. It does act against listings '
             + 'and accounts that break the rules, and in serious cases we recommend going to the '
@@ -1745,15 +1746,16 @@ export const EN_HELP: HelpArticle[] = [
       {
         heading: 'What the platform does and does not do',
         paragraphs: [
-          'Maklersiz Uy is a listings board. The platform displays adverts posted by owners and '
-            + 'lets users find them. It does nothing else.',
+          'Uyiz is a listings board. The platform displays adverts posted by its users and lets '
+            + 'other people find them. It does nothing else.',
           'The platform is not a party to the rental agreement. It does not let property, does '
             + 'not rent property, does not draw up contracts, does not take payments and does not '
             + 'act as an intermediary between the parties. The contract is made solely between '
             + 'the owner and the tenant, and responsibility for its terms rests with those two '
             + 'parties.',
-          'The platform takes no commission, agency fee or service charge. Anyone who asks you '
-            + 'for money on the platform’s behalf is breaking the rules and should be reported.',
+          'The platform takes nothing out of the deal, and posting a listing is free. Anyone who '
+            + 'asks you for money on the platform’s behalf is breaking the rules and should be '
+            + 'reported.',
         ],
       },
       {
@@ -1781,7 +1783,7 @@ export const EN_HELP: HelpArticle[] = [
             + 'the account being blocked if it is repeated.',
         ],
         bullets: [
-          'Offering intermediary services and charging a fee for them.',
+          'Demanding money or a fee on the platform’s behalf.',
           'Presenting yourself as the owner, or entering false information.',
           'Demanding money before the viewing or before the contract.',
           'Using another person’s photographs, text or phone number.',
@@ -1793,8 +1795,9 @@ export const EN_HELP: HelpArticle[] = [
       {
         heading: 'Moderation and account suspension',
         paragraphs: [
-          'Listings pass an automatic check, and user reports are reviewed by a moderator. A '
-            + 'listing that breaks the rules may be sent back for editing or removed.',
+          'A listing is published as soon as it is posted, and user reports are reviewed by a '
+            + 'moderator. A listing that breaks the rules may be sent back for editing or '
+            + 'removed.',
           'For repeated or serious breaches, an account is suspended temporarily or closed '
             + 'permanently. If you believe a decision is unfounded, you can appeal and explain '
             + 'the circumstances.',

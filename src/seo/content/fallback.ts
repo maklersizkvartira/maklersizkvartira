@@ -13,11 +13,14 @@
 
 import type { CopyPack } from './types';
 
-const brandName = 'Maklersiz Uy';
-const tagline = 'Uy egasidan to‘g‘ridan-to‘g‘ri, 0% komissiya';
+const brandName = 'Uyiz';
+const tagline = 'O‘zbekistondagi uy-joy ijarasi platformasi';
 const about =
-  'O‘zbekistonda uy va kvartirani vositachisiz, to‘g‘ridan-to‘g‘ri egasidan '
-  + 'ijaraga olish platformasi.';
+  'O‘zbekistonda uy, kvartira va xona ijaraga berish va olish platformasi. '
+  + 'E’lonlar hudud va narx bo‘yicha filtrlanadi.';
+
+/** Byte-identical to `BRAND_SUFFIX` in ../meta.ts and to the real packs. */
+const SUFFIX = ' | Uyiz.uz';
 
 export const FALLBACK_COPY: CopyPack = {
   htmlLang: 'uz',
@@ -72,14 +75,14 @@ export const FALLBACK_COPY: CopyPack = {
   },
 
   landing: {
-    categoryTitle: (category) => `${category.label} | Maklersizuy.uz`,
+    categoryTitle: (category) => `${category.label}${SUFFIX}`,
     categoryDescription: () => about,
     categoryH1: (category) => category.label,
     categoryIntro: () => [],
-    regionTitle: (place) => `${place.name} | Maklersizuy.uz`,
+    regionTitle: (place) => `${place.name}${SUFFIX}`,
     regionDescription: () => about,
     regionH1: (place) => place.name,
-    placeCategoryTitle: (place, category) => `${place.name} — ${category.label} | Maklersizuy.uz`,
+    placeCategoryTitle: (place, category) => `${place.name} — ${category.label}${SUFFIX}`,
     placeCategoryDescription: () => about,
     placeCategoryH1: (place, category) => `${place.name} — ${category.label}`,
     placeIntro: () => [],
@@ -89,8 +92,8 @@ export const FALLBACK_COPY: CopyPack = {
   listing: {
     title: ({ title }) => title,
     description: ({ title }) => title,
-    loadingTitle: `${brandName} | Maklersizuy.uz`,
-    notFoundTitle: `404 | Maklersizuy.uz`,
+    loadingTitle: `${brandName} — ijara e’lonlari${SUFFIX}`,
+    notFoundTitle: `404${SUFFIX}`,
   },
 
   articles: [],

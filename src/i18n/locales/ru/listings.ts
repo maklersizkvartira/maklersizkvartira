@@ -4,8 +4,8 @@
 export const listings = {
   page: {
     title: 'Объявления',
-    subtitle: 'Напрямую от собственников — без комиссии',
-    metaTitle: 'Квартиры в аренду — Maklersiz Uy',
+    subtitle: 'Прямой контакт — размещение бесплатно',
+    metaTitle: 'Квартиры в аренду — Uyiz',
     resultCount: 'Найдено объявлений: {count}',
     resultCountFiltered: 'По фильтру: {count} объявлений',
     searchPlaceholder: 'Поиск по району, метро или ключевому слову',
@@ -54,7 +54,6 @@ export const listings = {
       verified: 'Проверенные',
       noDeposit: 'Без залога',
       newest: 'Самые новые',
-      withVideo: 'С видео',
       petsAllowed: 'Можно с животными',
     },
 
@@ -87,23 +86,6 @@ export const listings = {
     },
   },
 
-  hero: {
-    eyebrow: 'Платформа без посредников',
-    title: 'Найдите квартиру от собственника',
-    titleAccent: 'без комиссии',
-    subtitle:
-      'Каждое объявление проверяется искусственным интеллектом на посредников и мошенничество. '
-      + 'Вы общаетесь напрямую с собственником.',
-    searchCta: 'Найти квартиру',
-    postCta: 'Разместить бесплатно',
-    stats: {
-      listings: 'активных объявлений',
-      owners: 'проверенных собственников',
-      commission: 'комиссия',
-      checked: 'проверка AI',
-    },
-  },
-
   featured: {
     title: 'Рекомендуемые объявления',
     subtitle: 'Самые надёжные и популярные предложения',
@@ -131,7 +113,11 @@ export const listings = {
     saveListing: 'Сохранить',
     savedListing: 'Сохранено',
     shareListing: 'Поделиться',
-    shareText: '{title} — {price}. На Maklersiz Uy, без комиссии!',
+    shareText: '{title} — {price}. На Uyiz!',
+    // The card's closing chip and the price block on the detail page. It says
+    // what the platform actually guarantees — you reach whoever published the
+    // listing yourself — rather than making a promise about their fee.
+    directContact: 'Прямой контакт',
     // The card carousel. Dots are buttons, so each one needs a name a screen
     // reader can read; the live region reads the position after a swipe.
     photoCarousel: '{title} — фото объявления',
@@ -161,20 +147,35 @@ export const listings = {
     notFoundBody: 'Возможно, оно удалено или ссылка неверна.',
     districtNamed: 'район {name}',
     floorLabel: 'Этаж',
-    photosTab: 'Фото ({count})',
-    videoTab: 'Видеообзор',
-    mediaTabsLabel: 'Выбор типа медиа',
-    videoTitle: 'Видеообзор объявления',
-    videoUnsupported: 'Ваш браузер не поддерживает видео.',
     showImage: 'Показать фото {index}',
     photoOf: '{title} — фото {index}',
     viewOnMap: 'Показать на карте',
     ownerRentals: 'Успешных сделок: {count}',
     utilitiesExcluded: 'Коммунальные оплачиваются отдельно',
-    aiTitle: 'Анализ безопасности Shield AI',
-    aiSubtitle: 'Результат автоматической проверки',
-    aiReasonsTitle: 'Результаты проверки AI',
-    aiNoReasons: 'AI не оставил дополнительных комментариев.',
+
+    /**
+     * The reliability figure, said plainly.
+     *
+     * It is not a machine's opinion of the listing: every listing starts at
+     * 100 and the only thing that moves the number is an administrator
+     * confirming a complaint about it. These four strings are the whole
+     * explanation the reader gets, so they must not imply any other check.
+     */
+    trustTitle: 'Уровень надёжности',
+    trustSubtitle: 'Рассчитывается по подтверждённым жалобам',
+    trustExplainer:
+      'Каждое объявление начинается со 100 баллов. Балл снижается только '
+      + 'после того, как администратор подтвердит жалобу.',
+    trustNoComplaints: 'По этому объявлению нет подтверждённых жалоб.',
+    trustHasComplaints: 'По этому объявлению есть подтверждённые жалобы.',
+    /** Hover text for the score chip on the card and in the page heading. */
+    trustTooltip: 'Надёжность: {score}/100. Снижается только после подтверждённой жалобы.',
+    /**
+     * The owner chip in the sidebar shows the USER's score, which still rises
+     * on verification — a different rule from the listing figure above, so it
+     * gets its own label rather than borrowing one that mentions complaints.
+     */
+    ownerTrustScore: 'Доверие владельцу: {score}',
     ownerToolbar: 'Вы владелец этого объявления',
     confirmDelete: 'Удалить объявление безвозвратно?',
     amenityAvailable: 'есть',
@@ -193,7 +194,6 @@ export const listings = {
     petsAllowed: 'Можно с животными',
     utilitiesIncluded: 'Коммунальные услуги',
     virtualTour: '3D-тур',
-    video: 'Видео',
   },
 
   propertyType: {
@@ -218,7 +218,7 @@ export const listings = {
     tip1: 'Не переводите деньги заранее, не посмотрев квартиру.',
     tip2: 'Отдавайте залог только после подписания договора.',
     tip3: 'Попросите у собственника документ (кадастр или паспорт).',
-    tip4: 'Просят комиссию — это посредник. Пожалуйтесь нам.',
+    tip4: 'Заранее письменно согласуйте все условия оплаты.',
     reportCta: 'Сообщить о подозрительном объявлении',
   },
 
@@ -226,9 +226,11 @@ export const listings = {
     title: 'Отправить жалобу',
     subtitle: 'Выберите, что именно не так',
     reasonLabel: 'Причина',
+    // No "this is a broker listing" reason: professional agents publish here
+    // too, so it is not something to complain about — and a confirmed report
+    // now costs the listing real reliability points.
     reasons: {
       scam: 'Мошенничество',
-      broker: 'Это объявление посредника',
       fakeListing: 'Поддельное объявление',
       fakePhotos: 'Фото от другой квартиры',
       wrongPrice: 'Неверная цена',

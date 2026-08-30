@@ -9,8 +9,8 @@ export const student = {
     eyebrow: 'Talabalar dasturi',
     title: 'Universitetingizga yaqin xavfsiz uylar',
     subtitle:
-      'Toshkentdagi yirik universitetlar atrofidagi hamyonbop, maklersiz ijara e’lonlari — '
-      + 'har biri sun’iy intellekt tekshiruvidan o‘tgan.',
+      'Toshkentdagi yirik universitetlar atrofidagi hamyonbop ijara e’lonlari — '
+      + 'e’lon egasi bilan to‘g‘ridan-to‘g‘ri bog‘lanasiz.',
     bonusLabel: 'Talaba bonusi',
     bonusValue: 'Bepul e’lon ko‘tarish',
     bonusHint: 'Talabalik guvohnomasi tasdiqlangandan so‘ng',

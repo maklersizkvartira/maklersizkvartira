@@ -1,13 +1,13 @@
 import type { AdminStats } from '@/shared/api/types';
 
 /**
- * The single source of truth for how the 25 dashboard counters are grouped,
+ * The single source of truth for how the 26 dashboard counters are grouped,
  * which of them are worth an alarm colour, and which of them are meaningless
  * without a denominator.
  *
  * It lives in one file because the numbers appear in more than one place: the
  * triage hero shows three of the queue counts, the flow card shows six listing
- * counts, and the reference band at the bottom shows all 25. That duplication
+ * counts, and the reference band at the bottom shows all 26. That duplication
  * is deliberate — the band is the complete index you look a number up in, the
  * cards above are views onto the numbers that need an action today — and this
  * comment exists so the next reader does not "fix" it by deleting one of them.
@@ -41,7 +41,7 @@ export interface StatGroup {
 }
 
 /**
- * 8 + 7 + 4 + 6 = 25. The order inside a group is the order a moderator would
+ * 8 + 7 + 4 + 7 = 26. The order inside a group is the order a moderator would
  * read it: the whole first, then its parts, then today's slice.
  */
 export const GROUPS = [
@@ -84,6 +84,7 @@ export const GROUPS = [
     items: [
       { key: 'openReports' },
       { key: 'pendingVerifications' },
+      { key: 'pendingTopRequests' },
       { key: 'visitorsToday' },
       { key: 'failedLoginsToday' },
       { key: 'smsToday' },
@@ -138,6 +139,9 @@ export const ATTENTION_THRESHOLDS = {
   openReports: { warn: 1, danger: 5 },
   pendingListings: { warn: 5, danger: 20 },
   pendingVerifications: { warn: 5, danger: 20 },
+  // Same shape as the other two review queues: an owner waiting on a Top
+  // decision is waiting on a person, and a handful of them is a normal day.
+  pendingTopRequests: { warn: 5, danger: 20 },
   smsFailedToday: { warn: 3, danger: 10 },
   failedLoginsToday: { warn: 5, danger: 20 },
   suspendedUsers: { warn: 1, danger: 25 },

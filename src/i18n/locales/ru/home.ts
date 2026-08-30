@@ -1,19 +1,19 @@
 /**
- * Home page: hero, categories, trust stats, AI recommendations.
+ * Home page: hero, categories, platform figures, the recommended rail.
  *
  * Russian strings. Keys are added as the matching components are
  * migrated; the Uzbek file is the source of truth for the key shape.
  */
 export const home = {
   hero: {
-    badge: '0% комиссии · аренда напрямую',
-    title: 'Аренда квартир и домов без посредников',
+    badge: 'Бесплатное размещение · прямой контакт',
+    title: 'Аренда квартир и домов в Узбекистане',
     // Not "{regions} областей": Uzbekistan has 12 viloyats plus the Republic
     // of Karakalpakstan plus the city of Tashkent, so the number the page
     // counts is 14 and the word for it is "регион", not "область".
     subtitle:
-      'Без посредников и комиссии — проверенное жильё в {regions} регионах '
-      + 'и {districts} районах и городах.',
+      'Проверенные объявления в {regions} регионах '
+      + 'и {districts} районах и городах Узбекистана.',
     searchTitle: 'Где ищете жильё?',
     searchHintShort: 'Нажмите, чтобы найти',
     searchHintLong: 'Район, улица, ориентир или станция метро',
@@ -22,10 +22,9 @@ export const home = {
       trustedListings: 'Проверенные объявления',
       directFromOwner: 'Напрямую от собственника',
       safeAndSecure: 'Безопасно и надёжно',
-      noCommission: 'Никакой комиссии',
+      freeToPost: 'Размещение бесплатно',
       fastAndEasy: 'Быстрая и простая аренда',
       passportChecked: 'Паспорт проверен',
-      aiScreened: 'Проверено ИИ',
       supportAlways: 'Поддержка 24/7',
     },
   },
@@ -59,19 +58,18 @@ export const home = {
 
   stats: {
     toggleTitle: 'Показатели платформы',
-    toggleSubtitle: 'Только реальные цифры · 0% комиссии',
-    toggleSubtitleWithCount: '{count} активных объявлений · 0% комиссии',
+    toggleSubtitle: 'Только реальные цифры',
+    toggleSubtitleWithCount: '{count} активных объявлений',
     expand: 'Показать',
     collapse: 'Свернуть',
-    title: 'Аренда без посредников, с доверием',
+    title: 'Аренда с доверием',
     subtitle:
-      'Мы убираем из системы посредников и мошенников, чтобы люди находили квартиру самостоятельно.',
+      'Размещение бесплатное, связь напрямую. '
+      + 'Каждую жалобу рассматривает модератор.',
     activeListings: 'Активные объявления',
     activeListingsHint: 'Открыты прямо сейчас',
     featuredListings: 'Рекомендуемые объявления',
-    featuredListingsHint: 'Самые надёжные после проверки',
-    commission: 'Комиссия посредника',
-    commissionHint: 'Напрямую с владельцем жилья',
+    featuredListingsHint: 'Топ-объявления, подтверждённые администратором',
     unavailable: 'Показатели сейчас загрузить не удалось.',
 
     /**
@@ -85,8 +83,8 @@ export const home = {
      * `geoSublineActive` is the honest variant: how many places actually have
      * listings, not how many sit in the dropdown.
      */
-    geoHeadline: 'Без посредников и комиссии — напрямую от собственника',
-    geoSubheadline: 'Комиссия 0%. Вы общаетесь с владельцем сами.',
+    geoHeadline: 'Проверенные объявления по всему Узбекистану',
+    geoSubheadline: 'Вы общаетесь с автором объявления напрямую.',
     geoSubline:
       'Проверенное жильё в {regions} регионах и {districts} районах и городах Узбекистана.',
     geoSublineActive:
@@ -94,7 +92,7 @@ export const home = {
     regionsLabel: 'Регионы',
     regionsHint: '12 областей, Республика Каракалпакстан и город Ташкент',
     districtsLabel: 'Районы и города',
-    districtsHint: 'Районы и города внутри регионов',
+    districtsHint: 'Районы и города по всему Узбекистану',
     regionsWithListings: 'Регионы с объявлениями',
     regionsWithListingsHint: 'Регионы, где есть хотя бы одно активное объявление',
     districtsWithListings: 'Районы и города с объявлениями',

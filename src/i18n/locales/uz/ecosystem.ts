@@ -7,7 +7,7 @@
 export const ecosystem = {
   hero: {
     eyebrow: 'Kompaniya yo‘l xaritasi',
-    title: 'Maklersiz Uy — ko‘chmas mulk super-ilovasi',
+    title: 'Uyiz — ko‘chmas mulk super-ilovasi',
     subtitle:
       'Oddiy e’lonlar saytidan O‘zbekistondagi eng yirik ko‘chmas mulk va yashash '
       + 'xizmatlari ekotizimiga aylanish yo‘li.',
@@ -26,10 +26,10 @@ export const ecosystem = {
 
   stages: {
     marketplace: {
-      title: 'Ijara bozori va AI ishonch tizimi',
+      title: 'Ijara bozori va ishonch tizimi',
       desc:
-        'Maklersiz kvartira qidirish, e’lonlarning AI tekshiruvi, ishonch reytingi va '
-        + 'uy egasini besh bosqichda tasdiqlash.',
+        'Kvartira qidirish, e’lonlarning ishonchlilik foizi va e’lon egasini besh '
+        + 'bosqichda tasdiqlash.',
       badge: 'Faol MVP',
     },
     profile: {

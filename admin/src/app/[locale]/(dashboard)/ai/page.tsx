@@ -16,7 +16,7 @@ import { Pagination } from '@/shared/ui/Pagination';
 import { AiTranscriptSheet } from '@/features/ai/components/AiTranscriptSheet';
 
 /**
- * Conversations the public site's Shield AI assistant has held.
+ * Conversations the public site's Uyiz AI assistant has held.
  *
  * `GET /admin/ai/sessions` is pagination and nothing else — no search, no date
  * range, no filter by user — so this page has no FilterBar. An empty one would

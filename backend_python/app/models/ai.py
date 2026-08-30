@@ -1,4 +1,4 @@
-"""Shield AI conversation storage."""
+"""Uyiz AI conversation storage."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 
 class AISession(Base, UUIDPrimaryKeyMixin, TimestampMixin):
-    """One Shield AI conversation, keyed by a client-generated session key.
+    """One Uyiz AI conversation, keyed by a server-issued session key.
 
     Unlike the old implementation the session is retained after the chat is
     closed (with a generated summary) so the admin panel keeps a history
@@ -35,7 +35,9 @@ class AISession(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     message_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
-    #: Last extracted search intent: district, rooms, maxPrice, audience...
+    #: Last extracted search intent, camelCased: district, metroStation,
+    #: rooms, minArea, maxPrice, audience, the amenity flags and sortBy — the
+    #: same shape the listings page mirrors into its own filters.
     last_intent: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     #: Working state the agent loop needs to survive between turns:
     #:

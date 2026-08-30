@@ -1,4 +1,4 @@
-"""Shield AI behaviour that does not need a model key.
+"""Uyiz AI behaviour that does not need a model key.
 
 Everything here exercises the deterministic half of the assistant: the parser,
 the classification merge, the relaxation plan and the written replies. That
@@ -7,21 +7,22 @@ half most worth pinning down.
 
 The rules being protected, in the order the product asks for them:
 
-  * the assistant introduces itself as the AI assistant *of the MaklersizUy
-    company*, never as a bare "Shield AI assistant";
+  * the assistant introduces itself as the AI assistant *of the Uyiz
+    company*, never as a bare "Uyiz AI assistant";
   * a question is answered before any listing is suggested;
   * company questions outside the public facts are declined as internal;
   * off-topic questions get the redirect, not an answer;
-  * a search loosens one criterion at a time and only then looks at
-    neighbouring districts.
+  * a search gives up the soft preferences before the budget, the budget
+    before the room count, and only then looks at neighbouring districts;
+  * a visitor who asks for a person is handed our number rather than flats.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from app.services import shield_ai
-from app.services.shield_ai import SearchIntent
+from app.services import uyiz_ai
+from app.services.uyiz_ai import SearchIntent
 
 
 # ---------------------------------------------------------------------------
@@ -37,7 +38,7 @@ from app.services.shield_ai import SearchIntent
     ],
 )
 def test_parses_district_and_rooms_in_three_languages(message, district, rooms):
-    intent = shield_ai.parse_intent(message)
+    intent = uyiz_ai.parse_intent(message)
     assert intent.district == district
     assert intent.rooms == rooms
     assert intent.kind == "SEARCH"
@@ -46,21 +47,86 @@ def test_parses_district_and_rooms_in_three_languages(message, district, rooms):
 def test_budget_becomes_a_ceiling_with_headroom():
     # Someone who says "3 mln" will still look at 3.2, so the ceiling is
     # deliberately above the stated number.
-    intent = shield_ai.parse_intent("Chilonzordan 3 mln gacha")
+    intent = uyiz_ai.parse_intent("Chilonzordan 3 mln gacha")
     assert intent.max_price is not None
     assert 3_000_000 < intent.max_price <= 4_000_000
 
 
 def test_a_greeting_is_not_a_search():
-    intent = shield_ai.parse_intent("Assalomu alaykum")
+    intent = uyiz_ai.parse_intent("Assalomu alaykum")
     assert intent.kind == "SMALLTALK"
     assert not intent.has_criteria
 
 
 def test_audience_and_roommate_hints():
-    assert shield_ai.parse_intent("talaba uchun xona").audience == "STUDENT"
-    assert shield_ai.parse_intent("oilaviy kvartira").audience == "FAMILY"
-    assert shield_ai.parse_intent("sheriklikka xona").rental_type == "ROOMMATE"
+    assert uyiz_ai.parse_intent("talaba uchun xona").audience == "STUDENT"
+    assert uyiz_ai.parse_intent("oilaviy kvartira").audience == "FAMILY"
+    assert uyiz_ai.parse_intent("sheriklikka xona").rental_type == "ROOMMATE"
+
+
+def test_amenities_are_read_as_filters_not_decoration():
+    # "mebelli, konditsioner, internet" used to be read and then thrown away:
+    # the search could only carry district, rooms, budget, audience and type.
+    intent = uyiz_ai.parse_intent(
+        "Chilonzordan mebelli, konditsionerli va internetli kvartira kerak"
+    )
+    assert intent.furnished is True
+    assert intent.air_conditioning is True
+    assert intent.internet is True
+    assert intent.district == "Chilonzor"
+
+
+def test_an_amenity_alone_is_enough_to_search():
+    # Without this the only criterion in the message would be invisible and
+    # the turn would come back asking what they are looking for.
+    assert uyiz_ai.parse_intent("mebelli uy kerak").kind == "SEARCH"
+
+
+def test_an_absent_amenity_is_never_a_negative_filter():
+    # The catalogue cannot search for the absence of a washing machine, and a
+    # False would hide listings the visitor would have taken.
+    intent = uyiz_ai.parse_intent("Chilonzordan uy kerak")
+    assert intent.furnished is None
+    assert intent.parking is None
+
+
+def test_a_metro_station_is_only_read_when_the_word_is_there():
+    # Seven stations share a name with the district around them, so an
+    # unguarded match would add a filter nobody asked for.
+    assert uyiz_ai.parse_intent("Chilonzordan uy kere").metro_station is None
+    assert uyiz_ai.parse_intent("Chilonzor metrosi yaqinidan uy").metro_station == "Chilonzor"
+    assert uyiz_ai.parse_intent("Bodomzor metrosiga yaqin").metro_station == "Bodomzor"
+
+
+def test_a_numbered_station_is_matched_by_its_short_name():
+    # The catalogue writes some stations with the numbered suffix and some
+    # without; the filter is a substring match, so the short name finds both.
+    assert uyiz_ai.parse_intent("Matonat metrosi yonida").metro_station == "Matonat"
+
+
+def test_cheapest_first_is_a_sort_not_a_filter():
+    assert uyiz_ai.parse_intent("eng arzon kvartira").sort_by == "PRICE_LOW"
+    assert uyiz_ai.parse_intent("Chilonzordan uy").sort_by == "RECOMMENDED"
+
+
+def test_property_type_and_minimum_area():
+    assert uyiz_ai.parse_intent("hovli kerak").property_type == "HOUSE"
+    assert uyiz_ai.parse_intent("studiya izlayapman").property_type == "STUDIO"
+    assert uyiz_ai.parse_intent("kamida 60 m2 kvartira").min_area == 60
+
+
+def test_a_bare_area_is_not_guessed_as_a_minimum():
+    # "60 m2" is as likely to be a ceiling as a floor, and guessing wrong
+    # hides exactly the listings they wanted.
+    assert uyiz_ai.parse_intent("Chilonzorda 60 m2 kvartira").min_area is None
+
+
+def test_wanting_a_person_outranks_the_district_in_the_same_sentence():
+    intent = uyiz_ai.parse_intent("Chilonzor bo'yicha operatoringiz bilan gaplashsam bo'ladimi")
+    assert intent.kind == "CONTACT"
+    # And the model cannot talk it back into a search either.
+    merged = uyiz_ai.merge_intents(intent, SearchIntent(kind="SEARCH"))
+    assert merged.kind == "CONTACT"
 
 
 # ---------------------------------------------------------------------------
@@ -69,7 +135,7 @@ def test_audience_and_roommate_hints():
 def test_parser_wins_on_facts_model_wins_on_classification():
     parsed = SearchIntent(district="Chilonzor", rooms=3, kind="SEARCH")
     llm = SearchIntent(district="Sergeli", rooms=9, kind="DOMAIN", answer="Javob.")
-    merged = shield_ai.merge_intents(parsed, llm)
+    merged = uyiz_ai.merge_intents(parsed, llm)
 
     # Anything that reaches the database comes from the parser: a message
     # cannot talk the model into searching a district nobody asked for.
@@ -84,12 +150,12 @@ def test_stated_criteria_override_an_offtopic_classification():
     # no matter how the model read the sentence around it.
     parsed = SearchIntent(district="Mirobod", rooms=2, kind="SEARCH")
     llm = SearchIntent(kind="OFFTOPIC")
-    assert shield_ai.merge_intents(parsed, llm).kind == "SEARCH"
+    assert uyiz_ai.merge_intents(parsed, llm).kind == "SEARCH"
 
 
 def test_missing_model_output_leaves_the_parser_intact():
-    parsed = shield_ai.parse_intent("Sergeli 2 xona")
-    assert shield_ai.merge_intents(parsed, None) is parsed
+    parsed = uyiz_ai.parse_intent("Sergeli 2 xona")
+    assert uyiz_ai.merge_intents(parsed, None) is parsed
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +171,7 @@ def _reply(intent: SearchIntent, **kwargs) -> str:
         searched_district=None,
     )
     defaults.update(kwargs)
-    return shield_ai.build_fallback_reply(intent=intent, **defaults)
+    return uyiz_ai.build_fallback_reply(intent=intent, **defaults)
 
 
 @pytest.mark.parametrize("language", ["uz", "ru", "en"])
@@ -116,8 +182,8 @@ def test_introduction_names_the_company(language):
         user_name="Kamron",
         is_first_turn=True,
     )
-    assert "MaklersizUy" in text
-    assert "Shield AI" in text
+    assert "Uyiz" in text
+    assert "Uyiz AI" in text
     # The old greeting shouted the visitor's name; the product asked for a
     # full stop instead of an exclamation mark.
     assert "Kamron!" not in text
@@ -125,12 +191,14 @@ def test_introduction_names_the_company(language):
 
 def test_no_introduction_on_later_turns():
     text = _reply(SearchIntent(kind="SMALLTALK"), user_name="Kamron", is_first_turn=False)
-    assert "MaklersizUy kompaniyasining" not in text
+    assert "Uyiz kompaniyasining" not in text
 
 
 def test_internal_questions_are_declined():
     text = _reply(SearchIntent(kind="INTERNAL"))
-    assert "ichki ma'lumot" in text
+    # The typographic apostrophe, not the ASCII one: the Uzbek copy uses
+    # ’ throughout, so an assertion written with ' never matched.
+    assert "ichki ma’lumot" in text
 
 
 def test_offtopic_questions_get_the_redirect():
@@ -140,7 +208,7 @@ def test_offtopic_questions_get_the_redirect():
 
 @pytest.mark.parametrize("language", ["uz", "ru", "en"])
 def test_every_branch_has_wording_in_every_language(language):
-    for kind in ("SEARCH", "DOMAIN", "COMPANY", "INTERNAL", "SMALLTALK", "OFFTOPIC"):
+    for kind in ("SEARCH", "DOMAIN", "COMPANY", "CONTACT", "INTERNAL", "SMALLTALK", "OFFTOPIC"):
         text = _reply(SearchIntent(kind=kind), language=language)
         assert text.strip(), f"{kind}/{language} produced an empty reply"
 
@@ -159,7 +227,7 @@ def test_a_widened_search_says_which_district_it_used():
 
 def test_an_empty_result_is_not_dressed_up_as_a_find():
     text = _reply(SearchIntent(kind="SEARCH", district="Chilonzor"), count=0)
-    assert "topilmadi" in text or "yo'q" in text
+    assert "topilmadi" in text or "yo‘q" in text
 
 
 def test_partial_matches_name_the_criteria_that_matched():
@@ -181,7 +249,7 @@ def test_partial_matches_name_the_criteria_that_matched():
     ],
 )
 def test_a_greeting_the_model_added_is_removed(raw, expected):
-    assert shield_ai.strip_leading_greeting(raw) == expected
+    assert uyiz_ai.strip_leading_greeting(raw) == expected
 
 
 @pytest.mark.parametrize(
@@ -196,12 +264,12 @@ def test_a_greeting_the_model_added_is_removed(raw, expected):
     ],
 )
 def test_ordinary_sentences_are_left_alone(text):
-    assert shield_ai.strip_leading_greeting(text) == text
+    assert uyiz_ai.strip_leading_greeting(text) == text
 
 
 def test_a_message_that_is_only_a_greeting_survives():
     # Better a lone "Salom" than an empty reply.
-    assert shield_ai.strip_leading_greeting("Salom") == "Salom"
+    assert uyiz_ai.strip_leading_greeting("Salom") == "Salom"
 
 
 def test_the_introduction_is_not_followed_by_a_second_greeting():
@@ -215,7 +283,7 @@ def test_the_introduction_is_not_followed_by_a_second_greeting():
 # ---------------------------------------------------------------------------
 def test_plan_starts_strict_and_loosens_one_step_at_a_time():
     intent = SearchIntent(district="Chilonzor", rooms=3, max_price=3_000_000)
-    steps = shield_ai._plan(intent)
+    steps = uyiz_ai._plan(intent)
 
     assert steps[0]["rooms"] == 3 and steps[0]["max_price"] == 3_000_000
     # Budget gives first — it is the criterion people are most flexible on.
@@ -228,9 +296,85 @@ def test_plan_starts_strict_and_loosens_one_step_at_a_time():
 
 
 def test_plan_has_no_duplicate_steps():
-    steps = shield_ai._plan(SearchIntent(district="Sergeli"))
+    steps = uyiz_ai._plan(SearchIntent(district="Sergeli"))
     seen = [tuple(sorted(s.items(), key=lambda kv: kv[0])) for s in steps]
     assert len(seen) == len(set(seen))
+
+
+def test_a_preference_is_given_up_before_the_budget():
+    # A washing machine is a nice-to-have; nobody would rather see an empty
+    # screen than a flat without one. The budget is the next thing to give.
+    intent = SearchIntent(
+        district="Chilonzor", rooms=3, max_price=3_000_000,
+        furnished=True, washing_machine=True,
+    )
+    steps = uyiz_ai._plan(intent)
+
+    assert steps[0]["furnished"] is True and steps[0]["max_price"] == 3_000_000
+    assert steps[1]["furnished"] is None and steps[1]["washing_machine"] is None
+    # ...and the budget is still intact at the moment the amenities go.
+    assert steps[1]["max_price"] == 3_000_000
+    assert set(steps[1]["_dropped"]) == {"furnished", "washing_machine"}
+    # The district survives every step, as before.
+    assert all(s["district"] == "Chilonzor" for s in steps)
+
+
+def test_the_plan_stays_short_even_with_every_criterion_set():
+    # Each step is a real database round trip inside a chat turn.
+    intent = SearchIntent(
+        district="Chilonzor", rooms=3, min_price=1_000_000, max_price=3_000_000,
+        audience="STUDENT", rental_type="ROOMMATE", metro_station="Chilonzor",
+        property_type="APARTMENT", min_area=50, furnished=True, parking=True,
+        internet=True, air_conditioning=True, washing_machine=True,
+        pets_allowed=True, only_verified=True,
+    )
+    assert len(uyiz_ai._plan(intent)) <= 6
+
+
+def test_a_loosened_search_says_what_it_gave_up():
+    intent = SearchIntent(kind="SEARCH", district="Chilonzor", furnished=True)
+    intent.dropped = ["furnished"]
+    text = _reply(intent, count=2, relaxation="PARTIAL", language="uz")
+    assert "mebelli" in text
+
+
+def test_an_exact_search_claims_nothing_was_given_up():
+    intent = SearchIntent(kind="SEARCH", district="Chilonzor", furnished=True)
+    text = _reply(intent, count=2, relaxation="EXACT", language="uz")
+    assert "yumshatdim" not in text
+
+
+# ---------------------------------------------------------------------------
+# Reaching a person
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize("language", ["uz", "ru", "en"])
+def test_asking_for_a_person_hands_over_the_configured_numbers(language, monkeypatch):
+    # The handoff has to work with no model at all — which is exactly when a
+    # visitor is most likely to want a person. And the number is never a
+    # literal in the source: it comes from SUPPORT_PHONES.
+    monkeypatch.setattr(
+        uyiz_ai, "support_phone_list", lambda: ["+998 90 111 22 33"]
+    )
+    text = _reply(SearchIntent(kind="CONTACT"), language=language)
+    assert "+998 90 111 22 33" in text
+
+
+def test_a_handoff_with_no_number_configured_still_offers_a_callback():
+    monkeypatch_free = SearchIntent(kind="CONTACT")
+    original = uyiz_ai.support_phone_list
+    try:
+        uyiz_ai.support_phone_list = lambda: []
+        text = _reply(monkeypatch_free, language="uz")
+    finally:
+        uyiz_ai.support_phone_list = original
+    # No invented number, but still a route to a human.
+    assert "+998" not in text
+    assert "raqamingizni" in text.lower()
+
+
+def test_a_handoff_turn_is_never_answered_with_apartments():
+    text = _reply(SearchIntent(kind="CONTACT"), count=5, relaxation="EXACT")
+    assert "e'lon topdim" not in text and "e’lon topdim" not in text
 
 
 # ---------------------------------------------------------------------------
@@ -239,8 +383,8 @@ def test_plan_has_no_duplicate_steps():
 def test_the_whole_country_is_known_not_just_tashkent():
     # The old map had twelve districts. "Samarqandda uy kere" parsed as a
     # request with no location at all, which is the bug this guards.
-    assert len(shield_ai.ALL_REGIONS) == 14
-    assert len(shield_ai.ALL_DISTRICTS) > 140
+    assert len(uyiz_ai.ALL_REGIONS) == 14
+    assert len(uyiz_ai.ALL_DISTRICTS) > 140
 
 
 @pytest.mark.parametrize(
@@ -248,7 +392,10 @@ def test_the_whole_country_is_known_not_just_tashkent():
     [
         ("Chilonzordan uy kere", "Chilonzor", "Toshkent shahri"),
         ("Samarqandda kvartira", "Samarqand sh.", "Samarqand viloyati"),
-        ("Urgutda 2 xona", "Urgut", "Samarqand viloyati"),
+        # "Urgut sh." and "Urgut" both exist and fold to one key; the city
+        # wins, as it does for every other such pair (see the Yangiyo'l
+        # case below). This row used to expect the district and failed.
+        ("Urgutda 2 xona", "Urgut sh.", "Samarqand viloyati"),
         ("Nukusda uy", "Nukus sh.", "Qoraqalpogʻiston Respublikasi"),
         ("Buxoroga koʻchmoqchiman", "Buxoro sh.", "Buxoro viloyati"),
     ],
@@ -256,7 +403,7 @@ def test_the_whole_country_is_known_not_just_tashkent():
 def test_a_case_suffix_does_not_hide_the_place(message, district, region):
     # Uzbek glues the case onto the noun; matching on a bare word boundary
     # found none of these.
-    intent = shield_ai.parse_intent(message)
+    intent = uyiz_ai.parse_intent(message)
     assert intent.district == district
     assert intent.region == region
 
@@ -271,39 +418,39 @@ def test_a_case_suffix_does_not_hide_the_place(message, district, region):
     ],
 )
 def test_spelling_and_language_variants_resolve(message, expected):
-    assert shield_ai.normalise_district(message) == expected
+    assert uyiz_ai.normalise_district(message) == expected
 
 
 def test_a_region_is_recognised_even_without_a_district():
-    intent = shield_ai.parse_intent("xorazmda uy kere")
+    intent = uyiz_ai.parse_intent("xorazmda uy kere")
     assert intent.region == "Xorazm viloyati"
 
 
 def test_every_district_belongs_to_a_region():
-    for district in shield_ai.ALL_DISTRICTS:
-        assert shield_ai.region_of(district) in shield_ai.ALL_REGIONS
+    for district in uyiz_ai.ALL_DISTRICTS:
+        assert uyiz_ai.region_of(district) in uyiz_ai.ALL_REGIONS
 
 
 def test_tashkent_neighbours_are_real_and_exclude_self():
-    city = set(shield_ai.REGIONS["Toshkent shahri"])
+    city = set(uyiz_ai.REGIONS["Toshkent shahri"])
     for district in city:
-        neighbours = shield_ai.nearby_districts(district)
+        neighbours = uyiz_ai.nearby_districts(district)
         assert neighbours, f"{district} has no neighbours"
         assert district not in neighbours
         assert set(neighbours) <= city
 
 
 def test_outside_tashkent_nearby_means_the_rest_of_the_province():
-    neighbours = shield_ai.nearby_districts("Urgut")
+    neighbours = uyiz_ai.nearby_districts("Urgut")
     assert "Samarqand sh." in neighbours
     assert "Urgut" not in neighbours
     # Never another province: that is not "nearby" to anyone.
-    assert all(shield_ai.region_of(n) == "Samarqand viloyati" for n in neighbours)
+    assert all(uyiz_ai.region_of(n) == "Samarqand viloyati" for n in neighbours)
 
 
 def test_an_unknown_place_has_no_neighbours():
-    assert shield_ai.nearby_districts("Atlantis") == ()
-    assert shield_ai.nearby_districts(None) == ()
+    assert uyiz_ai.nearby_districts("Atlantis") == ()
+    assert uyiz_ai.nearby_districts(None) == ()
 
 
 # ---------------------------------------------------------------------------
@@ -313,12 +460,12 @@ def test_an_unknown_place_has_no_neighbours():
 def test_a_bare_request_asks_instead_of_searching(message):
     # "uy kere" is the opening of a search, not a search. Answering it with
     # the whole catalogue answers a question nobody asked.
-    assert shield_ai.parse_intent(message).kind == "CLARIFY"
+    assert uyiz_ai.parse_intent(message).kind == "CLARIFY"
 
 
 def test_one_stated_criterion_is_enough_to_search():
-    assert shield_ai.parse_intent("Chilonzordan uy kere").kind == "SEARCH"
-    assert shield_ai.parse_intent("3 xonali kerak").kind == "SEARCH"
+    assert uyiz_ai.parse_intent("Chilonzordan uy kere").kind == "SEARCH"
+    assert uyiz_ai.parse_intent("3 xonali kerak").kind == "SEARCH"
 
 
 @pytest.mark.parametrize("language", ["uz", "ru", "en"])
@@ -337,9 +484,9 @@ def test_clarifying_never_mentions_results():
 
 def test_criteria_labels_are_translated():
     intent = SearchIntent(district="Chilonzor", rooms=2, audience="STUDENT")
-    assert "2 xonali" in shield_ai.SearchIntent.criteria_labels(intent, "uz")
-    assert "2-комнатная" in shield_ai.SearchIntent.criteria_labels(intent, "ru")
-    assert "2 rooms" in shield_ai.SearchIntent.criteria_labels(intent, "en")
+    assert "2 xonali" in uyiz_ai.SearchIntent.criteria_labels(intent, "uz")
+    assert "2-комнатная" in uyiz_ai.SearchIntent.criteria_labels(intent, "ru")
+    assert "2 rooms" in uyiz_ai.SearchIntent.criteria_labels(intent, "en")
 
 
 # ---------------------------------------------------------------------------
@@ -355,7 +502,7 @@ _LISTING = {
     "title": "Kvartira ijaraga beriladi",
     "description": (
         "Yangi ta'mirlangan, mebel va texnika bilan jihozlangan kvartira. "
-        "Metro bekatiga 5 daqiqa piyoda. Uy egasidan, vositachisiz."
+        "Metro bekatiga 5 daqiqa piyoda. Hujjatlar tayyor."
     ),
     "price": 4_000_000,
     "rooms": 2,
@@ -381,7 +528,7 @@ async def _seed(client, unique_phone, *listings):
 async def test_exact_match_is_reported_as_exact(client, db, unique_phone):
     await _seed(client, unique_phone, {"district": "Chilonzor", "rooms": 3, "price": 3_500_000})
 
-    rows, relaxation, _, _ = await shield_ai.search_for_intent(
+    rows, relaxation, _, _ = await uyiz_ai.search_for_intent(
         db,
         SearchIntent(district="Chilonzor", region="Toshkent shahri", rooms=3, max_price=4_000_000),
     )
@@ -394,7 +541,7 @@ async def test_budget_is_the_first_criterion_to_give(client, db, unique_phone):
     # the search lifts the budget one step and reports the match as partial.
     await _seed(client, unique_phone, {"district": "Chilonzor", "rooms": 3, "price": 5_000_000})
 
-    rows, relaxation, _, _ = await shield_ai.search_for_intent(
+    rows, relaxation, _, _ = await uyiz_ai.search_for_intent(
         db,
         SearchIntent(district="Chilonzor", region="Toshkent shahri", rooms=3, max_price=4_000_000),
     )
@@ -407,30 +554,30 @@ async def test_empty_district_falls_back_to_a_neighbour(client, db, unique_phone
     # Nothing in Bektemir; Yashnobod borders it and does have stock.
     await _seed(client, unique_phone, {"district": "Yashnobod", "rooms": 2, "price": 3_000_000})
 
-    rows, relaxation, searched, _ = await shield_ai.search_for_intent(
+    rows, relaxation, searched, _ = await uyiz_ai.search_for_intent(
         db, SearchIntent(district="Bektemir", region="Toshkent shahri", rooms=2)
     )
     assert rows, "a neighbouring district should be searched before giving up"
     assert relaxation == "NEARBY"
-    assert searched in shield_ai.nearby_districts("Bektemir")
+    assert searched in uyiz_ai.nearby_districts("Bektemir")
     assert rows[0].district == searched
 
 
 async def test_a_message_with_no_criteria_just_shows_what_exists(client, db, unique_phone):
     await _seed(client, unique_phone, {"district": "Sergeli"}, {"district": "Mirobod"})
 
-    rows, relaxation, _, _ = await shield_ai.search_for_intent(db, SearchIntent())
+    rows, relaxation, _, _ = await uyiz_ai.search_for_intent(db, SearchIntent())
     assert len(rows) == 2
     assert relaxation == "NONE"
 
 
 async def test_nothing_anywhere_is_reported_honestly(db):
-    rows, relaxation, _, _ = await shield_ai.search_for_intent(
+    rows, relaxation, _, _ = await uyiz_ai.search_for_intent(
         db, SearchIntent(district="Chilonzor", region="Toshkent shahri", rooms=3)
     )
     assert rows == []
     # With an empty catalogue the reply must say so rather than imply a match.
-    text = shield_ai.build_fallback_reply(
+    text = uyiz_ai.build_fallback_reply(
         intent=SearchIntent(kind="SEARCH", district="Chilonzor"),
         count=0,
         language="uz",
@@ -439,4 +586,4 @@ async def test_nothing_anywhere_is_reported_honestly(db):
         relaxation=relaxation,
         searched_district=None,
     )
-    assert "topilmadi" in text or "yo'q" in text
+    assert "topilmadi" in text or "yo‘q" in text

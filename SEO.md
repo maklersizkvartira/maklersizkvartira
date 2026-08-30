@@ -1,6 +1,6 @@
 # SEO — how it works, and what to do next
 
-This document is the operating manual for the search side of maklersizuy.uz:
+This document is the operating manual for the search side of uyiz.uz:
 the architecture that was built, why it is shaped the way it is, and the work
 that is deliberately left.
 
@@ -18,7 +18,7 @@ router**: every screen lived at `/` behind a query parameter (`/?view=listings`,
 `<div id="root">`, and `index.html` hard-coded
 
 ```html
-<link rel="canonical" href="https://maklersizuy.uz/" />
+<link rel="canonical" href="https://uyiz.uz/" />
 ```
 
 on all of them. So the whole site was one page as far as a crawler was
@@ -76,7 +76,7 @@ the domain is unreliable.
 The rent architecture is built out completely instead, and it is where all the
 current inventory is. When the product adds a sale side, the taxonomy takes a
 second transaction axis and the same generator produces the sale tree — see
-§8.
+§9.
 
 ---
 
@@ -142,7 +142,7 @@ they change:
 - `sitemap-pages.xml` — generated at build time, 321 URLs, each with the full
   `xhtml:link` hreflang set.
 - `sitemap-listings.xml` — served by FastAPI (`backend_python/app/routers/seo.py`)
-  and proxied onto `maklersizuy.uz` by a Vercel rewrite, because listings
+  and proxied onto `uyiz.uz` by a Vercel rewrite, because listings
   appear and expire between deploys.
 
 Both are on the site's own hostname. A sitemap that publishes URLs for a host
@@ -175,15 +175,17 @@ each claim the other is the original.
 ## 5. What you have to do in Google Search Console
 
 1. **Add the property.** Search Console → Add property → **Domain**
-   (`maklersizuy.uz`), which covers `www`, non-`www`, http and https in one
+   (`uyiz.uz`), which covers `www`, non-`www`, http and https in one
    place. Verify with the DNS TXT record your registrar's panel offers.
    *If DNS is not available to you*, use the URL-prefix property for
-   `https://maklersizuy.uz/` and verify with the HTML meta tag — paste it into
+   `https://uyiz.uz/` and verify with the HTML meta tag — paste it into
    the static block of `index.html`, above `<!--seo-head-start-->`, so the
    prerenderer does not overwrite it.
+   Verify the **old** `maklersizuy.uz` property too, and keep it verified —
+   §6's Change of Address cannot run without both.
 2. **Decide www vs non-www**, once, and make the other 301 to it at the DNS/host
    level. Vercel does this for you when you set the canonical domain in the
-   project's Domains tab. Everything in the code assumes `https://maklersizuy.uz`
+   project's Domains tab. Everything in the code assumes `https://uyiz.uz`
    with no `www` and no trailing slash.
 3. **Submit the sitemap.** Sitemaps → add `sitemap.xml` (the index — do not
    submit the children separately). Come back in 48 hours and check that both
@@ -216,7 +218,80 @@ each claim the other is the original.
 
 ---
 
-## 6. Analytics
+## 6. The domain move: maklersizuy.uz → uyiz.uz
+
+This is the highest-risk item on the page, and the only one that destroys work
+already done if it is skipped. A domain change discards nothing **if** the old
+host keeps answering and redirecting; it discards every ranking and every
+inbound link if the old host simply stops.
+
+The old domain also carried the old positioning. "Maklersiz" is a claim the
+product no longer makes — brokers and agencies are welcome here — so the brand
+query changes as well as the host, and the keyword thesis below changes with
+it.
+
+### The order that matters
+
+1. **Point `uyiz.uz` at the Vercel site project** and set it as **Primary
+   Domain**, with `www.uyiz.uz` redirecting to the apex. Everything in the code
+   assumes the bare apex, no `www`, no trailing slash — get this right once,
+   before Search Console ever sees the site, or Google learns the wrong address
+   and reports it back as *"Duplicate without user-selected canonical"*.
+2. **Set `VITE_SITE_URL` and `SITE_URL`** (§8) and redeploy both sides. Confirm
+   `curl -s https://uyiz.uz/sitemap.xml` lists children on the new host.
+3. **Keep `maklersizuy.uz` attached to the same Vercel project** as a
+   **site-wide, path-preserving 301** to `uyiz.uz`. `/toshkent/chilonzor` must
+   land on `https://uyiz.uz/toshkent/chilonzor`, not on the home page — a
+   redirect that collapses every path to `/` throws away the link equity it was
+   supposed to carry. Leave it in place **at least twelve months**.
+4. **Re-point the Yandex Maps / Geocoder key's referrer allowlist** to
+   `uyiz.uz` before the cutover, or the map and the GPS button die on the new
+   host with a console error and no visible cause.
+5. **Add `uyiz.uz` and `admin.uyiz.uz` to Firebase Authorized Domains** and to
+   the Google OAuth allowed origins, or Google sign-in breaks on the new host.
+6. **Verify `uyiz.uz` in Search Console** as a fresh Domain property (§5). The
+   old property's verification and history do not transfer by themselves.
+7. **Submit `sitemap.xml`** on the new property.
+8. **Run Change of Address** on the *old* property, pointing at the new one. It
+   requires both properties verified and the 301s already live, which is why it
+   is last. Do the same in Yandex Webmaster and Bing.
+9. **Change the GA4 data stream's URL** to `uyiz.uz`. Do **not** create a new
+   property — that starts the history from zero.
+
+### The keyword thesis, restated
+
+The old strategy ranked for `maklersiz kvartira` and its long tails. That is
+now off-message: the platform does not exclude professionals, so a page that
+promises "maklersiz" would rank for a promise the product does not keep, and
+the visitors it wins are the ones most likely to bounce.
+
+What replaces it is the ordinary, much larger intent that was always underneath
+it — people looking for somewhere to live, not for the absence of an agent:
+
+| Tier | Uzbek | Russian |
+| --- | --- | --- |
+| Brand | `uyiz`, `uyiz.uz` | `uyiz` |
+| Head | `kvartira ijara`, `uy ijaraga` | `аренда квартир`, `снять квартиру` |
+| Geographic | `ijara Toshkent`, `Toshkentda kvartira ijaraga` | `аренда квартир Ташкент` |
+| District long-tail | `Chilonzorda kvartira ijaraga`, `Yunusobodda uy ijaraga` | `снять квартиру Чиланзар` |
+| Audience | `talabalar uchun ijara`, `oilalar uchun ijara`, `arzon ijara` | `аренда для студентов` |
+
+The URL architecture in §2 was already built for exactly this tree — one page
+per property type, per region, per district, per audience — so no route
+changes. What changes is the copy on them and the brand query the site expects
+to own. Brand queries are the cheapest wins and the slowest to arrive: `uyiz`
+is a new word with no history, so expect nothing on it for the first weeks and
+seed it with the Telegram and Instagram presence (§10, "local signals") rather
+than waiting for Google.
+
+Nothing in the copy may frame a professional agent as a warning sign. The
+anti-fraud advice — never send money before seeing the place and holding the
+keys and the paperwork — stays exactly as it is. That is about fraud, not about
+who published the listing.
+
+---
+
+## 7. Analytics
 
 GA4 is wired but **off unless you configure it**. Set
 `VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX` on Vercel and redeploy. With it unset,
@@ -239,28 +314,31 @@ switched on; `setAnalyticsConsent(false)` disables it at runtime.
 
 ---
 
-## 7. Before you deploy
+## 8. Before you deploy
 
 - [ ] Set `VITE_API_URL` on Vercel. Without it the build cannot prune empty
       facets from the sitemap and the API preconnect hint is skipped.
-- [ ] Set `VITE_SITE_URL` only if the domain changes.
+- [ ] Set `VITE_SITE_URL=https://uyiz.uz` on Vercel and `SITE_URL=https://uyiz.uz`
+      on Railway. Neither has a safe default any more: the fallbacks in the
+      code point at the retired domain, so a forgotten variable publishes a
+      whole sitemap Google will ignore — with a green build and no warning.
 - [ ] Confirm the Railway hostname in `vercel.json`'s sitemap rewrite.
 - [ ] `npm run build && npm run seo:audit` — must end with `No errors.`
 - [ ] Set the canonical domain in Vercel → Domains, and confirm the other
       variant 301s to it.
 - [ ] After deploying, fetch these by hand and read the raw response:
-      `curl -s https://maklersizuy.uz/toshkent/chilonzor/kvartira-ijaraga | head -40`
+      `curl -s https://uyiz.uz/toshkent/chilonzor/kvartira-ijaraga | head -40`
       — the title, description, canonical and hreflang must be in the HTML,
       not injected later.
-- [ ] `curl -I https://maklersizuy.uz/bunday-sahifa-yoq` — must be **404**, not 200.
-- [ ] `curl -s https://maklersizuy.uz/sitemap-listings.xml | head` — must be XML
+- [ ] `curl -I https://uyiz.uz/bunday-sahifa-yoq` — must be **404**, not 200.
+- [ ] `curl -s https://uyiz.uz/sitemap-listings.xml | head` — must be XML
       from the API, not the SPA shell. If it is HTML, the rewrite is wrong or
       a file of that name exists in `dist/` and is winning.
 - [ ] Run PageSpeed Insights on `/` and on one district page.
 
 ---
 
-## 8. What is deliberately left
+## 9. What is deliberately left
 
 Ordered by how much they are worth.
 
@@ -291,18 +369,18 @@ Ordered by how much they are worth.
    with no integrity hash, and is now bundled into the map chunk from the npm
    package. Next: add CSP in report-only mode for a week before enforcing it.
 5. **The blog needs a third wave.** Eleven guides plus three policy pages is a
-   foundation, not a content strategy — see §9.
+   foundation, not a content strategy — see §10.
 
 ---
 
-## 9. The next three to six months
+## 10. The next three to six months
 
 **Month 1 — get indexed and measure.** Search Console setup (§5), then watch
 coverage. Expect landing pages to start appearing in 2–4 weeks and to rank for
 long-tail district queries before anything else. Do not add pages in this
 period; find out what the existing ones do first.
 
-**Month 2 — fix the image problem.** Item 1 in §8. It unlocks Google Images
+**Month 2 — fix the image problem.** Item 1 in §9. It unlocks Google Images
 traffic, which for a property marketplace is not a rounding error, and it will
 move Core Web Vitals more than anything else available.
 
@@ -330,7 +408,7 @@ remains supply.
 
 ---
 
-## 10. Where things live
+## 11. Where things live
 
 | File | What it owns |
 | --- | --- |

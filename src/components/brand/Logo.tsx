@@ -10,11 +10,13 @@
  *    brand-blue tile it used to be — if it is ever redrawn without those
  *    outlines, the tile is what has to come back.
  *
- * 2. The wordmark is two words in two colours, and "Uy" is the blue one in
- *    both variants. The chip that used to sit behind it is gone — the word is
- *    plain text now — so the blue itself has to do the separating, and on the
- *    header's navy band that means a different blue from the one used on a
- *    light page. The figures behind that choice are at `UY_ON_BAND` below.
+ * 2. The wordmark is ONE word, "Uyiz", split across two spans in two colours:
+ *    "Uy" neutral (white on the band), "iz" brand blue. Because it is one word
+ *    the two spans sit flush — no gap — and the colour change is the only
+ *    seam. The chip that used to sit behind the word is gone, so the blue
+ *    itself has to do the separating, and on the header's navy band that means
+ *    a different blue from the one used on a light page. The figures behind
+ *    that choice are at `BLUE_ON_BAND` below.
  */
 
 import React from 'react';
@@ -43,12 +45,12 @@ const SIZES: Record<LogoSize, { tile: string; word: string; gap: string }> = {
 };
 
 /**
- * The blue "Uy" wears on the header band.
+ * The blue the "iz" half wears on the header band.
  *
  * `text-brand` is the right blue on a light page — #1447e6 on white is 6.8:1 —
  * but the band is #0e2a86, and brand-on-band measures 1.8:1. That is not a
- * colour, it is a silhouette, which is why the inverted lockup painted both
- * words white and lost the two-tone entirely.
+ * colour, it is a silhouette, which is why the inverted lockup painted the
+ * whole word white and lost the two-tone entirely.
  *
  * No single token is a light blue in both themes: `brand-soft-2` is a solid
  * #dbe5ff in light but a 22%-alpha fill in dark (invisible as text), and
@@ -58,9 +60,9 @@ const SIZES: Record<LogoSize, { tile: string; word: string; gap: string }> = {
  * That measures 5.2:1 against `--color-band` in light and 8.2:1 in dark,
  * both above the 4.5:1 floor for body text and comfortably above the 3:1 the
  * wordmark's size would allow, while still reading blue next to the white
- * "Maklersiz". The band is dark in both themes, so one mix serves both.
+ * "Uy". The band is dark in both themes, so one mix serves both.
  */
-const UY_ON_BAND = 'text-[color-mix(in_srgb,var(--color-brand)_45%,var(--color-on-band))]';
+const BLUE_ON_BAND = 'text-[color-mix(in_srgb,var(--color-brand)_45%,var(--color-on-band))]';
 
 export const LogoMark: React.FC<{ size?: LogoSize; className?: string }> = ({
   size = 'md',
@@ -97,17 +99,20 @@ export const Logo: React.FC<LogoProps> = ({
       <LogoMark size={size} />
       <span className="inline-flex flex-col leading-none">
         {/* One accessible name for the whole lockup; the pieces are decorative. */}
-        <span className="sr-only">Maklersiz Uy</span>
+        <span className="sr-only">Uyiz</span>
         <span
-          className={`inline-flex items-center gap-1 font-black tracking-tight ${s.word}`}
+          className={`inline-flex items-center font-black tracking-tight ${s.word}`}
           aria-hidden="true"
         >
-          {/* "Uy" is the blue word in BOTH variants — that is the whole point of
-              the lockup, and painting both words brand blue on a light surface
-              threw the two-tone away. "Maklersiz" therefore takes the neutral
-              colour on light and white on the band. */}
-          <span className={inverted ? 'text-white font-black' : 'text-content font-black'}>Maklersiz</span>
-          <span className={inverted ? `${UY_ON_BAND} font-black` : 'text-brand font-black'}>Uy</span>
+          {/* "iz" is the blue half in BOTH variants — that is the whole point
+              of the lockup, and painting the whole word brand blue on a light
+              surface throws the two-tone away. "Uy" therefore takes the
+              neutral colour on light and white on the band.
+
+              No `gap` on the row above: "Uyiz" is one word, and a gap here
+              would render it as "Uy iz". */}
+          <span className={inverted ? 'text-white font-black' : 'text-content font-black'}>Uy</span>
+          <span className={inverted ? `${BLUE_ON_BAND} font-black` : 'text-brand font-black'}>iz</span>
         </span>
         {tagline && (
           <span className={`mt-1 text-[10px] font-semibold uppercase tracking-wide ${inverted ? 'text-white/70' : 'text-subtle'}`}>

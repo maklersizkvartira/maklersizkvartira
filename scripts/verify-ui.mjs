@@ -40,7 +40,15 @@ async function newPage(theme, language) {
     problems.push(`[pageerror:${theme}/${language}] ${String(error).slice(0, 200)}`);
   });
 
+  // Both key generations are seeded on purpose. The app reads `uyiz.*` and
+  // falls back to the old `maklersiz.*` key once, migrating it — so a build
+  // from either side of the rename is driven correctly by this script. Seeding
+  // only one would make the other silently test the default theme and language
+  // and fail all four assertions below for the wrong reason. Drop the old pair
+  // when the migration shim is removed.
   await page.addInitScript(([t, l]) => {
+    localStorage.setItem('uyiz.theme', t);
+    localStorage.setItem('uyiz.language', l);
     localStorage.setItem('maklersiz.theme', t);
     localStorage.setItem('maklersiz.language', l);
   }, [theme, language]);

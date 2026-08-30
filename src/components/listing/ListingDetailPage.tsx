@@ -37,7 +37,6 @@ import {
   Train,
   Trash2,
   Users,
-  Video,
   X,
 } from 'lucide-react';
 
@@ -67,10 +66,17 @@ function trustToneClass(score: number): string {
   return 'bg-danger-soft text-danger';
 }
 
-/** Server-side reason codes paired with their labels. */
+/**
+ * Server-side reason codes paired with their labels.
+ *
+ * `BROKER` is deliberately absent. Professional agents publish here alongside
+ * owners, so "this is a broker listing" is no longer a complaint about
+ * anything — and a confirmed report now costs the listing real reliability
+ * points, which would make offering it actively unfair. The value survives in
+ * the database enum for the rows that were filed before the change.
+ */
 const REPORT_REASONS = [
   ['SCAM', 'listings.report.reasons.scam'],
-  ['BROKER', 'listings.report.reasons.broker'],
   ['FAKE_LISTING', 'listings.report.reasons.fakeListing'],
   ['FAKE_PHOTOS', 'listings.report.reasons.fakePhotos'],
   ['WRONG_PRICE', 'listings.report.reasons.wrongPrice'],
@@ -112,40 +118,6 @@ const DetailSkeleton: React.FC<{ label: string }> = ({ label }) => (
 );
 
 // ---------------------------------------------------------------------------
-/**
- * Builds a YouTube embed URL, or returns null.
- *
- * Substring-matching "youtube.com" anywhere in the string let an owner point
- * the iframe at any site they liked (`https://evil.example/?x=youtube.com`),
- * so the host is parsed and compared exactly.
- */
-function youTubeEmbedUrl(raw: string): string | null {
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    return null;
-  }
-  if (url.protocol !== 'https:') return null;
-
-  const host = url.hostname.replace(/^www\./, '');
-  let videoId: string | null = null;
-
-  if (host === 'youtu.be') {
-    videoId = url.pathname.slice(1);
-  } else if (host === 'youtube.com' || host === 'm.youtube.com') {
-    videoId = url.pathname.startsWith('/embed/')
-      ? url.pathname.slice('/embed/'.length)
-      : url.searchParams.get('v');
-  } else {
-    return null;
-  }
-
-  return videoId && /^[A-Za-z0-9_-]{6,20}$/.test(videoId)
-    ? `https://www.youtube.com/embed/${videoId}`
-    : null;
-}
-
 export const ListingDetailPage: React.FC = () => {
   const { t, tRaw, formatDate, formatNumber, formatPrice } = useTranslation();
 
@@ -169,7 +141,6 @@ export const ListingDetailPage: React.FC = () => {
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [reloadToken, setReloadToken] = useState(0);
 
-  const [activeMedia, setActiveMedia] = useState<'IMAGE' | 'VIDEO'>('IMAGE');
   const [imageIndex, setImageIndex] = useState(0);
   const [phoneVisible, setPhoneVisible] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -196,7 +167,6 @@ export const ListingDetailPage: React.FC = () => {
     setStatus('loading');
     setPhoneVisible(false);
     setImageIndex(0);
-    setActiveMedia('IMAGE');
 
     ListingsApi.byId(selectedListingId)
       .then((data) => {
@@ -508,6 +478,7 @@ export const ListingDetailPage: React.FC = () => {
             className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-black ${trustToneClass(
               listing.trustScore ?? 0,
             )}`}
+            title={t('listings.detail.trustTooltip', { score: listing.trustScore ?? 0 })}
           >
             <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
             {t('common.badge.trustScore', { score: listing.trustScore ?? 0 })}
@@ -631,57 +602,13 @@ export const ListingDetailPage: React.FC = () => {
       {/* ------------------------------------------------------------------ */}
       {/* Media                                                               */}
       {/* ------------------------------------------------------------------ */}
+      {/* Photos only. A listing used to be able to carry a video tour, which
+          put a tab bar above this box and a player inside it; the field is
+          gone from the product, so the gallery is the whole of the media
+          block again. */}
       <div className="space-y-3">
-        {listing.videoUrl && (
-          <div
-            className="hide-scrollbar flex items-center gap-2 overflow-x-auto border-b border-line pb-2"
-            role="group"
-            aria-label={t('listings.detail.mediaTabsLabel')}
-          >
-            <button
-              type="button"
-              onClick={() => setActiveMedia('IMAGE')}
-              aria-pressed={activeMedia === 'IMAGE'}
-              className={`shrink-0 rounded-xl px-3.5 py-2 text-xs font-black transition-colors ${
-                activeMedia === 'IMAGE'
-                  ? 'bg-brand text-on-brand'
-                  : 'bg-surface-2 text-muted hover:text-content'
-              }`}
-            >
-              {t('listings.detail.photosTab', { count: images.length })}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveMedia('VIDEO')}
-              aria-pressed={activeMedia === 'VIDEO'}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-black transition-colors ${
-                activeMedia === 'VIDEO'
-                  ? 'bg-brand text-on-brand'
-                  : 'bg-surface-2 text-muted hover:text-content'
-              }`}
-            >
-              <Video className="h-4 w-4" aria-hidden="true" />
-              {t('listings.detail.videoTab')}
-            </button>
-          </div>
-        )}
-
         <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-surface-2 shadow-card sm:aspect-video">
-          {activeMedia === 'VIDEO' && listing.videoUrl ? (
-            youTubeEmbedUrl(listing.videoUrl) ? (
-              <iframe
-                src={youTubeEmbedUrl(listing.videoUrl) as string}
-                title={t('listings.detail.videoTitle')}
-                className="h-full w-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            ) : (
-              <video controls src={listing.videoUrl} className="h-full w-full object-contain">
-                {t('listings.detail.videoUnsupported')}
-              </video>
-            )
-          ) : activeImage ? (
+          {activeImage ? (
             <>
               <img
                 src={activeImage}
@@ -728,7 +655,7 @@ export const ListingDetailPage: React.FC = () => {
           )}
         </div>
 
-        {activeMedia === 'IMAGE' && images.length > 1 && (
+        {images.length > 1 && (
           <div className="hide-scrollbar flex gap-2 overflow-x-auto pb-1">
             {images.map((image, index) => (
               <button
@@ -893,46 +820,55 @@ export const ListingDetailPage: React.FC = () => {
             </ul>
           </section>
 
-          {/* Moderation verdict */}
+          {/* Reliability.
+
+              This block used to be the moderation verdict: a heading that
+              named an automated scanner and a list of the objections it had
+              raised, printed verbatim. No such scan runs any more — a listing
+              publishes as it is written — so the section explains the one
+              rule that is left. The figure starts at 100 and moves only when
+              an administrator confirms a complaint, which is a fact about
+              this listing's record and not a machine's opinion of it. */}
           <section className={`${cardClass} space-y-4 p-5 sm:p-6`}>
             <div className="flex items-center justify-between gap-3 border-b border-line pb-3">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-6 w-6 text-brand" aria-hidden="true" />
                 <div>
                   <h2 className="text-base font-extrabold text-content">
-                    {t('listings.detail.aiTitle')}
+                    {t('listings.detail.trustTitle')}
                   </h2>
-                  <p className="text-[11px] text-subtle">{t('listings.detail.aiSubtitle')}</p>
+                  <p className="text-[11px] text-subtle">{t('listings.detail.trustSubtitle')}</p>
                 </div>
               </div>
               <span
                 className={`inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-black ${trustToneClass(
                   listing.trustScore ?? 0,
                 )}`}
+                title={t('listings.detail.trustTooltip', { score: listing.trustScore ?? 0 })}
               >
                 {t('common.badge.trustScore', { score: listing.trustScore ?? 0 })}
               </span>
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-xs font-bold text-muted">
-                {t('listings.detail.aiReasonsTitle')}
-              </h3>
-              {listing.aiRiskReasons?.length ? (
-                <ul className="space-y-1.5">
-                  {listing.aiRiskReasons.map((reason) => (
-                    <li
-                      key={reason}
-                      className="flex items-start gap-2 rounded-xl border border-line bg-surface-2 p-2.5 text-xs text-muted"
-                    >
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
-                      <span>{reason}</span>
-                    </li>
-                  ))}
-                </ul>
+              {/* A full score is the clean record, and anything below it means
+                  at least one complaint has been upheld. The tick is reserved
+                  for the first case: a green check beside "complaints have
+                  been confirmed" would read as reassurance. */}
+              {(listing.trustScore ?? 0) >= 100 ? (
+                <p className="flex items-start gap-2 text-xs font-semibold text-content">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+                  <span>{t('listings.detail.trustNoComplaints')}</span>
+                </p>
               ) : (
-                <p className="text-xs text-subtle">{t('listings.detail.aiNoReasons')}</p>
+                <p className="flex items-start gap-2 text-xs font-semibold text-warning">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>{t('listings.detail.trustHasComplaints')}</span>
+                </p>
               )}
+              <p className="text-xs leading-relaxed text-subtle">
+                {t('listings.detail.trustExplainer')}
+              </p>
             </div>
           </section>
         </div>
@@ -956,7 +892,7 @@ export const ListingDetailPage: React.FC = () => {
               </p>
               <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
                 <span className="rounded-md bg-brand-soft px-2 py-0.5 font-black text-brand-text">
-                  {t('common.badge.noCommission')}
+                  {t('listings.card.directContact')}
                 </span>
                 <span className={listing.utilitiesIncluded ? 'text-brand-text' : 'text-subtle'}>
                   {listing.utilitiesIncluded
@@ -1005,13 +941,17 @@ export const ListingDetailPage: React.FC = () => {
               </div>
 
               <div className="flex flex-wrap gap-1.5">
+                {/* The PERSON's score, not the listing's. It is a different
+                    number under a different rule — it rises when an account is
+                    verified — so it carries its own label rather than the one
+                    that explains confirmed complaints. */}
                 <span
                   className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-black ${trustToneClass(
                     listing.owner?.trustScore ?? 0,
                   )}`}
                 >
                   <ShieldCheck className="h-3 w-3" aria-hidden="true" />
-                  {t('common.badge.trustScore', { score: listing.owner?.trustScore ?? 0 })}
+                  {t('listings.detail.ownerTrustScore', { score: listing.owner?.trustScore ?? 0 })}
                 </span>
                 {listing.owner?.verificationLevel ? (
                   <VerificationBadge level={listing.owner.verificationLevel} size="sm" />

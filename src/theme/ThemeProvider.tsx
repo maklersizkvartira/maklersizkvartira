@@ -7,6 +7,12 @@
  *
  * The applied class is set on <html> before React paints (see the inline
  * bootstrap in index.html) so there is no white flash on a dark-mode load.
+ *
+ * That bootstrap reads `THEME_STORAGE_KEY` itself, in plain ES5, and has to
+ * carry the same new-key-then-legacy-key fallback this file does. The two are
+ * in different files and different languages; if they ever disagree the flash
+ * is back, permanently, for every dark-mode visitor who chose the theme before
+ * the rename.
  */
 
 import React, {
@@ -18,19 +24,18 @@ import React, {
   useState,
 } from 'react';
 
+import { localStore } from '../lib/storage';
+
 export type ThemePreference = 'light' | 'dark' | 'system';
 export type ResolvedTheme = 'light' | 'dark';
 
-const STORAGE_KEY = 'maklersiz.theme';
+export const THEME_STORAGE_KEY = 'uyiz.theme';
+/** What the key was called before the brand changed; migrated on first read. */
+export const LEGACY_THEME_STORAGE_KEY = 'maklersiz.theme';
 
 function readStoredPreference(): ThemePreference {
-  if (typeof window === 'undefined') return 'system';
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
-  } catch {
-    /* storage unavailable */
-  }
+  const stored = localStore.read(THEME_STORAGE_KEY, LEGACY_THEME_STORAGE_KEY);
+  if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
   return 'system';
 }
 
@@ -110,11 +115,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const setPreference = useCallback((next: ThemePreference) => {
     setPreferenceState(next);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      /* ignore */
-    }
+    localStore.write(THEME_STORAGE_KEY, next);
   }, []);
 
   const value = useMemo<ThemeContextValue>(

@@ -18,14 +18,29 @@ from app.schemas.listing import (
     ListingOut,
     ListingStatRequest,
     ListingUpdate,
-    ModerationResult,
     ReportListingRequest,
-    ScanListingRequest,
+    TopRequestCreate,
+    TopRequestOut,
 )
 from app.services import listings as listing_service
-from app.services.moderation import scan_listing
 
 router = APIRouter(prefix="/listings", tags=["listings"])
+
+#: DEPRECATED. Publication runs no automated check, so there is no verdict to
+#: report - but a browser holding a cached older bundle still reads
+#: ``response.moderation.allowed`` after a successful publish, and reads
+#: ``aiAnalysis`` from ``POST /listings/scan``. Both keep answering this
+#: constant "everything is fine" for one release so those clients do not throw
+#: on a listing that was in fact created. Remove once the old bundles age out.
+_DEPRECATED_MODERATION_OK = {
+    "allowed": True,
+    "status": "APPROVED",
+    "trustScore": 100,
+    "riskScore": 0,
+    "reasons": [],
+    "message": None,
+    "provider": "none",
+}
 
 
 def _serialise(
@@ -34,6 +49,7 @@ def _serialise(
     viewer,
     favorite_ids: set[uuid.UUID] | None = None,
     conversation_counts: dict[uuid.UUID, int] | None = None,
+    top_statuses: dict[uuid.UUID, str] | None = None,
 ) -> dict:
     """Render a listing, exposing the owner's phone only where appropriate.
 
@@ -46,10 +62,15 @@ def _serialise(
     is_staff = viewer is not None and viewer.role in STAFF_ROLE_VALUES
     if not (is_owner or is_staff):
         payload.owner.phone = None
+        # A moderator's note is written for the publisher, not the catalogue.
+        payload.moderation_note = None
     if favorite_ids is not None:
         payload.is_favorite = listing.id in favorite_ids
     if conversation_counts is not None:
         payload.conversation_count = conversation_counts.get(listing.id, 0)
+    # A pending Top request is the owner's own business, not the catalogue's.
+    if top_statuses is not None and (is_owner or is_staff):
+        payload.top_request_status = top_statuses.get(listing.id)
     return payload.model_dump(by_alias=True)
 
 
@@ -95,13 +116,17 @@ async def featured(
 @router.get("/my", summary="Listings owned by the signed-in user")
 async def my_listings(db: DbSession, user: CurrentUser) -> dict:
     rows = await listing_service.list_for_owner(db, user)
-    # The owner's page is the only place this number is shown, so it is the
-    # only place worth the extra query.
-    chats = await listing_service.conversation_counts(db, [r.id for r in rows])
+    # The owner's page is the only place these two are shown, so it is the
+    # only place worth the extra queries. Both are one query for the whole
+    # page, never one per listing.
+    listing_ids = [r.id for r in rows]
+    chats = await listing_service.conversation_counts(db, listing_ids)
+    tops = await listing_service.top_status_for(db, listing_ids)
     return {
         "status": "success",
         "data": [
-            _serialise(r, viewer=user, conversation_counts=chats) for r in rows
+            _serialise(r, viewer=user, conversation_counts=chats, top_statuses=tops)
+            for r in rows
         ],
     }
 
@@ -121,8 +146,8 @@ async def get_listing(listing_id: uuid.UUID, db: DbSession, viewer: OptionalUser
     listing = await listing_service.get_public_listing(db, listing_id)
     is_owner = viewer is not None and listing.owner_id == viewer.id
     is_staff = viewer is not None and viewer.role in STAFF_ROLE_VALUES
-    # A listing removed by moderation stays visible to its owner and to staff,
-    # so the owner can see why it was rejected and fix it.
+    # A listing an admin took down stays visible to its owner and to staff, so
+    # the owner can see what happened to it.
     if not listing.is_public and not (is_owner or is_staff):
         raise BadRequest("listing_not_found", status_code=status.HTTP_404_NOT_FOUND)
 
@@ -130,6 +155,15 @@ async def get_listing(listing_id: uuid.UUID, db: DbSession, viewer: OptionalUser
     payload = ListingOut.model_validate(listing)
     if not (is_owner or is_staff):
         payload.owner.phone = None
+        # A moderator's note is written for the publisher, not the catalogue.
+        payload.moderation_note = None
+    else:
+        # This endpoint builds its payload inline rather than through
+        # _serialise, so the owner-or-staff gate on the Top state is repeated
+        # here. Both surfaces must agree or the detail page shows no pending
+        # state while the owner's list does.
+        tops = await listing_service.top_status_for(db, [listing.id])
+        payload.top_request_status = tops.get(listing.id)
     payload.is_favorite = listing.id in favorite_ids
     return {"status": "success", "data": payload.model_dump(by_alias=True)}
 
@@ -150,13 +184,15 @@ async def create_listing(
             params={"limit": settings.RATE_LIMIT_LISTING_CREATE_PER_HOUR},
         )
 
-    listing, verdict = await listing_service.create_listing(
+    listing = await listing_service.create_listing(
         db, user=user, payload=payload.model_dump()
     )
     return {
         "status": "success",
         "data": _serialise(listing, viewer=user),
-        "moderation": ModerationResult(**verdict.as_dict()).model_dump(by_alias=True),
+        # Deprecated, see _DEPRECATED_MODERATION_OK. The listing is already
+        # live by the time this is read.
+        "moderation": _DEPRECATED_MODERATION_OK,
     }
 
 
@@ -268,17 +304,57 @@ async def report_listing(
 
 
 # ---------------------------------------------------------------------------
-# Moderation preview
+# Top (promotion) requests
 # ---------------------------------------------------------------------------
-@router.post("/scan", summary="Preview moderation before publishing")
-async def scan(
-    payload: ScanListingRequest, user: CurrentUser, ctx: RequestCtx
+@router.post(
+    "/{listing_id}/top",
+    status_code=status.HTTP_201_CREATED,
+    summary="Ask for the Top (promoted) rail",
+)
+async def request_top(
+    listing_id: uuid.UUID,
+    payload: TopRequestCreate,
+    db: DbSession,
+    user: CurrentUser,
+    lang: Lang,
 ) -> dict:
-    await enforce("listing_write", str(user.id))
-    verdict = await scan_listing(
-        payload.title, payload.description, payload.price, payload.rooms
+    """Send a Top request. It is free, and it promotes nothing on its own.
+
+    The listing only moves up once a moderator approves the request in the
+    admin panel, which is what the returned message tells the owner. The
+    client should render ``message`` rather than a hardcoded string, so the
+    three languages live in one place.
+    """
+    await enforce("top_request", str(user.id))
+    listing = await listing_service.get_owned_listing(db, listing_id, user)
+    request = await listing_service.request_top(
+        db, listing=listing, user=user, days=payload.days, note=payload.note
     )
     return {
         "status": "success",
-        "aiAnalysis": ModerationResult(**verdict.as_dict()).model_dump(by_alias=True),
+        "data": TopRequestOut.model_validate(request).model_dump(by_alias=True),
+        "message": {
+            "uz": "Top so‘rovingiz yuborildi. Administrator tasdiqlagach, "
+                  "e’loningiz eng yuqoriga chiqadi.",
+            "ru": "Заявка на Топ отправлена. Объявление поднимется наверх "
+                  "после одобрения администратора.",
+            "en": "Your Top request has been sent. The listing moves to the "
+                  "top once an admin approves it.",
+        }.get(lang, "Top so‘rovingiz yuborildi."),
     }
+
+
+# ---------------------------------------------------------------------------
+# Deprecated
+# ---------------------------------------------------------------------------
+@router.post("/scan", summary="Deprecated: publication runs no check", deprecated=True)
+async def scan(user: CurrentUser) -> dict:
+    """DEPRECATED, kept for one release only.
+
+    The pre-publish scanner is gone: a listing simply publishes. This route
+    survives so a browser holding a cached older bundle gets a constant allow
+    instead of a 404 in the middle of the create wizard. It reads no body at
+    all, so no shape a stale client sends can 422 here. Delete it once those
+    bundles have aged out.
+    """
+    return {"status": "success", "aiAnalysis": _DEPRECATED_MODERATION_OK}

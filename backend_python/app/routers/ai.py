@@ -1,4 +1,4 @@
-"""Shield AI assistant endpoints."""
+"""Uyiz AI assistant endpoints."""
 
 from __future__ import annotations
 
@@ -21,10 +21,10 @@ from app.schemas.common import CamelModel
 from app.schemas.listing import ListingOut
 from app.services import ai_agent
 from app.services import listings as listing_service
-from app.services import shield_ai
+from app.services import uyiz_ai
 from app.services.telegram import send_chat_summary
 
-router = APIRouter(prefix="/smart", tags=["shield-ai"])
+router = APIRouter(prefix="/smart", tags=["uyiz-ai"])
 
 DAILY_LIMIT = settings.RATE_LIMIT_AI_PER_DAY
 
@@ -154,7 +154,7 @@ async def _used_today(db, *, viewer, ctx) -> int:
 # ---------------------------------------------------------------------------
 # Conversation
 # ---------------------------------------------------------------------------
-@router.post("/assistant", summary="Send a message to Shield AI")
+@router.post("/assistant", summary="Send a message to Uyiz AI")
 async def assistant(
     payload: AssistantRequest,
     db: DbSession,
@@ -274,15 +274,15 @@ async def assistant(
     # ---------------------------------------------------------------
     # Two passes with the search in between: the model cannot describe rows it
     # has not seen, and the rows depend on what the first pass understood.
-    parsed = shield_ai.parse_intent(payload.message)
-    llm = await shield_ai.understand(
+    parsed = uyiz_ai.parse_intent(payload.message)
+    llm = await uyiz_ai.understand(
         message=payload.message,
         history=history,
         language=language,
         user_name=(viewer.name if viewer else payload.user_name),
         is_first_turn=is_first_turn,
     )
-    intent = shield_ai.merge_intents(parsed, llm)
+    intent = uyiz_ai.merge_intents(parsed, llm)
     display_name = intent.user_name or (viewer.name if viewer else payload.user_name)
 
     # Asking for details is right once. Asking again after they have already
@@ -292,10 +292,12 @@ async def assistant(
         intent.kind = "SEARCH"
 
     # Only turns that are actually about finding somewhere to live touch the
-    # catalogue. A company question or an off-topic message gets an answer, not
-    # a wall of apartments it never asked for.
+    # catalogue. A company question, a request for a person, or an off-topic
+    # message gets an answer, not a wall of apartments it never asked for.
+    # CONTACT in particular must never come back with listings alongside the
+    # support number: someone asking for an operator is asking for one thing.
     if intent.kind in {"SEARCH", "DOMAIN"}:
-        rows, relaxation, searched_district, total = await shield_ai.search_for_intent(
+        rows, relaxation, searched_district, total = await uyiz_ai.search_for_intent(
             db, intent, limit=5
         )
     else:
@@ -308,7 +310,7 @@ async def assistant(
     if rows or intent.kind == "SEARCH":
         # The reply always reflects what the database actually returned, so the
         # assistant can never promise listings that do not exist.
-        reply = await shield_ai.compose_reply(
+        reply = await uyiz_ai.compose_reply(
             message=payload.message,
             history=history,
             language=language,
@@ -320,7 +322,7 @@ async def assistant(
             searched_district=searched_district,
         )
     if not reply:
-        reply = shield_ai.build_fallback_reply(
+        reply = uyiz_ai.build_fallback_reply(
             intent=intent,
             count=len(rows),
             language=language,
@@ -503,7 +505,7 @@ async def history(
     }
 
 
-@router.post("/assistant/close", summary="End a Shield AI conversation")
+@router.post("/assistant/close", summary="End a Uyiz AI conversation")
 async def close_assistant(
     payload: CloseRequest, db: DbSession, viewer: OptionalUser, ctx: RequestCtx
 ) -> dict:

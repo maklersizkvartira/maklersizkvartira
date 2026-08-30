@@ -18,7 +18,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core import audit as audit_log
 from app.core.config import settings
-from app.core.errors import BadRequest, Forbidden, NotFound
+from app.core.errors import BadRequest, Conflict, Forbidden, NotFound
 from app.models.enums import (
     FULL_ACCESS_ROLE_VALUES,
     PUBLISHER_ROLE_VALUES,
@@ -26,12 +26,12 @@ from app.models.enums import (
     AuditAction,
     ListingStatus,
     RoommateGender,
+    TopRequestStatus,
     UserRole,
 )
-from app.models.listing import Favorite, Listing
+from app.models.listing import Favorite, Listing, TopRequest
 from app.models.user import User
 from app.schemas.listing import ListingFilters
-from app.services.moderation import safety_badges_for, scan_listing
 
 #: Districts whose listings students are usually looking for.
 _STUDENT_DISTRICTS = {"Chilonzor", "Olmazor", "Yunusobod", "Shayxontohur", "Mirzo Ulug'bek"}
@@ -154,9 +154,19 @@ def apply_sort(stmt: Select, sort_by: str) -> Select:
         )
     if sort_by == "NEWEST":
         return stmt.order_by(Listing.created_at.desc())
-    # RECOMMENDED: promoted first, then trust, then freshness.
+    # RECOMMENDED: promoted first, then reliability, then freshness.
+    #
+    # The promotion arm tests the DATE, not just the boolean. Nothing clears
+    # `is_featured` when `featured_until` passes, so sorting on the flag alone
+    # would let every listing ever promoted outrank the whole catalogue for
+    # ever - which is exactly the rule `list_featured` already applies to the
+    # rail. Now that owners can ask for Top, the two have to agree.
+    live_top = and_(
+        Listing.is_featured.is_(True),
+        or_(Listing.featured_until.is_(None), Listing.featured_until > _now()),
+    )
     return stmt.order_by(
-        Listing.is_featured.desc(),
+        live_top.desc(),
         Listing.promotion_weight.desc(),
         Listing.trust_score.desc(),
         Listing.created_at.desc(),
@@ -236,7 +246,15 @@ async def list_for_owner(db: AsyncSession, user: User) -> list[Listing]:
 
 async def create_listing(
     db: AsyncSession, *, user: User, payload: dict[str, Any]
-) -> tuple[Listing, Any]:
+) -> Listing:
+    """Publish a listing. There is no automated check on the way in.
+
+    A listing goes live the moment it is posted: APPROVED, published, and at
+    full reliability. Nothing judges the wording, and nothing can hold the
+    listing back except an admin acting on a confirmed complaint afterwards.
+    The volume guards (the hourly limiter in the router and the durable
+    per-owner count) are untouched.
+    """
     if user.role not in PUBLISHER_ROLE_VALUES:
         raise Forbidden("owner_role_required")
 
@@ -246,66 +264,62 @@ async def create_listing(
             "too_many_images", params={"limit": settings.MAX_IMAGES_PER_LISTING}
         )
 
-    verdict = await scan_listing(
-        payload.get("title", ""),
-        payload.get("description", ""),
-        payload.get("price"),
-        payload.get("rooms"),
-    )
-
     listing = Listing(
         **payload,
         owner_id=user.id,
-        status=verdict.status
-        if verdict.status in {s.value for s in ListingStatus}
-        else ListingStatus.PENDING.value,
-        trust_score=verdict.trust_score,
-        risk_score=verdict.risk_score,
-        ai_risk_reasons=verdict.reasons,
-        safety_badges=safety_badges_for(verdict, user.is_verified),
-        published_at=_now() if verdict.allowed else None,
+        status=ListingStatus.APPROVED.value,
+        trust_score=100,
+        risk_score=0,
+        ai_risk_reasons=[],
+        # VERIFIED_OWNER is the only badge with behaviour behind it: it backs
+        # the "only verified" catalogue filter in apply_filters.
+        safety_badges=["VERIFIED_OWNER"] if user.is_verified else [],
+        published_at=_now(),
     )
     db.add(listing)
     await db.flush()
 
     await audit_log.record(
         db,
-        AuditAction.LISTING_CREATED
-        if verdict.allowed
-        else AuditAction.LISTING_AI_REJECTED,
+        AuditAction.LISTING_CREATED,
         entity_type="listing",
         entity_id=listing.id,
         entity_label=listing.title,
-        summary=f"{user.name} posted '{listing.title}' ({verdict.status})",
+        summary=f"{user.name} posted '{listing.title}'",
         meta={
-            "status": verdict.status,
-            "risk_score": verdict.risk_score,
-            "provider": verdict.provider,
-            "reasons": verdict.reasons[:4],
             "price": listing.price,
             "district": listing.district,
+            "rooms": listing.rooms,
+            "images": len(listing.images),
         },
     )
-    return listing, verdict
+    return listing
 
 
 async def update_listing(
     db: AsyncSession, *, listing: Listing, user: User, changes: dict[str, Any]
 ) -> Listing:
+    """Apply an owner's edit. Content only.
+
+    An edit must never touch `status` or `trust_score`. Correcting a typo or
+    lowering a price used to re-score the listing, which could take a live
+    listing off the site without telling anyone - and would now also erase a
+    penalty an admin had deliberately applied. The reliability percentage has
+    exactly one writer: the confirmed-report recompute.
+    """
     before = {key: getattr(listing, key) for key in changes}
     for key, value in changes.items():
         setattr(listing, key, value)
 
-    # Re-moderate whenever the words or the price change.
-    if {"title", "description", "price"} & set(changes):
-        verdict = await scan_listing(
-            listing.title, listing.description, listing.price, listing.rooms
-        )
-        listing.status = verdict.status
-        listing.trust_score = verdict.trust_score
-        listing.risk_score = verdict.risk_score
-        listing.ai_risk_reasons = verdict.reasons
-        listing.safety_badges = safety_badges_for(verdict, user.is_verified)
+    # Badges are derived from who the OWNER is, never from a verdict, so an
+    # owner who verified after publishing gains VERIFIED_OWNER (and with it
+    # the "only verified" catalogue filter) on their next edit. Read off the
+    # listing's owner rather than the editor, because a full-access role may
+    # be editing somebody else's listing.
+    owner = listing.owner
+    listing.safety_badges = (
+        ["VERIFIED_OWNER"] if owner is not None and owner.is_verified else []
+    )
 
     await db.flush()
     await audit_log.record(
@@ -458,6 +472,90 @@ async def conversation_counts(
         )
     ).all()
     return {listing_id: int(count) for listing_id, count in rows}
+
+
+async def request_top(
+    db: AsyncSession, *, listing: Listing, user: User, days: int, note: str | None
+) -> TopRequest:
+    """Queue a Top request. Nothing is promoted until an admin approves it.
+
+    The explicit pending check duplicates what the partial unique index
+    enforces, and both are wanted: the index is the race guard between two
+    concurrent posts, the check is the readable 409 the owner actually sees.
+    Without the check a race surfaces as an IntegrityError 500.
+    """
+    if not listing.is_public:
+        raise BadRequest("top_listing_not_public")
+
+    existing = (
+        await db.execute(
+            select(TopRequest).where(
+                TopRequest.listing_id == listing.id,
+                TopRequest.status == TopRequestStatus.PENDING.value,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise Conflict("top_request_pending")
+
+    request = TopRequest(
+        listing_id=listing.id,
+        requested_by_id=user.id,
+        requested_days=days,
+        note=note,
+    )
+    db.add(request)
+    await db.flush()
+
+    await audit_log.record(
+        db,
+        AuditAction.LISTING_TOP_REQUESTED,
+        entity_type="listing",
+        entity_id=listing.id,
+        entity_label=listing.title,
+        summary=f"{user.name} requested Top for '{listing.title}'",
+        # The requester is recorded because a full-access role may file a
+        # request against a listing they do not own, exactly as they may edit
+        # or delete one.
+        meta={
+            "days": days,
+            "request_id": str(request.id),
+            "requested_by": str(user.id),
+        },
+    )
+    return request
+
+
+async def top_status_for(
+    db: AsyncSession, listing_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, str]:
+    """The latest Top-request status per listing, one query for the page.
+
+    Same reasoning as ``conversation_counts``: asking per listing in a loop is
+    the same answer and N round trips.
+    """
+    if not listing_ids:
+        return {}
+    newest = (
+        select(
+            TopRequest.listing_id,
+            TopRequest.status,
+            func.row_number()
+            .over(
+                partition_by=TopRequest.listing_id,
+                order_by=TopRequest.created_at.desc(),
+            )
+            .label("rn"),
+        )
+        .where(TopRequest.listing_id.in_(listing_ids))
+        .subquery()
+    )
+    rows = (
+        await db.execute(
+            select(newest.c.listing_id, newest.c.status).where(newest.c.rn == 1)
+        )
+    ).all()
+    return {listing_id: status for listing_id, status in rows}
 
 
 async def count_recent_by_owner(db: AsyncSession, user: User, hours: int = 1) -> int:

@@ -100,7 +100,7 @@ export const layout = {
 
   sidebar: {
     guestTitle: 'Welcome',
-    guestSubtitle: 'Sign in to post listings and contact homeowners directly',
+    guestSubtitle: 'Sign in to post listings and contact advertisers directly',
     level: 'Level {level}',
     xpPoints: '{count} XP',
     xpToNext: '{count} XP to the next level',
@@ -110,8 +110,8 @@ export const layout = {
   footer: {
     about: 'About the platform',
     aboutText:
-      'Maklersiz Uy is a platform for finding rental housing in Uzbekistan directly '
-      + 'from the owner, without a broker. 0% commission.',
+      'Uyiz is a rental listings platform for Uzbekistan. '
+      + 'Posting is free, and you contact whoever published the listing directly.',
     forTenants: 'For tenants',
     forOwners: 'For homeowners',
     company: 'Company',
@@ -124,7 +124,7 @@ export const layout = {
     support: 'Support',
     faq: 'Frequently asked questions',
     followUs: 'Social media',
-    rights: '© {year} Maklersiz Uy. All rights reserved.',
+    rights: '© {year} Uyiz. All rights reserved.',
     madeIn: 'Made in Uzbekistan',
     // The helpline is a separate group from the `support` link above it: that
     // one goes to a page, this one is the number somebody can dial now. It is
@@ -148,7 +148,6 @@ export const layout = {
     listingCreated: 'Listing posted successfully!',
     listingUpdated: 'Listing updated.',
     listingDeleted: 'Listing deleted.',
-    listingRejected: 'Listing did not pass moderation.',
     favoriteAdded: 'Added to saved.',
     favoriteRemoved: 'Removed from saved.',
     roleSwitched: 'Role changed to "{role}".',
@@ -158,7 +157,7 @@ export const layout = {
     copiedLink: 'Link copied.',
     xpEarned: '+{amount} XP — {reason}',
     welcomeOwner: 'Welcome! You can now post listings.',
-    welcomeStudent: 'Welcome! Find your flat without a broker.',
+    welcomeStudent: 'Welcome! Find your flat.',
     sessionExpired: 'Your session has expired. Please sign in again.',
   },
 

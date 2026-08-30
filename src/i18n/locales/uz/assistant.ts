@@ -1,37 +1,39 @@
 /**
- * Shield AI mascot and its notifications.
+ * Uyiz AI assistant and its notifications.
  *
  * Uzbek strings — the source of truth for the key shape.
  */
 export const assistant = {
   mascot: {
     /** A product name: never translated. */
-    name: 'Shield AI',
+    name: 'Uyiz AI',
     tagline: 'Aqlli uy qidiruv yordamchisi',
     shortTagline: 'Aqlli yordamchi',
-    open: 'Shield AI yordamchisini ochish',
-    panelLabel: 'Shield AI bilan suhbat',
+    open: 'Uyiz AI yordamchisini ochish',
+    panelLabel: 'Uyiz AI bilan suhbat',
   },
 
   chat: {
     welcome:
-      'Assalomu alaykum! Men Shield AI — MaklersizUy kompaniyasining AI yordamchisiman 🛡️\n\n'
-      + 'Uy-joy bo‘yicha savolingizga javob beraman va bazadan mos e’lonlarni tanlab beraman.\n\n'
+      'Assalomu alaykum! Men Uyiz AI — Uyiz kompaniyasining AI yordamchisiman 🏠\n\n'
+      + 'Uy-joy bo‘yicha savollaringizga javob beraman, aytganingizga mos e’lonlarni bazadan '
+      + 'saralab beraman va kerak bo‘lsa jamoamiz bilan bog‘layman.\n\n'
       + 'Masalan:\n'
       + '• «Chilonzordan 3 mlnga kvartira kerak»\n'
       + '• «Yunusobod 2 xona talaba uchun»\n'
       + '• «Qishda 2 xonali yaxshimi yoki 3 xonali?»',
     welcomeNamed:
-      'Assalomu alaykum, {name}. Men Shield AI — MaklersizUy kompaniyasining AI yordamchisiman 🛡️\n\n'
-      + 'Uy-joy bo‘yicha savolingizni bering yoki qanday uy kerakligini ayting — tuman, xona soni, byudjet.',
+      'Assalomu alaykum, {name}. Men Uyiz AI — Uyiz kompaniyasining AI yordamchisiman 🏠\n\n'
+      + 'Uy-joy bo‘yicha savolingizni bering yoki qanday uy kerakligini ayting — tuman, xona '
+      + 'soni, byudjet. Mos e’lonlarni bazadan saralab beraman.',
     log: 'Suhbat tarixi',
     you: 'Siz',
-    inputLabel: 'Shield AI ga xabar',
+    inputLabel: 'Uyiz AI ga xabar',
     inputPlaceholder: 'Chilonzordan 3 mlnga...',
-    inputThinking: 'Shield AI o‘ylamoqda...',
+    inputThinking: 'Uyiz AI o‘ylamoqda...',
     inputDisabled: 'Bugungi limit tugadi',
     send: 'Xabarni yuborish',
-    thinking: 'Shield AI javob tayyorlamoqda',
+    thinking: 'Uyiz AI javob tayyorlamoqda',
     loadingHistory: 'Suhbat yuklanmoqda',
     reset: 'Suhbatni yakunlash va tozalash',
     close: 'Suhbatni yopish',
@@ -68,11 +70,16 @@ export const assistant = {
     confirm: 'Ha, yakunlash',
   },
 
+  /**
+   * E’lonlar bo‘yicha ogohlantirish banneri. Ilgari bu e’lon joylashtirilayotganda
+   * ishlaydigan avtomatik tekshiruv xulosasini ko‘rsatardi; endi avtomatik tekshiruv
+   * yo‘q, shuning uchun matn moderator tasdiqlagan shikoyat haqida gapiradi.
+   */
   notice: {
-    regionLabel: 'E’lonlar bo‘yicha AI ogohlantirishlari',
-    title: 'Diqqat! E’loningiz ommaga ko‘rsatilmayapti',
-    body: '«{title}» — {reason} Agar tahrirlamasangiz, e’lon o‘chirib yuboriladi.',
-    defaultReason: 'Boshqa manbadan ko‘chirilgani aniqlandi.',
+    regionLabel: 'E’lonlaringiz bo‘yicha ogohlantirishlar',
+    title: 'Diqqat! E’loningizga tushgan shikoyat tasdiqlandi',
+    body: '«{title}» — {reason} Shu sababli ishonchlilik foizingiz pasaydi.',
+    defaultReason: 'Moderator shikoyatni asosli deb topdi.',
     fix: 'Tahrirlash',
     confirmDelete: 'E’lonni butunlay o‘chirasizmi?',
   },

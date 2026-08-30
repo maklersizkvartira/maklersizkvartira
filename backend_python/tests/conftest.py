@@ -15,7 +15,7 @@ import pytest
 
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault(
-    "DATABASE_URL", "postgresql://postgres:devpass@localhost:55432/maklersiz"
+    "DATABASE_URL", "postgresql://postgres:devpass@localhost:55432/uyiz"
 )
 os.environ.setdefault("OTP_DEBUG_RETURN_CODE", "true")
 os.environ.setdefault("SMS_ENABLED", "false")
@@ -61,8 +61,8 @@ async def clean_tables():
     async with engine.begin() as conn:
         await conn.execute(
             text(
-                "TRUNCATE users, admin_users, listings, favorites, reports, "
-                "verification_requests, refresh_tokens, otp_codes, "
+                "TRUNCATE users, admin_users, listings, top_requests, favorites, "
+                "reports, verification_requests, refresh_tokens, otp_codes, "
                 "pending_registrations, login_attempts, audit_logs, "
                 "ai_sessions, ai_messages, sms_logs, traffic_events "
                 "RESTART IDENTITY CASCADE"

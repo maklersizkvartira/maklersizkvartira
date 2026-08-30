@@ -118,7 +118,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             >
               <Image
                 src="/brand/mark-128.png"
-                alt="Maklersiz"
+                alt="Uyiz"
                 width={66}
                 height={66}
                 className="object-contain transition-transform duration-500 hover:scale-105"
@@ -138,7 +138,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                 color: 'var(--color-text-primary)',
               }}
             >
-              Maklersiz
+              Uyiz
             </h1>
 
             {/* 'error' means the API never answered. There is nothing to wait

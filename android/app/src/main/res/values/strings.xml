@@ -1,7 +1,19 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Maklersiz Uy</string>
-    <string name="title_activity_main">Maklersiz Uy</string>
+    <!--
+      app_name and title_activity_main are the two strings a user reads: the
+      launcher label under the icon and the task-switcher title. They carry the
+      brand and follow it.
+
+      package_name and custom_url_scheme are NOT labels. They must stay
+      byte-identical to applicationId in app/build.gradle: the Capacitor bridge
+      reads package_name to find the app it is running inside, and
+      custom_url_scheme is the deep-link scheme every OAuth redirect and push
+      payload is built on. The application id is store identity and is frozen at
+      uz.maklersizuy.app — see capacitor.config.json for why.
+    -->
+    <string name="app_name">Uyiz</string>
+    <string name="title_activity_main">Uyiz</string>
     <string name="package_name">uz.maklersizuy.app</string>
     <string name="custom_url_scheme">uz.maklersizuy.app</string>
 </resources>

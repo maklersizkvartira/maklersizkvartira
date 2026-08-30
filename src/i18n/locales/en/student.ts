@@ -6,8 +6,8 @@ export const student = {
     eyebrow: 'Student programme',
     title: 'Safe homes close to your university',
     subtitle:
-      'Affordable, broker-free rentals around the major universities of Tashkent — '
-      + 'every listing screened by AI.',
+      'Affordable rentals around the major universities of Tashkent — '
+      + 'you contact whoever posted the listing directly.',
     bonusLabel: 'Student bonus',
     bonusValue: 'A free listing boost',
     bonusHint: 'Once your student ID is verified',
