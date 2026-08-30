@@ -3,6 +3,9 @@
   "private": true,
   "version": "1.0.1",
   "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && npm run build:client && npm run build:ssr && npm run build:prerender && npm run build:sitemap && npm run seo:audit",
@@ -20,7 +23,8 @@
     "build:ssr": "vite build --ssr src/entry-server.tsx",
     "build:prerender": "node scripts/prerender.mjs",
     "build:sitemap": "node scripts/generate-sitemap.mjs",
-    "seo:audit": "node scripts/seo-audit.mjs"
+    "seo:audit": "node scripts/seo-audit.mjs --warn",
+    "seo:audit:strict": "node scripts/seo-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

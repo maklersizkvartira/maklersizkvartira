@@ -271,20 +271,39 @@ async function main() {
     // The storage-migration shim in index.html reads the pre-rebrand keys: it
     // is script, not prose or markup.
     //
-    // The serving ORIGIN still is maklersizuy.uz until the new domain resolves
-    // (see src/seo/config.ts), so every canonical, hreflang and og:url on the
-    // site legitimately contains it. Counting those would make this check fire
-    // on all 346 pages and mean nothing — and a check that always fails is one
-    // people learn to ignore, which is exactly when a real miss ships. Strip
-    // the origin, then look: what is left is prose and names, which is what
-    // this is actually guarding. Once the domain moves, the origin stops
-    // containing the old name and the strip quietly becomes a no-op.
-    const origin = (process.env.VITE_SITE_URL || 'https://maklersizuy.uz')
-      .replace(/\/+$/, '');
-    const shipped = html
-      .replace(/<script(?![^>]*ld\+json)[\s\S]*?<\/script>/gi, ' ')
-      .split(origin)
-      .join(' ');
+    // And the HOSTS the site is served from, which still carry the old name
+    // until the new domain resolves (see src/seo/config.ts). Every canonical,
+    // hreflang and og:url legitimately contains one of them, so counting those
+    // would fire this check on all 346 pages and mean nothing — and a check
+    // that always fails is one people learn to ignore, which is exactly when a
+    // real miss ships.
+    //
+    // Every transition host is stripped, not just the configured origin. That
+    // matters because the origin is `VITE_SITE_URL` in the deployment
+    // environment and only falls back to the constant here — so this file
+    // cannot know which of them a given build used, and index.html hard-codes
+    // its og:image on one of them regardless. Stripping only the configured
+    // one made the check pass locally, where the variable is unset, and report
+    // 297 errors on Vercel, where it is set to a different host. What is left
+    // after the strip is prose and names, which is what this is guarding.
+    //
+    // Delete this list the day both old domains stop resolving.
+    const TRANSITION_HOSTS = [
+      process.env.VITE_SITE_URL,
+      'https://maklersizuy.uz',
+      'https://www.maklersizuy.uz',
+      'https://maklersiz.uz',
+      'https://www.maklersiz.uz',
+      'https://admin.maklersizuy.uz',
+    ]
+      .filter(Boolean)
+      .map((host) => host.replace(/\/+$/, ''))
+      // Longest first, so "https://www.maklersizuy.uz" is consumed whole
+      // rather than leaving "www." in front of a stripped shorter host.
+      .sort((a, b) => b.length - a.length);
+
+    let shipped = html.replace(/<script(?![^>]*ld\+json)[\s\S]*?<\/script>/gi, ' ');
+    for (const host of TRANSITION_HOSTS) shipped = shipped.split(host).join(' ');
     for (const term of ['maklersizuy', 'maklersiz']) {
       const count = countOf(shipped, new RegExp(term, 'gi'));
       if (count > 0) {
