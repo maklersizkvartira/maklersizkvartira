@@ -326,6 +326,14 @@ export function FaceModal({
           );
         } else {
           // Registration mode
+          if (!isAuthenticated && !regPassword.trim()) {
+            setErrorMsg(`Iltimos, @${targetUsername} hisobining parolini kiriting.`);
+            setStatusMsg('Parol kiritilishi shart');
+            const pwdInput = document.getElementById('face-reg-password-input');
+            pwdInput?.focus();
+            return;
+          }
+
           const res = await faceRegister({
             image: base64Img,
             username: targetUsername,
@@ -592,24 +600,32 @@ export function FaceModal({
 
           {/* Password field in register mode */}
           {mode === 'register' && (
-            <div className="pt-1 border-t border-slate-800/80 mt-2">
-              <div className="flex items-center justify-between mb-1">
-                <span className="flex items-center gap-1 text-[11px] text-amber-400 font-medium">
-                  <KeyRound className="w-3 h-3" />
+            <div className="pt-2 border-t border-slate-800/80 mt-2 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs text-amber-400 font-bold">
+                  <KeyRound className="w-3.5 h-3.5" />
                   <span>@{selectedAdminUsername} hisobi paroli:</span>
                 </span>
-                {isAuthenticated && (
-                  <span className="text-[10px] text-emerald-400">Admin seansi orqali</span>
-                )}
+                <span className="text-[10px] text-amber-400/80 font-medium">
+                  (Yuzni biriktirish uchun talab qilinadi)
+                </span>
               </div>
               <div className="relative">
-                <Lock className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
+                <Lock className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
                 <input
+                  id="face-reg-password-input"
                   type="password"
-                  placeholder={isAuthenticated ? "Admin paroli (ixtiyoriy)" : "Admin parolini kiriting"}
+                  placeholder="Admin parolini kiriting"
                   value={regPassword}
-                  onChange={(e) => setRegPassword(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700/70 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  onChange={(e) => {
+                    setRegPassword(e.target.value);
+                    if (errorMsg) setErrorMsg(null);
+                  }}
+                  className={`w-full bg-slate-950 border rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition ${
+                    !regPassword && errorMsg?.includes('parol')
+                      ? 'border-rose-500 ring-2 ring-rose-500/30'
+                      : 'border-slate-700/80 focus:border-emerald-500'
+                  }`}
                 />
               </div>
             </div>
