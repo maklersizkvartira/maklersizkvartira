@@ -1,19 +1,19 @@
 /**
- * Home page: hero, categories, trust stats, AI recommendations.
+ * Home page: hero, categories, platform figures, the recommended rail.
  *
  * English strings. Keys are added as the matching components are
  * migrated; the Uzbek file is the source of truth for the key shape.
  */
 export const home = {
   hero: {
-    badge: '0% commission · rent directly',
-    title: 'Rent a home or flat, no agents',
+    badge: 'Free to post · direct contact',
+    title: 'Rent a home or flat in Uzbekistan',
     // Not "{regions} provinces": Uzbekistan has 12 viloyats plus the Republic
     // of Karakalpakstan plus the city of Tashkent, so the number the page
     // counts is 14 and the word for it is "region", not "province".
     subtitle:
-      'No agents, no commission — verified homes across {regions} regions '
-      + 'and {districts} districts and cities.',
+      'Verified listings across {regions} regions '
+      + 'and {districts} districts and cities of Uzbekistan.',
     searchTitle: 'Where are you looking?',
     searchHintShort: 'Tap to search',
     searchHintLong: 'District, street, landmark or metro station',
@@ -22,10 +22,9 @@ export const home = {
       trustedListings: 'Verified listings',
       directFromOwner: 'Straight from the owner',
       safeAndSecure: 'Safe and trusted',
-      noCommission: 'No commission at all',
+      freeToPost: 'Free to post',
       fastAndEasy: 'Fast, simple renting',
       passportChecked: 'Passport checked',
-      aiScreened: 'Screened by AI',
       supportAlways: 'Support around the clock',
     },
   },
@@ -59,19 +58,18 @@ export const home = {
 
   stats: {
     toggleTitle: 'Platform figures',
-    toggleSubtitle: 'Real numbers only · 0% commission',
-    toggleSubtitleWithCount: '{count} active listings · 0% commission',
+    toggleSubtitle: 'Real numbers only',
+    toggleSubtitleWithCount: '{count} active listings',
     expand: 'Show',
     collapse: 'Hide',
-    title: 'Renting without a broker, with confidence',
+    title: 'Renting with confidence',
     subtitle:
-      'We keep brokers and fraudsters out of the system so people can find a home on their own.',
+      'Posting is free and contact is direct. '
+      + 'Every report is reviewed by a moderator.',
     activeListings: 'Active listings',
     activeListingsHint: 'Open right now',
     featuredListings: 'Recommended listings',
-    featuredListingsHint: 'The most trusted after review',
-    commission: 'Broker commission',
-    commissionHint: 'Straight from the homeowner',
+    featuredListingsHint: 'Top listings approved by an administrator',
     unavailable: 'The figures could not be loaded right now.',
 
     /**
@@ -85,8 +83,8 @@ export const home = {
      * `geoSublineActive` is the honest variant: how many places actually have
      * listings, not how many sit in the dropdown.
      */
-    geoHeadline: 'No agents, no commission — straight from the owner',
-    geoSubheadline: '0% commission. You talk to the homeowner yourself.',
+    geoHeadline: 'Verified listings across Uzbekistan',
+    geoSubheadline: 'You talk to whoever posted the listing, directly.',
     geoSubline:
       'Verified homes across {regions} regions and {districts} districts and cities of Uzbekistan.',
     geoSublineActive:
@@ -94,7 +92,7 @@ export const home = {
     regionsLabel: 'Regions',
     regionsHint: '12 provinces, the Republic of Karakalpakstan and the city of Tashkent',
     districtsLabel: 'Districts and cities',
-    districtsHint: 'Districts and cities inside the regions',
+    districtsHint: 'Districts and cities covered across Uzbekistan',
     regionsWithListings: 'Regions with listings',
     regionsWithListingsHint: 'Regions with at least one active listing',
     districtsWithListings: 'Districts and cities with listings',

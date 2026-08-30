@@ -1,8 +1,10 @@
-# MaklersizUy.uz
+# Uyiz.uz
 
-Broker-free apartment rental for Uzbekistan. Owners and tenants deal directly;
-the platform takes 0% commission and screens every listing for broker and fraud
-signals.
+A rental marketplace for Uzbekistan. Owners and professional agents both post
+listings, and renters contact whoever published them directly. Posting a
+listing is free, listings publish immediately — there is no machine gate in
+front of them — and moderation is complaint-driven: a listing's reliability
+percentage moves only when an admin confirms a report against it.
 
 - **Frontend** — React 19 + TypeScript + Vite + Tailwind v4, in `src/`
 - **Backend** — Python 3.13 + FastAPI + SQLAlchemy 2 (async) + PostgreSQL, in `backend_python/`
@@ -13,7 +15,50 @@ through all three.
 
 ---
 
-## 1. Before you deploy: rotate every secret
+## 1. What the product does
+
+A renter searches, opens a listing and calls the number on it. The platform's
+job is that the listing exists, that it is findable, and that the contact on it
+is real.
+
+**Anyone may post, and posting is free.** An owner renting out their own flat
+and an agency renting out thirty are the same kind of account here. Nothing in
+the product treats a professional as a warning sign. What the product does warn
+about is fraud, and that advice is unchanged: never send money before you have
+seen the place and have the keys and the paperwork in hand.
+
+**Listings publish immediately.** A submitted listing goes straight to
+`APPROVED` with `published_at` set and appears in the catalogue. There is no
+machine verdict in front of publication and no queue to wait in. A listing
+needs at least one photo; that is the only gate.
+
+**Moderation is complaint-driven.** Every listing starts at a reliability score
+of 100. Filing a report changes nothing on its own. When an admin *confirms* a
+report (`RESOLVED`, as opposed to `REJECTED` for a dismissal) the score is
+recomputed from scratch as `100 − Σ penalties` of that listing's confirmed
+reports, floored at 10 — 25 for a critical report, 15 high, 10 medium, 5 low.
+Because it is recomputed rather than decremented, un-confirming a report puts
+the score back. `risk_score` is kept as `100 − trust_score` so the admin
+filters keep working.
+
+**Top is requested, not bought.** Instead of an automated check, a poster is
+offered "Top" after publishing, with an explanation of what it does. Pressing
+it files a request — the UI says so plainly: *sent, pending review* — and
+nothing about the listing changes yet. A moderator approves or rejects it in
+the admin panel's Top queue, and only an approval sets `is_featured`, the
+promotion weight and `featured_until`. Top is free to ask for.
+
+**The assistant is Uyiz AI.** A server-side OpenAI agent that holds a real
+conversation, filters the live listing database against what the user is
+actually describing, and hands out the support numbers or files a callback
+request when someone wants to talk to a person. See `UYIZ-AI.md`.
+
+Public site: **https://uyiz.uz**. Admin panel: **https://admin.uyiz.uz**.
+Support: **support@uyiz.uz**.
+
+---
+
+## 2. Before you deploy: rotate every secret
 
 The previous build committed live credentials. **All of these must be treated as
 compromised and rotated at the provider before this goes to production.** They
@@ -43,7 +88,7 @@ is that a stolen database dump is useless without it.
 
 ---
 
-## 2. Running it locally
+## 3. Running it locally
 
 ### Backend
 
@@ -53,8 +98,8 @@ python -m venv .venv
 .venv/Scripts/python -m pip install -r requirements.txt   # Linux/macOS: .venv/bin/python
 
 # A database to develop against
-docker run -d --name maklersiz-pg \
-  -e POSTGRES_PASSWORD=devpass -e POSTGRES_DB=maklersiz \
+docker run -d --name uyiz-pg \
+  -e POSTGRES_PASSWORD=devpass -e POSTGRES_DB=uyiz \
   -p 55432:5432 postgres:16-alpine
 
 cp .env.example .env        # then set DATABASE_URL to the container above
@@ -114,7 +159,7 @@ against the same database at once.
 
 ---
 
-## 3. Architecture
+## 4. Architecture
 
 ```
 src/                        React SPA
@@ -135,8 +180,8 @@ backend_python/
     models/                 15 tables
     schemas/                Pydantic v2, camelCase on the wire
     routers/                auth, listings, ai, admin, meta
-    services/               auth, listings, moderation, admin, sms, telegram,
-                            shield_ai, google_auth
+    services/               auth, listings, admin, sms, telegram, uyiz_ai,
+                            google_auth
   alembic/                  migrations
   scripts/                  create_admin, migrate_legacy
   tests/                    integration tests
@@ -167,7 +212,7 @@ message rendered in the caller's language (`X-Language` header, falling back to
 
 ---
 
-## 4. Security model
+## 5. Security model
 
 ### Authentication
 
@@ -237,14 +282,17 @@ actor, entity, IP and date. Secrets are stripped before the row is written.
 
 ---
 
-## 5. Admin CRM
+## 6. Admin CRM
 
 A Next.js app in `admin/`, behind a separate staff login (username + password →
 admin JWT, with an optional per-account CIDR allowlist).
 
-Dashboard · Listings moderation · Reports · Verifications · Users (search,
-filter, detail, password reveal, force-reset, revoke sessions, suspend, delete) ·
-**All activity** · Security (sign-in attempts) · Shield AI transcripts · SMS
+Dashboard · Listings moderation · **Top requests** (the approval queue: a
+poster asks, a moderator grants the days and the promotion weight, and only
+then is the listing actually promoted) · Reports (confirming one is what moves
+a listing's reliability percentage) · Verifications · Users (search, filter,
+detail, password reveal, force-reset, revoke sessions, suspend, delete) ·
+**All activity** · Security (sign-in attempts) · Uyiz AI transcripts · SMS
 ledger · Staff management.
 
 ```bash
@@ -264,7 +312,7 @@ with a bearer token, so **its origin must be in the backend's `CORS_ORIGINS`**
 
 ---
 
-## 6. Migrating existing data
+## 7. Migrating existing data
 
 ```bash
 cd backend_python
@@ -279,7 +327,7 @@ the same phone number and reclaims the same account, with their listings intact.
 
 ---
 
-## 7. Deployment
+## 8. Deployment
 
 Railway builds the root `Dockerfile`, which runs `alembic upgrade head` and then
 uvicorn. Health check: `/health`. Required environment variables are documented
@@ -296,9 +344,26 @@ its own environment, and its origin added to the API's `CORS_ORIGINS` — a
 missing origin there is the failure that looks like "the admin panel loads but
 every request fails".
 
+### Domains
+
+The site is `https://uyiz.uz`, the panel `https://admin.uyiz.uz`, and the API
+keeps its Railway hostname — that one is invisible to visitors, and renaming
+the service would have to land in four coupled places in the same deploy.
+
+`maklersizuy.uz` was the previous domain. **Keep it attached and 301-ing to
+`uyiz.uz`, path for path, for at least twelve months.** Dropping it discards
+every ranking and inbound link the site has. `SEO.md` §6 has the full migration
+order, and `SEO-QADAMLAR.md` is the same thing as a checklist in Uzbek.
+
+Ordering matters in one place: `CORS_ORIGINS` on Railway must already contain
+`https://uyiz.uz` and `https://admin.uyiz.uz` **before** DNS points at them.
+Matching is exact and `*` is refused in production, so a new origin that goes
+live first loads the app and then fails every request with an opaque network
+error and nothing wrong in the API logs.
+
 ---
 
-## 8. Known gaps
+## 9. Known gaps
 
 Stated plainly rather than faked in the UI:
 
@@ -310,7 +375,16 @@ Stated plainly rather than faked in the UI:
 - **XP/gamification** was awarded client-side, so it meant nothing. The ladder
   copy remains; the awards are gone until the server grants them.
 - **AI listing copywriting and price estimation** ran Gemini in the browser with
-  a key visible to every visitor. Removed. Moderation now runs server-side; the
-  copywriter would need a backend endpoint to come back.
+  a key visible to every visitor. Removed. Bringing the copywriter back would
+  need a backend endpoint; nothing else depends on it.
+- **Publish-time AI moderation is gone**, deliberately, not pending. Listings
+  publish on submission and the reliability percentage moves only on an
+  admin-confirmed report. `POST /listings/scan` survives one more release as a
+  deprecated constant-allow stub so cached old frontend bundles do not crash;
+  it is due for deletion after that.
+- **`listings.video_url` is a retired column.** Video is out of the product —
+  the form field, the schemas, the types and the player are all gone — but the
+  column is kept dormant rather than dropped, because a rolling deploy would
+  500 on the container still running the old code.
 - **Image uploads** are still base64 inside the JSON body (capped at 12 images,
   ~6 MB). Object storage with presigned uploads would be the next improvement.

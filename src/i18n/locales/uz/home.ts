@@ -1,5 +1,5 @@
 /**
- * Home page: hero, categories, trust stats, AI recommendations.
+ * Home page: hero, categories, platform figures, the recommended rail.
  *
  * Uzbek strings. Keys are added as the matching components are
  * migrated; the Uzbek file is the source of truth for the key shape.
@@ -10,14 +10,14 @@
  */
 export const home = {
   hero: {
-    badge: '0% komissiya · to‘g‘ridan-to‘g‘ri ijara',
-    title: 'Maklersiz uy va kvartira ijarasi',
+    badge: 'Bepul e’lon joylash · to‘g‘ridan-to‘g‘ri aloqa',
+    title: 'O‘zbekistonda uy va kvartira ijarasi',
     // Not "{regions} ta viloyat": Uzbekistan has 12 viloyats plus the
     // Republic of Karakalpakstan plus the city of Tashkent, so the number the
     // page counts is 14 and the word for it is "hudud", not "viloyat".
     subtitle:
-      'Vositachisiz, komissiyasiz — {regions} ta hudud va {districts} ta tuman va shahardagi '
-      + 'tekshirilgan uylar.',
+      'O‘zbekistonning {regions} ta hududi va {districts} ta tuman va shahridagi '
+      + 'tekshirilgan uy-joy e’lonlari.',
     searchTitle: 'Qayerdan izlayapsiz?',
     searchHintShort: 'Qidirish uchun bosing',
     searchHintLong: 'Tuman, ko‘cha, mo‘ljal yoki metro bekati',
@@ -29,10 +29,9 @@ export const home = {
       trustedListings: 'Ishonchli e’lonlar',
       directFromOwner: 'To‘g‘ridan-to‘g‘ri egadan',
       safeAndSecure: 'Xavfsiz va ishonchli',
-      noCommission: 'Hech qanday komissiya yo‘q',
+      freeToPost: 'Bepul e’lon joylash',
       fastAndEasy: 'Tez va oson ijara',
       passportChecked: 'Pasport tekshirilgan',
-      aiScreened: 'AI tekshiruvidan o‘tgan',
       supportAlways: '24/7 qo‘llab-quvvatlash',
     },
   },
@@ -66,19 +65,18 @@ export const home = {
 
   stats: {
     toggleTitle: 'Platforma ko‘rsatkichlari',
-    toggleSubtitle: 'Faqat haqiqiy raqamlar · 0% komissiya',
-    toggleSubtitleWithCount: '{count} ta faol e’lon · 0% komissiya',
+    toggleSubtitle: 'Faqat haqiqiy raqamlar',
+    toggleSubtitleWithCount: '{count} ta faol e’lon',
     expand: 'Ko‘rish',
     collapse: 'Yopish',
-    title: 'Maklersiz ijara, ishonch bilan',
+    title: 'Ijara, ishonch bilan',
     subtitle:
-      'Odamlar kvartirani mustaqil topishi uchun maklerlar va firibgarlarni tizimdan chiqaramiz.',
+      'E’lon joylash bepul, aloqa to‘g‘ridan-to‘g‘ri. '
+      + 'Har bir shikoyat moderator tomonidan ko‘rib chiqiladi.',
     activeListings: 'Faol e’lonlar',
     activeListingsHint: 'Hozir ochiq turgan e’lonlar',
     featuredListings: 'Tavsiya etilgan e’lonlar',
-    featuredListingsHint: 'Tekshiruvdan o‘tgan eng ishonchlilari',
-    commission: 'Vositachilik haqi',
-    commissionHint: 'Uy egasi bilan to‘g‘ridan-to‘g‘ri',
+    featuredListingsHint: 'Administrator tasdiqlagan Top e’lonlar',
     unavailable: 'Ko‘rsatkichlarni hozir yuklab bo‘lmadi.',
 
     /**
@@ -92,8 +90,8 @@ export const home = {
      * `geoSublineActive` is the honest variant: how many places actually have
      * listings, not how many sit in the dropdown.
      */
-    geoHeadline: 'Vositachisiz, komissiyasiz — to‘g‘ridan-to‘g‘ri uy egasidan',
-    geoSubheadline: 'Komissiya 0%. Uy egasi bilan o‘zingiz gaplashasiz.',
+    geoHeadline: 'O‘zbekiston bo‘ylab tekshirilgan e’lonlar',
+    geoSubheadline: 'E’lon egasi bilan o‘zingiz to‘g‘ridan-to‘g‘ri gaplashasiz.',
     geoSubline:
       'O‘zbekistonning {regions} ta hududi va {districts} ta tuman va shahridagi tekshirilgan uylar.',
     geoSublineActive:
@@ -101,7 +99,7 @@ export const home = {
     regionsLabel: 'Hududlar',
     regionsHint: '12 viloyat, Qoraqalpog‘iston Respublikasi va Toshkent shahri',
     districtsLabel: 'Tuman va shaharlar',
-    districtsHint: 'Hududlar ichidagi tuman va shaharlar',
+    districtsHint: 'O‘zbekiston bo‘ylab qamrab olingan tuman va shaharlar',
     regionsWithListings: 'E’lon bor hududlar',
     regionsWithListingsHint: 'Kamida bitta faol e’loni bor hududlar',
     districtsWithListings: 'E’lon bor tuman va shaharlar',

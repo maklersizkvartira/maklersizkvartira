@@ -4,8 +4,8 @@
 export const listings = {
   page: {
     title: 'E’lonlar',
-    subtitle: 'Uy egalaridan to‘g‘ridan-to‘g‘ri — komissiyasiz',
-    metaTitle: 'Ijaraga kvartiralar — Maklersiz Uy',
+    subtitle: 'To‘g‘ridan-to‘g‘ri bog‘lanish — e’lon joylash bepul',
+    metaTitle: 'Ijaraga kvartiralar — Uyiz',
     resultCount: '{count} ta e’lon topildi',
     resultCountFiltered: 'Filtr bo‘yicha {count} ta e’lon',
     searchPlaceholder: 'Tuman, metro yoki kalit so‘z bo‘yicha qidiring',
@@ -54,7 +54,6 @@ export const listings = {
       verified: 'Tasdiqlangan',
       noDeposit: 'Zakladsiz',
       newest: 'Eng yangi',
-      withVideo: 'Videosi bor',
       petsAllowed: 'Uy hayvonlariga ruxsat',
     },
 
@@ -87,23 +86,6 @@ export const listings = {
     },
   },
 
-  hero: {
-    eyebrow: 'Maklersiz platforma',
-    title: 'Kvartirani egasidan toping',
-    titleAccent: 'komissiyasiz',
-    subtitle:
-      'Har bir e’lon sun’iy intellekt tomonidan maklerlik va firibgarlikka tekshiriladi. '
-      + 'Siz to‘g‘ridan-to‘g‘ri uy egasi bilan gaplashasiz.',
-    searchCta: 'Kvartira qidirish',
-    postCta: 'Bepul e’lon joylash',
-    stats: {
-      listings: 'faol e’lon',
-      owners: 'tasdiqlangan uy egasi',
-      commission: 'komissiya',
-      checked: 'AI tekshiruvi',
-    },
-  },
-
   featured: {
     title: 'Tavsiya etilgan e’lonlar',
     subtitle: 'Eng ishonchli va ommabop takliflar',
@@ -131,7 +113,11 @@ export const listings = {
     saveListing: 'Saqlash',
     savedListing: 'Saqlangan',
     shareListing: 'E’lonni ulashish',
-    shareText: '{title} — {price}. Maklersiz Uy da, komissiyasiz!',
+    shareText: '{title} — {price}. Uyizda!',
+    // The card's closing chip and the price block on the detail page. It says
+    // what the platform actually guarantees — you reach whoever published the
+    // listing yourself — rather than making a promise about their fee.
+    directContact: 'To‘g‘ridan-to‘g‘ri aloqa',
     // The card carousel. Dots are buttons, so each one needs a name a screen
     // reader can read; the live region reads the position after a swipe.
     photoCarousel: '{title} — e’lon rasmlari',
@@ -161,20 +147,35 @@ export const listings = {
     notFoundBody: 'Bu e’lon o‘chirilgan yoki havola noto‘g‘ri bo‘lishi mumkin.',
     districtNamed: '{name} tumani',
     floorLabel: 'Qavat',
-    photosTab: 'Rasmlar ({count})',
-    videoTab: 'Video sharh',
-    mediaTabsLabel: 'Media turini tanlash',
-    videoTitle: 'E’lon video sharhi',
-    videoUnsupported: 'Brauzeringiz videoni qo‘llab-quvvatlamaydi.',
     showImage: '{index}-rasmni ko‘rsatish',
     photoOf: '{title} — {index}-rasm',
     viewOnMap: 'Xaritada ko‘rish',
     ownerRentals: '{count} ta muvaffaqiyatli ijara',
     utilitiesExcluded: 'Kommunal to‘lovlar alohida',
-    aiTitle: 'Shield AI xavfsizlik tahlili',
-    aiSubtitle: 'Avtomatik skanerlash natijasi',
-    aiReasonsTitle: 'AI tekshiruvi natijalari',
-    aiNoReasons: 'AI qo‘shimcha izoh qoldirmadi.',
+
+    /**
+     * The reliability figure, said plainly.
+     *
+     * It is not a machine's opinion of the listing: every e’lon starts at 100
+     * and the only thing that moves the number is an administrator confirming
+     * a complaint about it. These four strings are the whole explanation the
+     * reader gets, so they must not imply any other kind of check.
+     */
+    trustTitle: 'Ishonchlilik darajasi',
+    trustSubtitle: 'Tasdiqlangan shikoyatlar asosida hisoblanadi',
+    trustExplainer:
+      'Har bir e’lon 100 balldan boshlanadi. Ball faqat administrator '
+      + 'shikoyatni tasdiqlaganda pasayadi.',
+    trustNoComplaints: 'Bu e’longa tasdiqlangan shikoyat yo‘q.',
+    trustHasComplaints: 'Bu e’lon bo‘yicha tasdiqlangan shikoyatlar bor.',
+    /** Hover text for the score chip on the card and in the page heading. */
+    trustTooltip: 'Ishonchlilik: {score}/100. Faqat tasdiqlangan shikoyatdan keyin pasayadi.',
+    /**
+     * The owner chip in the sidebar shows the USER's score, which still rises
+     * on verification — a different rule from the listing figure above, so it
+     * gets its own label rather than borrowing one that mentions complaints.
+     */
+    ownerTrustScore: 'Egasi ishonchi: {score}',
     ownerToolbar: 'Siz bu e’lonning egasisiz',
     confirmDelete: 'E’lonni butunlay o‘chirasizmi?',
     amenityAvailable: 'mavjud',
@@ -193,7 +194,6 @@ export const listings = {
     petsAllowed: 'Uy hayvonlariga ruxsat',
     utilitiesIncluded: 'Kommunal xizmatlar',
     virtualTour: '3D sayohat',
-    video: 'Video',
   },
 
   propertyType: {
@@ -218,7 +218,7 @@ export const listings = {
     tip1: 'Uyni ko‘rmasdan turib oldindan pul o‘tkazmang.',
     tip2: 'Zakladni faqat shartnoma imzolangandan keyin bering.',
     tip3: 'Uy egasidan hujjatni (kadastr yoki pasport) so‘rang.',
-    tip4: 'Komissiya so‘ralsa — bu makler. Bizga shikoyat qiling.',
+    tip4: 'Barcha to‘lov shartlarini oldindan yozma kelishib oling.',
     reportCta: 'Shubhali e’lon haqida xabar berish',
   },
 
@@ -226,9 +226,11 @@ export const listings = {
     title: 'Shikoyat yuborish',
     subtitle: 'Nima noto‘g‘ri ekanini tanlang',
     reasonLabel: 'Sabab',
+    // No "this is a broker listing" reason: professional agents publish here
+    // too, so it is not something to complain about — and a confirmed report
+    // now costs the listing real reliability points.
     reasons: {
       scam: 'Firibgarlik',
-      broker: 'Bu makler e’loni',
       fakeListing: 'Soxta e’lon',
       fakePhotos: 'Rasmlar boshqa uyniki',
       wrongPrice: 'Narx noto‘g‘ri',

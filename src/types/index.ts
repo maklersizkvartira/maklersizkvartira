@@ -24,7 +24,31 @@ export type VerificationLevel = 1 | 2 | 3 | 4 | 5;
 
 export type PropertyType = 'APARTMENT' | 'HOUSE' | 'ROOM' | 'STUDIO' | 'DORMITORY';
 
+/**
+ * Where a listing stands with the moderators.
+ *
+ * Nothing here is decided by a model any more: a new listing is published
+ * immediately as APPROVED, and only an admin moves it out of that state.
+ */
+export type ListingStatus =
+  | 'DRAFT'
+  | 'PENDING'
+  | 'APPROVED'
+  | 'WARNING'
+  | 'REJECTED'
+  | 'UNDER_REVIEW'
+  | 'ARCHIVED';
+
+/** @deprecated The AI-branded alias of `ListingStatus`; read `status` instead. */
 export type AICheckStatus = 'APPROVED' | 'VERIFICATION_REQUIRED' | 'UNDER_REVIEW' | 'REJECTED' | 'WARNING' | 'PENDING';
+
+/**
+ * Where the owner's free "put my listing on top" request stands.
+ *
+ * The request is sent by the owner and granted by an admin — until it is
+ * APPROVED the listing sits exactly where it did before.
+ */
+export type TopRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface TrustScoreBreakdown {
   identityScore: number;       // +10 (Phone), +20 (Passport), +20 (Selfie)
@@ -86,16 +110,27 @@ export interface Listing {
   airConditioning: boolean;
   washingMachine: boolean;
   images: string[];
-  videoUrl?: string;
   hasVirtualTour: boolean;
   owner: OwnerProfile;
   contactTelegram?: string;
   preferredContactTime?: string;
   trustScore: number;
   riskScore: number;
-  aiCheckStatus: AICheckStatus;
-  aiRiskReasons: string[];
-  safetyBadges: ('VERIFIED_OWNER' | 'PROPERTY_VERIFIED' | 'AI_CHECKED' | 'NO_COMMISSION' | 'STUDENT_FRIENDLY')[];
+  /** The moderation state the API stores. Optional only because the field is
+   *  absent from a response served by a container that predates it. */
+  status?: ListingStatus;
+  /** @deprecated Legacy alias of `status`, still sent for one release. */
+  aiCheckStatus?: AICheckStatus;
+  /** @deprecated Left over from the removed scanner; always empty now. */
+  aiRiskReasons?: string[];
+  /**
+   * Only two badges are awarded now. AI_CHECKED, NO_COMMISSION and
+   * STUDENT_FRIENDLY are retired: the first claimed a check that no longer
+   * runs, the second carried the old broker-free positioning, and the data
+   * migration strips all three from existing rows. Nothing in the app compares
+   * against them any more, so the union is narrowed to what the server sends.
+   */
+  safetyBadges: ('VERIFIED_OWNER' | 'PROPERTY_VERIFIED')[];
   createdAt: string;
   viewsCount: number;
   favoritesCount: number;
@@ -111,6 +146,20 @@ export interface Listing {
   roommateGender?: 'BOYS' | 'GIRLS' | 'ANY'; // Sherik jinsi: Yigitlar / Qizlar / Farqi yo'q
   roommateSpotsAvailable?: number; // Qancha sherik kerak
   isFeatured?: boolean;
+  /** When the granted Top promotion runs out. Null while the listing is not promoted. */
+  featuredUntil?: string | null;
+  /**
+   * The owner's own view of their Top request. The API fills it in only for
+   * the listing's owner and for staff, so it is absent on every other row.
+   */
+  topRequestStatus?: TopRequestStatus | null;
+  /**
+   * Why an administrator actioned this listing, in their own words. The API
+   * sends it only to the listing's owner and to staff, so it is absent on
+   * every catalogue row. It is the owner's only explanation of a warning or a
+   * takedown now that the publish-time scanner is gone.
+   */
+  moderationNote?: string | null;
 }
 
 export interface University {

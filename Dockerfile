@@ -1,7 +1,8 @@
-# Production image for the Maklersiz.uz API + admin panel.
+# Production image for the Uyiz API.
 #
-# The frontend is a static SPA deployed separately (Vercel); this image serves
-# the API and the CRM only.
+# Both frontends are deployed separately on Vercel — the site (a static Vite
+# SPA) and the admin panel (Next.js, its own project). This image serves the
+# API alone; there is no UI on this host, only /api/v1/*.
 FROM python:3.13-slim
 
 ENV PYTHONUNBUFFERED=1 \

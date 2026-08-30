@@ -1,6 +1,6 @@
 """Where Uzbekistan actually is.
 
-Shield AI used to know twelve district names — the ones in Tashkent city — and
+Uyiz AI used to know twelve district names — the ones in Tashkent city — and
 nothing else, so "Samarqandda uy kere" parsed as a request with no location at
 all. This is the full administrative map: 14 regions, every district, and the
 Tashkent metro.

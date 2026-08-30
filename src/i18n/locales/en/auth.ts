@@ -15,7 +15,7 @@ export const auth = {
     hint: 'You can change this later in your profile.',
     owner: {
       title: 'I am a property owner',
-      description: 'I want to rent out my flat directly, without a broker',
+      description: 'I want to rent out my flat',
     },
     student: {
       title: 'I am looking for a flat',
@@ -69,7 +69,7 @@ export const auth = {
 
   register: {
     title: 'Create a new account',
-    subtitle: 'Sign up in a minute — no commission',
+    subtitle: 'Sign up in a minute — it is free',
     submit: 'Continue',
     submitting: 'Sending code...',
     haveAccount: 'Already have an account?',
@@ -135,12 +135,12 @@ export const auth = {
     badge: 'Success!',
     registered: 'Welcome, {name}!',
     registeredBody:
-      'Your account has been created and your phone number verified. You can now look for a flat without a broker.',
+      'Your account has been created and your phone number verified. You can now look for a flat.',
     loggedIn: 'Welcome, {name}',
     loggedInBody: 'You have signed in successfully.',
     welcomeTitle: 'Welcome, {name}!',
     welcomeThanks:
-      'Thank you for registering with MaklersizUy and for choosing us.',
+      'Thank you for registering with Uyiz and for choosing us.',
     welcomeDismiss: 'Tap to continue',
     redirecting: 'Redirecting...',
   },

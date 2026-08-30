@@ -13,13 +13,15 @@ VALID_LISTING = {
     "title": "Chilonzorda 2 xonali kvartira ijaraga",
     "description": (
         "Yangi ta'mirlangan, mebel va texnika bilan jihozlangan kvartira. "
-        "Metro bekatiga 5 daqiqa piyoda. Uy egasidan, vositachisiz."
+        "Metro bekatiga 5 daqiqa piyoda. Uy egasidan to'g'ridan-to'g'ri."
     ),
     "price": 4_000_000,
     "rooms": 2,
     "area": 62,
     "district": "Chilonzor",
     "region": "Toshkent shahri",
+    #: At least one photo is mandatory - do not remove this key while
+    #: "simplifying" the fixture, or every listing test starts 422ing.
     "images": ["https://example.uz/photo1.jpg"],
 }
 
@@ -39,15 +41,37 @@ async def _create_listing(client, tokens, **overrides):
     return response.json()["data"]
 
 
+async def _admin_tokens(client):
+    login = await client.post(
+        "/api/v1/admin/auth/login",
+        json={"username": "testadmin", "password": "AdminPass2026!x"},
+    )
+    assert login.status_code == 200, login.text
+    return login.json()
+
+
 # ---------------------------------------------------------------------------
 # Ownership
 # ---------------------------------------------------------------------------
 async def test_owner_can_create_a_listing(client, unique_phone):
+    """Publishing is deterministic now: no check runs, so nothing can hold it.
+
+    The assertions are tight on purpose. They used to accept WARNING or
+    PENDING because the old AI verdict was non-deterministic - and either of
+    those means invisible to everyone, which a regression could reintroduce
+    without failing a looser test.
+    """
     tokens, _ = await _owner(client, unique_phone)
     listing = await _create_listing(client, tokens)
     assert listing["title"] == VALID_LISTING["title"]
-    assert listing["status"] in ("APPROVED", "WARNING", "PENDING")
+    assert listing["status"] == "APPROVED"
+    assert listing["publishedAt"] is not None
+    assert listing["trustScore"] == 100
     assert listing["aiCheckStatus"] == listing["status"]
+
+    # And it is publicly browsable at once.
+    public = await client.get("/api/v1/listings")
+    assert listing["id"] in [row["id"] for row in public.json()["data"]]
 
 
 async def test_a_student_cannot_create_a_listing(client, unique_phone):
@@ -108,7 +132,12 @@ async def test_owner_can_edit_and_delete_their_own_listing(client, unique_phone)
 
 
 async def test_server_controlled_fields_cannot_be_set_by_the_client(client, unique_phone):
-    """Mass assignment: the old API let a listing self-certify as trusted."""
+    """Mass assignment: the old API let a listing self-certify as trusted.
+
+    ``videoUrl`` is in the list because video is gone from the product: the
+    field no longer exists on any schema, so sending it must be refused rather
+    than quietly ignored.
+    """
     tokens, _ = await _owner(client, unique_phone)
     response = await client.post(
         "/api/v1/listings",
@@ -119,10 +148,74 @@ async def test_server_controlled_fields_cannot_be_set_by_the_client(client, uniq
             "status": "APPROVED",
             "isFeatured": True,
             "viewsCount": 999_999,
+            "videoUrl": "https://youtu.be/x",
+            "topRequestStatus": "APPROVED",
         },
         headers=auth_headers(tokens),
     )
     assert response.status_code == 422, "unknown/server-owned fields must be rejected"
+
+
+async def test_a_listing_without_a_photo_is_rejected(client, unique_phone):
+    tokens, _ = await _owner(client, unique_phone)
+
+    empty = await client.post(
+        "/api/v1/listings",
+        json={**VALID_LISTING, "images": []},
+        headers=auth_headers(tokens),
+    )
+    assert empty.status_code == 422
+    assert empty.json()["field"] == "images"
+    # An empty list is what a client sends when the owner removed every photo,
+    # so it has to answer with the photo-specific message and not the generic
+    # "check your data" one.
+    assert empty.json()["code"] == "image_required"
+
+    # A list that cleans down to nothing is the same thing said differently,
+    # and gets the photo-specific message rather than a generic one.
+    blank = await client.post(
+        "/api/v1/listings",
+        json={**VALID_LISTING, "images": ["   "]},
+        headers=auth_headers(tokens),
+    )
+    assert blank.status_code == 422
+    assert blank.json()["code"] == "image_required"
+
+    missing = await client.post(
+        "/api/v1/listings",
+        json={k: v for k, v in VALID_LISTING.items() if k != "images"},
+        headers=auth_headers(tokens),
+    )
+    assert missing.status_code == 422
+
+
+async def test_editing_a_listing_never_changes_its_status(client, unique_phone):
+    """An edit is content only.
+
+    The publish path used to re-score a listing whenever the title, the
+    description or the price changed, so correcting a typo could take a live
+    listing off the site - and would now also erase a penalty an admin had
+    deliberately applied.
+    """
+    tokens, _ = await _owner(client, unique_phone)
+    listing = await _create_listing(client, tokens)
+
+    edited = await client.put(
+        f"/api/v1/listings/{listing['id']}",
+        json={
+            "title": "Rieltor agentligi orqali kvartira ijaraga beriladi",
+            "description": (
+                "Agentlik orqali ijara. Komissiya oylik to'lovning yarmi. "
+                "Xizmat haqi alohida kelishiladi."
+            ),
+            "price": 9_900_000,
+        },
+        headers=auth_headers(tokens),
+    )
+    assert edited.status_code == 200, edited.text
+    body = edited.json()["data"]
+    assert body["status"] == "APPROVED"
+    assert body["trustScore"] == listing["trustScore"]
 
 
 # ---------------------------------------------------------------------------
@@ -151,7 +244,12 @@ async def test_owner_phone_is_hidden_from_anonymous_browsing(client, unique_phon
     assert mine.json()["data"][0]["owner"]["phone"] == phone
 
 
-async def test_moderation_rejects_a_broker_listing(client, unique_phone):
+async def test_a_broker_listing_publishes_like_any_other(client, unique_phone):
+    """Professional agents are welcome; a listing is not judged by its words.
+
+    This is the exact inverse of the test that used to live here, which
+    asserted the same payload was REJECTED with a high risk score.
+    """
     tokens, _ = await _owner(client, unique_phone)
     response = await client.post(
         "/api/v1/listings",
@@ -159,21 +257,20 @@ async def test_moderation_rejects_a_broker_listing(client, unique_phone):
             **VALID_LISTING,
             "title": "Rieltor agentligidan kvartira ijaraga beriladi",
             "description": (
-                "Agentlik orqali ijara. Komissiya 50% oylik to'lovdan olinadi. "
-                "Xizmat haqi majburiy. OLX dan ko'chirma e'lon."
+                "Agentlik orqali ijara. Komissiya oylik to'lovning yarmi. "
+                "Xizmat haqi alohida kelishiladi. Hujjatlar rasmiylashtiriladi."
             ),
         },
         headers=auth_headers(tokens),
     )
     assert response.status_code == 201
     body = response.json()
-    assert body["data"]["status"] == "REJECTED"
-    assert body["moderation"]["allowed"] is False
-    assert body["moderation"]["riskScore"] >= 70
+    assert body["data"]["status"] == "APPROVED"
+    assert body["data"]["trustScore"] == 100
 
-    # A rejected listing must not appear in the public catalogue.
+    # And it is in the public catalogue like every other listing.
     public = await client.get("/api/v1/listings")
-    assert body["data"]["id"] not in public.text
+    assert body["data"]["id"] in [row["id"] for row in public.json()["data"]]
 
 
 async def test_search_and_filters_work(client, unique_phone):
@@ -225,6 +322,231 @@ async def test_favorites_are_persisted_per_user(client, unique_phone):
 
 
 # ---------------------------------------------------------------------------
+# Top (promotion) requests
+# ---------------------------------------------------------------------------
+async def test_a_top_request_is_queued_and_cannot_be_duplicated(client, unique_phone):
+    """Pressing Top sends a request. It promotes nothing on its own."""
+    tokens, _ = await _owner(client, unique_phone)
+    listing = await _create_listing(client, tokens)
+
+    sent = await client.post(
+        f"/api/v1/listings/{listing['id']}/top",
+        json={"days": 7},
+        headers=auth_headers(tokens),
+    )
+    assert sent.status_code == 201, sent.text
+    body = sent.json()
+    assert body["data"]["status"] == "PENDING"
+    assert body["data"]["requestedDays"] == 7
+    # The alert copy comes from the server, in the request's language.
+    assert body["message"]
+
+    # Nothing has been promoted.
+    detail = await client.get(f"/api/v1/listings/{listing['id']}")
+    assert detail.json()["data"]["isFeatured"] is False
+    assert detail.json()["data"]["featuredUntil"] is None
+
+    # The owner sees their own pending request; a stranger never does.
+    mine = await client.get("/api/v1/listings/my", headers=auth_headers(tokens))
+    assert mine.json()["data"][0]["topRequestStatus"] == "PENDING"
+    assert detail.json()["data"]["topRequestStatus"] is None
+
+    again = await client.post(
+        f"/api/v1/listings/{listing['id']}/top",
+        json={"days": 7},
+        headers=auth_headers(tokens),
+    )
+    assert again.status_code == 409
+    assert again.json()["code"] == "top_request_pending"
+
+
+async def test_only_the_owner_can_ask_for_top(client, unique_phone):
+    owner_tokens, _ = await _owner(client, unique_phone)
+    listing = await _create_listing(client, owner_tokens)
+
+    stranger_tokens, _ = await _owner(client, unique_phone)
+    response = await client.post(
+        f"/api/v1/listings/{listing['id']}/top",
+        json={"days": 7},
+        headers=auth_headers(stranger_tokens),
+    )
+    assert response.status_code == 403
+    assert response.json()["code"] == "listing_forbidden"
+
+
+async def test_an_admin_approval_promotes_the_listing(
+    client, unique_phone, admin_account
+):
+    owner_tokens, _ = await _owner(client, unique_phone)
+    listing = await _create_listing(client, owner_tokens)
+    await client.post(
+        f"/api/v1/listings/{listing['id']}/top",
+        json={"days": 14, "note": "Tezroq ijaraga bermoqchiman"},
+        headers=auth_headers(owner_tokens),
+    )
+
+    admin_tokens = await _admin_tokens(client)
+    queue = await client.get(
+        "/api/v1/admin/top-requests?status=PENDING", headers=auth_headers(admin_tokens)
+    )
+    assert queue.status_code == 200, queue.text
+    rows = queue.json()["data"]
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["listingId"] == listing["id"]
+    assert row["requestedDays"] == 14
+    assert row["listingTitle"] == VALID_LISTING["title"]
+    assert row["ownerPhone"]
+    # One image, never the whole array.
+    assert row["listingImage"] == VALID_LISTING["images"][0]
+
+    approved = await client.patch(
+        f"/api/v1/admin/top-requests/{row['id']}",
+        json={"status": "APPROVED", "days": 14, "promotionWeight": 100},
+        headers=auth_headers(admin_tokens),
+    )
+    assert approved.status_code == 200, approved.text
+    decided = approved.json()["data"]
+    assert decided["status"] == "APPROVED"
+    assert decided["grantedDays"] == 14
+    assert decided["grantedUntil"] is not None
+    # The joined columns survive the decision, so the queue row does not blank.
+    assert decided["listingTitle"] == VALID_LISTING["title"]
+
+    detail = await client.get(f"/api/v1/listings/{listing['id']}")
+    assert detail.json()["data"]["isFeatured"] is True
+    assert detail.json()["data"]["featuredUntil"] is not None
+    assert detail.json()["data"]["promotionWeight"] == 100
+
+    # It now leads the promoted rail.
+    rail = await client.get("/api/v1/listings/featured")
+    assert listing["id"] in [row["id"] for row in rail.json()["data"]]
+
+    # A settled request cannot be decided a second time.
+    twice = await client.patch(
+        f"/api/v1/admin/top-requests/{row['id']}",
+        json={"status": "APPROVED", "days": 30},
+        headers=auth_headers(admin_tokens),
+    )
+    assert twice.status_code == 409
+    assert twice.json()["code"] == "top_request_already_reviewed"
+
+
+async def test_a_rejected_top_request_promotes_nothing(
+    client, unique_phone, admin_account
+):
+    owner_tokens, _ = await _owner(client, unique_phone)
+    listing = await _create_listing(client, owner_tokens)
+    await client.post(
+        f"/api/v1/listings/{listing['id']}/top",
+        json={"days": 7},
+        headers=auth_headers(owner_tokens),
+    )
+
+    admin_tokens = await _admin_tokens(client)
+    row = (
+        await client.get(
+            "/api/v1/admin/top-requests", headers=auth_headers(admin_tokens)
+        )
+    ).json()["data"][0]
+
+    rejected = await client.patch(
+        f"/api/v1/admin/top-requests/{row['id']}",
+        json={"status": "REJECTED", "rejectionReason": "Rasmlar sifatsiz"},
+        headers=auth_headers(admin_tokens),
+    )
+    assert rejected.status_code == 200
+    assert rejected.json()["data"]["rejectionReason"] == "Rasmlar sifatsiz"
+
+    detail = await client.get(f"/api/v1/listings/{listing['id']}")
+    assert detail.json()["data"]["isFeatured"] is False
+
+    # A decided request frees the queue, so the owner may ask again.
+    retry = await client.post(
+        f"/api/v1/listings/{listing['id']}/top",
+        json={"days": 7},
+        headers=auth_headers(owner_tokens),
+    )
+    assert retry.status_code == 201
+
+
+# ---------------------------------------------------------------------------
+# Reliability ("ishonchlilik foizi")
+# ---------------------------------------------------------------------------
+async def test_reliability_drops_only_when_an_admin_confirms_a_report(
+    client, unique_phone, admin_account
+):
+    """The score has exactly one writer, and it works in both directions."""
+    owner_tokens, _ = await _owner(client, unique_phone)
+    listing = await _create_listing(client, owner_tokens)
+    assert listing["trustScore"] == 100
+
+    reporter_tokens = await register_and_verify(client, unique_phone(), role="STUDENT")
+    filed = await client.post(
+        f"/api/v1/listings/{listing['id']}/report",
+        json={"reason": "SCAM", "description": "Uy mavjud emas"},
+        headers=auth_headers(reporter_tokens),
+    )
+    assert filed.status_code == 200
+
+    async def _score() -> dict:
+        return (await client.get(f"/api/v1/listings/{listing['id']}")).json()["data"]
+
+    # Filing costs nothing. Only a confirmation does.
+    assert (await _score())["trustScore"] == 100
+
+    admin_tokens = await _admin_tokens(client)
+    report = (
+        await client.get("/api/v1/admin/reports", headers=auth_headers(admin_tokens))
+    ).json()["data"][0]
+
+    confirmed = await client.patch(
+        f"/api/v1/admin/reports/{report['id']}",
+        json={"status": "RESOLVED", "note": "Tekshirildi", "listingAction": "NONE"},
+        headers=auth_headers(admin_tokens),
+    )
+    assert confirmed.status_code == 200, confirmed.text
+
+    after = await _score()
+    # SCAM is filed at CRITICAL priority, which costs 25 points.
+    assert after["trustScore"] == 75
+    assert after["riskScore"] == 25
+    assert len(after["aiRiskReasons"]) == 1
+    # The listing itself stays up: confirming a complaint and taking a listing
+    # down are independent decisions.
+    assert after["status"] == "APPROVED"
+
+    # Saving the same decision again must not charge twice - the admin sheet
+    # lets a moderator re-submit a settled report.
+    await client.patch(
+        f"/api/v1/admin/reports/{report['id']}",
+        json={"status": "RESOLVED", "note": "Tekshirildi", "listingAction": "NONE"},
+        headers=auth_headers(admin_tokens),
+    )
+    assert (await _score())["trustScore"] == 75
+
+    # An owner's edit must not wash the penalty off either.
+    await client.put(
+        f"/api/v1/listings/{listing['id']}",
+        json={"price": 4_500_000},
+        headers=auth_headers(owner_tokens),
+    )
+    assert (await _score())["trustScore"] == 75
+
+    # Un-confirming gives the points back.
+    dismissed = await client.patch(
+        f"/api/v1/admin/reports/{report['id']}",
+        json={"status": "REJECTED", "note": "Asossiz", "listingAction": "NONE"},
+        headers=auth_headers(admin_tokens),
+    )
+    assert dismissed.status_code == 200
+    restored = await _score()
+    assert restored["trustScore"] == 100
+    assert restored["riskScore"] == 0
+    assert restored["aiRiskReasons"] == []
+
+
+# ---------------------------------------------------------------------------
 # Admin authorisation
 # ---------------------------------------------------------------------------
 ADMIN_ROUTES = [
@@ -234,6 +556,7 @@ ADMIN_ROUTES = [
     ("GET", "/api/v1/admin/audit"),
     ("GET", "/api/v1/admin/reports"),
     ("GET", "/api/v1/admin/verifications"),
+    ("GET", "/api/v1/admin/top-requests"),
     ("GET", "/api/v1/admin/sms"),
     ("GET", "/api/v1/admin/security/login-attempts"),
     ("GET", "/api/v1/admin/ai/sessions"),
@@ -270,6 +593,9 @@ async def test_admin_can_sign_in_and_read_the_dashboard(client, admin_account):
     stats = await client.get("/api/v1/admin/stats", headers=auth_headers(tokens))
     assert stats.status_code == 200
     assert "totalUsers" in stats.json()["data"]
+    # The Top queue has to be visible from the dashboard, or an admin has no
+    # reason to open the page owners are waiting on.
+    assert "pendingTopRequests" in stats.json()["data"]
 
 
 async def test_admin_login_rejects_a_wrong_password(client, admin_account):

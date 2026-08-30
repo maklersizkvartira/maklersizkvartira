@@ -115,10 +115,22 @@ def create_app() -> FastAPI:
     app_middleware.install(app)
 
     # -- CORS: explicit allowlist with regex for Vercel preview & production origins
+    #
+    # The regex carries all three brand domains on purpose. uyiz.uz is the brand
+    # now; maklersiz.uz and maklersizuy.uz are the previous ones and stay until
+    # they stop being served, because they 301 to uyiz.uz and a redirect the
+    # browser follows still needs the destination's CORS headers on the XHR that
+    # comes after it. Drop the two old alternations once neither domain resolves.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
-        allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.maklersiz\.uz|https://maklersiz\.uz|http://localhost:\d+|http://127\.0\.0\.1:\d+",
+        allow_origin_regex=(
+            r"https://.*\.vercel\.app"
+            r"|https://(.*\.)?uyiz\.uz"
+            r"|https://(.*\.)?maklersiz\.uz"
+            r"|https://(.*\.)?maklersizuy\.uz"
+            r"|http://localhost:\d+|http://127\.0\.0\.1:\d+"
+        ),
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=[

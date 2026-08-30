@@ -1,12 +1,14 @@
 README-7 — FUTURE ECOSYSTEM & COMPANY VISION
 
-Project: Maklersiz.uz
+> **Tarixiy hujjat.** Bu spetsifikatsiya loyiha hali Maklersiz.uz deb atalgan paytda yozilgan; hozirgi mahsulot [`README.md`](./README.md) da tasvirlangan va nizo bo‘lsa README.md ustun turadi.
+
+Project: Uyiz.uz
 Document: Future Ecosystem, Expansion Strategy & Long-Term Company Vision
 Purpose: Platformani oddiy kvartira topish saytlaridan katta Property Technology kompaniyasiga aylantirish.
 
 1. ASOSIY VIZIYA
 
-Maklersiz.uz faqat:
+Uyiz.uz faqat:
 
 "Kvartira topish sayti"
 
@@ -35,7 +37,7 @@ oson
 xavfsiz
 shaffof
 tez
-maklersiz
+arzon
 
 qilish.
 
@@ -108,7 +110,7 @@ Notifications
 
 Birinchi navbatdagi maqsad:
 
-"Odamlar kvartira qidirganda Maklersiz.uz'ni eslashi."
+"Odamlar kvartira qidirganda Uyiz.uz'ni eslashi."
 
 Asosiy KPI:
 
@@ -376,7 +378,7 @@ Risklarni ko‘rsatadi
 
 Platformada:
 
-Maklersiz AI
+Uyiz AI
 
 assistant bo‘lishi mumkin.
 
@@ -651,7 +653,7 @@ B2B services
 
 Kelajakda kompaniyalar uchun:
 
-Maklersiz Business
+Uyiz Business
 
 yaratilishi mumkin.
 
@@ -817,13 +819,16 @@ Platformaning asosiy brand promise:
 
 "Uy topishda ishonchli yo‘l."
 
-Brand faqat:
+Brand avval "Maklersiz" tushunchasiga qurilgan edi — ya‘ni bir narsaning
+YO‘QLIGIGA. Bu ikki tomondan tor edi: platforma o‘sib, agentliklar bilan ham
+ishlay boshlagach va‘da bajarilmay qoldi, va brend nomi mahsulot nima
+QILISHINI emas, nima qilmasligini aytardi.
 
-"Maklersiz"
+Shuning uchun nom "Uyiz" ga o‘zgartirildi va va‘da neytral qilib qayta yozildi:
+e‘lon joylash bepul, e‘lonlar haqiqiy, egasi bilan to‘g‘ridan-to‘g‘ri
+bog‘lanasiz. Uy egasi ham, professional agent ham bu yerda o‘z o‘rniga ega.
 
-tushunchasiga qamalib qolmasligi kerak.
-
-Kelajakda kompaniya maklersiz bo‘lishdan tashqari:
+Kompaniya kelajakda:
 
 Trust Infrastructure
 
@@ -833,7 +838,7 @@ sifatida tanilishi kerak.
 
 Platforma atrofida:
 
-Maklersiz Community
+Uyiz Community
 
 yaratiladi.
 
@@ -851,7 +856,7 @@ uchun foydali bo‘lishi kerak.
 
 Kelajakda:
 
-Maklersiz Media
+Uyiz Media
 
 bo‘lishi mumkin.
 
@@ -1118,7 +1123,7 @@ kombinatsiyasini yaratishi kerak.
 
 Bugun:
 
-Maklersiz kvartira toping.
+Ijaraga uy toping.
 
 Kelajakda:
 
@@ -1126,7 +1131,7 @@ Uy bilan bog‘liq hamma narsani ishonch bilan hal qiling.
 
 62. FINAL COMPANY VISION
 
-Maklersiz.uz kelajakda:
+Uyiz.uz kelajakda:
 
 Rental Marketplace
 
@@ -1271,7 +1276,7 @@ Developer platform
 Regional expansion
 68. FINAL PRINCIPLE
 
-Maklersiz.uz:
+Uyiz.uz:
 
 "Kvartira topish sayti" sifatida boshlanadi.
 

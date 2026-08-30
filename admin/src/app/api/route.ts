@@ -8,5 +8,5 @@ import { NextResponse } from 'next/server';
  * straight to `env.API_URL` from the browser.
  */
 export async function GET() {
-  return NextResponse.json({ status: 'ok', service: 'maklersiz-admin' });
+  return NextResponse.json({ status: 'ok', service: 'uyiz-admin' });
 }

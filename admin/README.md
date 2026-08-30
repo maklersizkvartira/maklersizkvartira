@@ -1,10 +1,10 @@
-# Maklersiz Admin
+# Uyiz Admin
 
-Staff console for the **Maklersiz uy** rental marketplace: listing moderation,
-reports, identity verifications, user and staff administration, and the audit,
-security, SMS and Shield AI logs.
+Staff console for the **Uyiz** rental marketplace: listing moderation, reports,
+Top (promotion) requests, identity verifications, user and staff administration,
+and the audit, security, SMS and Uyiz AI logs.
 
-It is a Next.js 16 App Router project that talks to the maklersiz FastAPI
+It is a Next.js 16 App Router project that talks to the Uyiz FastAPI
 backend over REST. It holds no database of its own and there is no WebSocket
 connection — every screen is a query against `NEXT_PUBLIC_API_URL`.
 
@@ -59,9 +59,17 @@ Setting it up, in the order that matters:
    *including* the `/api/v1` suffix — the HTTP client appends bare endpoint
    paths like `/admin/stats` to it. See `.env.example`.
 5. **On the API side (Railway), add this project's domain to `CORS_ORIGINS`.**
-   The panel calls the API cross-origin from the browser and production forbids
-   `*`, so without this every screen loads and then stays empty — a failed
-   preflight surfaces as an opaque network error, not as a message you can read.
+   The panel is served from `https://admin.uyiz.uz`, and that exact origin has
+   to be in the allowlist. The panel calls the API cross-origin from the browser
+   and production forbids `*`, so without this every screen loads and then stays
+   empty — a failed preflight surfaces as an opaque network error, not as a
+   message you can read.
+
+The API host itself keeps its original Railway name
+(`maklersizkvartira-production.up.railway.app`). That is an infrastructure
+identifier rather than a brand surface: renaming the Railway service changes the
+hostname and breaks every deployed client at once, so the rebrand deliberately
+left it alone. Only the panel's own domain moved.
 
 Note that the repository-root `.vercelignore` deliberately does **not** list
 `admin/`: it can be applied to the upload before Vercel descends into the Root

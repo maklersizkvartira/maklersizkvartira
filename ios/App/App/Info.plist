@@ -6,8 +6,12 @@
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	<!-- The home-screen name. This is the brand and it follows it. The bundle
+	     identifier below is NOT a label — it is App Store identity, frozen at
+	     uz.maklersizuy.app in App.xcodeproj/project.pbxproj. See
+	     capacitor.config.json for why. -->
 	<key>CFBundleDisplayName</key>
-        <string>Maklersiz Uy</string>
+        <string>Uyiz</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

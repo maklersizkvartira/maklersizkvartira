@@ -1,5 +1,9 @@
 # README-5
 
+> **Tarixiy hujjat.** Bu spetsifikatsiya loyiha hali Maklersiz.uz deb atalgan paytda yozilgan; hozirgi mahsulot [`README.md`](./README.md) da tasvirlangan va nizo bo'lsa README.md ustun turadi.
+
+> Qurilgan arxitektura `README.md` ning "Architecture" bo'limida tasvirlangan; bu fayl esa boshida nima ko'zlangani yozib qoldirilgan hujjat.
+
 # TECHNICAL ARCHITECTURE & FULL-STACK ENGINEERING
 
 ## 1. MAQSAD
@@ -1375,4 +1379,4 @@ MAINTAINABLE
 
 TRUSTWORTHY
 
-Maklersiz.uz texnologik jihatdan oddiy e'lonlar sayti emas, balki kelajakdagi katta Rental Ecosystem uchun foundation sifatida qurilsin.
+Uyiz.uz texnologik jihatdan oddiy e'lonlar sayti emas, balki kelajakdagi katta Rental Ecosystem uchun foundation sifatida qurilsin.

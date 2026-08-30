@@ -8,6 +8,14 @@
  * explanation.
  */
 
+/**
+ * Deliberately NOT renamed by the Uyiz rebrand: the name carries no brand, so
+ * there is nothing to rebrand, and moving it would sign every admin out at once
+ * — `proxy.ts` gates every protected route on `cookies.has('refresh_token')` by
+ * literal, and the three routes under `/api/auth` set and clear this exact
+ * name. The three cross-tab names in `shared/lib/http.ts` are the ones that did
+ * move.
+ */
 export const REFRESH_COOKIE = 'refresh_token';
 
 /**

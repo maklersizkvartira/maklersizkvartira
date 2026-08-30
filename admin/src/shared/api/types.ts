@@ -1,5 +1,5 @@
 /**
- * Wire shapes for the "Maklersiz uy" FastAPI backend.
+ * Wire shapes for the "Uyiz" FastAPI backend.
  *
  * Every field here was read off `backend_python/app/schemas/admin.py`,
  * `schemas/auth.py`, `schemas/common.py` and `services/admin.py`. The backend
@@ -93,6 +93,8 @@ export type ReportPriority = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 
 export type ReportReason =
   | 'SCAM'
+  /** Retired: the public report form no longer offers it and no new report can
+   *  carry it, but the enum value stays in the database for existing rows. */
   | 'BROKER'
   | 'FAKE_LISTING'
   | 'FAKE_PHOTOS'
@@ -102,6 +104,9 @@ export type ReportReason =
   | 'OTHER';
 
 export type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+/** Lifecycle of an owner's request for the promoted ("Top") rail. */
+export type TopRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export type VerificationDocumentType =
   | 'PASSPORT'
@@ -210,6 +215,8 @@ export interface AdminStats {
   totalViews: number;
   openReports: number;
   pendingVerifications: number;
+  /** Top (promotion) requests still waiting for a moderator's decision. */
+  pendingTopRequests: number;
   aiSessions: number;
   /** AI sessions with no signed-in user attached. */
   guests: number;
@@ -507,6 +514,59 @@ export interface AdminVerificationRow {
 /** Body of `PATCH /admin/verifications/{id}`. Returns the updated row. */
 export interface ReviewVerificationPayload {
   status: VerificationStatus;
+  rejectionReason?: string;
+}
+
+// ─── Top (promotion) requests ─────────────────────────────────────────────────
+
+/**
+ * One row of `GET /admin/top-requests`: an owner asking for the promoted rail.
+ *
+ * The request is the CAUSE and `Listing.isFeatured` / `featuredUntil` /
+ * `promotionWeight` are the EFFECT an approval writes — nothing is promoted
+ * until a moderator approves the row.
+ */
+export interface AdminTopRequestRow {
+  id: string;
+  listingId: string;
+  /** Joined by the list route; the PATCH route fills these in by hand. */
+  listingTitle: string | null;
+  listingDistrict: string | null;
+  listingPrice: number | null;
+  /** ONE image, never the array — see the `images` caveat on AdminListingRow. */
+  listingImage: string | null;
+  listingIsFeatured: boolean;
+  listingFeaturedUntil: string | null;
+  ownerId: string | null;
+  ownerName: string | null;
+  ownerPhone: string | null;
+  requestedDays: number;
+  note: string | null;
+  status: TopRequestStatus;
+  rejectionReason: string | null;
+  /** Non-null only on an approved request: what the moderator actually granted. */
+  grantedDays: number | null;
+  grantedWeight: number | null;
+  grantedUntil: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+}
+
+/**
+ * Body of `PATCH /admin/top-requests/{id}`. Returns the updated row.
+ *
+ * `days` and `promotionWeight` are read only when approving; omitting `days`
+ * means "grant what the owner asked for". Approving EXTENDS an existing
+ * promotion — the backend keeps the later of the two end dates and the higher
+ * of the two weights — so a second grant can never shorten a live run. A
+ * request that has already been decided answers 409 `top_request_already_reviewed`.
+ */
+export interface ReviewTopRequestPayload {
+  status: Exclude<TopRequestStatus, 'PENDING'>;
+  /** 1..365. */
+  days?: number;
+  /** 0..1000, default 100. */
+  promotionWeight?: number;
   rejectionReason?: string;
 }
 

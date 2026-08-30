@@ -120,6 +120,9 @@ class AuditSeverity(StrEnum):
 
 class ReportReason(StrEnum):
     SCAM = "SCAM"
+    #: Retired from the complaint picker: professional agents are welcome on
+    #: the platform, so "this is a broker" is no longer a complaint. The value
+    #: stays so historical rows still validate on read.
     BROKER = "BROKER"
     FAKE_LISTING = "FAKE_LISTING"
     FAKE_PHOTOS = "FAKE_PHOTOS"
@@ -130,6 +133,17 @@ class ReportReason(StrEnum):
 
 
 class ReportStatus(StrEnum):
+    """What a moderator decided about a complaint.
+
+    The two closing values are not interchangeable, because a listing's
+    reliability percentage is computed from them:
+
+    * ``RESOLVED`` means the admin CONFIRMED the complaint. Every confirmed
+      report costs the listing reliability points.
+    * ``REJECTED`` means the complaint was dismissed. It costs nothing, and
+      moving a report back out of ``RESOLVED`` restores the points.
+    """
+
     OPEN = "OPEN"
     UNDER_REVIEW = "UNDER_REVIEW"
     RESOLVED = "RESOLVED"
@@ -151,6 +165,19 @@ class VerificationDocumentType(StrEnum):
 
 
 class VerificationStatus(StrEnum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
+class TopRequestStatus(StrEnum):
+    """Lifecycle of an owner's request for the promoted ("Top") rail.
+
+    Deliberately the same three values as ``VerificationStatus``: the admin
+    panel's status pill, its status filter and the ``.upper()`` comparison in
+    the list endpoint then behave identically on both queues.
+    """
+
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
@@ -198,6 +225,10 @@ class AuditAction(StrEnum):
     LISTING_UNFAVORITED = "LISTING_UNFAVORITED"
     LISTING_CONTACTED = "LISTING_CONTACTED"
     LISTING_REPORTED = "LISTING_REPORTED"
+    LISTING_TOP_REQUESTED = "LISTING_TOP_REQUESTED"
+    # Deprecated: no longer written by any code path. Publication runs no
+    # automated check at all now. Kept so historical audit rows still resolve
+    # to a name in the admin feed.
     LISTING_AI_APPROVED = "LISTING_AI_APPROVED"
     LISTING_AI_REJECTED = "LISTING_AI_REJECTED"
 
@@ -214,6 +245,10 @@ class AuditAction(StrEnum):
     ADMIN_USER_SESSIONS_REVOKED = "ADMIN_USER_SESSIONS_REVOKED"
     ADMIN_LISTING_STATUS_CHANGED = "ADMIN_LISTING_STATUS_CHANGED"
     ADMIN_LISTING_FEATURED = "ADMIN_LISTING_FEATURED"
+    #: Distinct from ADMIN_LISTING_FEATURED, which stays the action for a
+    #: promotion an admin applied with no request behind it.
+    ADMIN_TOP_APPROVED = "ADMIN_TOP_APPROVED"
+    ADMIN_TOP_REJECTED = "ADMIN_TOP_REJECTED"
     ADMIN_LISTING_DELETED = "ADMIN_LISTING_DELETED"
     ADMIN_REPORT_RESOLVED = "ADMIN_REPORT_RESOLVED"
     ADMIN_VERIFICATION_REVIEWED = "ADMIN_VERIFICATION_REVIEWED"

@@ -22,7 +22,8 @@ TitleStr = Annotated[str, Field(min_length=8, max_length=160)]
 DescriptionStr = Annotated[str, Field(min_length=20, max_length=5000)]
 
 #: Values a user may never reach through the public API. Everything here is
-#: decided by moderation or counted by the server.
+#: decided by an admin or counted by the server. The enforcement is
+#: ``extra="forbid"`` on CamelModel; this set documents the intent.
 SERVER_CONTROLLED_FIELDS = {
     "status",
     "aiCheckStatus",
@@ -36,6 +37,7 @@ SERVER_CONTROLLED_FIELDS = {
     "isFeatured",
     "featuredUntil",
     "promotionWeight",
+    "topRequestStatus",
     "ownerId",
     "owner",
     "moderatedById",
@@ -48,7 +50,13 @@ _CONTACT_LEAK = re.compile(
 _URL = re.compile(r"https?://|www\.", re.IGNORECASE)
 
 
-def _validate_images(images: list[str]) -> list[str]:
+def _validate_images(images: list[str], *, required: bool = False) -> list[str]:
+    """Clean an image list, and optionally insist it is not empty.
+
+    The minimum is applied to the CLEANED list, not the submitted one:
+    ``["", "   "]`` collapses to nothing here, and a naive length check on the
+    raw input would let a listing through with no usable photo.
+    """
     if len(images) > settings.MAX_IMAGES_PER_LISTING:
         raise ValueError("too_many_images")
     cleaned: list[str] = []
@@ -62,6 +70,8 @@ def _validate_images(images: list[str]) -> list[str]:
             cleaned.append(image)
         else:
             raise ValueError("validation_error")
+    if required and not cleaned:
+        raise ValueError("image_required")
     return cleaned
 
 
@@ -97,8 +107,9 @@ class ListingBase(CamelModel):
     air_conditioning: bool = False
     washing_machine: bool = False
 
-    images: list[str] = Field(default_factory=list)
-    video_url: str | None = Field(default=None, max_length=500)
+    #: At least one photo is mandatory. No default, so an omitted key is a 422
+    #: rather than a silently empty listing.
+    images: list[str] = Field(min_length=1)
     has_virtual_tour: bool = False
 
     is_roommate: bool = False
@@ -108,19 +119,22 @@ class ListingBase(CamelModel):
     contact_telegram: str | None = Field(default=None, max_length=64)
     preferred_contact_time: str | None = Field(default=None, max_length=64)
 
-    @field_validator("images")
+    @field_validator("images", mode="before")
     @classmethod
-    def _images(cls, v: list[str]) -> list[str]:
-        return _validate_images(v)
+    def _images(cls, v: Any) -> Any:
+        """Clean the list and insist it carries a photo.
 
-    @field_validator("video_url")
-    @classmethod
-    def _video(cls, v: str | None) -> str | None:
-        if not v:
-            return None
-        if not v.startswith("https://"):
-            raise ValueError("validation_error")
-        return v
+        Runs BEFORE the ``min_length=1`` constraint on purpose. Pydantic's own
+        length message is not one of the translated codes, so an empty list
+        came back as the generic "validation_error" while a list of blanks got
+        the photo-specific one - the same mistake answered two different ways,
+        and the wrong answer for the shape a client actually sends when the
+        owner removed every photo. Anything that is not a list of strings is
+        handed straight on for the core validator to reject in its own words.
+        """
+        if not isinstance(v, list) or any(not isinstance(item, str) for item in v):
+            return v
+        return _validate_images(v, required=True)
 
     @field_validator("contact_telegram")
     @classmethod
@@ -185,7 +199,6 @@ class ListingUpdate(CamelModel):
     air_conditioning: bool | None = None
     washing_machine: bool | None = None
     images: list[str] | None = None
-    video_url: str | None = Field(default=None, max_length=500)
     has_virtual_tour: bool | None = None
     is_roommate: bool | None = None
     roommate_gender: RoommateGender | None = None
@@ -196,7 +209,9 @@ class ListingUpdate(CamelModel):
     @field_validator("images")
     @classmethod
     def _images(cls, v: list[str] | None) -> list[str] | None:
-        return None if v is None else _validate_images(v)
+        # None means "the field was not sent". A sent value still has to carry
+        # a photo, or an edit would be a way around the one-photo rule.
+        return None if v is None else _validate_images(v, required=True)
 
 
 class OwnerOut(ORMCamelModel):
@@ -242,7 +257,6 @@ class ListingOut(ORMCamelModel):
     air_conditioning: bool
     washing_machine: bool
     images: list[str]
-    video_url: str | None = None
     has_virtual_tour: bool
     is_roommate: bool
     roommate_gender: str | None = None
@@ -256,7 +270,21 @@ class ListingOut(ORMCamelModel):
     ai_risk_reasons: list[str]
     safety_badges: list[str]
     is_featured: bool
+    #: When the current promotion runs out. Read this rather than
+    #: ``is_featured``: the boolean is never cleared when the date passes.
+    featured_until: datetime | None = None
     promotion_weight: int
+    #: The owner's own view of their latest Top request: "PENDING",
+    #: "APPROVED", "REJECTED" or None. Filled per-request and only for the
+    #: owner or staff - a stranger browsing has no business knowing that
+    #: someone else's promotion is waiting for review.
+    top_request_status: str | None = None
+    #: Why an administrator actioned this listing, in their own words. With the
+    #: publish-time scanner gone this is the owner's ONLY explanation of a
+    #: warning or a takedown, so it has to travel on the row - but it is a
+    #: moderator's note, and ``_serialise`` strips it for anyone who is not the
+    #: owner or staff.
+    moderation_note: str | None = None
 
     views_count: int
     favorites_count: int
@@ -279,7 +307,9 @@ class ListingOut(ORMCamelModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def ai_check_status(self) -> str:
-        """Legacy alias: the client still reads ``aiCheckStatus``."""
+        """Deprecated alias of ``status``, kept because the client still reads
+        ``aiCheckStatus``. It never carried a verdict of its own, and there is
+        no automated check behind the name any more."""
         return self.status
 
 
@@ -349,29 +379,38 @@ class ListingFeatureRequest(CamelModel):
     promotion_weight: int = Field(default=0, ge=0, le=1000)
 
 
+class TopRequestCreate(CamelModel):
+    """What the owner sends when they press "Top".
+
+    The bounds match ``ListingFeatureRequest.days`` exactly, so a request can
+    never ask for something the approval path is unable to grant.
+    """
+
+    days: int = Field(default=7, ge=1, le=365)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class TopRequestOut(ORMCamelModel):
+    id: uuid.UUID
+    listing_id: uuid.UUID
+    status: str
+    requested_days: int
+    note: str | None = None
+    rejection_reason: str | None = None
+    granted_until: datetime | None = None
+    reviewed_at: datetime | None = None
+    created_at: datetime
+
+
 class ReportListingRequest(CamelModel):
+    #: "BROKER" is no longer offered in the complaint picker - agents are
+    #: welcome now - but it is still accepted so a cached older bundle does
+    #: not get a 422 on a complaint someone actually meant to file.
     reason: Literal[
         "SCAM", "BROKER", "FAKE_LISTING", "FAKE_PHOTOS", "WRONG_PRICE", "SPAM",
         "HARASSMENT", "OTHER",
     ]
     description: str = Field(default="", max_length=2000)
-
-
-class ModerationResult(CamelModel):
-    allowed: bool
-    status: str
-    trust_score: int
-    risk_score: int
-    reasons: list[str] = Field(default_factory=list)
-    message: str | None = None
-    provider: str = "rules"
-
-
-class ScanListingRequest(CamelModel):
-    title: str = Field(max_length=200)
-    description: str = Field(default="", max_length=5000)
-    price: float | None = None
-    rooms: int | None = None
 
 
 def listing_public_dict(listing: Any, *, viewer_can_see_phone: bool) -> dict[str, Any]:

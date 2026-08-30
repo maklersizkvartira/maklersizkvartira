@@ -258,6 +258,25 @@ async function main() {
       chrome.set(url, all(nav, />([^<>]{2,40})<\/a>/g).map((t) => t.trim()).join('|'));
     }
 
+    // -- Is the dead brand still in the output? ----------------------------
+    //
+    // A rebrand is the one change that half-lands without anything breaking.
+    // Titles, canonicals and JSON-LD stay well-formed and unique whether they
+    // say Uyiz or the name the site stopped using; every check above passes
+    // and the old brand ships to production on whichever pages were missed.
+    // A string search over the served HTML is the only thing that sees it.
+    //
+    // The storage-migration shim in index.html reads the pre-rebrand keys on
+    // purpose and is skipped: it is script, not prose or markup.
+    const shipped = html.replace(/<script(?![^>]*ld\+json)[\s\S]*?<\/script>/gi, ' ');
+    for (const term of ['maklersizuy', 'maklersiz']) {
+      const count = countOf(shipped, new RegExp(term, 'gi'));
+      if (count > 0) {
+        fail(url, `the retired brand "${term}" appears ${count}× in the served HTML`);
+        break;
+      }
+    }
+
     // -- Links ------------------------------------------------------------
     for (const href of readers.hrefs(html)) {
       const target = href.replace(/\/$/, '') || '/';

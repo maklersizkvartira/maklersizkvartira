@@ -1,13 +1,17 @@
 /**
- * The owner's dashboard: every listing they posted, with its live counters and
- * the moderation verdict the server attached to it.
+ * The owner's dashboard: every listing they posted, with its live counters,
+ * the moderation state the server has it in, and where its Top request stands.
  *
  * The counters come straight from the API (`state.myListings`), so an outage
  * shows an error state instead of the invented numbers the previous build
  * rendered from mock data. The aggregate panel is derived from those same
  * rows — `viewsCount`, `favoritesCount`, `contactCount`, `trustScore` and
- * `aiCheckStatus` all arrive on `GET /listings/my` — so it needs no second
+ * `status` all arrive on `GET /listings/my` — so it needs no second
  * request and can never disagree with the list underneath it.
+ *
+ * This is also where a listing posted before Top existed can be promoted: the
+ * wizard only offers Top to the listing it is creating, and the request is
+ * free either way.
  *
  * Loading, failure and "you have not posted anything yet" render as three
  * visibly different things. They used to collapse into the same grey box,
@@ -26,6 +30,7 @@ import {
   Phone,
   PlusCircle,
   RefreshCw,
+  Rocket,
   ShieldCheck,
   TrendingUp,
   Trash2,
@@ -34,16 +39,24 @@ import {
 
 import { useTranslation } from '../../i18n';
 import { useAppStore } from '../../stores/useAppStore';
-import type { AICheckStatus, Listing } from '../../types';
+import type { Listing, ListingStatus } from '../../types';
+import { ApiError } from '../../services/http';
+import {
+  DEFAULT_TOP_DAYS,
+  ListingsApi,
+  MAX_TOP_NOTE_LENGTH,
+  TOP_DAYS_OPTIONS,
+} from '../../services/listingsApi';
 import { cn } from '../../lib/cn';
 import { useHaptics } from '../../hooks/useHaptics';
 import { Card, CardEmpty, SectionCard } from '../ui/Card';
-import { Button } from '../ui/Field';
+import { Button, Field, FormError, TextInput } from '../ui/Field';
+import { Sheet } from '../ui/Sheet';
 import { EditListingModal } from './EditListingModal';
 import { canPublishListings } from '../../types/roles';
 
-/** Maps the server's moderation verdict onto a shared status label and tone. */
-function moderationTone(status: AICheckStatus): { key: string; className: string } {
+/** Maps the server's moderation state onto a shared status label and tone. */
+function moderationTone(status: ListingStatus): { key: string; className: string } {
   switch (status) {
     case 'APPROVED':
       return { key: 'common.status.approved', className: 'bg-success-soft text-success' };
@@ -55,11 +68,6 @@ function moderationTone(status: AICheckStatus): { key: string; className: string
       return { key: 'common.status.warning', className: 'bg-warning-soft text-warning' };
     case 'REJECTED':
       return { key: 'common.status.rejected', className: 'bg-danger-soft text-danger' };
-    case 'VERIFICATION_REQUIRED':
-      return {
-        key: 'owner.my.moderation.verificationRequired',
-        className: 'bg-info-soft text-info',
-      };
     default:
       return { key: 'common.status.pending', className: 'bg-warning-soft text-warning' };
   }
@@ -69,10 +77,12 @@ function moderationTone(status: AICheckStatus): { key: string; className: string
  * The three-way split the panel reports.
  *
  * Anything that is neither published nor refused is still in a queue, so
- * WARNING and VERIFICATION_REQUIRED count as pending: they name work the owner
- * or a moderator has left to do, not a verdict that has been reached.
+ * WARNING and UNDER_REVIEW count as pending: they name work the owner or a
+ * moderator has left to do, not a verdict that has been reached. A new
+ * listing is published outright, so in practice almost everything here is
+ * approved and the other two legs only fill up when an admin acts.
  */
-function moderationBucket(status: AICheckStatus): 'approved' | 'rejected' | 'pending' {
+function moderationBucket(status: ListingStatus): 'approved' | 'rejected' | 'pending' {
   if (status === 'APPROVED') return 'approved';
   if (status === 'REJECTED') return 'rejected';
   return 'pending';
@@ -104,7 +114,7 @@ function summarise(listings: Listing[]): OwnerTotals {
 
   let trustSum = 0;
   for (const listing of listings) {
-    totals[moderationBucket(listing.aiCheckStatus)] += 1;
+    totals[moderationBucket(listing.status ?? 'APPROVED')] += 1;
     totals.views += listing.viewsCount ?? 0;
     totals.favorites += listing.favoritesCount ?? 0;
     totals.contacts += listing.contactCount ?? 0;
@@ -169,7 +179,7 @@ const RowCounter: React.FC<{
 
 // ---------------------------------------------------------------------------
 export const MyListingsPage: React.FC = () => {
-  const { t, tRaw, formatNumber, formatPrice } = useTranslation();
+  const { t, tRaw, formatDate, formatNumber, formatPrice } = useTranslation();
   const haptics = useHaptics();
 
   const currentUser = useAppStore((state) => state.currentUser);
@@ -191,6 +201,17 @@ export const MyListingsPage: React.FC = () => {
   // skeleton is held until the first fetch has settled.
   const [settled, setSettled] = useState(false);
   const [editing, setEditing] = useState<Listing | null>(null);
+
+  // -- The Top request ------------------------------------------------------
+  // One sheet for the whole list: which listing it is about is the only state
+  // a row contributes, so a row does not need its own copy of the form.
+  const [topTarget, setTopTarget] = useState<Listing | null>(null);
+  const [topDays, setTopDays] = useState<number>(DEFAULT_TOP_DAYS);
+  const [topNote, setTopNote] = useState('');
+  const [topSending, setTopSending] = useState(false);
+  const [topError, setTopError] = useState<string | null>(null);
+  /** True once the request is with the admins; the sheet becomes the receipt. */
+  const [topSent, setTopSent] = useState(false);
 
   const isOwner = canPublishListings(currentUser?.role);
 
@@ -251,6 +272,48 @@ export const MyListingsPage: React.FC = () => {
   const refresh = () => {
     haptics.tap();
     void fetchMyListings();
+  };
+
+  const openTopRequest = (listing: Listing) => {
+    haptics.tap();
+    setTopTarget(listing);
+    setTopDays(DEFAULT_TOP_DAYS);
+    setTopNote('');
+    setTopError(null);
+    setTopSent(false);
+  };
+
+  const closeTopRequest = () => setTopTarget(null);
+
+  const sendTopRequest = async () => {
+    if (!topTarget) return;
+    setTopSending(true);
+    setTopError(null);
+    try {
+      await ListingsApi.requestTop(topTarget.id, {
+        days: topDays,
+        note: topNote.trim() || null,
+      });
+      haptics.success();
+      // The sheet stays open on purpose: the request being *sent* rather than
+      // granted is the whole point, and a sheet that vanished left the owner
+      // looking at an unchanged row wondering whether anything had happened.
+      setTopSent(true);
+      void fetchMyListings();
+    } catch (error) {
+      haptics.warn();
+      // The refusals this endpoint has each mean something different to the
+      // owner, and "try again later" is wrong for two of the three.
+      if (error instanceof ApiError && error.code === 'top_request_pending') {
+        setTopError(t('owner.my.top.alreadyPending'));
+      } else if (error instanceof ApiError && error.code === 'top_listing_not_public') {
+        setTopError(t('owner.my.top.notPublic'));
+      } else {
+        setTopError(t('owner.my.top.failed'));
+      }
+    } finally {
+      setTopSending(false);
+    }
   };
 
   return (
@@ -433,9 +496,36 @@ export const MyListingsPage: React.FC = () => {
                 // a listing people message rather than ring look dead.
                 const conversion =
                   views > 0 ? (((contacts + messages) / views) * 100).toFixed(1) : '0.0';
-                const status = moderationTone(listing.aiCheckStatus);
+                const status = moderationTone(listing.status ?? 'APPROVED');
                 const cover = listing.images?.[0];
-                const reasons = listing.aiRiskReasons ?? [];
+                // A listing that is already promoted, or whose request is
+                // still with the admins, is not offered the button again.
+                //
+                // "Already promoted" is the DATE, not `isFeatured` and not the
+                // last request's status: nothing on the backend clears the
+                // boolean when the run ends, so reading it would tell the
+                // owner "Top faol" for ever after their week expired and would
+                // never offer them the button again. This is the same rule the
+                // catalogue's Top rail and the RECOMMENDED sort apply.
+                const topStatus = listing.topRequestStatus ?? null;
+                const topUntil = listing.featuredUntil
+                  ? new Date(listing.featuredUntil).getTime()
+                  : null;
+                const topActive =
+                  Boolean(listing.isFeatured) &&
+                  (topUntil === null || (Number.isFinite(topUntil) && topUntil > Date.now()));
+                const topPending = topStatus === 'PENDING';
+                const topLine = topPending
+                  ? t('owner.my.top.pending')
+                  : topActive
+                    ? listing.featuredUntil
+                      ? t('owner.my.top.activeUntil', {
+                          date: formatDate(listing.featuredUntil, { dateStyle: 'medium' }),
+                        })
+                      : t('owner.my.top.active')
+                    : topStatus === 'REJECTED'
+                      ? t('owner.my.top.rejected')
+                      : null;
 
                 return (
                   <Card
@@ -481,11 +571,34 @@ export const MyListingsPage: React.FC = () => {
                                 {t('common.rentalType.roommate')}
                               </span>
                             )}
+                            {topActive && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-black text-warning">
+                                <Rocket className="h-3 w-3" aria-hidden="true" />
+                                {t('owner.my.top.badge')}
+                              </span>
+                            )}
                           </div>
 
                           <h3 className="mt-1 truncate text-sm font-extrabold text-content sm:text-base">
                             {listing.title}
                           </h3>
+
+                          {/* The administrator's own words about this listing.
+                              Publication no longer runs a check, so a warning
+                              or a takedown is always a person's decision, and
+                              this note is the only place the owner can read
+                              why. Shown only on the two statuses that mean
+                              somebody acted, so an approved listing does not
+                              carry a stale note from an earlier round. */}
+                          {listing.moderationNote?.trim() &&
+                          (listing.status === 'WARNING' ||
+                            listing.status === 'REJECTED') ? (
+                            <p className="mt-1 rounded-lg bg-danger-soft px-2 py-1 text-[11px] font-semibold leading-snug text-danger">
+                              {t('owner.my.moderationNote', {
+                                note: listing.moderationNote.trim(),
+                              })}
+                            </p>
+                          ) : null}
 
                           <p className="mt-0.5 text-xs font-extrabold text-brand-text">
                             {formatPrice(listing.price)}
@@ -565,23 +678,24 @@ export const MyListingsPage: React.FC = () => {
                       <span className="text-subtle">{t('owner.my.metrics.conversionHint')}</span>
                     </div>
 
-                    <Card tone="nested" padding="none" className="space-y-1.5 p-3">
-                      <p className="text-[11px] font-extrabold uppercase tracking-wider text-muted">
-                        {t('owner.my.moderation.title')}
+                    <Card tone="nested" padding="none" className="flex flex-col gap-1.5 p-3">
+                      <p className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-muted">
+                        <Rocket className="h-3.5 w-3.5 shrink-0 text-brand" aria-hidden="true" />
+                        {t('owner.my.top.title')}
                       </p>
-                      {reasons.length > 0 ? (
+                      {topLine && <p className="text-xs font-bold text-content">{topLine}</p>}
+                      {!topActive && !topPending && (
                         <>
-                          <p className="text-xs font-bold text-content">
-                            {t('owner.my.moderation.reasons')}
-                          </p>
-                          <ul className="list-inside list-disc space-y-1 text-xs text-muted">
-                            {reasons.map((reason) => (
-                              <li key={reason}>{reason}</li>
-                            ))}
-                          </ul>
+                          <p className="text-xs text-subtle">{t('owner.my.top.body')}</p>
+                          <button
+                            type="button"
+                            onClick={() => openTopRequest(listing)}
+                            className="press inline-flex min-h-11 items-center justify-center gap-1.5 self-start rounded-xl border border-brand/30 bg-brand-soft px-3.5 text-xs font-extrabold text-brand-text transition-colors hover:bg-brand-soft-2"
+                          >
+                            <Rocket className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span>{t('owner.my.top.cta')}</span>
+                          </button>
                         </>
-                      ) : (
-                        <p className="text-xs text-subtle">{t('owner.my.moderation.noReasons')}</p>
                       )}
                     </Card>
                   </Card>
@@ -591,6 +705,106 @@ export const MyListingsPage: React.FC = () => {
           </div>
         </>
       )}
+
+      {/*
+        Asking for Top, and the receipt for having asked.
+
+        The second half of the sheet is deliberately an alert rather than a
+        toast: "sent" and "granted" are different things here, and the owner
+        has to read that an admin decides before their listing moves.
+      */}
+      <Sheet
+        open={topTarget !== null}
+        onClose={closeTopRequest}
+        title={topSent ? t('owner.create.top.sentTitle') : t('owner.create.top.title')}
+        description={topSent ? t('owner.create.top.sentBody') : t('owner.create.top.body')}
+        size="sm"
+        footer={
+          topSent ? (
+            <Button type="button" fullWidth className="press" onClick={closeTopRequest}>
+              {t('common.action.close')}
+            </Button>
+          ) : (
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                className="press flex-1"
+                onClick={closeTopRequest}
+                disabled={topSending}
+              >
+                {t('common.action.cancel')}
+              </Button>
+              <Button
+                type="button"
+                className="press flex-1"
+                loading={topSending}
+                onClick={() => {
+                  void sendTopRequest();
+                }}
+              >
+                <Rocket className="h-4 w-4" aria-hidden="true" />
+                <span>{topSending ? t('owner.my.top.sending') : t('owner.my.top.send')}</span>
+              </Button>
+            </div>
+          )
+        }
+      >
+        {topSent ? (
+          <p className="flex items-start gap-2 text-sm font-semibold text-muted">
+            <Rocket className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+            <span>{t('owner.create.top.howItWorks')}</span>
+          </p>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-xs font-medium leading-relaxed text-subtle">
+              {t('owner.create.top.howItWorks')}
+            </p>
+
+            <fieldset className="space-y-1.5">
+              <legend className="text-xs font-bold uppercase tracking-wider text-muted">
+                {t('owner.create.top.daysLabel')}
+              </legend>
+              <div className="grid grid-cols-3 gap-2">
+                {TOP_DAYS_OPTIONS.map((days) => (
+                  <button
+                    key={days}
+                    type="button"
+                    onClick={() => {
+                      setTopDays(days);
+                      haptics.select();
+                    }}
+                    aria-pressed={topDays === days}
+                    className={cn(
+                      'press flex min-h-11 items-center justify-center rounded-2xl border',
+                      'p-2.5 text-xs font-black transition-all',
+                      topDays === days
+                        ? 'border-brand bg-brand text-on-brand shadow-brand'
+                        : 'border-line bg-surface-2 text-content hover:bg-surface-3',
+                    )}
+                  >
+                    {t('owner.create.top.daysOption', { count: days })}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            <Field label={t('owner.create.top.noteLabel')}>
+              {({ id }) => (
+                <TextInput
+                  id={id}
+                  value={topNote}
+                  maxLength={MAX_TOP_NOTE_LENGTH}
+                  onChange={(event) => setTopNote(event.target.value)}
+                  placeholder={t('owner.create.top.notePlaceholder')}
+                />
+              )}
+            </Field>
+
+            <FormError message={topError} />
+          </div>
+        )}
+      </Sheet>
 
       {editing && (
         <EditListingModal

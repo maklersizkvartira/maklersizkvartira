@@ -9,7 +9,7 @@
  */
 
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { Edit3, Save, Video, X } from 'lucide-react';
+import { Edit3, Save, X } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { UZBEKISTAN_REGIONS, TASHKENT_METRO_LINES } from '../../data/mockLocations';
@@ -62,7 +62,6 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
   const [address, setAddress] = useState(listing.address ?? '');
   const [metro, setMetro] = useState(listing.metroStation ?? METRO_NONE);
   const [metroMinutes, setMetroMinutes] = useState(listing.metroDistanceMinutes ?? 5);
-  const [videoUrl, setVideoUrl] = useState(listing.videoUrl ?? '');
   // All seven, from the shared list. This form used to expose four, so the
   // three it left out — air conditioning, a washing machine, internet — could
   // be switched on while posting and never switched off again.
@@ -88,14 +87,6 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    // The API stores an https link and rejects anything else with a 422 that
-    // takes the whole edit with it, so the check happens before the round trip.
-    const video = videoUrl.trim();
-    if (video && !/^https:\/\/\S+$/i.test(video)) {
-      setSaveError(t('common.error.validation'));
-      return;
-    }
-
     setSaving(true);
     setSaveError(null);
 
@@ -115,7 +106,9 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
       address: address.trim(),
       metroStation: metro === METRO_NONE ? null : metro,
       metroDistanceMinutes: metro === METRO_NONE ? null : metroMinutes,
-      videoUrl: video || null,
+      // `videoUrl` is deliberately absent rather than sent as null: video is
+      // gone from the product, but a listing posted before that still has one
+      // stored, and an update that names the field would wipe it on every save.
       ...amenities,
     };
 
@@ -364,38 +357,6 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
               />
             )}
           </Field>
-
-          <div className="space-y-3 rounded-2xl border border-line bg-surface-2 p-4">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted">
-                <Video className="h-4 w-4 text-danger" aria-hidden="true" />
-                {t('owner.create.photos.videoLabel')}
-              </span>
-              <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-bold text-subtle">
-                {t('common.state.optional')}
-              </span>
-            </div>
-
-            {/* A file picker here produced a `data:` URL, which the API
-                refuses outright — so the control could only ever fail. It
-                takes the https link the API actually stores. */}
-            <Field
-              label={t('owner.create.photos.videoDropTitle')}
-              hint={t('owner.create.photos.videoUploadUnsupported')}
-            >
-              {({ id, describedBy }) => (
-                <TextInput
-                  id={id}
-                  aria-describedby={describedBy}
-                  type="url"
-                  inputMode="url"
-                  value={videoUrl}
-                  onChange={(event) => setVideoUrl(event.target.value)}
-                  placeholder="https://youtu.be/..."
-                />
-              )}
-            </Field>
-          </div>
 
           <fieldset className="space-y-2">
             <legend className="text-xs font-bold uppercase tracking-wider text-muted">

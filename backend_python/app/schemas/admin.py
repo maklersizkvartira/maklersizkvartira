@@ -13,6 +13,7 @@ from app.models.enums import (
     Language,
     ListingStatus,
     ReportStatus,
+    TopRequestStatus,
     UserRole,
     UserStatus,
     VerificationStatus,
@@ -221,6 +222,47 @@ class AdminVerificationRow(ORMCamelModel):
 
 class ReviewVerificationRequest(CamelModel):
     status: VerificationStatus
+    rejection_reason: str | None = Field(default=None, max_length=500)
+
+
+# ---------------------------------------------------------------------------
+# Top (promotion) requests
+# ---------------------------------------------------------------------------
+class AdminTopRequestRow(ORMCamelModel):
+    id: uuid.UUID
+    listing_id: uuid.UUID
+    #: Joined in by the list endpoint; the PATCH path fills them by hand, so
+    #: deciding a request does not blank the listing column in the table.
+    listing_title: str | None = None
+    listing_district: str | None = None
+    listing_price: float | None = None
+    #: ONE image, never the whole array: a listing's `images` can hold
+    #: multi-megabyte base64 data URIs, and a queue page carrying full arrays
+    #: is the trap that forced the listings page size down.
+    listing_image: str | None = None
+    listing_is_featured: bool = False
+    listing_featured_until: datetime | None = None
+    owner_id: uuid.UUID | None = None
+    owner_name: str | None = None
+    owner_phone: str | None = None
+    requested_days: int
+    note: str | None = None
+    status: str
+    rejection_reason: str | None = None
+    #: Non-null only on an approved request: what was actually granted.
+    granted_days: int | None = None
+    granted_weight: int | None = None
+    granted_until: datetime | None = None
+    reviewed_at: datetime | None = None
+    created_at: datetime
+
+
+class ReviewTopRequestRequest(CamelModel):
+    #: APPROVED or REJECTED. PENDING is not a decision.
+    status: TopRequestStatus
+    #: Only read on APPROVED. None means "grant what the owner asked for".
+    days: int | None = Field(default=None, ge=1, le=365)
+    promotion_weight: int = Field(default=100, ge=0, le=1000)
     rejection_reason: str | None = Field(default=None, max_length=500)
 
 

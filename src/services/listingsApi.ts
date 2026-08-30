@@ -7,7 +7,7 @@
  */
 
 import { http } from './http';
-import type { Listing } from '../types';
+import type { Listing, TopRequestStatus } from '../types';
 
 export interface ListingQuery {
   search?: string;
@@ -52,6 +52,14 @@ export interface ListingPage {
   meta: PageMeta;
 }
 
+/**
+ * @deprecated Nothing decides this any more.
+ *
+ * A listing publishes the moment it is created, so `POST /listings` answers
+ * with a constant allow for one more release — long enough for a cached
+ * bundle that still reads the field not to crash on its absence. No caller
+ * branches on it.
+ */
 export interface ModerationResult {
   allowed: boolean;
   status: string;
@@ -59,6 +67,25 @@ export interface ModerationResult {
   riskScore: number;
   reasons: string[];
   provider: string;
+}
+
+/** Durations the owner may ask Top for. An admin can grant a different one. */
+export const TOP_DAYS_OPTIONS = [7, 14, 30] as const;
+export const DEFAULT_TOP_DAYS = 7;
+/** Enough for a sentence of context for the moderator, not an essay. */
+export const MAX_TOP_NOTE_LENGTH = 200;
+
+/** The owner's request to have one listing promoted, as the API returns it. */
+export interface TopRequest {
+  id: string;
+  listingId: string;
+  status: TopRequestStatus;
+  requestedDays: number;
+  note: string | null;
+  rejectionReason: string | null;
+  grantedUntil: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
 }
 
 /** Drops empty values so the query string carries only real filters. */
@@ -98,6 +125,10 @@ export const ListingsApi = {
     return response.data;
   },
 
+  /**
+   * A 201 here means the listing is live. The `moderation` key is the
+   * deprecated constant described on `ModerationResult` and is not read.
+   */
   create: (payload: Record<string, unknown>) =>
     http.post<{ data: Listing; moderation: ModerationResult }>('/listings', payload),
 
@@ -134,15 +165,22 @@ export const ListingsApi = {
       description,
     }),
 
-  /** Preview moderation before publishing, so the owner can fix the text. */
-  scan: async (input: {
-    title: string;
-    description: string;
-    price?: number;
-    rooms?: number;
-  }): Promise<ModerationResult> => {
-    const response = await http.post<{ aiAnalysis: ModerationResult }>('/listings/scan', input);
-    return response.aiAnalysis;
+  /**
+   * Ask for this listing to be promoted to the top of the results.
+   *
+   * The request is free and it is not a purchase: it lands in the admin
+   * queue, and the listing only moves once a moderator approves it. A second
+   * request while one is still pending comes back as 409 `top_request_pending`.
+   */
+  requestTop: async (
+    id: string,
+    input: { days: number; note?: string | null },
+  ): Promise<TopRequest> => {
+    const response = await http.post<{ data: TopRequest }>(
+      `/listings/${encodeURIComponent(id)}/top`,
+      { days: input.days, note: input.note?.trim() || null },
+    );
+    return response.data;
   },
 };
 

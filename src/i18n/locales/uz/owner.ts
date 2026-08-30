@@ -23,7 +23,7 @@ export const owner = {
     breadcrumb: 'E’lon berish',
     title: 'E’lon joylashtirish',
     subtitle:
-      '4 ta oddiy qadam — 3 daqiqada e’loningiz tayyor. Maklersiz, to‘g‘ridan-to‘g‘ri ijarachilar bilan.',
+      '3 ta oddiy qadam — 3 daqiqada e’loningiz tayyor. E’lon joylash bepul.',
     stepCounter: '{current}-qadam / {total}',
     stepBadge: '{step}-qadam',
     errorsTitle: 'Iltimos, quyidagi maydonlarni to‘g‘rilang:',
@@ -33,16 +33,13 @@ export const owner = {
       locationHint: 'Uy qayerda joylashgan?',
       detailsTitle: '2. Uy ma’lumoti',
       detailsHint: 'Xonalar, maydon, narx',
-      photosTitle: '3. Rasmlar',
-      photosHint: 'Kamida 3 ta rasm',
-      contactTitle: '4. Aloqa',
-      contactHint: 'Sizga qanday bog‘lanishadi?',
+      photosTitle: '3. Rasmlar va aloqa',
+      photosHint: 'Kamida 1 ta rasm va aloqa',
     },
 
     next: {
       toDetails: 'Keyingi: uy ma’lumoti',
-      toPhotos: 'Keyingi: rasmlar',
-      toContact: 'Keyingi: aloqa va tekshiruv',
+      toPhotos: 'Keyingi: rasmlar va aloqa',
     },
 
     location: {
@@ -134,8 +131,8 @@ export const owner = {
     },
 
     photos: {
-      heading: 'Kvartira rasmlari va video',
-      subheading: 'Kamida 3 ta sifatli rasm yuklang — ko‘proq rasm ko‘proq ijarachi demak.',
+      heading: 'Kvartira rasmlari',
+      subheading: 'Kamida 1 ta sifatli rasm yuklang — ko‘proq rasm ko‘proq ijarachi demak.',
       dropTitle: 'Rasmlarni yuklash uchun bosing',
       dropBody: 'Telefoningiz yoki galereyangizdan rasm tanlang (JPG, PNG, WEBP).',
       dropCta: 'Fayllarni tanlash ({count} ta yuklandi)',
@@ -143,27 +140,18 @@ export const owner = {
       coverBadge: 'Asosiy rasm',
       imageAlt: '{index}-rasm',
       removeImage: '{index}-rasmni o‘chirish',
-      emptyHint: 'Siz hali rasm yuklamadingiz. Yuqoridagi maydonni bosib rasm tanlang.',
+      emptyHint: 'Kamida 1 ta rasm shart. Yuqoridagi maydonni bosib rasm tanlang.',
       limitNotice: 'Ko‘pi bilan {max} ta rasm yuklash mumkin.',
       limitReached: 'Rasmlar chegarasi to‘ldi: {max} ta.',
       sizeNotice: 'Yuklangan hajm: {size} MB / {max} MB.',
       readFailed: 'Ba’zi fayllarni o‘qib bo‘lmadi. Boshqa rasm tanlang.',
-      videoLabel: 'Kvartira video sharhi',
-      videoDropTitle: 'Telefoningizdan video tanlang',
-      videoDropBody: 'MP4, MOV yoki WEBM formatidagi qisqa video.',
-      videoCta: 'Videoni yuklash',
-      videoUploaded: 'Video yuklandi',
-      videoRemove: 'Videoni o‘chirish',
-      videoUploadUnsupported: 'Hozircha videoni to‘g‘ridan-to‘g‘ri yuklab bo‘lmaydi. Videoni YouTube’ga joylab, havolasini qo‘ying.',
       // Said once, before the upload, instead of only as an error afterwards.
-      countHint: 'Kamida {min} ta, ko‘pi bilan {max} ta rasm.',
-      sizeHint: 'Barcha fayllar jami {max} MB gacha.',
       countAndSizeHint: '{min}–{max} ta rasm, jami {size} MB gacha.',
       remainingHint: 'Yana {count} ta rasm qo‘shishingiz mumkin.',
     },
 
     contact: {
-      heading: 'Aloqa va xavfsizlik tekshiruvi',
+      heading: 'Aloqa ma’lumotlari',
       subheading: 'Ijarachilar siz bilan qanday bog‘lanadi?',
       phoneLabel: 'Telefon raqamingiz',
       phoneHint: 'Raqam profilingizdan olinadi. O‘zgartirish uchun profilga o‘ting.',
@@ -175,47 +163,49 @@ export const owner = {
       timePlaceholder: 'Har kuni 09:00 – 21:00',
     },
 
-    moderation: {
-      title: 'E’lonni tekshiruvdan o‘tkazing',
-      body: 'Nashr qilishdan oldin sarlavha, tavsif va narxni avtomatik tekshiruvdan o‘tkazing.',
-      runCta: 'Tekshirishni boshlash',
-      rerunCta: 'Qayta tekshirish',
-      scanning: 'E’lon tekshirilmoqda...',
-      scanningBody: 'Maklerlik belgilari, firibgarlik va narx mantiqi tahlil qilinmoqda.',
-      passedTitle: 'Tekshiruvdan muvaffaqiyatli o‘tdi',
-      passedBody: 'E’loningiz qoidalarga mos. Endi uni nashr qilishingiz mumkin.',
-      blockedTitle: 'E’lon tekshiruvdan o‘tmadi',
-      blockedBody: 'Quyidagi sabablarni to‘g‘rilab, qayta tekshiring.',
-      reasonsTitle: 'Sabablar',
-      riskScore: 'Xavf darajasi: {score}',
-      provider: 'Tekshiruvchi: {provider}',
-      failed: 'Tekshiruvni bajarib bo‘lmadi. Keyinroq urinib ko‘ring.',
-      editCta: 'Matnni tahrirlash',
-      rejectedTitle: 'E’lon moderatsiyadan o‘tmadi',
-      rejectedBody:
-        'E’loningiz saqlandi, lekin moderatsiyadan o‘tmagani uchun hozircha ko‘rinmaydi. Quyidagilarni to‘g‘rilang.',
-      goToMyListings: 'Mening e’lonlarim',
-    },
-
-    ai: {
-      writeCopy: 'AI matn yozsin',
-      suggestPrice: 'AI narx tavsiya qilsin',
-      photoTitle: 'AI rasm tahlili va narx tavsiyasi',
-      photoBody:
-        'AI rasmlardan kvartira holatini aniqlab, hududdagi e’lonlar asosida narx tavsiya qiladi.',
-      unavailable:
-        'Bu funksiya hozircha ishlamaydi: AI tahlili server tomoniga ko‘chirildi. Matn va narxni o‘zingiz kiriting.',
+    /**
+     * The Top promotion, offered on the last step.
+     *
+     * Nothing here may promise a position that has not been granted: the
+     * request is free, it goes to the admins, and the listing moves only
+     * after they approve it. Publication never waits for any of that.
+     */
+    top: {
+      title: 'E’loningizni Topga chiqaring',
+      body:
+        'Top e’lon ro‘yxatning eng boshida turadi — uni bir necha barobar ko‘p ijarachi ko‘radi.',
+      free: 'Bepul',
+      howItWorks:
+        'So‘rovni adminlar ko‘rib chiqadi. E’lon faqat tasdiqlangandan keyin yuqoriga chiqadi.',
+      daysLabel: 'Qancha muddatga?',
+      daysOption: '{count} kun',
+      noteLabel: 'Adminlarga izoh',
+      notePlaceholder: 'Masalan: kvartirani shoshilinch ijaraga berishim kerak',
+      cta: 'Top so‘rash',
+      selected: 'Top so‘rovi tanlandi',
+      selectedBody:
+        'So‘rov e’lon chop etilgach yuboriladi. Chop etishga bu hech qanday ta’sir qilmaydi.',
+      cancel: 'Bekor qilish',
+      sentTitle: 'Top so‘rovi yuborildi',
+      sentBody:
+        'So‘rovingiz adminlarga yuborildi. Ular tasdiqlaganidan keyin e’loningiz ro‘yxat boshiga chiqadi — shu paytgacha e’lon odatdagidek ko‘rinaveradi.',
+      failedTitle: 'E’lon chop etildi, Top so‘rovi yuborilmadi',
+      failedBody:
+        'E’loningiz saytda turibdi. Top so‘rovini “Mening e’lonlarim” bo‘limidan qayta yuborishingiz mumkin.',
+      sentCta: 'Mening e’lonlarim',
     },
 
     /**
      * Draft persistence.
      *
-     * The wizard is four steps long and a mis-tapped back gesture used to
-     * empty all four, so the answers are kept and the exit is confirmed.
+     * The wizard is three steps long and a mis-tapped back gesture used to
+     * empty all three, so the answers are kept and the exit is confirmed.
      */
     draft: {
       restored: 'Saqlangan qoralama tiklandi.',
       restoredAt: '{time} da saqlangan qoralama tiklandi.',
+      photosDropped:
+        'Qoralama saqlanganda rasmlar sig‘madi — ularni qaytadan yuklashingiz kerak.',
       discard: 'Qoralamani o‘chirish',
       discarded: 'Qoralama o‘chirildi.',
       saved: 'Qoralama saqlandi',
@@ -239,7 +229,7 @@ export const owner = {
       terms: 'Depozit va kommunal shartlarini tavsifda aniq yozing.',
       freeTitle: '100% bepul joylashtirish',
       freeBody:
-        'E’lon joylash butunlay bepul. Biz komissiya olmaymiz — ijarachi siz bilan to‘g‘ridan-to‘g‘ri bog‘lanadi.',
+        'E’lon joylash butunlay bepul. Ijarachilar e’lonni kim joylagan bo‘lsa, o‘sha bilan to‘g‘ridan-to‘g‘ri bog‘lanadi.',
       badgeTitle: 'Tasdiqlangan uy egasi belgisi',
       badgeCta: 'Ishonch belgisini olish',
     },
@@ -253,9 +243,9 @@ export const owner = {
       deposit: 'Depozit 0 yoki undan katta bo‘lishi kerak.',
       area: 'Maydonni to‘g‘ri kiriting.',
       floor: 'Qavat 1 dan jami qavatgacha bo‘lishi kerak.',
-      images: 'Kamida 3 ta haqiqiy rasm yuklang.',
+      images: 'Kamida 1 ta haqiqiy rasm yuklang.',
       imagesTooLarge:
-        'Rasm va video hajmi {size} MB — chegaradan ({max} MB) oshdi. Kamroq yoki kichikroq fayl yuklang.',
+        'Rasmlar hajmi {size} MB — chegaradan ({max} MB) oshdi. Kamroq yoki kichikroq rasm yuklang.',
       phone: 'Profilingizga ishlaydigan telefon raqamini qo‘shing.',
       telegram: 'Telegram username noto‘g‘ri. Masalan: @dilshod_karimov',
       limitReached: 'Faol e’lonlar chegarasiga yetdingiz ({max} ta). Avval eskisini o‘chiring.',
@@ -302,7 +292,7 @@ export const owner = {
 
     empty: {
       title: 'Siz hali e’lon joylashtirmadingiz',
-      body: 'Kvartirangizni komissiyasiz, mutlaqo bepul e’lon qiling.',
+      body: 'Kvartirangizni mutlaqo bepul e’lon qiling.',
       cta: 'E’lon joylash',
     },
 
@@ -315,11 +305,34 @@ export const owner = {
     deleteConfirm: 'Ushbu e’lonni o‘chirasizmi? Bu amalni bekor qilib bo‘lmaydi.',
     openListing: 'E’lonni ochish',
 
-    moderation: {
-      title: 'Moderatsiya holati',
-      reasons: 'Moderator izohlari',
-      verificationRequired: 'Tasdiqlash talab qilinadi',
-      noReasons: 'Qo‘shimcha izoh yo‘q.',
+    /**
+     * What an administrator wrote when they warned about or took down this
+     * listing. With the publish-time check gone this note is the owner's only
+     * explanation, so it is printed in full rather than summarised, and only
+     * ever on their own listings - the API sends it to nobody else.
+     */
+    moderationNote: 'Administrator izohi: {note}',
+
+    /**
+     * The Top state of one listing, on its own row.
+     *
+     * A listing whose request is waiting or already granted is not offered
+     * the button again — the state line is the whole answer there.
+     */
+    top: {
+      title: 'Top e’lon',
+      body: 'So‘rov bepul. Adminlar tasdiqlasa, e’lon ro‘yxat boshiga chiqadi.',
+      badge: 'TOP',
+      cta: 'Top so‘rash',
+      pending: 'Top so‘rovi yuborildi — adminlar ko‘rib chiqmoqda.',
+      active: 'Top faol — e’lon ro‘yxat boshida turibdi.',
+      activeUntil: 'Top faol — {date} gacha ro‘yxat boshida turadi.',
+      rejected: 'Top so‘rovi rad etildi. Qaytadan so‘rashingiz mumkin.',
+      send: 'So‘rovni yuborish',
+      sending: 'Yuborilmoqda...',
+      alreadyPending: 'Bu e’lon uchun so‘rov allaqachon yuborilgan.',
+      notPublic: 'Faqat chop etilgan e’lonni Topga chiqarish mumkin.',
+      failed: 'So‘rovni yuborib bo‘lmadi. Keyinroq urinib ko‘ring.',
     },
   },
 

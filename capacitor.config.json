@@ -1,6 +1,7 @@
 {
+  "_appIdNote": "appId is FROZEN at uz.maklersizuy.app even though the brand is now Uyiz. An application id is store identity, not a label: changing it makes a NEW app that existing installs never update to, and it is also the FileProvider authority (android/app/src/main/AndroidManifest.xml derives ${applicationId}.fileprovider) and the custom URL scheme used by OAuth redirects. The visible name is appName below, which is what a user actually reads. Do not change appId without checking Google Play / App Store publication status first.",
   "appId": "uz.maklersizuy.app",
-  "appName": "Maklersiz Uy",
+  "appName": "Uyiz",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "server": {

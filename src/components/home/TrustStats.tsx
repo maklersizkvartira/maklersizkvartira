@@ -4,23 +4,36 @@
  * The previous version hardcoded "1,240+ verified owners" and "840+ brokers
  * blocked". Those numbers had no source, so they are gone: this panel now
  * renders only what the API actually reports, and says so when it reports
- * nothing. The 0% commission tile is a policy, not a measurement, which is
- * why it is always shown.
+ * nothing.
+ *
+ * The coverage tile is the one that is always shown, because it is the one
+ * figure that does not depend on the API answering: it is counted from the
+ * shipped administrative division. It replaced a "0% broker commission" tile,
+ * which was a promise about a third party's fee rather than a measurement —
+ * and one the platform can no longer make now that professional agents post
+ * here too.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Ban,
   BarChart3,
   ChevronDown,
   ChevronUp,
+  MapPin,
   ShieldCheck,
   Sparkles,
 } from 'lucide-react';
 
 import { useTranslation, type TranslationKey } from '../../i18n';
+import { UZBEKISTAN_REGIONS } from '../../data/mockLocations';
 import { useAppStore } from '../../stores/useAppStore';
 import { Button } from '../ui/Field';
+
+/** Counted once at module load: the taxonomy is a shipped constant. */
+const DISTRICT_COUNT = UZBEKISTAN_REGIONS.reduce(
+  (total, region) => total + region.districts.length,
+  0,
+);
 
 interface TrustStat {
   id: string;
@@ -60,11 +73,11 @@ export const TrustStats: React.FC = () => {
 
   const stats: TrustStat[] = [
     {
-      id: 'commission',
-      value: '0%',
-      labelKey: 'home.stats.commission',
-      hintKey: 'home.stats.commissionHint',
-      icon: Ban,
+      id: 'coverage',
+      value: formatNumber(DISTRICT_COUNT),
+      labelKey: 'home.stats.districtsLabel',
+      hintKey: 'home.stats.districtsHint',
+      icon: MapPin,
       tone: 'bg-brand/20 text-brand',
     },
   ];

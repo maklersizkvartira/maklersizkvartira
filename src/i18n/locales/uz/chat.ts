@@ -16,7 +16,7 @@ export const chat = {
     youPrefix: 'Siz:',
   },
   page: {
-    subtitle: 'Uy egasi bilan to‘g‘ridan-to‘g‘ri bog‘laning — maklersiz va komissiyasiz.',
+    subtitle: 'E’lon egasi bilan to‘g‘ridan-to‘g‘ri bog‘laning.',
   },
 
   notice: {

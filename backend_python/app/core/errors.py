@@ -243,11 +243,6 @@ MESSAGES: dict[str, dict[str, str]] = {
         "ru": "Это объявление вам не принадлежит.",
         "en": "This listing does not belong to you.",
     },
-    "listing_rejected_by_ai": {
-        "uz": "E’lon moderatsiyadan o‘tmadi: maklerlik yoki firibgarlik belgilari aniqlandi.",
-        "ru": "Объявление не прошло модерацию: признаки посредничества или мошенничества.",
-        "en": "The listing failed moderation: broker or fraud signals were detected.",
-    },
     "listing_limit_reached": {
         "uz": "Bir soatda faqat {limit} ta e’lon joylashingiz mumkin.",
         "ru": "В час можно разместить не более {limit} объявлений.",
@@ -262,6 +257,28 @@ MESSAGES: dict[str, dict[str, str]] = {
         "uz": "Bitta e’longa eng ko‘pi {limit} ta rasm yuklash mumkin.",
         "ru": "К одному объявлению можно приложить не более {limit} фото.",
         "en": "A listing may include at most {limit} images.",
+    },
+    "image_required": {
+        "uz": "Kamida 1 ta rasm yuklang.",
+        "ru": "Загрузите хотя бы одно фото.",
+        "en": "Upload at least one photo.",
+    },
+    # -- Top (promotion) requests -------------------------------------------
+    "top_request_pending": {
+        "uz": "Bu e’lon uchun Top so‘rovi allaqachon yuborilgan. Admin javobini kuting.",
+        "ru": "Заявка на Топ для этого объявления уже отправлена. "
+              "Дождитесь решения администратора.",
+        "en": "A Top request for this listing is already pending an admin decision.",
+    },
+    "top_listing_not_public": {
+        "uz": "Faqat tasdiqlangan e’lonni Topga chiqarish mumkin.",
+        "ru": "В Топ можно поднять только одобренное объявление.",
+        "en": "Only an approved listing can be promoted to the top.",
+    },
+    "top_request_already_reviewed": {
+        "uz": "Bu so‘rov allaqachon ko‘rib chiqilgan.",
+        "ru": "Эта заявка уже рассмотрена.",
+        "en": "This request has already been reviewed.",
     },
     # -- Admin --------------------------------------------------------------
     "admin_unauthorized": {
@@ -296,9 +313,9 @@ MESSAGES: dict[str, dict[str, str]] = {
     },
     # -- AI -----------------------------------------------------------------
     "ai_daily_limit": {
-        "uz": "Bugungi {limit} ta bepul Shield AI so‘rovingiz tugadi. Ertaga yangilanadi.",
-        "ru": "Дневной лимит {limit} бесплатных запросов Shield AI исчерпан. Обновится завтра.",
-        "en": "You have used all {limit} free Shield AI requests for today. Resets tomorrow.",
+        "uz": "Bugungi {limit} ta bepul Uyiz AI so‘rovingiz tugadi. Ertaga yangilanadi.",
+        "ru": "Дневной лимит {limit} бесплатных запросов Uyiz AI исчерпан. Обновится завтра.",
+        "en": "You have used all {limit} free Uyiz AI requests for today. Resets tomorrow.",
     },
     "ai_message_required": {
         "uz": "Xabar matnini kiriting.",

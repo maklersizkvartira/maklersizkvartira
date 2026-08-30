@@ -15,7 +15,7 @@ export const auth = {
     hint: 'Buni keyinroq profilingizdan o‘zgartirishingiz mumkin.',
     owner: {
       title: 'Men uy egasiman',
-      description: 'Kvartiramni maklersiz, to‘g‘ridan-to‘g‘ri ijaraga bermoqchiman',
+      description: 'Kvartiramni ijaraga bermoqchiman',
     },
     student: {
       title: 'Kvartira izlayapman',
@@ -69,7 +69,7 @@ export const auth = {
 
   register: {
     title: 'Yangi hisob yarating',
-    subtitle: 'Bir daqiqada ro‘yxatdan o‘ting — komissiyasiz',
+    subtitle: 'Bir daqiqada ro‘yxatdan o‘ting — bepul',
     submit: 'Davom etish',
     submitting: 'Kod yuborilmoqda...',
     haveAccount: 'Hisobingiz bormi?',
@@ -135,12 +135,12 @@ export const auth = {
     badge: 'Muvaffaqiyatli!',
     registered: 'Xush kelibsiz, {name}!',
     registeredBody:
-      'Hisobingiz yaratildi va telefon raqamingiz tasdiqlandi. Endi maklersiz kvartira izlashingiz mumkin.',
+      'Hisobingiz yaratildi va telefon raqamingiz tasdiqlandi. Endi kvartira izlashingiz mumkin.',
     loggedIn: 'Xush kelibsiz, {name}',
     loggedInBody: 'Tizimga muvaffaqiyatli kirdingiz.',
     welcomeTitle: 'Xush kelibsiz, {name}!',
     welcomeThanks:
-      'MaklersizUy loyihasidan ro‘yxatdan o‘tganingiz va bizni tanlaganingiz uchun rahmat.',
+      'Uyiz loyihasidan ro‘yxatdan o‘tganingiz va bizni tanlaganingiz uchun rahmat.',
     welcomeDismiss: 'Davom etish uchun bosing',
     redirecting: 'Yo‘naltirilmoqda...',
   },

@@ -1,5 +1,7 @@
 # README-3
 
+> **Tarixiy hujjat.** Bu spetsifikatsiya loyiha hali Maklersiz.uz deb atalgan paytda yozilgan; hozirgi mahsulot [`README.md`](./README.md) da tasvirlangan va nizo bo‘lsa README.md ustun turadi.
+
 # VIRAL MARKETING ENGINE & GROWTH SYSTEM
 
 ## Objective
@@ -90,7 +92,7 @@ maxsus havola yaratiladi.
 
 Misol:
 
-maklersiz.uz/r/ZAYN123
+uyiz.uz/r/ZAYN123
 
 ---
 

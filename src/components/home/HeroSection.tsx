@@ -22,7 +22,7 @@
  */
 
 import React, { useState } from 'react';
-import { BadgeCheck, BadgePercent, Search, ShieldCheck, Users, Zap } from 'lucide-react';
+import { BadgeCheck, Search, ShieldCheck, Users, Wallet, Zap } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { SearchModal } from './SearchModal';
@@ -248,10 +248,10 @@ export const HeroSection: React.FC = () => {
                   is 11% solid — it is off the drawing, which is what the pills
                   were moved onto the artwork to stop.
 
-                  The fourth label used to say "AI tekshiruvidan o‘tgan", which
-                  is the same promise as "Ishonchli e’lonlar" said twice and the
-                  longest string of the eight; it is dropped rather than parked
-                  back out in the margin. */}
+                  The fourth label promised an automatic AI screening the
+                  platform no longer runs, and it was the longest string of the
+                  eight besides; it is gone rather than parked back out in the
+                  margin. */}
               <HeroBadge
                 icon={ShieldCheck}
                 label={t('home.hero.badges.trustedListings')}
@@ -324,8 +324,8 @@ export const HeroSection: React.FC = () => {
                 className="right-[15%] top-[36%]"
               />
               <HeroBadge
-                icon={BadgePercent}
-                label={t('home.hero.badges.noCommission')}
+                icon={Wallet}
+                label={t('home.hero.badges.freeToPost')}
                 index={5}
                 className="bottom-[20%] right-[15%]"
               />

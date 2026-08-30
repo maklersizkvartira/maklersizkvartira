@@ -48,7 +48,7 @@ function jsonLdSafe(value) {
   return value.replace(/</g, '\\u003c');
 }
 
-function renderHead(head, language) {
+function renderHead(head, language, siteName) {
   const lines = [
     `<title>${attr(head.title)}</title>`,
     `<meta name="description" content="${attr(head.description)}" />`,
@@ -70,7 +70,7 @@ function renderHead(head, language) {
 
   lines.push(
     `<meta property="og:type" content="${attr(head.ogType)}" />`,
-    `<meta property="og:site_name" content="Maklersiz Uy" />`,
+    `<meta property="og:site_name" content="${attr(siteName)}" />`,
     `<meta property="og:locale" content="${attr(head.ogLocale)}" />`,
     `<meta property="og:title" content="${attr(head.title)}" />`,
     `<meta property="og:description" content="${attr(head.description)}" />`,
@@ -119,6 +119,18 @@ function renderPreconnect() {
   }
 }
 
+/**
+ * The brand name as index.html already spells it, as a last resort.
+ *
+ * Throwing instead would fail a deploy over a tag that no human ever reads;
+ * a missing name would ship an empty og:site_name, which unfurlers show as a
+ * blank line. Neither is better than reading the value that is right there.
+ */
+function templateSiteName(template) {
+  const match = template.match(/<meta property="og:site_name" content="([^"]*)"/i);
+  return match ? match[1] : '';
+}
+
 function replaceBetween(source, start, end, replacement) {
   const from = source.indexOf(start);
   const to = source.indexOf(end);
@@ -149,8 +161,18 @@ async function main() {
   const template = await readFile(templatePath, 'utf8');
   const preconnect = renderPreconnect();
 
-  const { renderAll } = await import(pathToFileURL(ENTRY).href);
+  const { renderAll, SITE_NAME } = await import(pathToFileURL(ENTRY).href);
   const pages = renderAll();
+
+  // og:site_name is the one head tag this script writes on its own, and it
+  // used to be a literal. A literal here is how the served HTML ends up
+  // naming a brand the running app no longer uses: nothing renders it, so
+  // nobody sees the drift except a crawler and every link unfurler.
+  //
+  // The SSR bundle re-exports SITE_NAME from src/seo/config.ts when
+  // entry-server.tsx exposes it; until it does, the value is read back out of
+  // the un-prerendered template, whose own head is the same brand.
+  const siteName = SITE_NAME ?? templateSiteName(template);
 
   let written = 0;
   const failures = [];
@@ -159,7 +181,12 @@ async function main() {
     if (page.error) failures.push(`${page.path}: ${page.error}`);
 
     let html = template;
-    html = replaceBetween(html, HEAD_START, HEAD_END, `\n${renderHead(page.head, page.language)}\n    `);
+    html = replaceBetween(
+      html,
+      HEAD_START,
+      HEAD_END,
+      `\n${renderHead(page.head, page.language, siteName)}\n    `,
+    );
     html = replaceBetween(html, BODY_START, BODY_END, page.html);
     if (preconnect) html = html.replace(PRECONNECT, preconnect);
     // The served `lang` has to match the page, not the template's default:

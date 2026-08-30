@@ -1,5 +1,5 @@
 {
-  "name": "maklersiz.uz",
+  "name": "uyiz.uz",
   "private": true,
   "version": "1.0.1",
   "type": "module",
@@ -20,7 +20,7 @@
     "build:ssr": "vite build --ssr src/entry-server.tsx",
     "build:prerender": "node scripts/prerender.mjs",
     "build:sitemap": "node scripts/generate-sitemap.mjs",
-    "seo:audit": "node scripts/seo-audit.mjs --warn"
+    "seo:audit": "node scripts/seo-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

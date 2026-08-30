@@ -15,11 +15,29 @@
  */
 
 import { detectInitialLanguage as getStoredLanguage } from '../i18n/storage';
+import { localStore } from '../lib/storage';
 
-const ACCESS_TOKEN_KEY = 'maklersiz.access_token';
-const REFRESH_TOKEN_KEY = 'maklersiz.refresh_token';
+const ACCESS_TOKEN_KEY = 'uyiz.access_token';
+const REFRESH_TOKEN_KEY = 'uyiz.refresh_token';
 
-/** Legacy keys from the previous build, cleared on boot. */
+// The keys these two replaced when the brand changed. `localStore.read` moves
+// a value found under the old name to the new one and deletes the old copy, so
+// the rename costs nobody their session — a token lives only in localStorage
+// and there is no server-side session to fall back on if it is dropped.
+const LEGACY_ACCESS_TOKEN_KEY = 'maklersiz.access_token';
+const LEGACY_REFRESH_TOKEN_KEY = 'maklersiz.refresh_token';
+
+/**
+ * Keys from the previous build, cleared on boot.
+ *
+ * These are NOT brand strings to rename — they are the literal names a dead
+ * client wrote, one of which held plaintext passwords. Renaming them to the
+ * new prefix would name keys that never existed and leave the real ones, and
+ * their contents, sitting in every returning visitor's browser.
+ *
+ * Nothing that is still in use may be listed here: this runs on boot, before
+ * the token migration above has had a chance to read the old key.
+ */
 const LEGACY_KEYS = [
   'access_token',
   'refresh_token',
@@ -78,37 +96,24 @@ export class ApiError extends Error {
 // Token storage
 // ---------------------------------------------------------------------------
 export function getAccessToken(): string | null {
-  try {
-    return localStorage.getItem(ACCESS_TOKEN_KEY);
-  } catch {
-    return null;
-  }
+  return localStore.read(ACCESS_TOKEN_KEY, LEGACY_ACCESS_TOKEN_KEY);
 }
 
 export function getRefreshToken(): string | null {
-  try {
-    return localStorage.getItem(REFRESH_TOKEN_KEY);
-  } catch {
-    return null;
-  }
+  return localStore.read(REFRESH_TOKEN_KEY, LEGACY_REFRESH_TOKEN_KEY);
 }
 
 export function saveTokens(access: string, refresh?: string | null): void {
-  try {
-    localStorage.setItem(ACCESS_TOKEN_KEY, access);
-    if (refresh) localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
-  } catch {
-    /* storage unavailable — the session lasts for this tab only */
-  }
+  localStore.write(ACCESS_TOKEN_KEY, access);
+  if (refresh) localStore.write(REFRESH_TOKEN_KEY, refresh);
 }
 
 export function clearTokens(): void {
-  try {
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-  } catch {
-    /* ignore */
-  }
+  // The pre-rename keys go with them: signing out has to clear the session
+  // wherever it is stored, and a leftover legacy token would be migrated
+  // straight back in by the next `getAccessToken`.
+  localStore.remove(ACCESS_TOKEN_KEY, LEGACY_ACCESS_TOKEN_KEY);
+  localStore.remove(REFRESH_TOKEN_KEY, LEGACY_REFRESH_TOKEN_KEY);
 }
 
 /** Removes credentials the old build left behind, including plaintext passwords. */

@@ -6,9 +6,9 @@
  */
 export const common = {
   brand: {
-    name: 'Maklersiz Uy',
+    name: 'Uyiz',
     tagline: 'Связывает владельца жилья и арендатора напрямую',
-    shortTagline: 'Без посредников. Без комиссии.',
+    shortTagline: 'Надёжные объявления об аренде.',
   },
 
   role: {
@@ -81,7 +81,6 @@ export const common = {
     updated: 'Обновлено',
     deleted: 'Удалено',
     required: 'Обязательное поле',
-    optional: 'Необязательно',
   },
 
   filters: {
@@ -155,13 +154,10 @@ export const common = {
   badge: {
     verifiedOwner: 'Проверенный владелец',
     propertyVerified: 'Документы проверены',
-    aiChecked: 'Проверено ИИ',
-    noCommission: '0% комиссии',
     studentFriendly: 'Подходит студентам',
     roommate: 'Подселение',
     featured: 'Рекомендуем',
     new: 'Новое',
-    video: 'Есть видео',
     virtualTour: '3D-тур',
     trustScore: 'Доверие: {score}',
     verificationLevel: '{level}-й уровень',

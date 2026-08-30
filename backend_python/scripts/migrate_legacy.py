@@ -170,9 +170,21 @@ async def migrate(dry_run: bool) -> int:
                     skipped_listings += 1
                     continue
 
-                status = row.get("aiCheckStatus") or ListingStatus.PENDING.value
+                # The legacy `aiCheckStatus` column held a publish-time machine
+                # verdict. That scanner is gone: a listing now publishes
+                # immediately and only an administrator can take it down. So the
+                # only verdict worth carrying over is a REJECTED one (somebody
+                # deliberately pulled the listing); PENDING and WARNING were
+                # waiting on a check that will never run again and would strand
+                # the row in a status nothing can clear.
+                status = row.get("aiCheckStatus") or ListingStatus.APPROVED.value
                 if status not in {s.value for s in ListingStatus}:
-                    status = ListingStatus.PENDING.value
+                    status = ListingStatus.APPROVED.value
+                if status in {
+                    ListingStatus.PENDING.value,
+                    ListingStatus.WARNING.value,
+                }:
+                    status = ListingStatus.APPROVED.value
 
                 if not dry_run:
                     await db.execute(
@@ -185,7 +197,7 @@ async def migrate(dry_run: bool) -> int:
                                 metro_station, metro_distance_minutes, university_name,
                                 university_distance_minutes, furnished, pets_allowed,
                                 parking, internet, air_conditioning, washing_machine,
-                                images, video_url, has_virtual_tour, is_roommate,
+                                images, has_virtual_tour, is_roommate,
                                 roommate_gender, roommate_spots_available,
                                 contact_telegram, preferred_contact_time,
                                 status, trust_score, risk_score, ai_risk_reasons,
@@ -199,7 +211,7 @@ async def migrate(dry_run: bool) -> int:
                                 :metro_station, :metro_distance_minutes, :university_name,
                                 :university_distance_minutes, :furnished, :pets_allowed,
                                 :parking, :internet, :air_conditioning, :washing_machine,
-                                :images, :video_url, :has_virtual_tour, :is_roommate,
+                                :images, :has_virtual_tour, :is_roommate,
                                 :roommate_gender, :roommate_spots_available,
                                 :contact_telegram, :preferred_contact_time,
                                 :status, :trust_score, :risk_score, :ai_risk_reasons,
@@ -239,7 +251,6 @@ async def migrate(dry_run: bool) -> int:
                             "air_conditioning": bool(row.get("airConditioning")),
                             "washing_machine": bool(row.get("washingMachine")),
                             "images": row.get("images") or [],
-                            "video_url": row.get("videoUrl"),
                             "has_virtual_tour": bool(row.get("hasVirtualTour")),
                             "is_roommate": bool(row.get("isRoommate")),
                             "roommate_gender": row.get("roommateGender"),
@@ -247,10 +258,20 @@ async def migrate(dry_run: bool) -> int:
                             "contact_telegram": _clean_handle(row.get("contactTelegram")),
                             "preferred_contact_time": row.get("preferredContactTime"),
                             "status": status,
-                            "trust_score": int(row.get("trustScore") or 50),
-                            "risk_score": int(row.get("riskScore") or 0),
-                            "ai_risk_reasons": row.get("aiRiskReasons") or [],
-                            "safety_badges": row.get("safetyBadges") or [],
+                            # Reliability starts at 100 for everyone and only
+                            # drops when an administrator confirms a report, so
+                            # the legacy scanner's trustScore / riskScore /
+                            # aiRiskReasons are not carried over. Badges are
+                            # likewise re-derived by the app; the retired
+                            # NO_COMMISSION / AI_CHECKED / STUDENT_FRIENDLY
+                            # values must never re-enter the table.
+                            "trust_score": 100,
+                            "risk_score": 0,
+                            "ai_risk_reasons": [],
+                            "safety_badges": [
+                                b for b in (row.get("safetyBadges") or [])
+                                if b in {"VERIFIED_OWNER", "PROPERTY_VERIFIED"}
+                            ],
                             "views_count": int(row.get("viewsCount") or 0),
                             "favorites_count": int(row.get("favoritesCount") or 0),
                             "contact_count": int(row.get("contactCount") or 0),

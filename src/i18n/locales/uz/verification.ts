@@ -31,7 +31,7 @@ export const verification = {
     beforeTag: 'Oddiy',
     beforeOwner: 'Uy egasi: Dilshod',
     beforeTrust: 'Ishonch reytingi: {score}',
-    beforeConBadge: 'Nishon yo‘q — ijarachida makler shubhasi paydo bo‘ladi',
+    beforeConBadge: 'Nishon yo‘q — ijarachining ishonchi kamroq bo‘ladi',
     beforeConRank: 'Qidiruv natijalarida pastroq o‘rinda chiqadi',
     afterLabel: 'Tasdiqlangan ishonchli e’lon',
     afterHint: '3 barobar ko‘p murojaat',
@@ -184,7 +184,7 @@ export const verification = {
   checker: {
     title: 'Telefon raqamni ishonchlilikka tekshirish',
     subtitle:
-      'Raqam haqiqiy uy egasiga tegishlimi yoki makler ekanini tekshirish uchun.',
+      'Raqam tasdiqlangan foydalanuvchiga tegishlimi yoki yo‘qligini tekshirish uchun.',
     placeholder: '+998 90 123 45 67',
     submit: 'Tekshirish',
     unavailable:

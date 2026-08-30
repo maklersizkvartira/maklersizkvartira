@@ -12,7 +12,7 @@ export const chat = {
     youPrefix: 'You:',
   },
   page: {
-    subtitle: 'Reach the owner directly — no broker, no commission.',
+    subtitle: 'Contact whoever posted the listing, directly.',
   },
 
   notice: {

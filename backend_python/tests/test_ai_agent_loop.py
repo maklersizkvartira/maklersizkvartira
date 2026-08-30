@@ -51,7 +51,7 @@ def _listing(**over):
         metro_station="Chilonzor", metro_distance_minutes=7,
         furnished=True, internet=True, air_conditioning=True,
         washing_machine=True, parking=True, pets_allowed=False,
-        is_roommate=False, trust_score=85, risk_score=5, ai_risk_reasons=[],
+        is_roommate=False, trust_score=100, risk_score=0, ai_risk_reasons=[],
         safety_badges=[], images=["a", "b", "c", "d"], status="APPROVED",
         views_count=10, favorites_count=2, contact_count=1, is_featured=False,
         moderation_note=None, published_at=None, latitude=41.3, longitude=69.2,
@@ -114,7 +114,7 @@ def stub_search(monkeypatch):
                 total if total is not None else len(rows),
             )
 
-        monkeypatch.setattr(ai_agent.ai_tools.shield_ai, "search_for_intent", fake)
+        monkeypatch.setattr(ai_agent.ai_tools.uyiz_ai, "search_for_intent", fake)
 
     return install
 

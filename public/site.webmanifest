@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Maklersiz Uy — maklersiz uy va kvartira ijarasi",
-  "short_name": "Maklersiz Uy",
-  "description": "Uy egasidan to‘g‘ridan-to‘g‘ri, komissiyasiz ijara. O‘zbekistonda maklersiz kvartira va uy topish platformasi.",
+  "name": "Uyiz — uy va kvartira ijarasi",
+  "short_name": "Uyiz",
+  "description": "O‘zbekistonda uy, kvartira va xona ijarasi e’lonlari. Hudud, narx va xonalar soni bo‘yicha filtrlang.",
   "lang": "uz",
   "dir": "ltr",
   "start_url": "/",

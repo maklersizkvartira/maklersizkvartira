@@ -6,13 +6,13 @@
  */
 export const common = {
   brand: {
-    name: 'Maklersiz Uy',
+    name: 'Uyiz',
     // U+2018, the same mark every other Uzbek string in this locale uses for
     // oʻ/gʻ. The ASCII typewriter quote that stood here was the one string on
     // the site spelled against Uzbek orthography, and it is the tagline — the
     // line under the wordmark in the footer, so it was the visible one.
     tagline: 'Uy egasi va ijarachini to‘g‘ridan-to‘g‘ri bog‘laydi',
-    shortTagline: 'Maklersiz. Komissiyasiz.',
+    shortTagline: 'Ishonchli ijara e’lonlari.',
   },
 
   role: {
@@ -85,7 +85,6 @@ export const common = {
     updated: 'Yangilandi',
     deleted: 'O‘chirildi',
     required: 'Majburiy maydon',
-    optional: 'Ixtiyoriy',
   },
 
   filters: {
@@ -159,13 +158,10 @@ export const common = {
   badge: {
     verifiedOwner: 'Tasdiqlangan uy egasi',
     propertyVerified: 'Uy hujjati tekshirilgan',
-    aiChecked: 'AI tekshiruvidan o‘tgan',
-    noCommission: '0% komissiya',
     studentFriendly: 'Talabalarga mos',
     roommate: 'Sheriklikka',
     featured: 'Tavsiya etilgan',
     new: 'Yangi',
-    video: 'Video mavjud',
     virtualTour: '3D sayohat',
     trustScore: 'Ishonch: {score}',
     verificationLevel: '{level}-daraja',

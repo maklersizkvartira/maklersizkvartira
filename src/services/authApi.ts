@@ -7,7 +7,7 @@
  *   login()      -> phone + password
  */
 
-import { clearTokens, http, saveTokens } from './http';
+import { clearTokens, getRefreshToken, http, saveTokens } from './http';
 import type { Language } from '../i18n';
 
 export type UserRole = 'STUDENT' | 'OWNER' | 'TENANT' | 'MODERATOR' | 'ADMIN';
@@ -141,8 +141,12 @@ export const AuthApi = {
 
   logout: async (allDevices = false): Promise<void> => {
     try {
+      // Through the accessor, not a second hardcoded copy of the key: the one
+      // here was already out of step with `http.ts` once, and a logout that
+      // posts `null` revokes nothing — the refresh token stays valid on the
+      // server while the browser believes it has signed out.
       await http.post('/auth/logout', {
-        refreshToken: localStorage.getItem('maklersiz.refresh_token'),
+        refreshToken: getRefreshToken(),
         allDevices,
       });
     } catch {

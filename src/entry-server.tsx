@@ -33,7 +33,7 @@ import { SeoLandingPage } from './components/seo/SeoLandingPage';
 import { BlogIndexPage, BlogPostPage, HelpPage } from './components/content/ArticlePages';
 import StudentProgramPage from './components/student/StudentProgramPage';
 import EcosystemPreviewPage from './components/ecosystem/EcosystemPreviewPage';
-import { buildHead, type HeadTags } from './seo/meta';
+import { buildHead, SITE_NAME, type HeadTags } from './seo/meta';
 import { registerCopy } from './seo/content';
 import { UZ_COPY } from './seo/content/copy.uz';
 import { RU_COPY } from './seo/content/copy.ru';
@@ -49,7 +49,10 @@ import { LANGUAGES, type Language } from './i18n/types';
 import { DEFAULT_FILTERS, pinServerSnapshot, useAppStore } from './stores/useAppStore';
 import type { ViewState } from './router/views';
 
-export { LANGUAGES, STATIC_PAGES, INDEXABLE_PAGES, alternatePaths };
+// SITE_NAME travels with the rest: scripts/prerender.mjs writes og:site_name
+// itself and prefers this export, falling back to parsing the tag out of
+// index.html. Without the export the brand has a second place to drift.
+export { LANGUAGES, STATIC_PAGES, INDEXABLE_PAGES, SITE_NAME, alternatePaths };
 
 // The browser fetches these on demand; the build has no network and needs all
 // three at once, so it hands them over directly.

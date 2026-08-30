@@ -3,10 +3,10 @@
  *
  * The English pages are read mostly by people who did not grow up here:
  * relocating professionals, exchange students, embassy and NGO staff. They
- * search in phrases like "rent apartment Tashkent no agent" and "apartment for
- * rent from owner Uzbekistan", so the templates below say that once, plainly,
- * and then spend the rest of their words being useful. Repeating "no agent" in
- * every sentence is what keyword stuffing looks like, and it has been a ranking
+ * search in phrases like "apartment for rent Tashkent" and "rent a flat in
+ * Uzbekistan", so the templates below say that once, plainly, and then spend
+ * the rest of their words being useful. Repeating the same phrase in every
+ * sentence is what keyword stuffing looks like, and it has been a ranking
  * liability for well over a decade.
  *
  * Nothing here claims a number the platform cannot prove. There is no listing
@@ -22,7 +22,7 @@ import { EN_ARTICLES, EN_HELP } from './articles.en';
 import { EN_DISTRICT_PROFILES, EN_REGION_PROFILES } from './places.en';
 import type { CategoryWords, CopyPack, FaqEntry, PlaceProfile, PlaceWords } from './types';
 
-const SUFFIX = ' | Maklersizuy.uz';
+const SUFFIX = ' | Uyiz.uz';
 
 /** `Samarqand sh.` is how it is stored; `Samarqand` is how it reads here. */
 export function displayPlaceName(name: string): string {
@@ -76,7 +76,7 @@ const CATEGORIES: Record<string, CategoryWords> = {
     noun: 'apartment',
     plural: 'apartments',
     label: 'Apartment rentals',
-    headline: 'apartments for rent with no agent',
+    headline: 'apartments for rent',
     blurb:
       'Self-contained apartments in multi-storey buildings — for a family, a couple or someone '
       + 'living alone.',
@@ -85,28 +85,28 @@ const CATEGORIES: Record<string, CategoryWords> = {
     noun: 'house',
     plural: 'houses',
     label: 'House rentals',
-    headline: 'houses for rent with no agent',
+    headline: 'houses for rent',
     blurb: 'Houses with their own courtyard — more space and a private entrance.',
   },
   room: {
     noun: 'room',
     plural: 'rooms',
     label: 'Room rentals',
-    headline: 'rooms for rent with no agent',
+    headline: 'rooms for rent',
     blurb: 'A private room in a shared apartment — the cheapest option and the quickest to find.',
   },
   studio: {
     noun: 'studio',
     plural: 'studios',
     label: 'Studio rentals',
-    headline: 'studios for rent with no agent',
+    headline: 'studios for rent',
     blurb: 'Sleeping area and kitchen in one room — for people living alone and young couples.',
   },
   roommate: {
     noun: 'shared rental',
     plural: 'shared rentals',
     label: 'Shared rentals',
-    headline: 'shared rentals with no agent',
+    headline: 'shared rentals',
     blurb:
       'For people looking for someone to split the rent with. You can filter by gender.',
   },
@@ -114,7 +114,7 @@ const CATEGORIES: Record<string, CategoryWords> = {
     noun: 'student rental',
     plural: 'student rentals',
     label: 'Student rentals',
-    headline: 'student rentals with no agent',
+    headline: 'student rentals',
     blurb:
       'Places near the universities, priced as a real alternative to halls — whole flats and '
       + 'shares alike.',
@@ -123,21 +123,28 @@ const CATEGORIES: Record<string, CategoryWords> = {
     noun: 'family apartment',
     plural: 'family apartments',
     label: 'Family rentals',
-    headline: 'family rentals with no agent',
+    headline: 'family rentals',
     blurb: 'Two rooms or more, let on long terms.',
   },
   budget: {
     noun: 'budget rental',
     plural: 'budget options',
     label: 'Budget rentals',
-    headline: 'budget rentals with no agent',
+    headline: 'budget rentals',
     blurb: 'Listings up to 3 million so‘m a month, sorted by price.',
   },
 };
 
-const NO_BROKER_LINE =
-  'Every listing here is posted by the owner of the property, and the owner is who you speak '
-  + 'to. There is no agent’s fee and no commission.';
+/**
+ * The sentence every landing page's opening paragraph closes on.
+ *
+ * It says how the marketplace works — the number is in the advert, the two
+ * sides talk to each other — and deliberately says nothing about who is on
+ * the other side. Owners and agencies both post here.
+ */
+const MARKETPLACE_LINE =
+  'The phone number is on the listing itself, so you deal with whoever posted it '
+  + 'directly.';
 
 function placeIntro(
   place: PlaceWords,
@@ -147,7 +154,7 @@ function placeIntro(
 ): string[] {
   const what = category ? category.plural : 'apartments and houses';
   const paragraphs: string[] = [
-    `${capitalize(what)} to rent ${place.inPlace}, straight from the owner. ${NO_BROKER_LINE}`,
+    `${capitalize(what)} to rent ${place.inPlace}, in one list. ${MARKETPLACE_LINE}`,
   ];
 
   if (profile?.about) paragraphs.push(profile.about);
@@ -162,9 +169,8 @@ function placeIntro(
   }
 
   paragraphs.push(
-    'Every listing is checked automatically before it goes live: duplicated photographs, '
-      + 'agent-style wording and prices that do not fit the market are flagged. Anything that '
-      + 'still looks wrong to you can be reported with a single tap.',
+    'Every listing carries a trust rating. It drops when someone reports the listing and a '
+      + 'moderator upholds the report, and reporting one takes a single tap.',
   );
 
   return paragraphs;
@@ -179,11 +185,10 @@ function placeFaq(place: PlaceWords, category: CategoryWords | null): FaqEntry[]
   const what = category ? category.noun : 'place';
   return [
     {
-      q: `How do I find ${indefinite(what)} ${what} ${place.inPlace} without an agent?`,
+      q: `How do I find ${indefinite(what)} ${what} ${place.inPlace}?`,
       a:
-        'Every listing on this page was posted by the owner of the property. Open the one you '
-        + 'like, reveal the phone number and call the owner directly. Nobody stands in between '
-        + 'and there is no percentage to pay.',
+        'Narrow the list above by price, number of rooms and area, open the one you like and '
+        + 'reveal the phone number. The call goes straight to whoever posted the listing.',
     },
     {
       q: `What does renting ${place.inPlace} cost?`,
@@ -195,13 +200,13 @@ function placeFaq(place: PlaceWords, category: CategoryWords | null): FaqEntry[]
     {
       q: 'Is there a commission or a service fee?',
       a:
-        'No. The platform is free for tenants and for owners alike. If anyone asks you for money '
-        + '"for the website", that person is an agent — report the listing.',
+        'No. The platform is free to search, to browse and to post on. Whatever you agree is '
+        + 'settled directly between you and whoever posted the listing.',
     },
     {
       q: 'How can I tell a listing is genuine?',
       a:
-        'Each listing shows the owner’s trust rating and how far they have been verified. '
+        'Each listing shows the poster’s trust rating and how far they have been verified. '
         + 'Listings where the passport and the ownership document have been checked carry a '
         + 'badge. Never transfer money before you have seen the property.',
     },
@@ -213,12 +218,11 @@ export const EN_COPY: CopyPack = {
   ogLocale: 'en_US',
 
   brand: {
-    name: 'Maklersiz Uy',
-    tagline: 'Straight from the owner, 0% commission',
+    name: 'Uyiz',
+    tagline: 'Rental listings across Uzbekistan',
     about:
-      'Maklersiz Uy is a platform for renting homes and apartments in Uzbekistan directly from '
-      + 'their owners, with no agent in between. Every listing is checked automatically and no '
-      + 'commission is charged.',
+      'Uyiz is a listings platform for renting apartments, houses and rooms in Uzbekistan. '
+      + 'Listings filter by region, price and number of rooms.',
   },
 
   common: {
@@ -268,42 +272,41 @@ export const EN_COPY: CopyPack = {
   country: { name: 'Uzbekistan', short: 'Uzbekistan', inPlace: 'in Uzbekistan' },
 
   home: {
-    title: `Apartments and houses for rent, no agent${SUFFIX}`,
+    title: `Apartments and houses for rent in Uzbekistan${SUFFIX}`,
     description:
-      'Rent straight from the owner, with no agent. Verified listings for apartments, houses and '
-      + 'rooms across Uzbekistan. 0% commission.',
-    h1: 'Apartments and houses to rent, directly from the owner',
+      'Uyiz lists apartments, houses and rooms to rent across Uzbekistan. Filter by district, '
+      + 'price, number of rooms and metro station.',
+    h1: 'Apartments and houses to rent in Uzbekistan',
     intro: [
-      'Maklersiz Uy connects owners and tenants directly. The owner posts the listing, you see '
-        + 'the phone number, and the two of you agree the terms between yourselves — with no '
-        + 'middleman and no percentage in between.',
+      'Uyiz is a rental listings platform for Uzbekistan. Owners and agencies both post here, '
+        + 'the phone number is on the listing, and the terms are agreed between the two of you.',
       'Apartments, houses with a courtyard, studios, single rooms and flatshares are all in one '
         + 'place. Filter by district, metro station, distance to a university and price to find '
         + 'the one that actually fits.',
-      'Every listing is checked automatically before it is published: duplicated photographs, '
-        + 'agent-style wording and prices that do not fit the market are flagged. Owners can '
-        + 'verify their passport and ownership document to raise their trust rating.',
+      'Every listing carries a trust rating, and it drops when a moderator upholds a report '
+        + 'against that listing. Whoever posts can verify their passport and ownership document '
+        + 'to earn a badge.',
     ],
     faq: [
       {
-        q: 'What does renting with no agent actually mean?',
+        q: 'What is Uyiz?',
         a:
-          'The listing is posted by the owner of the property and you deal with them directly. '
-          + 'Because there is no middleman, you do not pay a fee that often equals a month’s '
-          + 'rent, and your questions about the property get answered by the person who knows.',
+          'Uyiz is a platform that collects adverts for apartments, houses and rooms to rent '
+          + 'across Uzbekistan. You open a listing, reveal the phone number, and settle the '
+          + 'terms directly with whoever posted it.',
       },
       {
         q: 'Does the site cost anything to use?',
         a:
           'No. Searching, viewing listings, revealing a phone number and posting a listing are '
-          + 'all free. Anyone who asks you for a service fee is an agent and should be reported.',
+          + 'all free. Anyone who asks you for money on the platform’s behalf is breaking the '
+          + 'rules and should be reported.',
       },
       {
-        q: 'Can agents post listings here?',
+        q: 'Who can post a listing?',
         a:
-          'They try. That is why the text and photographs of every listing are analysed '
-          + 'automatically and why owners can verify their passport and ownership document. '
-          + 'Users flag anything suspicious with one tap and a moderator reviews it.',
+          'Owners and agencies alike. Each listing shows who posted it and how far they have '
+          + 'been verified, so you know who you are calling before you call.',
       },
       {
         q: 'Which cities does it cover?',
@@ -315,17 +318,17 @@ export const EN_COPY: CopyPack = {
         q: 'I own a property — how do I post a listing?',
         a:
           'Register, confirm your phone number and press "Post a listing". Once you have added '
-          + 'the photographs, the price and the address, the listing goes through the check and '
-          + 'is published. That is free as well.',
+          + 'at least one photograph, the price and the address, the listing is published '
+          + 'straight away. That is free as well.',
       },
     ],
   },
 
   catalog: {
-    title: `All rental listings — no agent${SUFFIX}`,
+    title: `All rental listings in Uzbekistan${SUFFIX}`,
     description:
-      'Every no-agent rental listing across Uzbekistan. Filter by district, price, number of '
-      + 'rooms and metro station.',
+      'Every active rental listing in Uzbekistan: apartments, houses, rooms and studios. '
+      + 'Filter by district, price, rooms and metro station.',
     h1: 'All rental listings',
     intro: [
       'Every active listing on the platform is here. Use the filters to set the district, the '
@@ -334,28 +337,30 @@ export const EN_COPY: CopyPack = {
   },
 
   landing: {
-    categoryTitle: (category) => `${capitalize(category.headline)}${SUFFIX}`,
+    // A category page names no place, so the country carries the search intent
+    // instead: "Apartments for rent" on its own is too thin to rank.
+    categoryTitle: (category) =>
+      `${capitalize(category.headline)} in Uzbekistan${SUFFIX}`,
     categoryDescription: (category) =>
-      `${category.blurb} Straight from the owner, with no commission. `
-      + `Verified listings across Uzbekistan.`,
+      `${category.blurb} Listings across Uzbekistan, filtered by price and area.`,
     categoryH1: (category) => capitalize(category.headline),
     categoryIntro: (category) => [
-      `${category.blurb} ${NO_BROKER_LINE}`,
+      `${category.blurb} ${MARKETPLACE_LINE}`,
       'The list below updates in real time. Pick an area or sort by price and you will find the '
         + 'right one faster.',
     ],
 
-    regionTitle: (place) => `Rent with no agent ${place.inPlace}${SUFFIX}`,
+    regionTitle: (place) => `Homes to rent ${place.inPlace}${SUFFIX}`,
     regionDescription: (place) =>
-      `Apartments, houses and rooms to rent ${place.inPlace}, straight from their owners. `
-      + `No agent, 0% commission.`,
-    regionH1: (place) => `Property to rent ${place.inPlace}, with no agent`,
+      `Apartments, houses and rooms to rent ${place.inPlace}. Filter by price, number of `
+      + `rooms, metro station and the features you need.`,
+    regionH1: (place) => `Property to rent ${place.inPlace}`,
 
     placeCategoryTitle: (place, category) =>
       `${capitalize(category.headline)} ${place.inPlace}${SUFFIX}`,
     placeCategoryDescription: (place, category) =>
-      `${capitalize(category.plural)} available to rent ${place.inPlace}. `
-      + `Straight from the owner — no agent and no commission.`,
+      `${capitalize(category.plural)} available to rent ${place.inPlace}. Filter by price, `
+      + `rooms and metro station, then contact whoever posted the listing.`,
     placeCategoryH1: (place, category) => `${capitalize(category.headline)} ${place.inPlace}`,
 
     placeIntro,
@@ -364,19 +369,19 @@ export const EN_COPY: CopyPack = {
 
   views: {
     map: {
-      title: `Rentals without agents on the map${SUFFIX}`,
+      title: `Rentals on the map${SUFFIX}`,
       description:
-        'See the flats and houses on offer on a map: which street, how far to the metro. '
-        + 'All of them straight from the owner, with no commission.',
+        'See the flats and houses on offer on a map: which street each one is on, and how '
+        + 'far it is from there to the nearest metro station.',
     },
     studentProgram: {
       title: `Student housing programme${SUFFIX}`,
       description:
         'Housing near the university at dormitory-comparable prices, plus roommate '
-        + 'matching. Separate terms for students, no agents involved.',
+        + 'matching. Separate terms and filters for students.',
     },
     ecosystem: {
-      title: `The Maklersiz Uy ecosystem — what we are building${SUFFIX}`,
+      title: `The Uyiz ecosystem — what we are building${SUFFIX}`,
       description:
         'What comes next for the platform: verification, contracts, payments and owner '
         + 'tools. What already works, and what is still on the way.',
@@ -398,7 +403,7 @@ export const EN_COPY: CopyPack = {
         district ? displayPlaceName(district) : null,
         price,
       ].filter(Boolean);
-      return `${bits.join(' · ')}. ${title}. Rented directly from the owner, with no agent.`.slice(
+      return `${bits.join(' · ')}. ${title}. Uyiz — rental listings.`.slice(
         0,
         300,
       );

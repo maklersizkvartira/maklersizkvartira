@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "Maklersiz Admin",
+    "appName": "Uyiz Admin",
     "loading": "Loading...",
     "save": "Save",
     "cancel": "Cancel",
@@ -72,6 +72,7 @@
     "moderation": "Moderation",
     "listings": "Listings",
     "reports": "Reports",
+    "topRequests": "Top requests",
     "verifications": "Verifications",
     "people": "People",
     "users": "Users",
@@ -80,7 +81,7 @@
     "audit": "All activity",
     "security": "Security",
     "sms": "SMS log",
-    "ai": "Shield AI",
+    "ai": "Uyiz AI",
     "settings": "Settings",
     "overview": "Overview",
     "signOut": "Sign out",
@@ -181,6 +182,7 @@
       "totalViews": "Views",
       "openReports": "Open reports",
       "pendingVerifications": "Pending verifications",
+      "pendingTopRequests": "Pending Top requests",
       "aiSessions": "AI sessions",
       "guests": "Guests",
       "aiQueries": "AI queries",
@@ -246,7 +248,7 @@
       "note": "Moderator note",
       "notePlaceholder": "Explain the reason for your decision",
       "riskScore": "Risk score",
-      "riskReasons": "AI reasons",
+      "riskReasons": "Risk reasons",
       "approveConfirm": "Approve this listing?",
       "rejectConfirm": "Reject this listing?",
       "deleteConfirm": "Delete this listing?",
@@ -261,6 +263,10 @@
       "district": "By district",
       "featuredOnly": "Promoted only",
       "minRisk": "Minimum risk"
+    },
+    "safetyBadges": {
+      "VERIFIED_OWNER": "Verified owner",
+      "PROPERTY_VERIFIED": "Property verified"
     }
   },
   "reports": {
@@ -277,8 +283,8 @@
     "status": {
       "OPEN": "Open",
       "UNDER_REVIEW": "Under review",
-      "RESOLVED": "Resolved",
-      "REJECTED": "Rejected"
+      "RESOLVED": "Complaint confirmed",
+      "REJECTED": "Complaint dismissed"
     },
     "listingAction": {
       "NONE": "Nothing",
@@ -288,7 +294,7 @@
     },
     "reason": {
       "SCAM": "Fraud",
-      "BROKER": "Broker listing",
+      "BROKER": "Ownership misrepresented",
       "FAKE_LISTING": "Fake listing",
       "FAKE_PHOTOS": "Photos of another property",
       "WRONG_PRICE": "Wrong price",
@@ -302,10 +308,51 @@
       "MEDIUM": "Medium",
       "LOW": "Low"
     },
-    "resolve": "Resolve",
-    "resolveTitle": "Resolve report",
+    "resolve": "Save decision",
+    "resolveTitle": "Decide on this report",
     "note": "Note",
-    "notePlaceholder": "What did you decide?"
+    "notePlaceholder": "What did you decide?",
+    "decidedAt": "Decided",
+    "trustPenalty": "“Complaint confirmed” means the report was justified: the listing’s reliability score drops immediately. “Complaint dismissed” closes the report and changes nothing."
+  },
+  "topRequests": {
+    "title": "Top requests",
+    "subtitle": "Owners asking to move a listing to the head of the list",
+    "columns": {
+      "listing": "Listing",
+      "owner": "Owner",
+      "days": "Duration",
+      "note": "Note",
+      "status": "Status",
+      "created": "Submitted"
+    },
+    "status": {
+      "PENDING": "Pending",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected"
+    },
+    "actions": {
+      "approve": "Promote to top",
+      "reject": "Reject"
+    },
+    "review": {
+      "title": "Review the Top request",
+      "requestedDays": "Requested duration",
+      "days": "Days",
+      "weight": "Priority",
+      "reason": "Rejection reason",
+      "reasonPlaceholder": "Say why it was rejected — the owner reads this",
+      "effect": "Approving puts this listing in the Top immediately and keeps it at the head of the list for {days} days.",
+      "approveConfirm": "Promote this listing to the top?",
+      "rejectConfirm": "Reject this request?",
+      "grantedUntil": "Promoted until",
+      "reviewedAt": "Reviewed",
+      "alreadyLive": "Currently in the Top"
+    },
+    "filters": {
+      "status": "By status"
+    },
+    "empty": "No requests"
   },
   "verifications": {
     "title": "Verifications",
@@ -515,8 +562,8 @@
     }
   },
   "ai": {
-    "title": "Shield AI conversations",
-    "subtitle": "Conversations with the assistant on the public site",
+    "title": "Uyiz AI conversations",
+    "subtitle": "Conversations with the Uyiz AI assistant on the public site",
     "columns": {
       "session": "Session",
       "user": "Client",
@@ -529,7 +576,7 @@
     "messagesCapped": "Only the last {limit} messages are shown.",
     "noMessages": "No messages",
     "user": "Client",
-    "assistant": "Shield AI"
+    "assistant": "Uyiz AI"
   },
   "settings": {
     "title": "Settings",
@@ -632,6 +679,7 @@
     "LISTING_REPORTED": "Listing reported",
     "LISTING_AI_APPROVED": "AI approved the listing",
     "LISTING_AI_REJECTED": "AI rejected the listing",
+    "LISTING_TOP_REQUESTED": "Top requested",
     "ADMIN_LOGIN_SUCCESS": "Admin signed in",
     "ADMIN_LOGIN_FAILED": "Admin sign-in failed",
     "ADMIN_LOGOUT": "Admin signed out",
@@ -644,14 +692,16 @@
     "ADMIN_USER_SESSIONS_REVOKED": "Admin revoked sessions",
     "ADMIN_LISTING_STATUS_CHANGED": "Admin changed listing status",
     "ADMIN_LISTING_FEATURED": "Admin promoted a listing",
+    "ADMIN_TOP_APPROVED": "Admin approved a Top request",
+    "ADMIN_TOP_REJECTED": "Admin rejected a Top request",
     "ADMIN_LISTING_DELETED": "Admin deleted a listing",
     "ADMIN_REPORT_RESOLVED": "Admin resolved a report",
     "ADMIN_VERIFICATION_REVIEWED": "Admin reviewed a verification",
     "ADMIN_SETTINGS_CHANGED": "Settings changed",
     "ADMIN_ACCOUNT_CREATED": "New admin created",
     "ADMIN_EXPORT": "Admin exported data",
-    "AI_CHAT_MESSAGE": "Shield AI message",
-    "AI_CHAT_CLOSED": "Shield AI conversation closed",
+    "AI_CHAT_MESSAGE": "Uyiz AI message",
+    "AI_CHAT_CLOSED": "Uyiz AI conversation closed",
     "AI_LIMIT_REACHED": "AI limit reached",
     "SMS_SENT": "SMS sent",
     "SMS_FAILED": "SMS failed",

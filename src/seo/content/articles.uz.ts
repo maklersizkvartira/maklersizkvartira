@@ -28,24 +28,24 @@ import type { Article, HelpArticle } from './types';
 
 export const UZ_ARTICLES: Article[] = [
   {
-    slug: 'maklersiz-uy-topish',
-    title: 'Maklersiz uy topish: amaliy qo‘llanma',
+    slug: 'uy-ijaraga-olish-qollanma',
+    title: 'Uy ijaraga olish: amaliy qo‘llanma',
     summary:
-      'Uy egasining o‘zini qanday topish kerak va telefondagi odam makler ekanini birinchi '
-      + 'suhbatdayoq qanday bilib olish mumkin.',
+      'E’lonni, uyni va kelishuvni pul topshirishdan oldin qanday tekshirish kerak: '
+      + 'qidiruvdan kalitgacha bo‘lgan amaliy tartib.',
     publishedAt: '2025-11-18',
     updatedAt: '2026-06-12',
     readingMinutes: 6,
-    h1: 'Maklersiz uy topish va maklerni birinchi qo‘ng‘iroqda tanib olish',
+    h1: 'Uy ijaraga olishdan oldin nimalarni tekshirish kerak',
     intro:
       'Toshkentda ham, viloyat shaharlarida ham uy izlash odatda bir xil boshlanadi: e’lonlar '
       + 'ro‘yxatiga kirasiz, o‘nlab variantni ko‘rasiz, birontasiga qo‘ng‘iroq qilasiz — va '
-      + 'go‘shakning narigi tomonidagi odam uy egasi emas, vositachi bo‘lib chiqadi. U sizni '
-      + 'uyga olib boradi, kalitni ko‘rsatadi va ko‘pincha bir oylik ijaraga teng haq so‘raydi. '
-      + 'Bu pul ta’mir uchun ham, hujjat uchun ham emas — u faqat telefon raqamni bilgani uchun '
-      + 'olinadi. Uy egasining o‘zi bilan gaplashish esa mumkin: buning uchun qidiruvni to‘g‘ri '
-      + 'boshlash va bir nechta oddiy belgini bilish kifoya. Quyida o‘sha belgilar va uy '
-      + 'ko‘rishdan kelishuvgacha bo‘lgan yo‘lning amaliy tartibi keltirilgan.',
+      + 'shu yerdan xatolarning aksariyati boshlanadi. Uy ko‘rilmasdan pul o‘tkaziladi, narxga '
+      + 'nima kirishi og‘zaki kelishiladi, zakladka esa hech qayerda yozilmaydi. Aslida ijara '
+      + 'bo‘yicha bahslarning deyarli hammasi bir necha oddiy tekshiruv bilan oldindan yopiladi: '
+      + 'e’lon haqiqiyligini aniqlash, birinchi qo‘ng‘iroqda to‘g‘ri savollarni berish, uyni '
+      + 'o‘z ko‘zingiz bilan ko‘rish va pulni faqat shartnomadan keyin topshirish. Quyida o‘sha '
+      + 'tartib boshdan-oyoq keltirilgan.',
     sections: [
       {
         heading: 'Izlashni boshlashdan oldin uchta chegarani belgilang',
@@ -71,30 +71,29 @@ export const UZ_ARTICLES: Article[] = [
         ],
       },
       {
-        heading: 'E’lonni kim joylaganini qanday aniqlash mumkin',
+        heading: 'E’lon haqiqiyligini qanday tekshirish mumkin',
         paragraphs: [
-          'Vositachining e’loni odatda o‘zini fosh qiladi, faqat qarashni bilish kerak. Uy '
-            + 'egasi o‘z uyini bir marta va batafsil suratga oladi: xonalar, oshxona, hammom, '
-            + 'kirish qismi, derazadan ko‘rinish. Vositachining rasmlari esa ko‘pincha faqat '
-            + 'eng chiroyli ikkita burchakni ko‘rsatadi, podyezd va hovli tushirilmagan bo‘ladi, '
-            + 'chunki maqsad uyni ko‘rsatish emas — qo‘ng‘iroq qildirish.',
-          'Matnning uslubi ham ko‘p narsani aytadi. Uy egasi "kvartiram bo‘sh qoldi, uzoq '
-            + 'muddatga beraman" deb yozadi; vositachi esa "bazamizda variantlar ko‘p", "sizga '
-            + 'mos uyni tanlab beramiz", "hududni ayting, tanlaymiz" deb yozadi. Aniq manzil '
-            + 'yoki hech bo‘lmasa mo‘ljal ko‘rsatilmagani ham xarakterli belgi: uy egasi '
-            + 'qaysi ko‘chada ekanini yashirishga sabab ko‘rmaydi.',
-          'Telefonda tekshirish yanada oson. Faqat egasi biladigan narsalarni so‘rang: hujjat '
-            + 'kimning nomida, hisoblagichlar o‘rnatilganmi, qo‘shnilar kim, uyda oxirgi marta '
-            + 'qachon ta’mir bo‘lgan. Vositachi bu savollarga umumiy javob beradi yoki '
-            + '"borganda ko‘rasiz" deydi. Uy egasi esa hech ikkilanmay javob beradi, chunki bu '
-            + 'uning o‘z uyi.',
+          'E’lonni uy egasi ham, professional agentlik ham joylashi mumkin va bu normal holat. '
+            + 'Tekshirish kerak bo‘lgan narsa boshqa: e’lon aynan shu uyga tegishlimi va uni '
+            + 'joylagan odam uyni topshirishga haqiqatan vakolatlimi. Bu savolga javob '
+            + 'ko‘pincha e’lonning o‘zida ko‘rinib turadi.',
+          'Rasmlardan boshlang. Haqiqiy e’lon uyni butun holicha ko‘rsatadi: xonalar, oshxona, '
+            + 'hammom, kirish qismi, derazadan ko‘rinish. Faqat ikkita eng chiroyli burchak '
+            + 'tushirilgan, podyezd va hovli umuman yo‘q bo‘lsa yoki rasmlar sifati bir-biridan '
+            + 'keskin farq qilsa — ular turli manbalardan yig‘ilgan bo‘lishi mumkin. Bitta '
+            + 'rasmni qidiruv tizimida tekshirib ko‘rish bir daqiqalik ish.',
+          'Telefonda tekshirish yanada oson. Uy haqidagi aniq narsalarni so‘rang: hujjat '
+            + 'kimning nomida, shartnomani kim imzolaydi, hisoblagichlar o‘rnatilganmi, uyda '
+            + 'oxirgi marta qachon ta’mir bo‘lgan. Uy egasi ham, uyni bilgan agent ham bu '
+            + 'savollarga xotirjam javob beradi. "Borganda ko‘rasiz" degan javob esa suhbatni '
+            + 'davom ettirishga arzimasligini bildiradi.',
         ],
         bullets: [
-          'Bitta raqam bir vaqtning o‘zida turli tumanlardagi o‘nlab e’londa uchraydi.',
-          'Rasmlar chiroyli, lekin uyning umumiy ko‘rinishi, podyezd va hovli yo‘q.',
-          'Matnda "baza", "variantlar", "tanlab beramiz" degan so‘zlar bor.',
-          'Manzil aytilmaydi, mo‘ljal esa "keyin aytamiz" deb qoldiriladi.',
-          'Narx atrofdagi shunga o‘xshash uylardan sezilarli past — bu ko‘pincha yem.',
+          'Rasmlar bitta uyniki va yaqin vaqtda olinganmi.',
+          'Uyning umumiy ko‘rinishi, podyezd va hovli ko‘rsatilganmi.',
+          'Manzil yoki hech bo‘lmasa aniq mo‘ljal berilganmi.',
+          'Hujjat kimning nomida va shartnomani kim imzolaydi.',
+          'Narx atrofdagi shunga o‘xshash uylardan sezilarli past emasmi — bu ko‘pincha yem.',
         ],
       },
       {
@@ -156,25 +155,25 @@ export const UZ_ARTICLES: Article[] = [
     ],
     faq: [
       {
-        q: 'Maklersiz uy topish rostdan ham mumkinmi?',
+        q: 'Ijaraga uy topishda nimaga e’tibor berish kerak?',
         a:
-          'Ha, chunki uy egalarining katta qismi o‘z uyini o‘zi topshirishni afzal ko‘radi — '
-          + 'ular ham vositachiga foiz bermoqchi emas. Muhimi, e’lonni egasi joylagan joydan '
-          + 'izlash va birinchi suhbatda hujjat kimning nomida ekanini so‘rash.',
+          'Uchta narsaga: e’lon aynan shu uyga tegishlimi, hujjat kimning nomida va '
+          + 'shartnomani kim imzolaydi. Shu uchtasi aniq bo‘lsa, qolgan savollar — narx, '
+          + 'kommunal va muddat — oddiy kelishuvga aylanadi.',
       },
       {
-        q: 'Vositachi o‘zini uy egasi deb tanishtirsa nima bo‘ladi?',
+        q: 'Uyni topshirayotgan odam egasi bo‘lmasa nima qilish kerak?',
         a:
-          'Uyni ko‘rgach, shartnoma imzolash payti hammasi ochiladi: hujjat boshqa odamning '
-          + 'nomida bo‘ladi va "egasi keyin keladi" deyiladi. Shu daqiqada to‘xtang. Egasi '
-          + 'ishtirok etmagan yoki ishonchnoma ko‘rsatmagan kelishuvga pul bermang.',
+          'Bu o‘z-o‘zidan muammo emas: uyni egasining vakili ham topshirishi mumkin. Faqat '
+          + 'shartnomani imzolash paytida uning yozma vakolati — ishonchnomasi — bo‘lishi shart. '
+          + '"Egasi keyin keladi" deyilsa, pul topshirishni o‘sha daqiqada to‘xtating.',
       },
       {
-        q: 'Uy egasi zakladka so‘rasa, bu normalmi?',
+        q: 'Zakladka so‘ralsa, bu normalmi?',
         a:
-          'Ha, zakladka O‘zbekistonda odatiy amaliyot va u vositachilik haqi emas — bu uyga '
-          + 'zarar yetmasa qaytariladigan garov. Faqat uning miqdori va qaytarish sharti '
-          + 'shartnomada yozilgan bo‘lishi kerak.',
+          'Ha, zakladka O‘zbekistonda odatiy amaliyot: bu uyga zarar yetmasa qaytariladigan '
+          + 'garov, xizmat haqi emas. Faqat uning miqdori va qaytarish sharti shartnomada '
+          + 'yozilgan bo‘lishi kerak.',
       },
     ],
   },
@@ -768,8 +767,8 @@ export const UZ_ARTICLES: Article[] = [
             + 'ustunligi. Masalan, xonalar soni, tuman yoki metro bekati va "jihozlangan" '
             + 'yoki "yangi ta’mir" kabi bitta aniq belgi.',
           'Bosh harflar bilan yozish, undov belgilari va "SHOSHILINCH" so‘zi hech qachon '
-            + 'yordam bermaydi — aksincha, bu vositachi e’lonlarining uslubi va ijarachida '
-            + 'shubha uyg‘otadi. Oddiy, tinch va aniq yozilgan sarlavha ko‘proq ochiladi.',
+            + 'yordam bermaydi — aksincha, bu spam e’lonlarining uslubi va ijarachida shubha '
+            + 'uyg‘otadi. Oddiy, tinch va aniq yozilgan sarlavha ko‘proq ochiladi.',
         ],
       },
       {
@@ -868,7 +867,7 @@ export const UZ_ARTICLES: Article[] = [
     readingMinutes: 8,
     h1: 'Zakladka: qanday qo‘yiladi, nima uchun ushlab qolinadi va qanday qaytariladi',
     intro:
-      'Ijarada eng ko‘p bahs chiqadigan pul — bu zakladka. U ijara haqi ham emas, vositachilik '
+      'Ijarada eng ko‘p bahs chiqadigan pul — bu zakladka. U ijara haqi ham emas, xizmat '
       + 'haqi ham emas, lekin ko‘chib o‘tadigan oyda cho‘ntakdan aynan u og‘ir chiqadi va '
       + 'ko‘chib chiqadigan kuni aynan u janjalga aylanadi. Sababi deyarli har doim bitta: '
       + 'zakladka og‘zaki kelishib qo‘yiladi. "Uyga zarar yetkazmasangiz qaytaraman" deyiladi, '
@@ -894,9 +893,10 @@ export const UZ_ARTICLES: Article[] = [
             + 'kutadi. Ikkalasi ham o‘zicha haq, chunki bu masala hech qachon yozib '
             + 'qo‘yilmagan. Shartnomadagi bitta jumla — zakladka oxirgi oy ijarasi o‘rniga '
             + 'o‘tadimi yoki alohida qaytariladimi — bu bahsni butunlay yopadi.',
-          'Ikkinchi tushunmovchilik zakladkani vositachilik haqi bilan chalkashtirishdan '
-            + 'kelib chiqadi. Makler oladigan pul xizmat haqi va u qaytarilmaydi; zakladka '
-            + 'esa qaytariladigan pul va u faqat uyning egasiga topshiriladi. Agar sizdan '
+          'Ikkinchi tushunmovchilik zakladkani xizmat haqi bilan chalkashtirishdan kelib '
+            + 'chiqadi. Agentlik oladigan pul ko‘rsatilgan xizmat uchun to‘lov va u '
+            + 'qaytarilmaydi; zakladka esa qaytariladigan garov va u uyning egasiga '
+            + 'topshiriladi. Agar sizdan '
             + '"zakladka" deb pul so‘rayotgan odam uyning egasi bo‘lmasa yoki uning yozma '
             + 'vakolati bo‘lmasa, bu allaqachon butunlay boshqa suhbat.',
         ],
@@ -1624,35 +1624,35 @@ export const UZ_HELP: HelpArticle[] = [
       + 'to‘liq tartib.',
     h1: 'Platforma qanday ishlaydi',
     intro:
-      'Maklersiz Uy — e’lonlar taxtasi. Bu yerda uy egasi o‘z e’lonini o‘zi joylaydi, '
-      + 'ijarachi esa uni to‘g‘ridan-to‘g‘ri topadi. Oraliqda vositachi ham, komissiya ham '
-      + 'yo‘q. Quyida jarayonning har ikki tomoni boshdan-oyoq tushuntirilgan.',
+      'Uyiz — ijara e’lonlari platformasi. E’lonni uy egasi ham, agentlik ham joylashi '
+      + 'mumkin; telefon raqam e’londa ochiq va kelishuvni tomonlar o‘zaro qiladi. Quyida '
+      + 'jarayonning har ikki tomoni boshdan-oyoq tushuntirilgan.',
     sections: [
       {
         heading: 'Ijarachi uchun: qidiruvdan kalitgacha',
         paragraphs: [
           'Ro‘yxatdan o‘tmasdan ham e’lonlarni ko‘rish, filtrlash va saralash mumkin. '
-            + 'Faqat uy egasining telefon raqamini ko‘rish uchun tizimga kirish talab '
+            + 'Faqat e’lon beruvchining telefon raqamini ko‘rish uchun tizimga kirish talab '
             + 'qilinadi — bu raqamlarni avtomatik yig‘ib oluvchi dasturlardan himoya '
             + 'qilish uchun.',
           'Qidiruvni hudud, kategoriya, narx oralig‘i, xonalar soni va metro bekati '
             + 'bo‘yicha toraytiring. Yoqqan e’lonni saqlab qo‘ying va bir nechtasini '
-            + 'yonma-yon solishtiring. Keyin uy egasiga o‘zingiz qo‘ng‘iroq qilasiz, '
+            + 'yonma-yon solishtiring. Keyin e’lon beruvchiga o‘zingiz qo‘ng‘iroq qilasiz, '
             + 'uyni ko‘rasiz va kelishuvni bevosita u bilan tuzasiz.',
         ],
         bullets: [
           'Qidirish va e’lon ko‘rish — ro‘yxatdan o‘tmasdan.',
           'Telefon raqamni ko‘rish — tizimga kirgandan keyin.',
           'Saralanganlar ro‘yxati bilan bir nechta variantni solishtirish.',
-          'Qo‘ng‘iroq, ko‘rish va shartnoma — to‘g‘ridan-to‘g‘ri uy egasi bilan.',
+          'Qo‘ng‘iroq, ko‘rish va shartnoma — to‘g‘ridan-to‘g‘ri e’lon beruvchi bilan.',
         ],
       },
       {
         heading: 'Uy egasi uchun: e’londan kelishuvgacha',
         paragraphs: [
           'Ro‘yxatdan o‘ting va telefon raqamingizni tasdiqlang. Keyin "E’lon berish" '
-            + 'bo‘limida uy turini, manzilini, xonalar sonini, narxini va rasmlarini '
-            + 'kiriting. E’lon avtomatik tekshiruvdan o‘tib chop etiladi.',
+            + 'bo‘limida uy turini, manzilini, xonalar sonini, narxini va kamida bitta '
+            + 'rasmini kiriting. E’lon darhol chop etiladi.',
           'E’lonni istalgan vaqtda tahrirlash, vaqtincha yashirish yoki butunlay '
             + 'o‘chirish mumkin. Uy topshirilgach e’lonni yopib qo‘yish qoidasi — '
             + 'oddiy odob masalasi: shunda ijarachilar bo‘sh bo‘lmagan uyga qo‘ng‘iroq '
@@ -1660,13 +1660,13 @@ export const UZ_HELP: HelpArticle[] = [
         ],
       },
       {
-        heading: 'Tekshiruv va ishonch belgilari',
+        heading: 'Ishonchlilik foizi va tasdiqlash belgilari',
         paragraphs: [
-          'Har bir e’lon chop etilishidan oldin avtomatik tekshiruvdan o‘tadi: takroriy '
-            + 'rasmlar, vositachi uslubidagi matn va bozorga mos kelmaydigan narx '
-            + 'belgilanadi. Foydalanuvchilar ham istalgan e’lonni bir bosishda shikoyat '
-            + 'qilib qoldirishi mumkin va bunday e’lon moderatorga tushadi.',
-          'Uy egasi qo‘shimcha ravishda shaxsini va mulk hujjatini tasdiqlashi mumkin. '
+          'E’lon darhol chop etiladi, keyin esa foydalanuvchilar nazoratida bo‘ladi: istalgan '
+            + 'e’lonni bir bosishda shikoyat qilib qoldirish mumkin va u moderatorga tushadi. '
+            + 'Moderator shikoyatni tasdiqlasa, e’lonning ishonchlilik foizi pasayadi; rad '
+            + 'etsa, foiz o‘z holicha qoladi.',
+          'E’lon beruvchi qo‘shimcha ravishda shaxsini va mulk hujjatini tasdiqlashi mumkin. '
             + 'Tasdiqlangan e’lonlar alohida belgi oladi. Belgi uyning sifatiga kafolat '
             + 'emas — u faqat e’lonni joylagan odam kimligi tekshirilganini bildiradi.',
         ],
@@ -1675,8 +1675,8 @@ export const UZ_HELP: HelpArticle[] = [
         heading: 'Nima bepul',
         paragraphs: [
           'Hammasi. Qidirish, e’lon ko‘rish, telefon raqam olish, e’lon joylash va uni '
-            + 'tasdiqlashdan o‘tkazish — ijarachi uchun ham, uy egasi uchun ham to‘lovsiz. '
-            + 'Platforma hech qanday komissiya, vositachilik yoki xizmat haqi olmaydi.',
+            + 'tasdiqlashdan o‘tkazish — ijarachi uchun ham, e’lon beruvchi uchun ham '
+            + 'to‘lovsiz. Platforma kelishuvdan hech qanday haq olmaydi.',
           'Agar kimdir sizdan "sayt uchun", "shartnoma rasmiylashtirish uchun" yoki '
             + '"bazaga kirish uchun" pul so‘rasa — bu platformaning odami emas. Bunday '
             + 'e’lonni darhol shikoyat qiling.',
@@ -1686,8 +1686,8 @@ export const UZ_HELP: HelpArticle[] = [
         heading: 'Muammo chiqsa',
         paragraphs: [
           'E’lon bilan bog‘liq har qanday muammo — noto‘g‘ri ma’lumot, boshqa uyning '
-            + 'rasmlari, vositachi yoki pul talab qilish — shikoyat tugmasi orqali '
-            + 'bildiriladi. Iloji bo‘lsa yozishmalar ekran suratini ham saqlab qo‘ying.',
+            + 'rasmlari yoki uyni ko‘rsatishdan oldin pul talab qilish — shikoyat tugmasi '
+            + 'orqali bildiriladi. Iloji bo‘lsa yozishmalar ekran suratini ham saqlab qo‘ying.',
           'Platforma ijara kelishuvining tomoni emas, shuning uchun tomonlar o‘rtasidagi '
             + 'pul yoki shartnoma bahsini hal qila olmaydi. Lekin qoidabuzar e’lon va '
             + 'akkauntga nisbatan chora ko‘riladi, jiddiy holatlarda esa huquq-tartibot '
@@ -1785,17 +1785,17 @@ export const UZ_HELP: HelpArticle[] = [
       {
         heading: 'Platforma nima qiladi va nima qilmaydi',
         paragraphs: [
-          'Maklersiz Uy — e’lonlar taxtasi. Platforma uy egalari joylagan e’lonlarni '
-            + 'ko‘rsatadi va foydalanuvchilarga ularni topish imkonini beradi. Boshqa '
-            + 'hech narsa qilmaydi.',
+          'Uyiz — e’lonlar taxtasi. Platforma foydalanuvchilar joylagan e’lonlarni '
+            + 'ko‘rsatadi va boshqalarga ularni topish imkonini beradi. Boshqa hech narsa '
+            + 'qilmaydi.',
           'Platforma ijara kelishuvining tomoni emas. U uyni ijaraga bermaydi, ijaraga '
             + 'olmaydi, shartnoma tuzmaydi, pul qabul qilmaydi va tomonlar o‘rtasida '
             + 'vositachilik qilmaydi. Shartnoma faqat uy egasi bilan ijarachi o‘rtasida '
             + 'tuziladi va uning shartlari uchun javobgarlik ham shu ikki tomonda '
             + 'qoladi.',
-          'Platforma hech qanday komissiya, vositachilik yoki xizmat haqi olmaydi. '
-            + 'Sizdan platforma nomidan pul so‘ragan har qanday odam qoidabuzar '
-            + 'hisoblanadi va bu haqda xabar berish kerak.',
+          'Platforma kelishuvdan hech qanday haq olmaydi va e’lon joylash bepul. Sizdan '
+            + 'platforma nomidan pul so‘ragan har qanday odam qoidabuzar hisoblanadi va bu '
+            + 'haqda xabar berish kerak.',
         ],
       },
       {
@@ -1824,7 +1824,7 @@ export const UZ_HELP: HelpArticle[] = [
             + 'esa hisobning bloklanishiga olib keladi.',
         ],
         bullets: [
-          'Vositachilik xizmati va uning evaziga haq talab qilish.',
+          'Platforma nomidan pul yoki to‘lov talab qilish.',
           'O‘zini uy egasi qilib ko‘rsatish yoki soxta ma’lumot kiritish.',
           'Uyni ko‘rsatishdan yoki shartnomadan oldin pul talab qilish.',
           'Boshqa odamning rasmi, matni yoki telefon raqamini ishlatish.',
@@ -1836,9 +1836,9 @@ export const UZ_HELP: HelpArticle[] = [
       {
         heading: 'Moderatsiya va hisobni to‘xtatib turish',
         paragraphs: [
-          'E’lonlar avtomatik tekshiruvdan o‘tadi, foydalanuvchilar shikoyati esa '
-            + 'moderator tomonidan ko‘rib chiqiladi. Qoidalarga zid e’lon tahrirlashga '
-            + 'qaytarilishi yoki o‘chirilishi mumkin.',
+          'E’lon joylanishi bilan chop etiladi, foydalanuvchilar shikoyati esa moderator '
+            + 'tomonidan ko‘rib chiqiladi. Qoidalarga zid e’lon tahrirlashga qaytarilishi '
+            + 'yoki o‘chirilishi mumkin.',
           'Takroriy yoki qo‘pol qoidabuzarlik holatida hisob vaqtincha to‘xtatiladi '
             + 'yoki butunlay yopiladi. Qaror asossiz deb hisoblasangiz, murojaat qilish '
             + 'va vaziyatni tushuntirish imkoniyati bor.',

@@ -1,22 +1,18 @@
 # README-1
 
+> **Tarixiy hujjat.** Bu spetsifikatsiya loyiha hali Maklersiz.uz deb atalgan paytda yozilgan; hozirgi mahsulot [`README.md`](./README.md) da tasvirlangan va nizo bo'lsa README.md ustun turadi.
+
 # PRODUCT & BUSINESS SYSTEM
 
 ## Project Name
 
-Maklersiz.uz
-
-Alternative Names:
-
-* Egasidan.uz
-* UyTop.uz
-* HalolIjara.uz
+Uyiz.uz
 
 ---
 
 # Vision
 
-Maklersiz.uz oddiy kvartira e'lonlari sayti emas.
+Uyiz.uz oddiy kvartira e'lonlari sayti emas.
 
 Maqsad:
 
@@ -28,9 +24,9 @@ Platformaning asosiy qadriyati:
 
 Foydalanuvchi platformaga kirganda:
 
-* Maklerlardan qo'rqmasligi
 * Firibgarlardan qo'rqmasligi
 * E'lon haqiqiy ekanligiga ishonishi
+* E'lonni kim joylagan bo'lsa, o'sha bilan to'g'ridan-to'g'ri gaplasha olishi
 
 kerak.
 
@@ -40,15 +36,15 @@ kerak.
 
 Hozirgi bozordagi muammolar:
 
-## Maklerlar
+## Tarqoqlik
 
-Bir odam o'nlab kvartiralarni joylaydi.
+E'lonlar o'nlab Telegram kanallari va bir nechta saytga sochilib ketgan.
 
 Natijada:
 
-* Narxlar oshadi
-* Vaqt yo'qotiladi
-* Komissiya olinadi
+* Bir e'lon bir necha joyda takrorlanadi
+* Allaqachon ijaraga berilgan uy oylab osilib turadi
+* Qidiruv va taqqoslash imkonsiz
 
 ---
 
@@ -68,8 +64,8 @@ Muammolar:
 Foydalanuvchi:
 
 * E'lon haqiqiymi?
-* Egasimi?
-* Maklermi?
+* E'lon hali dolzarbmi?
+* Kim joylagan va u bilan qanday bog'lanaman?
 * Rasmlar shu uyga tegishlimi?
 
 degan savollar bilan qoladi.
@@ -78,25 +74,23 @@ degan savollar bilan qoladi.
 
 # Solution
 
-Platforma barcha e'lonlarni AI yordamida tekshiradi.
-
-Har bir foydalanuvchi:
-
-Trust Score
-
-oladi.
+E'lon joylash bepul va e'lon darhol chop etiladi — oldida hech qanday
+tekshiruv navbati yo'q. Ishonch chop etishdan oldin emas, chop etilgandan
+keyin quriladi.
 
 Har bir e'lon:
 
-Verification Status
+Ishonch foizi (100 dan boshlanadi)
 
 oladi.
 
-Har bir kvartira:
+Foiz faqat shikoyat tushib, **admin uni tasdiqlaganda** tushadi.
 
-Risk Analysis
+Uy egasi ham, professional agent ham:
 
-dan o'tadi.
+Owner Verification
+
+dan o'tishi mumkin.
 
 ---
 
@@ -349,7 +343,6 @@ bo'ladi.
 Sabablar:
 
 * Firibgarlik
-* Makler
 * Noto'g'ri ma'lumot
 * Soxta rasm
 * Spam
@@ -362,25 +355,22 @@ Shikoyat tushadi.
 
 ↓
 
-AI tahlil qiladi.
+Admin ko'radi.
 
 ↓
 
-Moderator ko'radi.
+Tasdiqlaydi (RESOLVED) yoki rad etadi (REJECTED).
 
 ↓
 
-Qaror chiqaradi.
+Tasdiqlansa — e'lonning ishonch foizi qayta hisoblanadi va tushadi.
 
 ↓
 
-User ogohlantiriladi.
+Kerak bo'lsa e'lon olib tashlanadi yoki foydalanuvchi bloklanadi.
 
-yoki
-
-↓
-
-User bloklanadi.
+Rad etilsa — hech narsa o'zgarmaydi. Tasdiq bekor qilinsa — foiz o'z joyiga
+qaytadi, chunki u ayirilmaydi, har safar noldan hisoblanadi.
 
 ---
 

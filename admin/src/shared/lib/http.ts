@@ -161,32 +161,55 @@ export type RefreshOutcome = { ok: true } | { ok: false; reason: 'rejected' | 'u
 /** Serialises callers inside THIS tab. The lock below covers the other tabs. */
 let refreshPromise: Promise<RefreshOutcome> | null = null;
 
-const REFRESH_LOCK = 'maklersiz-admin-refresh';
-const REFRESH_CHANNEL = 'maklersiz-admin-auth';
+/* ── Cross-tab names, renamed with the Uyiz rebrand ───────────────────────────
+   All three carry the brand, so all three moved. None of them may move ALONE,
+   and none of them may move BARELY, because they are not stored values — they
+   are the names two tabs have to agree on in order to serialise a refresh.
+
+   During the deploy window an old tab is still running the previous bundle and
+   still using the `maklersiz-*` names. If this bundle used only the new ones,
+   the two would no longer share a mutex or a token channel: both would post a
+   refresh with the same one-shot cookie, the backend would answer 401
+   `refresh_reused`, call `revoke_family`, and sign the admin out on EVERY
+   device — not just the losing tab.
+
+   So for one release each name is used ALONGSIDE its predecessor: both locks
+   are acquired (always in the same order, so nothing can deadlock), and a
+   freshly minted token is announced on both channels. Nobody is signed out.
+   Delete the LEGACY_* constants, the nested acquire and the second channel once
+   no browser can still be holding the old bundle. */
+const REFRESH_LOCK = 'uyiz-admin-refresh';
+const LEGACY_REFRESH_LOCK = 'maklersiz-admin-refresh';
+const REFRESH_CHANNEL = 'uyiz-admin-auth';
+const LEGACY_REFRESH_CHANNEL = 'maklersiz-admin-auth';
 
 /** How long a storage-mutex holder may keep the lock before it is stolen. */
 const LOCK_TTL_MS = 15_000;
-const LOCK_KEY = 'maklersiz-admin-refresh-lock';
+const LOCK_KEY = 'uyiz-admin-refresh-lock';
+const LEGACY_LOCK_KEY = 'maklersiz-admin-refresh-lock';
 
-let _channel: BroadcastChannel | null | undefined;
+let _channels: BroadcastChannel[] | undefined;
 
 /**
- * The channel the tabs announce a freshly minted access token on.
+ * The channels the tabs announce a freshly minted access token on.
  *
  * Only the token travels, never the refresh token — that one is httpOnly and
- * has to stay unreachable from script. `undefined` means "not asked yet",
- * `null` means "this browser has no BroadcastChannel", which is survivable:
- * without it the other tabs simply refresh again in turn, which is safe because
- * the lock has already made those attempts sequential.
+ * has to stay unreachable from script. `undefined` means "not asked yet", an
+ * empty array means "this browser has no BroadcastChannel", which is
+ * survivable: without it the other tabs simply refresh again in turn, which is
+ * safe because the lock has already made those attempts sequential.
+ *
+ * Two channels rather than one for the length of the rename window, per the
+ * note above. A tab listening on both hears a token twice; the second delivery
+ * is a no-op because the value has already been adopted.
  */
-function refreshChannel(): BroadcastChannel | null {
-  if (_channel !== undefined) return _channel;
+function refreshChannels(): BroadcastChannel[] {
+  if (_channels !== undefined) return _channels;
   if (typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') {
-    _channel = null;
-    return _channel;
+    _channels = [];
+    return _channels;
   }
-  _channel = new BroadcastChannel(REFRESH_CHANNEL);
-  _channel.addEventListener('message', (event: MessageEvent) => {
+  const adopt = (event: MessageEvent) => {
     const access = (event.data as { access?: string } | null)?.access;
     if (!access || access === _accessToken) return;
     // A sibling tab rotated the cookie and this is what it got back. Adopt it:
@@ -197,12 +220,17 @@ function refreshChannel(): BroadcastChannel | null {
     void import('@/store/auth.store').then(({ useAuthStore }) => {
       useAuthStore.getState().updateAccessToken(access);
     });
+  };
+  _channels = [REFRESH_CHANNEL, LEGACY_REFRESH_CHANNEL].map((name) => {
+    const channel = new BroadcastChannel(name);
+    channel.addEventListener('message', adopt);
+    return channel;
   });
-  return _channel;
+  return _channels;
 }
 
 function publishAccessToken(access: string): void {
-  refreshChannel()?.postMessage({ access });
+  for (const channel of refreshChannels()) channel.postMessage({ access });
 }
 
 /**
@@ -212,17 +240,38 @@ function publishAccessToken(access: string): void {
  * "write my id, read it back, proceed only if it is still mine" is a real —
  * if racy at the microsecond scale — mutex. The TTL is what keeps a tab the
  * user closed mid-refresh from wedging every other one.
+ *
+ * The key is a parameter so the caller can hold the current name and the
+ * pre-rebrand one at the same time; see the note beside the constants. Every
+ * access is wrapped because `localStorage` throws rather than returning null in
+ * a browser with site data blocked, and a refresh that cannot take the mutex is
+ * far better than a refresh that throws.
  */
-async function withStorageMutex<T>(run: () => Promise<T>): Promise<T> {
+async function withStorageMutex<T>(key: string, run: () => Promise<T>): Promise<T> {
   const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
   const giveUpAt = Date.now() + LOCK_TTL_MS;
 
+  const read = (): string | null => {
+    try {
+      return window.localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  };
+  const write = (value: string): void => {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+      /* storage unavailable — proceed unserialised rather than fail the refresh */
+    }
+  };
+
   for (;;) {
-    const held = window.localStorage.getItem(LOCK_KEY);
+    const held = read();
     const heldUntil = held ? Number(held.split('|')[1]) : 0;
     if (!held || !Number.isFinite(heldUntil) || heldUntil <= Date.now()) {
-      window.localStorage.setItem(LOCK_KEY, `${id}|${Date.now() + LOCK_TTL_MS}`);
-      if (window.localStorage.getItem(LOCK_KEY)?.startsWith(`${id}|`)) break;
+      write(`${id}|${Date.now() + LOCK_TTL_MS}`);
+      if (read()?.startsWith(`${id}|`)) break;
     }
     // Waiting forever would be worse than a replay: the panel would never
     // finish booting. Past the deadline, go ahead unserialised.
@@ -233,18 +282,29 @@ async function withStorageMutex<T>(run: () => Promise<T>): Promise<T> {
   try {
     return await run();
   } finally {
-    if (window.localStorage.getItem(LOCK_KEY)?.startsWith(`${id}|`)) {
-      window.localStorage.removeItem(LOCK_KEY);
+    if (read()?.startsWith(`${id}|`)) {
+      try {
+        window.localStorage.removeItem(key);
+      } catch {
+        /* nothing to clean up if storage is gone; the TTL covers it anyway */
+      }
     }
   }
 }
 
+/**
+ * Both lock names, nested and always in the same order — new outside, legacy
+ * inside. A tab on the old bundle only ever takes the legacy one, so there is
+ * no pair of tabs that can take them in opposite orders and deadlock.
+ */
 function withRefreshLock<T>(run: () => Promise<T>): Promise<T> {
   if (typeof navigator !== 'undefined' && navigator.locks?.request) {
-    return navigator.locks.request(REFRESH_LOCK, run) as Promise<T>;
+    return navigator.locks.request(REFRESH_LOCK, () =>
+      navigator.locks.request(LEGACY_REFRESH_LOCK, run),
+    ) as Promise<T>;
   }
   if (typeof window === 'undefined' || !window.localStorage) return run();
-  return withStorageMutex(run);
+  return withStorageMutex(LOCK_KEY, () => withStorageMutex(LEGACY_LOCK_KEY, run));
 }
 
 /**
@@ -277,7 +337,7 @@ async function attemptTokenRefresh(): Promise<RefreshOutcome> {
   // Subscribe before queueing, not on the way out: a tab that only ever waits
   // never reaches `publishAccessToken`, and an unsubscribed waiter cannot hear
   // the token it is waiting for.
-  refreshChannel();
+  refreshChannels();
 
   // Read before queueing for the lock: if the cell has changed by the time we
   // hold it, a sibling minted a token while we waited.

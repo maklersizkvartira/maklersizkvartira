@@ -4,8 +4,8 @@
 export const listings = {
   page: {
     title: 'Listings',
-    subtitle: 'Straight from the owners — no commission',
-    metaTitle: 'Apartments for rent — Maklersiz Uy',
+    subtitle: 'Contact the lister directly — free to post',
+    metaTitle: 'Apartments for rent — Uyiz',
     resultCount: '{count} listings found',
     resultCountFiltered: '{count} listings match your filters',
     searchPlaceholder: 'Search by district, metro or keyword',
@@ -54,7 +54,6 @@ export const listings = {
       verified: 'Verified',
       noDeposit: 'No deposit',
       newest: 'Newest',
-      withVideo: 'With video',
       petsAllowed: 'Pets allowed',
     },
 
@@ -87,23 +86,6 @@ export const listings = {
     },
   },
 
-  hero: {
-    eyebrow: 'Broker-free platform',
-    title: 'Find a flat straight from the owner',
-    titleAccent: 'no commission',
-    subtitle:
-      'Every listing is checked by AI for broker activity and fraud. '
-      + 'You talk to the owner directly.',
-    searchCta: 'Search flats',
-    postCta: 'Post a listing for free',
-    stats: {
-      listings: 'active listings',
-      owners: 'verified owners',
-      commission: 'commission',
-      checked: 'AI checks',
-    },
-  },
-
   featured: {
     title: 'Featured listings',
     subtitle: 'The most trusted and popular offers',
@@ -131,7 +113,11 @@ export const listings = {
     saveListing: 'Save',
     savedListing: 'Saved',
     shareListing: 'Share listing',
-    shareText: '{title} — {price}. On Maklersiz Uy, with no commission!',
+    shareText: '{title} — {price}. On Uyiz!',
+    // The card's closing chip and the price block on the detail page. It says
+    // what the platform actually guarantees — you reach whoever published the
+    // listing yourself — rather than making a promise about their fee.
+    directContact: 'Direct contact',
     // The card carousel. Dots are buttons, so each one needs a name a screen
     // reader can read; the live region reads the position after a swipe.
     photoCarousel: '{title} — listing photos',
@@ -161,20 +147,35 @@ export const listings = {
     notFoundBody: 'It may have been removed, or the link is incorrect.',
     districtNamed: '{name} district',
     floorLabel: 'Floor',
-    photosTab: 'Photos ({count})',
-    videoTab: 'Video tour',
-    mediaTabsLabel: 'Choose media type',
-    videoTitle: 'Listing video tour',
-    videoUnsupported: 'Your browser does not support video playback.',
     showImage: 'Show photo {index}',
     photoOf: '{title} — photo {index}',
     viewOnMap: 'Show on map',
     ownerRentals: '{count} successful rentals',
     utilitiesExcluded: 'Utilities billed separately',
-    aiTitle: 'Shield AI safety analysis',
-    aiSubtitle: 'Automated scan result',
-    aiReasonsTitle: 'AI check results',
-    aiNoReasons: 'The AI left no additional notes.',
+
+    /**
+     * The reliability figure, said plainly.
+     *
+     * It is not a machine's opinion of the listing: every listing starts at
+     * 100 and the only thing that moves the number is an administrator
+     * confirming a complaint about it. These four strings are the whole
+     * explanation the reader gets, so they must not imply any other check.
+     */
+    trustTitle: 'Reliability',
+    trustSubtitle: 'Calculated from confirmed complaints',
+    trustExplainer:
+      'Every listing starts at 100. The score falls only when an '
+      + 'administrator confirms a complaint about it.',
+    trustNoComplaints: 'No complaint about this listing has been confirmed.',
+    trustHasComplaints: 'A complaint about this listing has been confirmed.',
+    /** Hover text for the score chip on the card and in the page heading. */
+    trustTooltip: 'Reliability: {score}/100. It drops only on a confirmed complaint.',
+    /**
+     * The owner chip in the sidebar shows the USER's score, which still rises
+     * on verification — a different rule from the listing figure above, so it
+     * gets its own label rather than borrowing one that mentions complaints.
+     */
+    ownerTrustScore: 'Owner trust: {score}',
     ownerToolbar: 'You own this listing',
     confirmDelete: 'Delete this listing permanently?',
     amenityAvailable: 'available',
@@ -193,7 +194,6 @@ export const listings = {
     petsAllowed: 'Pets allowed',
     utilitiesIncluded: 'Utilities',
     virtualTour: '3D tour',
-    video: 'Video',
   },
 
   propertyType: {
@@ -218,7 +218,7 @@ export const listings = {
     tip1: 'Never transfer money before seeing the property.',
     tip2: 'Pay the deposit only after the contract is signed.',
     tip3: 'Ask the owner for documents (title deed or passport).',
-    tip4: 'If a commission is requested, it is a broker. Report it to us.',
+    tip4: 'Agree every payment term in writing before you pay anything.',
     reportCta: 'Report a suspicious listing',
   },
 
@@ -226,9 +226,11 @@ export const listings = {
     title: 'Send a report',
     subtitle: 'Choose what is wrong',
     reasonLabel: 'Reason',
+    // No "this is a broker listing" reason: professional agents publish here
+    // too, so it is not something to complain about — and a confirmed report
+    // now costs the listing real reliability points.
     reasons: {
       scam: 'Fraud',
-      broker: 'This is a broker listing',
       fakeListing: 'Fake listing',
       fakePhotos: 'Photos are of another property',
       wrongPrice: 'Wrong price',

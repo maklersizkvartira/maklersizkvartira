@@ -52,7 +52,11 @@ GUIDE: dict[str, tuple[str, str]] = {
         # Admin panel alohida deployment - uning manzili ham shu ro‘yxatda
         # bo‘lishi shart, aks holda panel ochiladi-yu, har bir so‘rov uziladi.
         "Ruxsat etilgan frontend manzillari (sayt + admin panel)",
-        "CORS_ORIGINS=https://maklersizuy.uz,https://www.maklersizuy.uz,"
+        # Eski domen maklersizuy.uz hozircha uyiz.uz ga 301 bilan yo'naltiriladi,
+        # shuning uchun u ham ro'yxatda qoladi — CORS aniq mos kelishni talab
+        # qiladi, joker belgi ishlamaydi.
+        "CORS_ORIGINS=https://uyiz.uz,https://www.uyiz.uz,https://admin.uyiz.uz,"
+        "https://maklersizuy.uz,https://www.maklersizuy.uz,"
         "https://admin.maklersizuy.uz",
     ),
     "OTP_DEBUG_RETURN_CODE": (
@@ -145,9 +149,9 @@ def report_missing_in_production(settings) -> bool:
         ))
     if not settings.OPENAI_API_KEY:
         notes.append((
-            "AI faqat qoidalar bo'yicha ishlaydi",
-            "OPENAI_API_KEY is empty: moderation falls back to the rule engine "
-            "and Shield AI replies are templated. This is safe, just reduced.",
+            "Uyiz AI faqat tayyor javoblar bilan ishlaydi",
+            "OPENAI_API_KEY is empty: Uyiz AI falls back to templated replies "
+            "and cannot hold a real conversation. This is safe, just reduced.",
         ))
     if not settings.TELEGRAM_BOT_TOKEN:
         notes.append((

@@ -1,6 +1,6 @@
 """Regenerate ``app/data/locations.py`` from the frontend's location list.
 
-The listing form, the filters and Shield AI all have to agree on what a
+The listing form, the filters and Uyiz AI all have to agree on what a
 district is called, or a search will silently never match. The frontend file
 is the source of truth because it is what the form writes onto a listing; this
 copies it into a Python module the backend can import.
@@ -35,7 +35,7 @@ _STRING = re.compile(r"'((?:[^'\\]|\\.)*)'")
 
 HEADER = '''"""Where Uzbekistan actually is.
 
-Shield AI used to know twelve district names — the ones in Tashkent city — and
+Uyiz AI used to know twelve district names — the ones in Tashkent city — and
 nothing else, so "Samarqandda uy kere" parsed as a request with no location at
 all. This is the full administrative map: 14 regions, every district, and the
 Tashkent metro.

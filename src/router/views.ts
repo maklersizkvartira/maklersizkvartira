@@ -7,7 +7,7 @@
  * module initialisation order.
  *
  * Paths are Uzbek, because the URL is a ranking signal and a trust signal —
- * `maklersizuy.uz/toshkent/chilonzor/kvartira-ijaraga` says what the page is
+ * `uyiz.uz/toshkent/chilonzor/kvartira-ijaraga` says what the page is
  * before anybody has clicked it, and `/?view=listings` says nothing at all.
  */
 

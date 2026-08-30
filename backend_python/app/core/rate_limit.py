@@ -139,6 +139,9 @@ def _rules() -> dict[str, RateLimitRule]:
         "bootstrap_admin": RateLimitRule("bootstrap_admin", 3, 3600),
         "stat_ip": RateLimitRule("stat_ip", 240, 3600),
         "report_ip": RateLimitRule("report_ip", 10, 3600),
+        # Keyed on the user id, like "listing_write": the Top endpoint is
+        # authenticated and ownership-checked, so the account is the subject.
+        "top_request": RateLimitRule("top_request", 10, 3600),
         "admin_login_ip": RateLimitRule("admin_login_ip", 8, 900),
         "password_reveal": RateLimitRule("password_reveal", 30, 3600),
     }

@@ -100,7 +100,7 @@ export const layout = {
 
   sidebar: {
     guestTitle: 'Добро пожаловать',
-    guestSubtitle: 'Войдите, чтобы размещать объявления и напрямую связываться с собственниками',
+    guestSubtitle: 'Войдите, чтобы размещать объявления и напрямую связываться с авторами объявлений',
     level: 'Уровень {level}',
     xpPoints: '{count} XP',
     xpToNext: 'До следующего уровня {count} XP',
@@ -110,8 +110,8 @@ export const layout = {
   footer: {
     about: 'О платформе',
     aboutText:
-      'Maklersiz Uy — платформа для поиска аренды жилья в Узбекистане напрямую '
-      + 'у собственника, без посредников. Комиссия 0%.',
+      'Uyiz — площадка объявлений об аренде жилья в Узбекистане. '
+      + 'Размещение бесплатное, связь с автором объявления напрямую.',
     forTenants: 'Арендаторам',
     forOwners: 'Собственникам',
     company: 'Компания',
@@ -124,7 +124,7 @@ export const layout = {
     support: 'Поддержка',
     faq: 'Частые вопросы',
     followUs: 'Мы в соцсетях',
-    rights: '© {year} Maklersiz Uy. Все права защищены.',
+    rights: '© {year} Uyiz. Все права защищены.',
     madeIn: 'Сделано в Узбекистане',
     // The helpline is a separate group from the `support` link above it: that
     // one goes to a page, this one is the number somebody can dial now. It is
@@ -148,7 +148,6 @@ export const layout = {
     listingCreated: 'Объявление успешно размещено!',
     listingUpdated: 'Объявление изменено.',
     listingDeleted: 'Объявление удалено.',
-    listingRejected: 'Объявление не прошло модерацию.',
     favoriteAdded: 'Добавлено в избранное.',
     favoriteRemoved: 'Удалено из избранного.',
     roleSwitched: 'Роль изменена на «{role}».',
@@ -158,7 +157,7 @@ export const layout = {
     copiedLink: 'Ссылка скопирована.',
     xpEarned: '+{amount} XP — {reason}',
     welcomeOwner: 'Добро пожаловать! Теперь вы можете размещать объявления.',
-    welcomeStudent: 'Добро пожаловать! Выбирайте квартиру без посредников.',
+    welcomeStudent: 'Добро пожаловать! Выбирайте свою квартиру.',
     sessionExpired: 'Сессия истекла. Войдите снова.',
   },
 

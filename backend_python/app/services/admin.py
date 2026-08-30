@@ -23,12 +23,14 @@ from app.models.auth import LoginAttempt
 from app.models.enums import (
     AuditAction,
     ListingStatus,
+    ReportPriority,
     ReportStatus,
+    TopRequestStatus,
     UserRole,
     UserStatus,
     VerificationStatus,
 )
-from app.models.listing import Listing
+from app.models.listing import Listing, TopRequest
 from app.models.moderation import Report, VerificationRequest
 from app.models.user import AdminUser, User
 
@@ -161,6 +163,83 @@ async def admin_login(
 
 
 # ---------------------------------------------------------------------------
+# Reliability ("ishonchlilik foizi")
+# ---------------------------------------------------------------------------
+#: What one confirmed complaint costs a listing, by the priority the report
+#: was filed with. Filing a report costs nothing; only an admin CONFIRMING it
+#: (ReportStatus.RESOLVED) ever moves the number.
+TRUST_PENALTY_BY_PRIORITY: dict[str, int] = {
+    ReportPriority.CRITICAL.value: 25,
+    ReportPriority.HIGH.value: 15,
+    ReportPriority.MEDIUM.value: 10,
+    ReportPriority.LOW.value: 5,
+}
+#: A listing never falls below this. It keeps the value inside the
+#: trust_score_range CHECK constraint however many complaints pile up, and it
+#: leaves a listing something to recover from once they are dismissed.
+TRUST_FLOOR = 10
+
+#: Human labels for the confirmed-complaint ledger. A reason with no entry
+#: falls back to the neutral "other" wording rather than the raw enum value -
+#: which is also what a legacy BROKER row gets, since a professional agent is
+#: no longer something to complain about.
+_REASON_LABELS: dict[str, str] = {
+    "SCAM": "Firibgarlik",
+    "FAKE_LISTING": "Soxta e’lon",
+    "FAKE_PHOTOS": "Soxta rasmlar",
+    "WRONG_PRICE": "Noto‘g‘ri narx",
+    "SPAM": "Spam",
+    "HARASSMENT": "Bezovta qilish",
+}
+
+
+async def recompute_trust_score(
+    db: AsyncSession, *, listing: Listing
+) -> dict[str, int]:
+    """Rebuild a listing's reliability from every confirmed report on it.
+
+    Recomputed from scratch rather than decremented in place, deliberately:
+    the admin sheet lets a moderator re-submit a report that is already
+    settled, and a decrement would charge the listing twice for one complaint.
+    Recomputing also makes un-confirming a report restore the points for free,
+    with no per-report bookkeeping to keep in step.
+
+    Returns ``{"from": ..., "to": ...}`` so the caller can put the movement in
+    the audit trail - this is the only thing that can move a public number, so
+    every movement has to be attributable.
+    """
+    rows = (
+        await db.execute(
+            select(Report.priority, Report.reason)
+            .where(
+                Report.listing_id == listing.id,
+                Report.status == ReportStatus.RESOLVED.value,
+            )
+            .order_by(Report.created_at.asc())
+        )
+    ).all()
+
+    penalty = 0
+    ledger: list[str] = []
+    for priority, reason in rows:
+        cost = TRUST_PENALTY_BY_PRIORITY.get(
+            priority, TRUST_PENALTY_BY_PRIORITY[ReportPriority.MEDIUM.value]
+        )
+        penalty += cost
+        label = _REASON_LABELS.get(reason, "Boshqa sabab")
+        ledger.append(f"{label} — tasdiqlangan shikoyat (-{cost})")
+
+    before = listing.trust_score
+    listing.trust_score = max(TRUST_FLOOR, 100 - penalty)
+    # risk_score is never an independent signal any more; it is the same
+    # number seen from the other side, and the admin queue's filter and its
+    # "most complained about first" sort run on it.
+    listing.risk_score = 100 - listing.trust_score
+    listing.ai_risk_reasons = ledger
+    return {"from": before, "to": listing.trust_score}
+
+
+# ---------------------------------------------------------------------------
 # Dashboard
 # ---------------------------------------------------------------------------
 async def _count(db: AsyncSession, stmt: Select) -> int:
@@ -253,6 +332,9 @@ async def dashboard_stats(db: AsyncSession) -> dict[str, Any]:
             VerificationRequest.status == VerificationStatus.PENDING.value,
         ),
     )
+    pending_top_requests = await _count(
+        db, count_of(TopRequest, TopRequest.status == TopRequestStatus.PENDING.value)
+    )
 
     ai_sessions = await _count(db, count_of(AISession))
     ai_guest_sessions = await _count(db, count_of(AISession, AISession.user_id.is_(None)))
@@ -314,6 +396,7 @@ async def dashboard_stats(db: AsyncSession) -> dict[str, Any]:
         "totalViews": total_views,
         "openReports": open_reports,
         "pendingVerifications": pending_verifications,
+        "pendingTopRequests": pending_top_requests,
         "aiSessions": ai_sessions,
         "guests": ai_guest_sessions,
         "aiQueries": ai_queries,

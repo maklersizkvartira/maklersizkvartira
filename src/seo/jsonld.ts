@@ -46,6 +46,11 @@ export function organisation(description: string): JsonLd {
     '@type': 'Organization',
     '@id': ORG_ID,
     name: ORGANISATION_NAME,
+    // The domain form is what people actually type when they search for the
+    // brand, and it is what every page title ends with. Declaring it as an
+    // alternate name is how the entity and the query get connected; it is the
+    // only alternate worth declaring, because the platform has one name.
+    alternateName: 'Uyiz.uz',
     url: `${SITE_URL}/`,
     logo: {
       '@type': 'ImageObject',

@@ -32,7 +32,7 @@ from app.core.deps import (
     RequireModerator,
     RequireSuperadmin,
 )
-from app.core.errors import BadRequest, Forbidden, NotFound, Unauthorized
+from app.core.errors import BadRequest, Conflict, Forbidden, NotFound, Unauthorized
 from app.core.phone import mask_phone
 from app.core.rate_limit import enforce
 from app.core.security import (
@@ -57,10 +57,11 @@ from app.models.enums import (
     AuditAction,
     ListingStatus,
     ReportStatus,
+    TopRequestStatus,
     UserStatus,
     VerificationStatus,
 )
-from app.models.listing import Favorite, Listing
+from app.models.listing import Favorite, Listing, TopRequest
 from app.models.moderation import Report, VerificationRequest
 from app.models.settings import SystemSetting
 from app.models.user import AdminUser, User
@@ -73,6 +74,7 @@ from app.schemas.admin import (
     AdminSetPasswordRequest,
     AdminSmsRow,
     AdminStaffRow,
+    AdminTopRequestRow,
     AdminUpdateUserRequest,
     AdminUserFilters,
     AdminUserRow,
@@ -87,6 +89,7 @@ from app.schemas.admin import (
     FaceStatusResponse,
     ResolveReportRequest,
     RevealPasswordResponse,
+    ReviewTopRequestRequest,
     ReviewVerificationRequest,
 )
 from app.schemas.auth import AdminLoginRequest, AdminOut, RefreshRequest, TokenResponse
@@ -1263,6 +1266,166 @@ async def delete_listing(
 
 
 # ===========================================================================
+# Top (promotion) requests
+# ===========================================================================
+def _top_row(request: TopRequest, listing: Listing) -> AdminTopRequestRow:
+    """Build a queue row, filling the joined listing columns by hand.
+
+    The PATCH route joins nothing, so without this the admin table's Listing
+    column blanks the moment a request is decided.
+    """
+    row = AdminTopRequestRow.model_validate(request)
+    row.listing_title = listing.title
+    row.listing_district = listing.district
+    row.listing_price = listing.price
+    row.listing_image = listing.images[0] if listing.images else None
+    row.listing_is_featured = listing.is_featured
+    row.listing_featured_until = listing.featured_until
+    return row
+
+
+@router.get("/top-requests", summary="Listings asking for the Top rail")
+async def list_top_requests(
+    admin: RequireModerator,
+    db: DbSession,
+    status_filter: str | None = Query(default=None, alias="status"),
+    pagination: PaginationParams = Depends(),
+) -> dict:
+    stmt = (
+        select(TopRequest, Listing, User)
+        .join(Listing, Listing.id == TopRequest.listing_id)
+        .join(User, User.id == Listing.owner_id)
+    )
+    if status_filter:
+        stmt = stmt.where(TopRequest.status == status_filter.upper())
+
+    total = int(
+        (
+            await db.execute(
+                select(func.count()).select_from(
+                    stmt.with_only_columns(TopRequest.id).subquery()
+                )
+            )
+        ).scalar_one()
+        or 0
+    )
+    # .unique() is required because Listing.owner is lazy="joined".
+    rows = (
+        await db.execute(
+            stmt.order_by(TopRequest.created_at.desc())
+            .offset(pagination.offset)
+            .limit(pagination.page_size)
+        )
+    ).unique().all()
+
+    data = []
+    for request, listing, owner in rows:
+        row = _top_row(request, listing)
+        row.owner_id = owner.id
+        row.owner_name = owner.name
+        row.owner_phone = owner.phone
+        data.append(row.model_dump(by_alias=True))
+
+    return {
+        "status": "success",
+        "data": data,
+        "meta": build_page_meta(
+            pagination.page, pagination.page_size, total
+        ).model_dump(by_alias=True),
+    }
+
+
+@router.patch("/top-requests/{request_id}", summary="Approve or reject a Top request")
+async def review_top_request(
+    request_id: uuid.UUID,
+    payload: ReviewTopRequestRequest,
+    admin: RequireModerator,
+    db: DbSession,
+) -> dict:
+    """The only thing that actually promotes a listing.
+
+    Gated at MODERATOR, matching PATCH /admin/listings/{id}/feature, which
+    writes the same three columns by hand.
+    """
+    request = (
+        await db.execute(select(TopRequest).where(TopRequest.id == request_id))
+    ).unique().scalar_one_or_none()
+    if request is None:
+        raise NotFound("not_found")
+    # A settled request cannot be re-decided: without this, re-submitting an
+    # approval grants a second run of promotion for one request. 409 rather
+    # than 400 because the body is perfectly valid - it is the row's state
+    # that refuses the call, exactly like `top_request_pending` on the owner
+    # side. The admin panel branches on the status as well as the code.
+    if request.status != TopRequestStatus.PENDING.value:
+        raise Conflict("top_request_already_reviewed")
+    if payload.status == TopRequestStatus.PENDING:
+        raise BadRequest("validation_error")
+
+    listing = await _load_listing(db, request.listing_id)
+    before = {
+        "status": request.status,
+        "is_featured": listing.is_featured,
+        "promotion_weight": listing.promotion_weight,
+    }
+
+    request.status = payload.status.value
+    request.reviewed_by_id = admin.id
+    request.reviewed_at = _now()
+
+    if payload.status == TopRequestStatus.APPROVED:
+        days = payload.days or request.requested_days
+        until = _now() + timedelta(days=days)
+        # Extend, never truncate: a listing already promoted keeps the later
+        # of the two dates, so a second grant cannot shorten a live run.
+        if listing.featured_until and listing.featured_until > until:
+            until = listing.featured_until
+        listing.is_featured = True
+        listing.featured_until = until
+        listing.promotion_weight = max(
+            listing.promotion_weight, payload.promotion_weight
+        )
+        request.granted_days = days
+        request.granted_weight = listing.promotion_weight
+        request.granted_until = until
+        request.rejection_reason = None
+    else:
+        request.rejection_reason = payload.rejection_reason
+
+    await db.flush()
+    await audit_log.record(
+        db,
+        AuditAction.ADMIN_TOP_APPROVED
+        if payload.status == TopRequestStatus.APPROVED
+        else AuditAction.ADMIN_TOP_REJECTED,
+        entity_type="listing",
+        entity_id=listing.id,
+        entity_label=listing.title,
+        summary=(
+            f"{admin.full_name} "
+            f"{'approved' if payload.status == TopRequestStatus.APPROVED else 'rejected'} "
+            f"the Top request for '{listing.title}'"
+        ),
+        changes=audit_log.diff(
+            before,
+            {
+                "status": request.status,
+                "is_featured": listing.is_featured,
+                "promotion_weight": listing.promotion_weight,
+            },
+        ),
+        meta={
+            "request_id": str(request.id),
+            "days": request.granted_days,
+            "weight": request.granted_weight,
+            "reason": request.rejection_reason,
+        },
+    )
+
+    return _ok(_top_row(request, listing).model_dump(by_alias=True))
+
+
+# ===========================================================================
 # Audit log - "barcha harakatlar"
 # ===========================================================================
 #: Groups used by the admin UI's quick filters.
@@ -1429,8 +1592,15 @@ async def resolve_report(
     report.resolved_by_id = admin.id
     report.resolved_at = _now()
 
-    if payload.listing_action != "NONE":
-        listing = await _load_listing(db, report.listing_id)
+    # The listing is loaded whichever way this goes, because confirming or
+    # un-confirming a complaint is the only thing that moves the public
+    # reliability percentage. Loaded defensively: a listing already removed by
+    # an earlier DELETE action must not 404 the whole resolution.
+    listing = (
+        await db.execute(select(Listing).where(Listing.id == report.listing_id))
+    ).unique().scalar_one_or_none()
+
+    if listing is not None and payload.listing_action != "NONE":
         if payload.listing_action == "REJECT":
             listing.status = ListingStatus.REJECTED.value
         elif payload.listing_action == "APPROVE":
@@ -1441,6 +1611,20 @@ async def resolve_report(
         listing.moderated_by_id = admin.id
         listing.moderated_at = _now()
 
+    # RESOLVED means the admin confirmed the complaint, so it costs the
+    # listing points; anything else costs nothing and gives back whatever a
+    # previous confirmation had taken. Recomputed from every confirmed report
+    # after the new status is written, so both directions work and a repeated
+    # save cannot charge twice. The listing action is independent: an admin
+    # can confirm a complaint without taking the listing down.
+    trust: dict[str, int] | None = None
+    if listing is not None:
+        # The session runs with autoflush off, and the recompute reads the
+        # reports table - so this report's new status has to reach the
+        # database before it is counted, or the score lags one decision behind.
+        await db.flush()
+        trust = await admin_service.recompute_trust_score(db, listing=listing)
+
     await db.flush()
     await audit_log.record(
         db,
@@ -1450,7 +1634,11 @@ async def resolve_report(
         entity_label=report.reason,
         summary=f"{admin.full_name} resolved a report as {payload.status.value}",
         changes={"status": {"from": before, "to": report.status}},
-        meta={"listing_action": payload.listing_action},
+        meta={
+            "listing_action": payload.listing_action,
+            "trust_penalty": (trust["from"] - trust["to"]) if trust else 0,
+            "trust_score_after": trust["to"] if trust else None,
+        },
     )
     return _ok(AdminReportRow.model_validate(report).model_dump(by_alias=True))
 

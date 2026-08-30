@@ -89,11 +89,11 @@ interface ContactLink {
   external?: boolean;
 }
 
-const SUPPORT_EMAIL = 'support@maklersizuy.uz';
+const SUPPORT_EMAIL = 'support@uyiz.uz';
 
 const CONTACT_LINKS: ContactLink[] = [
   {
-    href: 'https://www.instagram.com/maklersizuy.uz/',
+    href: 'https://www.instagram.com/uyiz.uz/',
     label: 'Instagram',
     icon: InstagramIcon,
     // Instagram's magenta, darkened just enough to stay legible on white and
@@ -103,7 +103,7 @@ const CONTACT_LINKS: ContactLink[] = [
     external: true,
   },
   {
-    href: 'https://t.me/maklersizuy',
+    href: 'https://t.me/uyiz',
     label: 'Telegram',
     icon: Send,
     accent: '#1c8fcb',
@@ -176,7 +176,6 @@ export const Footer: React.FC = () => {
         <div className="flex flex-col gap-8 lg:grid lg:grid-cols-4">
           <div className="space-y-4">
             <Logo size="md" tagline={t('common.brand.shortTagline')} />
-            {/* Maklersiz uy va kvartira ijarasi matni olib tashlandi */}
 
             {/*
               The helpline: one quiet card holding both numbers.

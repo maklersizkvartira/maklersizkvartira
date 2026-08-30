@@ -923,13 +923,18 @@ export const Header: React.FC = () => {
         </a>
 
         <div className={`gutter-safe mx-auto flex ${HEADER_H} max-w-7xl items-center gap-2 sm:gap-3`}>
-          {/* 1 — brand. Below 390px only the mark survives: 118px of white
-              wordmark is the most expensive thing on a 328px row, and a bare
-              app icon is what a native app shows anyway. The full lockup waits
-              for `xl` now rather than `sm`, because between 1024 and 1279 the
-              ~25px it costs is the difference between the section links
-              fitting and the row overflowing. `-ml-1` pulls the hover circle's
-              optical edge back onto the gutter line. */}
+          {/* 1 — brand. Below 390px only the mark survives: the wordmark was
+              the most expensive thing on a 328px row, and a bare app icon is
+              what a native app shows anyway. The full lockup waits for `xl`
+              rather than `sm`, because between 1024 and 1279 the width it
+              costs was the difference between the section links fitting and
+              the row overflowing. `-ml-1` pulls the hover circle's optical
+              edge back onto the gutter line.
+
+              Both thresholds were measured against the old, far longer
+              wordmark and are now conservative — "Uyiz" is roughly half its
+              width. They are deliberately left where they are: the rename was
+              not to move the layout. Re-measure before touching them. */}
           <AppLink
             view="HOME"
             onNavigate={closeMenus}

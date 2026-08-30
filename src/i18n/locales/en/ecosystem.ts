@@ -4,7 +4,7 @@
 export const ecosystem = {
   hero: {
     eyebrow: 'Company roadmap',
-    title: 'Maklersiz Uy — a property super app',
+    title: 'Uyiz — a property super app',
     subtitle:
       'The road from a plain listings site to the largest property and living-services '
       + 'ecosystem in Uzbekistan.',
@@ -23,10 +23,10 @@ export const ecosystem = {
 
   stages: {
     marketplace: {
-      title: 'Rental marketplace and AI trust system',
+      title: 'Rental marketplace and trust system',
       desc:
-        'Broker-free apartment search, AI screening of every listing, a trust score and '
-        + 'five-step owner verification.',
+        'Apartment search, a reliability score on every listing and five-step '
+        + 'verification of whoever published it.',
       badge: 'Active MVP',
     },
     profile: {
