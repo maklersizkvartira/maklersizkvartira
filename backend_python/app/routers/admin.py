@@ -16,7 +16,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy import String, and_, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,6 +44,7 @@ from app.core.security import (
 )
 from app.core.tokens import (
     TokenError,
+    decode_access_token,
     revoke_all_for_subject,
     rotate_token_pair,
 )
@@ -305,28 +306,64 @@ async def admin_face_login(payload: FaceLoginRequest, db: DbSession, ctx: Reques
     )
 
 
+def _bearer_token(request: Request) -> str | None:
+    header = request.headers.get("authorization") or ""
+    if not header.lower().startswith("bearer "):
+        return None
+    token = header[7:].strip()
+    return token or None
+
+
 @router.post("/auth/face-register", response_model=MessageResponse, summary="Register or update Face ID")
-async def admin_face_register(payload: FaceRegisterRequest, db: DbSession, ctx: RequestCtx) -> MessageResponse:
+async def admin_face_register(
+    payload: FaceRegisterRequest,
+    db: DbSession,
+    request: Request,
+    ctx: RequestCtx,
+) -> MessageResponse:
     if not payload.image:
         raise BadRequest("face_image_required")
 
     target_admin = None
-    if ctx.actor_id and ctx.actor_type == "ADMIN":
-        if payload.username:
-            target_admin = (
-                await db.execute(select(AdminUser).where(AdminUser.username == payload.username.strip()))
-            ).scalar_one_or_none()
-        if target_admin is None:
-            target_admin = (await db.execute(select(AdminUser).where(AdminUser.id == ctx.actor_id))).scalar_one_or_none()
 
+    # 1. Check if caller has active admin bearer token
+    token = _bearer_token(request)
+    if token:
+        try:
+            claims = decode_access_token(token)
+            if claims.subject_type == "admin":
+                caller_admin = (
+                    await db.execute(
+                        select(AdminUser).where(AdminUser.id == claims.subject_id, AdminUser.is_active == True)
+                    )
+                ).scalar_one_or_none()
+                if caller_admin:
+                    if payload.username:
+                        target_admin = (
+                            await db.execute(
+                                select(AdminUser).where(AdminUser.username == payload.username.strip())
+                            )
+                        ).scalar_one_or_none()
+                    if target_admin is None:
+                        target_admin = caller_admin
+        except Exception:
+            pass
+
+    # 2. If unauthenticated / no valid token
     if target_admin is None:
-        if not payload.username or not payload.password:
-            raise Unauthorized("credentials_required_for_face_registration")
+        if not payload.username:
+            raise BadRequest("username_required")
         admin = (
             await db.execute(select(AdminUser).where(AdminUser.username == payload.username.strip()))
         ).scalar_one_or_none()
+        if admin is None or not admin.is_active:
+            raise NotFound("admin_not_found")
+
+        if not payload.password:
+            raise Unauthorized("credentials_required_for_face_registration")
+
         from app.core.security import verify_password
-        if admin is None or not verify_password(payload.password, admin.password_hash) or not admin.is_active:
+        if not verify_password(payload.password, admin.password_hash):
             raise Unauthorized("invalid_credentials")
         target_admin = admin
 

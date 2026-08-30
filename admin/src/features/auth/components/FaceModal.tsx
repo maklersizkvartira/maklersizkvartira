@@ -311,16 +311,10 @@ export function FaceModal({
           );
         } else {
           // Registration mode
-          if (!isAuthenticated && !regPassword) {
-            setErrorMsg('Iltimos, ushbu admin parolini kiriting.');
-            setIsProcessing(false);
-            return;
-          }
-
           const res = await faceRegister({
             image: base64Img,
             username: targetUsername,
-            password: isAuthenticated ? undefined : regPassword,
+            password: regPassword ? regPassword.trim() : undefined,
           });
 
           playSuccessSound();
@@ -341,9 +335,22 @@ export function FaceModal({
         }
       } catch (err: unknown) {
         console.error('Face error:', err);
-        const msg =
-          (err as { message?: string })?.message ||
-          'Server bilan bog\'lanishda xatolik yuz berdi.';
+        const errObj = err as { code?: string; message?: string };
+        const rawCode = errObj.code || errObj.message || '';
+
+        let msg = 'Server bilan bog\'lanishda xatolik yuz berdi.';
+        if (rawCode.includes('credentials_required')) {
+          msg = `Iltimos, @${targetUsername} hisobi parolini kiriting.`;
+        } else if (rawCode.includes('invalid_credentials')) {
+          msg = 'Admin paroli noto\'g\'ri kiritildi.';
+        } else if (rawCode.includes('face_not_detected')) {
+          msg = 'Kadrda yuz aniqlanmadi. Iltimos, kameraga to\'g\'ri qarang.';
+        } else if (rawCode.includes('admin_not_found')) {
+          msg = 'Tanlangan admin hisobi topilmadi.';
+        } else if (errObj.message) {
+          msg = errObj.message;
+        }
+
         if (!isAuto) {
           setErrorMsg(msg);
           setStatusMsg('Xatolik yuz berdi');
@@ -563,18 +570,23 @@ export function FaceModal({
             })}
           </div>
 
-          {/* Password field only in register mode if user is not authenticated inside panel */}
-          {mode === 'register' && !isAuthenticated && (
+          {/* Password field in register mode */}
+          {mode === 'register' && (
             <div className="pt-1 border-t border-slate-800/80 mt-2">
-              <div className="flex items-center gap-1 text-[11px] text-amber-400 font-medium mb-1">
-                <KeyRound className="w-3 h-3" />
-                <span>@{selectedAdminUsername} hisobi paroli:</span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="flex items-center gap-1 text-[11px] text-amber-400 font-medium">
+                  <KeyRound className="w-3 h-3" />
+                  <span>@{selectedAdminUsername} hisobi paroli:</span>
+                </span>
+                {isAuthenticated && (
+                  <span className="text-[10px] text-emerald-400">Admin seansi orqali</span>
+                )}
               </div>
               <div className="relative">
                 <Lock className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
                 <input
                   type="password"
-                  placeholder="Admin Paroli"
+                  placeholder={isAuthenticated ? "Admin paroli (ixtiyoriy)" : "Admin parolini kiriting"}
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-700/70 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
