@@ -377,9 +377,13 @@ async def admin_face_login(payload: FaceLoginRequest, db: DbSession, ctx: Reques
 
     best_sim = -1.0
     best_admin = None
+    has_legacy_encoding = False
     for adm in admins:
         try:
             stored = json.loads(adm.face_encoding)
+            if not isinstance(stored, list) or len(stored) != len(live_probes[0]):
+                has_legacy_encoding = True
+                continue
             sim = _face_similarity(live_probes, stored)
             if sim > best_sim:
                 best_sim = sim
@@ -387,7 +391,10 @@ async def admin_face_login(payload: FaceLoginRequest, db: DbSession, ctx: Reques
         except Exception:
             continue
 
-    SIMILARITY_THRESHOLD = 0.58
+    if has_legacy_encoding and best_admin is None:
+        raise Unauthorized("face_legacy_format")
+
+    SIMILARITY_THRESHOLD = 0.45
     if best_admin is None or best_sim < SIMILARITY_THRESHOLD:
         import logging
         logging.getLogger(__name__).warning(

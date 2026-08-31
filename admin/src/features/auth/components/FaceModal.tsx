@@ -323,11 +323,11 @@ export function FaceModal({
                 const errObj = err as { code?: string; message?: string };
                 const rawCode = errObj.code || errObj.message || '';
 
-                if (rawCode.includes('face_not_enrolled')) {
+                if (rawCode.includes('face_legacy_format') || rawCode.includes('face_not_enrolled')) {
                   setErrorMsg(
-                    `@${targetUsername} hisobida hali Face ID o'rnatilmagan. Iltimos, parolni kiritib yuzingizni ro'yxatdan o'tkazing.`,
+                    `@${targetUsername} hisobida Face ID yangilanishi kerak. Iltimos, yuzingizni suratga olib saqlang.`,
                   );
-                  setStatusMsg("Face ID o'rnatilmagan");
+                  setStatusMsg("Yuzni yangilang");
                   setMode('register');
                   setCapturedPreview(null);
                   return;
@@ -372,17 +372,33 @@ export function FaceModal({
           setStatusMsg(res.message || '✅ Face ID muvaffaqiyatli saqlandi!');
           await refreshStatus();
 
-          setTimeout(() => {
-            setIsProcessing(false);
-            setCapturedPreview(null);
-            if (isAuthenticated) {
+          // If logging in from public login screen, automatically complete sign-in immediately
+          if (!isAuthenticated) {
+            doFaceLogin(
+              { username: targetUsername, image: base64Img },
+              {
+                onSuccess: () => {
+                  setIsProcessing(false);
+                  setCapturedPreview(null);
+                  if (onSuccess) onSuccess();
+                  onClose();
+                },
+                onError: () => {
+                  setIsProcessing(false);
+                  setCapturedPreview(null);
+                  setMode('login');
+                  setStatusMsg('Endi Face ID orqali kirishingiz mumkin.');
+                },
+              },
+            );
+          } else {
+            setTimeout(() => {
+              setIsProcessing(false);
+              setCapturedPreview(null);
               if (onSuccess) onSuccess();
               onClose();
-            } else {
-              setMode('login');
-              setStatusMsg('Endi Face ID orqali kirishingiz mumkin.');
-            }
-          }, 1200);
+            }, 1000);
+          }
         }
       } catch (err: unknown) {
         console.error('Face error:', err);
