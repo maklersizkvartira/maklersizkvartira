@@ -580,7 +580,7 @@ export function FaceModal({
                 </span>
               ) : (
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-semibold flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" /> Yuz kiritilmoqda
+                  <AlertCircle className="w-3 h-3" /> Yangi yuz
                 </span>
               )}
             </div>
@@ -645,6 +645,71 @@ export function FaceModal({
                   </button>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Mode Switch Tabs */}
+        <div className="flex rounded-xl bg-slate-900/90 p-1 border border-slate-800 mt-2.5">
+          <button
+            type="button"
+            onClick={() => {
+              setMode('login');
+              setCapturedPreview(null);
+              setErrorMsg(null);
+              setStatusMsg('Kameraga qarab tugmani bosing...');
+            }}
+            className={`flex-1 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-semibold transition cursor-pointer ${
+              mode === 'login'
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            📸 Face ID Kirish
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode('register');
+              setCapturedPreview(null);
+              setErrorMsg(null);
+              setStatusMsg('Yuzingizni markazga to\'g\'rilab, suratga oling...');
+            }}
+            className={`flex-1 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-semibold transition cursor-pointer ${
+              mode === 'register'
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            ✨ Yuzni Qayta Saqlash / Yangilash
+          </button>
+        </div>
+
+        {/* Password input when registering in unauthenticated mode if not already filled */}
+        {mode === 'register' && !isAuthenticated && (
+          <div className="mt-2.5 p-2.5 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-[11px] sm:text-xs text-amber-400 font-bold">
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>@{selectedAdminUsername} hisobi paroli:</span>
+              </span>
+              <span className="text-[10px] text-emerald-400 font-medium">
+                {regPassword ? '✓ Parol kiritilgan' : '(Talab qilinadi)'}
+              </span>
+            </div>
+            <div className="relative">
+              <Lock className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
+              <input
+                id="face-reg-password-input"
+                type="password"
+                placeholder="Admin paroli"
+                value={regPassword}
+                onChange={(e) => {
+                  setRegPassword(e.target.value);
+                  if (errorMsg) setErrorMsg(null);
+                }}
+                className="w-full bg-slate-950 border border-slate-700/80 focus:border-emerald-500 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition"
+              />
             </div>
           </div>
         )}
