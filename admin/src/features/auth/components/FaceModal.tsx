@@ -79,6 +79,8 @@ export function FaceModal({
   const [regPassword, setRegPassword] = useState('');
   const [capturedPreview, setCapturedPreview] = useState<string | null>(null);
 
+  const selectedAdmin = adminsList.find((a) => a.username === selectedAdminUsername);
+
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -93,13 +95,21 @@ export function FaceModal({
       const res = await getFaceStatus();
       if (res.admins && res.admins.length > 0) {
         setAdminsList(res.admins);
-        if (!initialAdminUsername && !currentAdmin?.username) {
-          const firstTarget = res.admins.find((a) => (initialMode === 'login' ? a.hasFace : true));
-          setSelectedAdminUsername(firstTarget?.username || res.admins[0].username);
+        const targetAdmin = initialAdminUsername
+          ? res.admins.find((a) => a.username === initialAdminUsername)
+          : currentAdmin?.username
+          ? res.admins.find((a) => a.username === currentAdmin.username)
+          : (initialMode === 'login' ? res.admins.find((a) => a.hasFace) : null) || res.admins[0];
+
+        if (targetAdmin) {
+          setSelectedAdminUsername(targetAdmin.username);
+          if (!targetAdmin.hasFace && initialMode === 'login' && !isAuthenticated) {
+            setMode('register');
+            setStatusMsg(`@${targetAdmin.username} hisobida Face ID yo'q. Yuzingizni saqlang.`);
+          } else {
+            setMode(initialMode);
+          }
         }
-      }
-      if (!res.enrolled && initialMode === 'login' && !isAuthenticated) {
-        setMode('register');
       } else {
         setMode(initialMode);
       }
@@ -308,9 +318,25 @@ export function FaceModal({
                 onClose();
               },
               onError: (err: unknown) => {
-                const msg =
-                  (err as { message?: string })?.message ||
-                  'Yuz aniqlanmadi yoki tanlangan admin hisobiga mos kelmadi.';
+                const errObj = err as { code?: string; message?: string };
+                const rawCode = errObj.code || errObj.message || '';
+
+                if (rawCode.includes('face_not_enrolled')) {
+                  setErrorMsg(
+                    `@${targetUsername} hisobida hali Face ID o'rnatilmagan. Iltimos, parolni kiritib yuzingizni ro'yxatdan o'tkazing.`,
+                  );
+                  setStatusMsg("Face ID o'rnatilmagan");
+                  setMode('register');
+                  setCapturedPreview(null);
+                  return;
+                }
+
+                const msg = rawCode.includes('invalid_credentials')
+                  ? 'Yuz aniqlanmadi yoki tanlangan admin hisobiga mos kelmadi.'
+                  : rawCode.includes('face_not_detected')
+                  ? 'Kadrda yuz aniqlanmadi. Iltimos, kameraga to\'g\'ri qarang.'
+                  : errObj.message || 'Yuz aniqlanmadi yoki tanlangan admin hisobiga mos kelmadi.';
+
                 if (!isAuto) {
                   setErrorMsg(msg);
                   setStatusMsg('Yuz mos kelmadi.');
@@ -553,7 +579,14 @@ export function FaceModal({
                 <button
                   key={adm.id}
                   type="button"
-                  onClick={() => setSelectedAdminUsername(adm.username)}
+                  onClick={() => {
+                    setSelectedAdminUsername(adm.username);
+                    setErrorMsg(null);
+                    if (!adm.hasFace) {
+                      setMode('register');
+                      setStatusMsg(`@${adm.username} hisobida Face ID yo'q. Yuzingizni ro'yxatdan o'tkazing.`);
+                    }
+                  }}
                   className={`p-2.5 rounded-xl text-left border transition flex items-center gap-2.5 cursor-pointer relative overflow-hidden ${
                     isSelected
                       ? 'bg-emerald-500/15 border-emerald-500/60 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
@@ -721,7 +754,14 @@ export function FaceModal({
             {/* Main Capture / Scan Button */}
             <button
               type="button"
-              onClick={() => handleScan(false)}
+              onClick={() => {
+                if (mode === 'login' && selectedAdmin && !selectedAdmin.hasFace) {
+                  setMode('register');
+                  setStatusMsg(`@${selectedAdmin.username} hisobida Face ID yo'q. Yuzingizni ro'yxatdan o'tkazing.`);
+                  return;
+                }
+                handleScan(false);
+              }}
               disabled={isProcessing || isLoggingIn}
               className="w-full sm:flex-1 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/25 transition transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 text-sm cursor-pointer"
             >
@@ -732,7 +772,9 @@ export function FaceModal({
               )}
               <span>
                 {mode === 'login'
-                  ? '📸 Yuzni Skanerlash Va Kirish'
+                  ? selectedAdmin && !selectedAdmin.hasFace
+                    ? '📸 Face ID O\'rnatish (Ro\'yxatdan o\'tkazish)'
+                    : '📸 Yuzni Skanerlash Va Kirish'
                   : '📸 Yuzni Suratga Olish Va Saqlash'}
               </span>
             </button>
