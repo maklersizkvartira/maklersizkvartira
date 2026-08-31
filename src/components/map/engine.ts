@@ -53,10 +53,23 @@ export interface EngineOptions {
   zoomOutTitle: string;
 }
 
-const YANDEX_KEY = import.meta.env.VITE_YANDEX_MAPS_API_KEY || '57fdc2ff-4eab-4070-bea6-771b83cf3433';
-
-/** Which provider a fresh map will use. Exported so the UI can credit it. */
-export const mapProvider: 'yandex' | 'leaflet' = YANDEX_KEY ? 'yandex' : 'leaflet';
+/**
+ * The Yandex JS API key.
+ *
+ * `VITE_YANDEX_MAPS_API_KEY` wins; the literal is the working default so the
+ * map does not silently drop to OpenStreetMap on a deployment where nobody
+ * remembered to set the variable — which is exactly what was happening.
+ *
+ * A JS API key is not a secret. It ships inside the bundle to every visitor by
+ * definition, and Yandex secures it by HTTP-Referer instead: set the allowed
+ * hosts in the Yandex Cabinet, or anybody can spend this quota.
+ *
+ * The key that was here before, `57fdc2ff-…`, answers `403 Invalid api key`.
+ * If Yandex ever stops loading, check that first — the failure is silent,
+ * because the Leaflet fallback below catches it and the map still appears.
+ */
+const YANDEX_KEY =
+  import.meta.env.VITE_YANDEX_MAPS_API_KEY || '98af8724-f778-4831-a661-f197c1d1f656';
 
 // ---------------------------------------------------------------------------
 // Script loading
@@ -370,24 +383,38 @@ async function createLeaflet(
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 // ---------------------------------------------------------------------------
+/**
+ * Yandex first, Leaflet if it will not load.
+ *
+ * The order used to be the other way round, with a comment about emulators and
+ * domain-locked keys. The effect was that the Yandex path never ran at all:
+ * Leaflet has no key to reject and no GL to miss, so it succeeded every time
+ * and the fallback was the map every visitor got. All of the Yandex code above
+ * was dead, and the site showed OpenStreetMap tiles — which do not carry the
+ * mahalla-level detail of Uzbek addresses that a renter is actually looking
+ * for, and which is the whole reason Yandex is wired up here.
+ *
+ * The concern behind that order was real, though, so it is handled rather than
+ * avoided: anything that stops Yandex — no key, a referrer the key is not
+ * allowed on, a blocked request, a WebGL-less device — throws, and Leaflet
+ * takes over. A visitor sees a working map either way; only the detail differs.
+ */
 export async function createMapEngine(
   element: HTMLElement,
   options: EngineOptions,
 ): Promise<MapEngine> {
-  // We try Leaflet first as it's the most reliable for mobile/emulator environments
-  // without requiring specialized GL drivers or API keys that might be domain-locked.
-  try {
-    return await createLeaflet(element, options);
-  } catch (e) {
-    console.warn('Leaflet failed, trying Yandex...', e);
-    if (YANDEX_KEY) {
-      try {
-        return await createYandex(element, options);
-      } catch (err) {
-        console.error('Yandex failed too:', err);
-        throw err;
-      }
+  if (YANDEX_KEY) {
+    try {
+      return await createYandex(element, options);
+    } catch (error) {
+      // Yandex may have written into the container before it failed, and
+      // Leaflet refuses a container it thinks is already a map ("Map container
+      // is already initialized") — including one Leaflet itself never touched.
+      // Both are cleared here so the fallback starts on bare ground.
+      console.warn('[map] Yandex unavailable, falling back to Leaflet', error);
+      element.innerHTML = '';
+      delete (element as unknown as Record<string, unknown>)._leaflet_id;
     }
-    throw e;
   }
+  return createLeaflet(element, options);
 }
