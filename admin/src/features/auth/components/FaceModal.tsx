@@ -23,6 +23,7 @@ interface FaceModalProps {
   onClose: () => void;
   initialMode?: 'login' | 'register';
   initialAdminUsername?: string;
+  initialPassword?: string;
   onSuccess?: () => void;
 }
 
@@ -58,6 +59,7 @@ export function FaceModal({
   onClose,
   initialMode = 'login',
   initialAdminUsername,
+  initialPassword,
   onSuccess,
 }: FaceModalProps) {
   const currentAdmin = useAuthStore((s) => s.admin);
@@ -76,7 +78,7 @@ export function FaceModal({
   const [selectedAdminUsername, setSelectedAdminUsername] = useState<string>(
     initialAdminUsername || currentAdmin?.username || 'admin',
   );
-  const [regPassword, setRegPassword] = useState('');
+  const [regPassword, setRegPassword] = useState(initialPassword || '');
   const [capturedPreview, setCapturedPreview] = useState<string | null>(null);
 
   const selectedAdmin = adminsList.find((a) => a.username === selectedAdminUsername);

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { useLogin } from '@/features/auth/hooks/useLogin';
-import { getFaceStatus } from '@/features/auth/api';
+import { getFaceStatus, type FaceStatus } from '@/features/auth/api';
 import { FaceModal } from '@/features/auth/components/FaceModal';
 import { ApiError } from '@/shared/lib/http';
 import { Eye, EyeOff, Lock, User, ShieldCheck, ArrowRight, Sparkles, Smile, Camera } from 'lucide-react';
@@ -27,7 +27,7 @@ export default function LoginPage() {
   const [remaining, setRemaining] = useState(0);
   const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
   const [faceModalMode, setFaceModalMode] = useState<'login' | 'register'>('login');
-  const [faceStatus, setFaceStatus] = useState<{ enrolled: boolean; count: number } | null>(null);
+  const [faceStatus, setFaceStatus] = useState<FaceStatus | null>(null);
 
   useEffect(() => {
     getFaceStatus()
@@ -97,10 +97,31 @@ export default function LoginPage() {
   const isFormValid = username.trim().length > 0 && password.trim().length > 0;
   const canSubmit = isFormValid && !isPending && !isCountingDown;
 
+  const cleanUsername = username.trim();
+  const selectedAdmin = faceStatus?.admins?.find(
+    (a) =>
+      a.username.toLowerCase() === cleanUsername.toLowerCase() ||
+      a.username.toLowerCase() === cleanUsername.toLowerCase().replace(/^@/, '')
+  );
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
-    login({ username: username.trim(), password });
+
+    // After typing username and password, trigger Face ID verification
+    if (selectedAdmin?.hasFace) {
+      setFaceModalMode('login');
+      setIsFaceModalOpen(true);
+    } else {
+      // If admin has no Face ID or wants direct login
+      login({ username: cleanUsername, password });
+    }
+  };
+
+  const handleDirectLogin = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!canSubmit) return;
+    login({ username: cleanUsername, password });
   };
 
   return (
@@ -134,8 +155,8 @@ export default function LoginPage() {
 
         <div className="relative px-8 py-10">
           {/* Logo & Header */}
-          <div className="flex flex-col items-center mb-10">
-            <div className="relative mb-6 flex items-center justify-center" style={{ width: '96px', height: '96px' }}>
+          <div className="flex flex-col items-center mb-8">
+            <div className="relative mb-5 flex items-center justify-center" style={{ width: '90px', height: '90px' }}>
               <div
                 className="absolute inset-0 rounded-[28px] animate-glow"
                 style={{
@@ -146,8 +167,8 @@ export default function LoginPage() {
               <div
                 className="relative z-10 rounded-[26px] flex items-center justify-center"
                 style={{
-                  width: '78px',
-                  height: '78px',
+                  width: '74px',
+                  height: '74px',
                   background: 'var(--color-surface)',
                   border: '1px solid var(--color-border)',
                   boxShadow: '0 10px 32px var(--accent-glow), 0 0 0 1px rgba(255,255,255,0.08) inset',
@@ -158,88 +179,28 @@ export default function LoginPage() {
                   alt="Uyiz"
                   width={152}
                   height={192}
-                  className="h-[50px] w-auto"
+                  className="h-[46px] w-auto"
                   priority
                 />
               </div>
             </div>
 
             <h1
-              className="text-[28px] font-black text-center mb-2 leading-[1.05] px-4 tracking-[-0.04em]"
+              className="text-[26px] font-black text-center mb-1.5 leading-[1.05] px-4 tracking-[-0.04em]"
               style={{ color: 'var(--color-text-primary)' }}
             >
               {t('signInTitle')}
             </h1>
-            <p className="text-sm text-center max-w-[280px]" style={{ color: 'var(--color-text-muted)' }}>
+            <p className="text-xs text-center max-w-[280px]" style={{ color: 'var(--color-text-muted)' }}>
               {t('signInSubtitle')}
             </p>
 
-            {/* The CRM shipped two decorative chips here ("AI Powered",
-                "Secure"). One survives, saying something true about where the
-                visitor has landed; the staff-only framing that justified the
-                other now sits in the subtitle above. */}
-            <div className="flex items-center gap-2 mt-5">
+            <div className="flex items-center gap-2 mt-4">
               <span
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold"
                 style={{ background: 'var(--accent-subtle)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }}
               >
-                <ShieldCheck size={10} /> {c('appName')}
-              </span>
-            </div>
-          </div>
-
-          {/* Face ID Action Section */}
-          <div className="mb-6">
-            <button
-              type="button"
-              onClick={() => {
-                setFaceModalMode(faceStatus?.enrolled ? 'login' : 'register');
-                setIsFaceModalOpen(true);
-              }}
-              className="w-full py-4 bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-bold rounded-2xl shadow-[0_0_25px_rgba(16,185,129,0.3)] transition transform active:scale-95 flex items-center justify-center gap-3 border border-emerald-400/30 group"
-            >
-              <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Smile className="w-4 h-4 text-white" />
-              </div>
-              <span className="tracking-wide text-sm font-bold">Face ID Bilan Kirish</span>
-              <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-[10px] font-mono font-extrabold uppercase text-emerald-100">
-                Tezkor
-              </span>
-            </button>
-
-            <div className="flex items-center justify-between px-2 mt-2.5">
-              <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
-                {faceStatus?.enrolled ? 'Face ID faol' : 'Yuz saqlanmagan'}
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setFaceModalMode('register');
-                  setIsFaceModalOpen(true);
-                }}
-                className="text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold transition flex items-center gap-1"
-              >
-                <span>Yuzni saqlash</span>
-                <ArrowRight size={11} />
-              </button>
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-700/60" />
-            </div>
-            <div className="relative flex justify-center">
-              <span
-                className="px-3 text-[11px] font-bold tracking-wider uppercase rounded-full"
-                style={{
-                  background: 'var(--color-surface)',
-                  color: 'var(--color-text-muted)',
-                }}
-              >
-                Yoki Parol Bilan
+                <ShieldCheck size={10} /> {c('appName')} Admin
               </span>
             </div>
           </div>
@@ -261,9 +222,6 @@ export default function LoginPage() {
                 <span className="mt-0.5">⚠</span>
                 <span>
                   {errorMessage}
-                  {/* The clock rather than a sentence: mm:ss needs no
-                      translation, and it is the only part of a lockout the
-                      person in front of the form can act on. */}
                   {isCountingDown && (
                     <span className="block mt-1 font-bold tabular-nums text-base">
                       {formatCountdown(remaining)}
@@ -273,15 +231,22 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Username — the backend authenticates staff by username, not email */}
+            {/* Username */}
             <div className="space-y-1.5">
-              <label
-                htmlFor="username"
-                className="block text-xs font-bold uppercase tracking-wider"
-                style={{ color: 'var(--color-text-secondary)' }}
-              >
-                {t('username')}
-              </label>
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="username"
+                  className="block text-xs font-bold uppercase tracking-wider"
+                  style={{ color: 'var(--color-text-secondary)' }}
+                >
+                  {t('username')}
+                </label>
+                {selectedAdmin?.hasFace && (
+                  <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                    <Sparkles size={10} /> Face ID mavjud
+                  </span>
+                )}
+              </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
                   <User size={15} style={{ color: 'var(--color-text-muted)' }} />
@@ -333,7 +298,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((s) => !s)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3.5 transition-all"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3.5 transition-all cursor-pointer"
                   style={{ color: 'var(--color-text-muted)' }}
                   aria-label={showPassword ? t('hidePassword') : t('showPassword')}
                   tabIndex={-1}
@@ -343,13 +308,13 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Submit */}
-            <div className="pt-2">
+            {/* Submit Button */}
+            <div className="pt-2 space-y-2.5">
               <button
                 type="submit"
                 disabled={!canSubmit}
                 id="login-submit"
-                className="w-full h-12 rounded-xl font-bold text-sm relative overflow-hidden transition-all flex items-center justify-center gap-2"
+                className="w-full h-12 rounded-xl font-bold text-sm relative overflow-hidden transition-all flex items-center justify-center gap-2 cursor-pointer"
                 style={{
                   background: canSubmit ? 'var(--gradient-brand)' : 'rgba(255, 255, 255, 0.05)',
                   cursor: canSubmit ? 'pointer' : 'not-allowed',
@@ -374,6 +339,12 @@ export default function LoginPage() {
                   </>
                 ) : isCountingDown ? (
                   <span className="leading-normal tabular-nums">{formatCountdown(remaining)}</span>
+                ) : selectedAdmin?.hasFace ? (
+                  <>
+                    <Camera size={16} />
+                    <span className="leading-normal">Yuzni Tasdiqlash & Kirish</span>
+                    <ArrowRight size={15} />
+                  </>
                 ) : (
                   <>
                     <span className="leading-normal">{t('submit')}</span>
@@ -381,6 +352,32 @@ export default function LoginPage() {
                   </>
                 )}
               </button>
+
+              {/* Direct Login or Enroll Face ID shortcuts */}
+              {isFormValid && (
+                <div className="flex items-center justify-between px-1 pt-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={handleDirectLogin}
+                    disabled={isPending}
+                    className="text-slate-400 hover:text-slate-200 transition text-[11px] font-medium underline underline-offset-4 cursor-pointer"
+                  >
+                    Faqat parol bilan kirish
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFaceModalMode(selectedAdmin?.hasFace ? 'login' : 'register');
+                      setIsFaceModalOpen(true);
+                    }}
+                    className="text-emerald-400 hover:text-emerald-300 transition text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Smile size={12} />
+                    <span>{selectedAdmin?.hasFace ? 'Face ID bilan ochish' : 'Face ID o\'rnatish'}</span>
+                  </button>
+                </div>
+              )}
             </div>
           </form>
         </div>
@@ -394,7 +391,7 @@ export default function LoginPage() {
         © {new Date().getFullYear()} · {c('appName')}
       </p>
 
-      {/* Biometric Face ID Scanning Modal */}
+      {/* Biometric Face ID Verification Modal */}
       <FaceModal
         isOpen={isFaceModalOpen}
         onClose={() => {
@@ -402,6 +399,8 @@ export default function LoginPage() {
           getFaceStatus().then(setFaceStatus).catch(() => {});
         }}
         initialMode={faceModalMode}
+        initialAdminUsername={cleanUsername || undefined}
+        initialPassword={password || undefined}
       />
     </div>
   );
