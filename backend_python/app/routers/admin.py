@@ -88,6 +88,8 @@ from app.schemas.admin import (
     FaceRegisterRequest,
     FaceStatusResponse,
     ResolveReportRequest,
+    VerifyCredentialsRequest,
+    VerifyCredentialsResponse,
     RevealPasswordResponse,
     ReviewTopRequestRequest,
     ReviewVerificationRequest,
@@ -193,6 +195,44 @@ async def admin_login(payload: AdminLoginRequest, db: DbSession) -> TokenRespons
         refresh_token=pair.refresh_token,
         expires_in=pair.expires_in,
         admin=AdminOut.model_validate(admin),
+    )
+
+
+@router.post("/auth/verify-credentials", response_model=VerifyCredentialsResponse, summary="Validate login credentials before biometric check")
+async def admin_verify_credentials(
+    payload: VerifyCredentialsRequest,
+    db: DbSession,
+) -> VerifyCredentialsResponse:
+    if not payload.username or not payload.password:
+        raise BadRequest("credentials_required")
+
+    u = payload.username.strip()
+    admin = (
+        await db.execute(
+            select(AdminUser).where(
+                or_(
+                    AdminUser.username == u,
+                    AdminUser.username == u.lstrip("@"),
+                    AdminUser.username.ilike(u),
+                    AdminUser.username.ilike(u.lstrip("@")),
+                ),
+                AdminUser.is_active == True,
+            )
+        )
+    ).scalar_one_or_none()
+
+    if admin is None:
+        raise Unauthorized("invalid_credentials")
+
+    from app.core.security import verify_password
+    if not verify_password(payload.password, admin.password_hash):
+        raise Unauthorized("invalid_credentials")
+
+    return VerifyCredentialsResponse(
+        valid=True,
+        username=admin.username,
+        full_name=admin.full_name,
+        has_face=bool(admin.face_encoding),
     )
 
 

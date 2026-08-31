@@ -377,3 +377,15 @@ class FaceStatusResponse(CamelModel):
     face_image: str | None = None
     admins: list[FaceAdminItem] = []
 
+
+class VerifyCredentialsRequest(CamelModel):
+    username: str
+    password: str
+
+
+class VerifyCredentialsResponse(CamelModel):
+    valid: bool
+    username: str
+    full_name: str
+    has_face: bool
+

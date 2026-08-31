@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { useLogin } from '@/features/auth/hooks/useLogin';
-import { getFaceStatus, type FaceStatus } from '@/features/auth/api';
+import { getFaceStatus, verifyCredentials, type FaceStatus } from '@/features/auth/api';
 import { FaceModal } from '@/features/auth/components/FaceModal';
 import { ApiError } from '@/shared/lib/http';
-import { Eye, EyeOff, Lock, User, ShieldCheck, ArrowRight, Sparkles, Smile, Camera } from 'lucide-react';
+import { Eye, EyeOff, Lock, User, ShieldCheck, ArrowRight, Sparkles, Camera } from 'lucide-react';
 
 /** mm:ss — a bare seconds count reads as an error code once it passes 90. */
 function formatCountdown(totalSeconds: number): string {
@@ -20,7 +20,7 @@ export default function LoginPage() {
   const t = useTranslations('auth');
   const te = useTranslations('auth.errors');
   const c = useTranslations('common');
-  const { mutate: login, isPending, error } = useLogin();
+  const { isPending, error } = useLogin();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -28,6 +28,8 @@ export default function LoginPage() {
   const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
   const [faceModalMode, setFaceModalMode] = useState<'login' | 'register'>('login');
   const [faceStatus, setFaceStatus] = useState<FaceStatus | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     getFaceStatus()
@@ -54,12 +56,6 @@ export default function LoginPage() {
         ? (apiError?.retryAfter ?? params.retry_after ?? 0)
         : 0;
 
-  // Seeding the clock here IS the synchronisation this effect exists for: the
-  // lock window arrives with a failed mutation, not with a user action, so
-  // there is no event handler to set it from and no render-time derivation
-  // that would not read the wall clock. `error` is in the deps so a second
-  // lock restarts the count even when the new window is the same length.
-  /* eslint-disable react-hooks/set-state-in-effect -- see above */
   useEffect(() => {
     if (lockSeconds <= 0) {
       setRemaining(0);
@@ -69,15 +65,11 @@ export default function LoginPage() {
     const id = setInterval(() => setRemaining((r) => (r <= 1 ? 0 : r - 1)), 1000);
     return () => clearInterval(id);
   }, [error, lockSeconds]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   const isThrottled = code === 'account_locked' || code === 'rate_limited';
 
-  // Backend code → message key. Anything unrecognised falls through to
-  // `unknown` rather than leaking `error.message`, which is prose that changes
-  // freely and is only translated when the request carried an X-Language the
-  // backend understood.
   const errorMessage = (() => {
+    if (authError) return authError;
     if (!error) return null;
     if (!apiError || apiError.status === 0) return te('network');
     switch (code) {
@@ -95,7 +87,8 @@ export default function LoginPage() {
 
   const isCountingDown = isThrottled && remaining > 0;
   const isFormValid = username.trim().length > 0 && password.trim().length > 0;
-  const canSubmit = isFormValid && !isPending && !isCountingDown;
+  const isSubmitting = isPending || isValidating;
+  const canSubmit = isFormValid && !isSubmitting && !isCountingDown;
 
   const cleanUsername = username.trim();
   const selectedAdmin = faceStatus?.admins?.find(
@@ -104,17 +97,43 @@ export default function LoginPage() {
       a.username.toLowerCase() === cleanUsername.toLowerCase().replace(/^@/, '')
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
 
-    // Mandatory Face ID step: Opening Face ID modal with entered credentials
-    if (selectedAdmin?.hasFace) {
-      setFaceModalMode('login');
-    } else {
-      setFaceModalMode('register');
+    setAuthError(null);
+    setIsValidating(true);
+
+    try {
+      // 1. Validate login and password directly in database first!
+      const check = await verifyCredentials({
+        username: cleanUsername,
+        password,
+      });
+
+      // 2. Only if credentials match database, open Face ID scanner!
+      if (check.hasFace) {
+        setFaceModalMode('login');
+      } else {
+        setFaceModalMode('register');
+      }
+      setIsFaceModalOpen(true);
+    } catch (err: unknown) {
+      console.error('Credential verification error:', err);
+      const errObj = err as { code?: string; message?: string };
+      const rawCode = errObj.code || errObj.message || '';
+      if (rawCode.includes('invalid_credentials')) {
+        setAuthError('Login yoki parol noto\'g\'ri kiritildi.');
+      } else if (rawCode.includes('account_locked')) {
+        setAuthError('Ushbu hisob vaqtincha bloklangan.');
+      } else if (rawCode.includes('network') || rawCode.includes('Failed to fetch')) {
+        setAuthError('Serverga ulanib bo\'lmadi. Qaytadan urinib ko\'ring.');
+      } else {
+        setAuthError('Login yoki parol noto\'g\'ri kiritildi.');
+      }
+    } finally {
+      setIsValidating(false);
     }
-    setIsFaceModalOpen(true);
   };
 
   return (
@@ -319,7 +338,7 @@ export default function LoginPage() {
                   border: canSubmit ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
                 }}
               >
-                {isPending ? (
+                {isSubmitting ? (
                   <>
                     <span
                       className="inline-block w-4 h-4 border-2 rounded-full shrink-0 animate-spin"
