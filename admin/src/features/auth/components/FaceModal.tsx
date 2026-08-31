@@ -69,8 +69,8 @@ export function FaceModal({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isFlashing, setIsFlashing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [statusMsg, setStatusMsg] = useState('Kameraga to\'g\'ri qarang...');
-  const [autoScan, setAutoScan] = useState(true);
+  const [statusMsg, setStatusMsg] = useState('Kameraga qarab tugmani bosing...');
+  const [autoScan, setAutoScan] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
 
   // Admin selector state
@@ -333,19 +333,16 @@ export function FaceModal({
                   return;
                 }
 
-                const msg = rawCode.includes('invalid_credentials')
-                  ? 'Yuz aniqlanmadi yoki tanlangan admin hisobiga mos kelmadi.'
-                  : rawCode.includes('face_not_detected')
-                  ? 'Kadrda yuz aniqlanmadi. Iltimos, kameraga to\'g\'ri qarang.'
-                  : errObj.message || 'Yuz aniqlanmadi yoki tanlangan admin hisobiga mos kelmadi.';
+                const msg =
+                  rawCode.includes('face_mismatch') || rawCode.includes('invalid_credentials')
+                    ? 'Yuz mos kelmadi! Faqat ushbu hisobga biriktirilgan admin kameraga qarasin.'
+                    : rawCode.includes('face_not_detected')
+                    ? 'Kadrda yuz aniqlanmadi. Iltimos, kameraga to\'g\'ri qarang.'
+                    : errObj.message || 'Yuz aniqlanmadi yoki tanlangan admin hisobiga mos kelmadi.';
 
-                if (!isAuto) {
-                  setErrorMsg(msg);
-                  setStatusMsg('Yuz mos kelmadi.');
-                  setCapturedPreview(null);
-                } else {
-                  setStatusMsg('Yuz qidirilmoqda...');
-                }
+                setErrorMsg(msg);
+                setStatusMsg('Yuz mos kelmadi');
+                setCapturedPreview(null);
               },
               onSettled: () => {
                 setIsProcessing(false);
