@@ -126,44 +126,70 @@ def _image_bytes_from_data_url(data_url: str) -> bytes:
 
 def _compute_face_encoding(image_bytes: bytes) -> list[float] | None:
     try:
-        from PIL import Image, ImageFilter
+        from PIL import Image
         import numpy as np
 
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         w, h = img.size
-        if w < 10 or h < 10:
+        if w < 20 or h < 20:
             return None
 
-        # Center-crop 85% facial region where user aligns face
-        cw, ch = max(10, int(w * 0.85)), max(10, int(h * 0.85))
-        left, top = max(0, (w - cw) // 2), max(0, (h - ch) // 2)
-        face_img = img.crop((left, top, left + cw, top + ch)).resize((128, 128), Image.Resampling.LANCZOS)
+        # 1. Center-crop 85% facial region where user aligns face
+        side = min(w, h)
+        left = (w - side) // 2
+        top = (h - side) // 2
+        margin = int(side * 0.075)
+        crop_box = (left + margin, top + margin, left + side - margin, top + side - margin)
+        face_img = img.crop(crop_box).resize((128, 128), Image.Resampling.LANCZOS)
 
-        arr = np.array(face_img, dtype=np.float32)
         gray = np.array(face_img.convert("L"), dtype=np.float32)
-        hsv = np.array(face_img.convert("HSV"), dtype=np.float32)
 
+        # 2. Multi-orientation Spatial Gradients (HOG)
+        gx = np.zeros_like(gray)
+        gy = np.zeros_like(gray)
+        gx[:, 1:-1] = gray[:, 2:] - gray[:, :-2]
+        gy[1:-1, :] = gray[2:, :] - gray[:-2, :]
+        mag = np.sqrt(gx**2 + gy**2)
+        angle = np.mod(np.arctan2(gy, gx), np.pi)
+
+        num_cells = 8
+        cell_sz = 128 // num_cells
+        bins = 8
         features = []
-        for r in range(4):
-            for c in range(4):
-                cell_g = gray[r*32:(r+1)*32, c*32:(c+1)*32]
-                cell_hsv = hsv[r*32:(r+1)*32, c*32:(c+1)*32]
-                features.append(float(np.mean(cell_g)) / 255.0)
-                features.append(float(np.std(cell_g)) / 128.0)
-                features.append(float(np.mean(cell_hsv[:, :, 0])) / 255.0)
-                features.append(float(np.mean(cell_hsv[:, :, 1])) / 255.0)
 
-        for ch_idx in range(3):
-            h_hist, _ = np.histogram(arr[:, :, ch_idx], bins=8, range=(0, 256), density=True)
-            features.extend(h_hist.tolist())
+        for r in range(num_cells):
+            for c in range(num_cells):
+                c_mag = mag[r*cell_sz:(r+1)*cell_sz, c*cell_sz:(c+1)*cell_sz]
+                c_ang = angle[r*cell_sz:(r+1)*cell_sz, c*cell_sz:(c+1)*cell_sz]
+                bin_idx = np.clip((c_ang / np.pi * bins).astype(int), 0, bins - 1)
+                cell_hist = np.zeros(bins, dtype=np.float32)
+                for b in range(bins):
+                    cell_hist[b] = np.sum(c_mag[bin_idx == b])
+                # L2 block normalization
+                n = np.linalg.norm(cell_hist)
+                if n > 1e-5:
+                    cell_hist = cell_hist / n
+                features.extend(cell_hist.tolist())
 
-        edges = np.array(face_img.convert("L").filter(ImageFilter.FIND_EDGES), dtype=np.float32)
-        features.append(float(np.mean(edges)) / 255.0)
-        features.append(float(np.std(edges)) / 128.0)
+        # 3. Local Binary Patterns (LBP) texture descriptor across 4x4 spatial patches
+        lbp = np.zeros((126, 126), dtype=np.uint8)
+        g_core = gray[1:-1, 1:-1]
+        for dy, dx, bit in [(-1, -1, 0), (-1, 0, 1), (-1, 1, 2), (0, 1, 3), (1, 1, 4), (1, 0, 5), (1, -1, 6), (0, -1, 7)]:
+            neighbor = gray[1+dy:127+dy, 1+dx:127+dx]
+            lbp |= ((neighbor >= g_core).astype(np.uint8) << bit)
+
+        patch_sz = 126 // 4
+        for pr in range(4):
+            for pc in range(4):
+                patch = lbp[pr*patch_sz:(pr+1)*patch_sz, pc*patch_sz:(pc+1)*patch_sz]
+                hist, _ = np.histogram(patch, bins=16, range=(0, 256), density=True)
+                features.extend(hist.tolist())
 
         vec = np.array(features, dtype=np.float32)
+        # 4. Zero-mean center the vector to eliminate ambient brightness bias
+        vec = vec - np.mean(vec)
         norm = np.linalg.norm(vec)
-        if norm > 0:
+        if norm > 1e-5:
             vec = vec / norm
         return vec.tolist()
     except Exception:
@@ -176,6 +202,10 @@ def _face_similarity(enc_a: list[float], enc_b: list[float]) -> float:
     b = np.array(enc_b, dtype=np.float64)
     min_len = min(len(a), len(b))
     a, b = a[:min_len], b[:min_len]
+
+    # Zero-mean Pearson correlation
+    a = a - np.mean(a)
+    b = b - np.mean(b)
     norm_a, norm_b = np.linalg.norm(a), np.linalg.norm(b)
     if norm_a == 0 or norm_b == 0:
         return 0.0
@@ -311,9 +341,13 @@ async def admin_face_login(payload: FaceLoginRequest, db: DbSession, ctx: Reques
         except Exception:
             continue
 
-    SIMILARITY_THRESHOLD = 0.80
+    SIMILARITY_THRESHOLD = 0.70
     if best_admin is None or best_sim < SIMILARITY_THRESHOLD:
-        raise Unauthorized("invalid_credentials")
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Face ID mismatch for @{u}: best similarity score was {best_sim:.4f}, required {SIMILARITY_THRESHOLD}"
+        )
+        raise Unauthorized("face_mismatch")
 
     from app.core.tokens import issue_token_pair
     pair = await issue_token_pair(

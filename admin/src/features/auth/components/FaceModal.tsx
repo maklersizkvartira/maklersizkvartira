@@ -393,12 +393,16 @@ export function FaceModal({
         const rawCode = errObj.code || errObj.message || '';
 
         let msg = 'Server bilan bog\'lanishda xatolik yuz berdi.';
-        if (rawCode.includes('credentials_required')) {
+        if (rawCode.includes('face_mismatch') || (mode === 'login' && rawCode.includes('invalid_credentials'))) {
+          msg = 'Yuz mos kelmadi! Faqat ushbu hisobga biriktirilgan admin kameraga qarasin.';
+        } else if (rawCode.includes('credentials_required')) {
           msg = `Iltimos, @${targetUsername} hisobi parolini kiriting.`;
         } else if (rawCode.includes('invalid_credentials')) {
           msg = 'Admin paroli noto\'g\'ri kiritildi.';
         } else if (rawCode.includes('face_not_detected')) {
           msg = 'Kadrda yuz aniqlanmadi. Iltimos, kameraga to\'g\'ri qarang.';
+        } else if (rawCode.includes('face_not_enrolled')) {
+          msg = `@${targetUsername} hisobida Face ID hali ro'yxatdan o'tkazilmagan.`;
         } else if (rawCode.includes('admin_not_found')) {
           msg = 'Tanlangan admin hisobi topilmadi.';
         } else if (errObj.message) {
