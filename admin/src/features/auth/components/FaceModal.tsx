@@ -483,10 +483,12 @@ export function FaceModal({
 
   if (!isOpen) return null;
 
+  const isSpecificAdminMode = Boolean(initialAdminUsername);
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-xl p-4 animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-xl p-2 sm:p-4 animate-fade-in">
       <div
-        className="w-full max-w-lg rounded-3xl relative overflow-hidden border border-slate-700/80 shadow-2xl p-5 md:p-7 flex flex-col max-h-[95vh] overflow-y-auto custom-scrollbar"
+        className="w-full max-w-lg rounded-2xl sm:rounded-3xl relative overflow-hidden border border-slate-700/80 shadow-2xl p-4 sm:p-6 flex flex-col max-h-[94vh] overflow-y-auto custom-scrollbar"
         style={{
           background:
             'linear-gradient(145deg, rgba(15, 23, 42, 0.98) 0%, rgba(11, 18, 34, 0.99) 100%)',
@@ -500,18 +502,18 @@ export function FaceModal({
         )}
 
         {/* Top Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-              <Sparkles className="w-5 h-5 text-white" />
+        <div className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-slate-800/80">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/30 shrink-0">
+              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
-            <div>
-              <h3 className="text-base font-bold text-white tracking-wide">
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-base font-bold text-white tracking-wide truncate">
                 {mode === 'login'
-                  ? 'Face ID Bilan Kirish'
+                  ? 'Face ID Tasdiqlash'
                   : 'Face ID Ro\'yxatdan O\'tkazish'}
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-[11px] sm:text-xs text-slate-400 truncate">
                 {mode === 'login'
                   ? 'Kameraga qarab tizimga kiring'
                   : 'Admin yuzini tizimga biriktiring'}
@@ -521,157 +523,117 @@ export function FaceModal({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-slate-800/60 hover:bg-slate-700/60 text-slate-400 hover:text-white flex items-center justify-center transition cursor-pointer"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-slate-800/60 hover:bg-slate-700/60 text-slate-400 hover:text-white flex items-center justify-center transition cursor-pointer shrink-0 ml-2"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Mode Switch Tabs */}
-        <div className="flex rounded-xl bg-slate-900/90 p-1 border border-slate-800 mt-3">
-          <button
-            type="button"
-            onClick={() => {
-              setMode('login');
-              setCapturedPreview(null);
-              setErrorMsg(null);
-            }}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-              mode === 'login'
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Face ID Kirish
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('register');
-              setCapturedPreview(null);
-              setErrorMsg(null);
-            }}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-              mode === 'register'
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Yuzni Ro'yxatdan O'tkazish
-          </button>
-        </div>
-
-        {/* Admin Account Selection Cards */}
-        <div className="mt-3 p-3 bg-slate-900/70 rounded-2xl border border-slate-800 space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Admin hisobini tanlang:</span>
-            </label>
-            <span className="text-[10px] text-slate-400 font-medium">
-              Tanlangan: <b className="text-emerald-400">@{selectedAdminUsername}</b>
-            </span>
-          </div>
-
-          {/* Cards Grid for all admins in system */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {adminsList.map((adm) => {
-              const isSelected = adm.username === selectedAdminUsername;
-              return (
-                <button
-                  key={adm.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedAdminUsername(adm.username);
-                    setErrorMsg(null);
-                    if (!adm.hasFace) {
-                      setMode('register');
-                      setStatusMsg(`@${adm.username} hisobida Face ID yo'q. Yuzingizni ro'yxatdan o'tkazing.`);
-                    }
-                  }}
-                  className={`p-2.5 rounded-xl text-left border transition flex items-center gap-2.5 cursor-pointer relative overflow-hidden ${
-                    isSelected
-                      ? 'bg-emerald-500/15 border-emerald-500/60 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
-                      : 'bg-slate-950/80 border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="w-9 h-9 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center text-xs font-bold text-white shrink-0 overflow-hidden">
-                    {adm.faceImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={adm.faceImage}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      adm.fullName.charAt(0).toUpperCase()
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-white truncate">
-                      {adm.fullName}
-                    </p>
-                    <p className="text-[10px] text-slate-400 font-mono truncate">
-                      @{adm.username}
-                    </p>
-                    <div className="mt-0.5 flex items-center gap-1">
-                      {adm.hasFace ? (
-                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-semibold flex items-center gap-0.5">
-                          <Check className="w-2.5 h-2.5" /> Face ID bor
-                        </span>
-                      ) : (
-                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 font-medium">
-                          O'rnatilmagan
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {isSelected && (
-                    <div className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center shrink-0">
-                      <Check className="w-3.5 h-3.5 stroke-[3]" />
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Password field in register mode */}
-          {mode === 'register' && (
-            <div className="pt-2 border-t border-slate-800/80 mt-2 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-xs text-amber-400 font-bold">
-                  <KeyRound className="w-3.5 h-3.5" />
-                  <span>@{selectedAdminUsername} hisobi paroli:</span>
-                </span>
-                <span className="text-[10px] text-amber-400/80 font-medium">
-                  (Yuzni biriktirish uchun talab qilinadi)
-                </span>
+        {/* Admin Account Header / Selector */}
+        {isSpecificAdminMode ? (
+          /* Compact Admin Header when specific admin is targeted */
+          <div className="mt-2.5 p-2 sm:p-2.5 bg-slate-900/80 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-emerald-400 shrink-0 overflow-hidden">
+                {selectedAdmin?.faceImage ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={selectedAdmin.faceImage}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  selectedAdminUsername.charAt(0).toUpperCase()
+                )}
               </div>
-              <div className="relative">
-                <Lock className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
-                <input
-                  id="face-reg-password-input"
-                  type="password"
-                  placeholder="Admin parolini kiriting"
-                  value={regPassword}
-                  onChange={(e) => {
-                    setRegPassword(e.target.value);
-                    if (errorMsg) setErrorMsg(null);
-                  }}
-                  className={`w-full bg-slate-950 border rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition ${
-                    !regPassword && errorMsg?.includes('parol')
-                      ? 'border-rose-500 ring-2 ring-rose-500/30'
-                      : 'border-slate-700/80 focus:border-emerald-500'
-                  }`}
-                />
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white truncate">
+                  {selectedAdmin?.fullName || selectedAdminUsername}
+                </p>
+                <p className="text-[10px] text-slate-400 font-mono truncate">
+                  @{selectedAdminUsername}
+                </p>
               </div>
             </div>
-          )}
-        </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              {selectedAdmin?.hasFace ? (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-semibold flex items-center gap-1">
+                  <Check className="w-3 h-3" /> Face ID faol
+                </span>
+              ) : (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-semibold flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> Yuz kiritilmoqda
+                </span>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Admin Selection Cards when choosing among staff */
+          <div className="mt-2.5 p-2.5 bg-slate-900/70 rounded-xl border border-slate-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] sm:text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Admin hisobi:</span>
+              </label>
+              <span className="text-[10px] text-slate-400 font-medium">
+                <b className="text-emerald-400">@{selectedAdminUsername}</b>
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-28 overflow-y-auto custom-scrollbar pr-0.5">
+              {adminsList.map((adm) => {
+                const isSelected = adm.username === selectedAdminUsername;
+                return (
+                  <button
+                    key={adm.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedAdminUsername(adm.username);
+                      setErrorMsg(null);
+                      if (!adm.hasFace) {
+                        setMode('register');
+                        setStatusMsg(`@${adm.username} hisobida Face ID yo'q. Yuzingizni ro'yxatdan o'tkazing.`);
+                      }
+                    }}
+                    className={`p-2 rounded-lg text-left border transition flex items-center gap-2 cursor-pointer relative overflow-hidden ${
+                      isSelected
+                        ? 'bg-emerald-500/15 border-emerald-500/60 shadow-sm'
+                        : 'bg-slate-950/80 border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="w-7 h-7 rounded-md bg-slate-900 border border-slate-700 flex items-center justify-center text-[10px] font-bold text-white shrink-0 overflow-hidden">
+                      {adm.faceImage ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={adm.faceImage}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        adm.fullName.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-bold text-white truncate leading-tight">
+                        {adm.fullName}
+                      </p>
+                      <p className="text-[9px] text-slate-400 font-mono truncate">
+                        @{adm.username}
+                      </p>
+                    </div>
+                    {isSelected && (
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 stroke-[3]" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Video Viewport with HUD & Camera Controls */}
-        <div className="my-3 relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-slate-950 border border-emerald-500/30 shadow-inner">
+        <div className="my-2.5 sm:my-3 relative w-full aspect-[4/3] max-h-[260px] sm:max-h-[340px] rounded-xl sm:rounded-2xl overflow-hidden bg-slate-950 border border-emerald-500/30 shadow-inner shrink-0">
           {capturedPreview ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -694,26 +656,26 @@ export function FaceModal({
           {/* Biometric Scanning Overlay Elements */}
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
             {/* HUD Corner Brackets */}
-            <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-emerald-400/90 rounded-tl-lg" />
-            <div className="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 border-emerald-400/90 rounded-tr-lg" />
-            <div className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-emerald-400/90 rounded-bl-lg" />
-            <div className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-emerald-400/90 rounded-br-lg" />
+            <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 w-5 h-5 sm:w-6 sm:h-6 border-t-2 border-l-2 border-emerald-400/90 rounded-tl-lg" />
+            <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 w-5 h-5 sm:w-6 sm:h-6 border-t-2 border-r-2 border-emerald-400/90 rounded-tr-lg" />
+            <div className="absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3 w-5 h-5 sm:w-6 sm:h-6 border-b-2 border-l-2 border-emerald-400/90 rounded-bl-lg" />
+            <div className="absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 w-5 h-5 sm:w-6 sm:h-6 border-b-2 border-r-2 border-emerald-400/90 rounded-br-lg" />
 
             {/* Target Reticle Circle */}
             <div
-              className={`w-40 h-40 rounded-full border-2 border-dashed ${
+              className={`w-32 h-32 sm:w-44 sm:h-44 rounded-full border-2 border-dashed ${
                 isProcessing
                   ? 'border-amber-400 animate-spin'
                   : 'border-emerald-400/60 animate-pulse'
               } flex items-center justify-center`}
             >
-              <div className="w-36 h-36 rounded-full border border-emerald-500/30" />
+              <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full border border-emerald-500/30" />
             </div>
 
             {/* Sweeping Laser Line */}
             {!capturedPreview && (
               <div
-                className="absolute left-4 right-4 h-[2px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_15px_#34d399]"
+                className="absolute left-3 right-3 h-[2px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_15px_#34d399]"
                 style={{
                   animation: 'faceLaser 2.2s ease-in-out infinite',
                 }}
@@ -722,10 +684,10 @@ export function FaceModal({
           </div>
 
           {/* Real-time Status Overlay Badge */}
-          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-none px-1">
-            <span className="px-3 py-1 rounded-full bg-slate-900/85 backdrop-blur-md border border-emerald-500/30 text-emerald-300 font-mono text-[11px] flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
-              {statusMsg}
+          <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 right-2 sm:right-3 flex items-center justify-between pointer-events-none px-1">
+            <span className="px-2.5 sm:px-3 py-1 rounded-full bg-slate-900/90 backdrop-blur-md border border-emerald-500/30 text-emerald-300 font-mono text-[10px] sm:text-[11px] flex items-center gap-1.5 truncate max-w-[70%]">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block shrink-0" />
+              <span className="truncate">{statusMsg}</span>
             </span>
             {mode === 'login' && (
               <button
@@ -734,7 +696,7 @@ export function FaceModal({
                   e.stopPropagation();
                   setAutoScan(!autoScan);
                 }}
-                className="pointer-events-auto px-2.5 py-1 rounded-full bg-slate-900/85 backdrop-blur-md border border-slate-700 text-slate-300 text-[10px] font-semibold hover:border-emerald-400 transition cursor-pointer"
+                className="pointer-events-auto px-2 sm:px-2.5 py-1 rounded-full bg-slate-900/90 backdrop-blur-md border border-slate-700 text-slate-300 text-[9px] sm:text-[10px] font-semibold hover:border-emerald-400 transition cursor-pointer shrink-0"
               >
                 Avto: {autoScan ? 'Yoqilgan' : 'O\'chirilgan'}
               </button>
@@ -744,15 +706,15 @@ export function FaceModal({
 
         {/* Error message alert */}
         {errorMsg && (
-          <div className="mb-3 p-3 bg-rose-500/15 border border-rose-500/30 rounded-2xl flex items-center gap-2 text-xs text-rose-300 animate-shake">
+          <div className="mb-2.5 p-2.5 sm:p-3 bg-rose-500/15 border border-rose-500/30 rounded-xl sm:rounded-2xl flex items-center gap-2 text-xs text-rose-300 animate-shake">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-            <p className="flex-1">{errorMsg}</p>
+            <p className="flex-1 text-[11px] sm:text-xs leading-tight">{errorMsg}</p>
           </div>
         )}
 
         {/* Action Buttons */}
-        <div className="space-y-2">
-          <div className="flex flex-col sm:flex-row items-center gap-2.5">
+        <div className="space-y-2 pt-1">
+          <div className="flex flex-col sm:flex-row items-center gap-2">
             {/* Main Capture / Scan Button */}
             <button
               type="button"
@@ -765,19 +727,19 @@ export function FaceModal({
                 handleScan(false);
               }}
               disabled={isProcessing || isLoggingIn}
-              className="w-full sm:flex-1 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/25 transition transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 text-sm cursor-pointer"
+              className="w-full sm:flex-1 py-3 sm:py-3.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/25 transition transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer"
             >
               {isProcessing || isLoggingIn ? (
-                <RefreshCw className="w-5 h-5 animate-spin" />
+                <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
               ) : (
-                <Camera className="w-5 h-5" />
+                <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
               )}
               <span>
                 {mode === 'login'
                   ? selectedAdmin && !selectedAdmin.hasFace
-                    ? '📸 Face ID O\'rnatish (Ro\'yxatdan o\'tkazish)'
-                    : '📸 Yuzni Skanerlash Va Kirish'
-                  : '📸 Yuzni Suratga Olish Va Saqlash'}
+                    ? '📸 Face ID O\'rnatish'
+                    : '📸 Yuzni Skanerlash & Kirish'
+                  : '📸 Yuzni Suratga Olish & Saqlash'}
               </span>
             </button>
 
@@ -792,16 +754,16 @@ export function FaceModal({
                     videoRef.current.play().catch(() => {});
                   }
                 }}
-                className="w-full sm:w-auto px-4 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs transition flex items-center justify-center gap-2 border border-slate-700 cursor-pointer"
+                className="w-full sm:w-auto px-4 py-3 sm:py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs transition flex items-center justify-center gap-2 border border-slate-700 cursor-pointer"
               >
                 <RefreshCw className="w-4 h-4" />
-                <span>Qayta suratga olish</span>
+                <span>Qayta olish</span>
               </button>
             )}
           </div>
 
           {/* Alternative: File Upload Fallback */}
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex items-center justify-between pt-0.5">
             <input
               ref={fileInputRef}
               type="file"
@@ -812,7 +774,7 @@ export function FaceModal({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="text-[11px] text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5 py-1 px-2 rounded-lg hover:bg-slate-800/50 cursor-pointer"
+              className="text-[10px] sm:text-[11px] text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5 py-1 px-1.5 rounded-lg hover:bg-slate-800/50 cursor-pointer"
             >
               <Upload className="w-3.5 h-3.5 text-cyan-400" />
               <span>Fayldan rasm yuklash</span>
@@ -821,15 +783,15 @@ export function FaceModal({
             {mode === 'register' && isAuthenticated && (
               <span className="text-[10px] text-emerald-400/90 font-medium flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3" />
-                <span>Admin xavfsiz seansi faol</span>
+                <span>Admin xavfsiz seansi</span>
               </span>
             )}
           </div>
         </div>
 
         {/* Security Notice */}
-        <p className="text-[11px] text-center text-slate-500 mt-3">
-          🔒 Yuz tasviri shifrlangan matematik vektor ko'rinishida xavfsiz saqlanadi.
+        <p className="text-[10px] text-center text-slate-500 mt-2">
+          🔒 Shifrlangan biometrik Face ID himoyasi
         </p>
       </div>
 
