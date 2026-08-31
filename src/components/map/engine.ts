@@ -10,7 +10,7 @@
  *
  *  * **Yandex.** Tried first, and what people here actually use: the only one
  *    whose Uzbek map has the mahalla-level detail a renter is looking for.
- *    Takes a key — see `YANDEX_KEY` below, which carries a working default.
+ *    Takes a key — see `YANDEX_KEYS` below, which carries a working default.
  *  * **Leaflet + OpenStreetMap.** No key, so it always works. It is the
  *    fallback for everything that can stop Yandex — a missing or rejected key,
  *    a referrer the key is not allowed on, a blocked request, a device with no
@@ -60,22 +60,34 @@ export interface EngineOptions {
 }
 
 /**
- * The Yandex JS API key.
+ * The Yandex JS API keys to try, in order.
  *
- * `VITE_YANDEX_MAPS_API_KEY` wins; the literal is the working default so the
- * map does not silently drop to OpenStreetMap on a deployment where nobody
- * remembered to set the variable — which is exactly what was happening.
+ * A list rather than one value, and the reason is worth keeping. The key was
+ * originally read from `VITE_YANDEX_MAPS_API_KEY` with a literal fallback, and
+ * the deployment had that variable set to `57fdc2ff-…` — a key Yandex answers
+ * `403 Invalid api key`. The environment quite correctly won over the literal,
+ * so production loaded a dead key, fell through to Leaflet, and served
+ * OpenStreetMap tiles while the code looked entirely correct. Nothing surfaced
+ * it: the fallback works, so the map was there, just less detailed.
  *
- * A JS API key is not a secret. It ships inside the bundle to every visitor by
- * definition, and Yandex secures it by HTTP-Referer instead: set the allowed
- * hosts in the Yandex Cabinet, or anybody can spend this quota.
+ * Trying them in turn fixes that class of failure rather than that instance of
+ * it. The environment still wins when it holds a key that works, and a stale or
+ * revoked one costs one failed request instead of silently downgrading every
+ * visitor's map. Clear the variable once it is wrong — this is a safety net,
+ * not a place to leave a dead key.
  *
- * The key that was here before, `57fdc2ff-…`, answers `403 Invalid api key`.
- * If Yandex ever stops loading, check that first — the failure is silent,
- * because the Leaflet fallback below catches it and the map still appears.
+ * These are not secrets. A JS API key ships inside the bundle to every visitor
+ * by definition; Yandex secures it by HTTP-Referer instead, so the allowed
+ * hosts in the Yandex Cabinet are the only thing stopping another site from
+ * spending this quota. That list currently holds maklersizuy.uz — uyiz.uz has
+ * to be added to it before the domain moves, or the map quietly drops to
+ * OpenStreetMap there.
  */
-const YANDEX_KEY =
-  import.meta.env.VITE_YANDEX_MAPS_API_KEY || '98af8724-f778-4831-a661-f197c1d1f656';
+const YANDEX_KEYS: string[] = [
+  import.meta.env.VITE_YANDEX_MAPS_API_KEY,
+  '98af8724-f778-4831-a661-f197c1d1f656',
+].filter((key): key is string => Boolean(key && key.trim()))
+  .filter((key, index, all) => all.indexOf(key) === index);
 
 // ---------------------------------------------------------------------------
 // Script loading
@@ -171,10 +183,11 @@ declare global {
 async function createYandex(
   element: HTMLElement,
   options: EngineOptions,
+  apiKey: string,
 ): Promise<MapEngine> {
   await loadScript(
     'yandex-maps-js',
-    `https://api-maps.yandex.ru/v3/?apikey=${encodeURIComponent(YANDEX_KEY)}` +
+    `https://api-maps.yandex.ru/v3/?apikey=${encodeURIComponent(apiKey)}` +
       `&lang=${options.language === 'ru' ? 'ru_RU' : options.language === 'en' ? 'en_US' : 'uz_UZ'}`,
   );
 
@@ -419,18 +432,21 @@ export async function createMapEngine(
   element: HTMLElement,
   options: EngineOptions,
 ): Promise<MapEngine> {
-  if (YANDEX_KEY) {
+  for (const apiKey of YANDEX_KEYS) {
     try {
-      return await createYandex(element, options);
+      return await createYandex(element, options, apiKey);
     } catch (error) {
       // Yandex may have written into the container before it failed, and
       // Leaflet refuses a container it thinks is already a map ("Map container
       // is already initialized") — including one Leaflet itself never touched.
-      // Both are cleared here so the fallback starts on bare ground.
-      console.warn('[map] Yandex unavailable, falling back to Leaflet', error);
+      // Both are cleared here so whatever runs next starts on bare ground.
+      console.warn(`[map] Yandex key ${apiKey.slice(0, 8)}… did not load`, error);
       element.innerHTML = '';
       delete (element as unknown as Record<string, unknown>)._leaflet_id;
     }
+  }
+  if (YANDEX_KEYS.length > 0) {
+    console.warn('[map] no Yandex key loaded — falling back to OpenStreetMap');
   }
   return createLeaflet(element, options);
 }
