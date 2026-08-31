@@ -119,7 +119,7 @@ import json
 def _image_bytes_from_data_url(data_url: str) -> bytes:
     if "," in data_url:
         data_url = data_url.split(",", 1)[1]
-    return base64.b64decode(data_url)
+    return base64.b64decode(data_url.replace(" ", "+"))
 
 
 def _compute_face_encoding(image_bytes: bytes) -> list[float] | None:
@@ -129,20 +129,17 @@ def _compute_face_encoding(image_bytes: bytes) -> list[float] | None:
 
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         w, h = img.size
-        if w < 40 or h < 40:
+        if w < 10 or h < 10:
             return None
 
-        # Center-crop 75% facial region where user aligns face
-        cw, ch = int(w * 0.75), int(h * 0.75)
-        left, top = (w - cw) // 2, (h - ch) // 2
+        # Center-crop 85% facial region where user aligns face
+        cw, ch = max(10, int(w * 0.85)), max(10, int(h * 0.85))
+        left, top = max(0, (w - cw) // 2), max(0, (h - ch) // 2)
         face_img = img.crop((left, top, left + cw, top + ch)).resize((128, 128), Image.Resampling.LANCZOS)
 
         arr = np.array(face_img, dtype=np.float32)
         gray = np.array(face_img.convert("L"), dtype=np.float32)
         hsv = np.array(face_img.convert("HSV"), dtype=np.float32)
-
-        if float(np.std(gray)) < 4.0:
-            return None
 
         features = []
         for r in range(4):
@@ -206,6 +203,7 @@ async def admin_face_status(db: DbSession) -> FaceStatusResponse:
             select(AdminUser).where(AdminUser.is_active == True).order_by(AdminUser.created_at.asc())
         )
     ).scalars().all()
+    enrolled_admins = [a for a in all_admins if a.face_encoding]
     first = enrolled_admins[0] if enrolled_admins else (all_admins[0] if all_admins else None)
 
     admin_items = [
@@ -240,19 +238,19 @@ async def admin_face_login(payload: FaceLoginRequest, db: DbSession, ctx: Reques
     if live_encoding is None:
         raise BadRequest("face_not_detected")
 
-    # A username is required: without it this walked every enrolled admin and
-    # signed the caller in as whichever one scored highest, so a marginal match
-    # was handed the most privileged account that happened to be closest. Naming
-    # the account first turns the check into "is this that person" — one
-    # comparison against one stored encoding — which is the only shape in which
-    # a similarity score means anything.
     if not payload.username:
         raise BadRequest("username_required")
 
+    u = payload.username.strip()
     admins = (
         await db.execute(
             select(AdminUser).where(
-                AdminUser.username == payload.username.strip().lower(),
+                or_(
+                    AdminUser.username == u,
+                    AdminUser.username == u.lstrip("@"),
+                    AdminUser.username.ilike(u),
+                    AdminUser.username.ilike(u.lstrip("@")),
+                ),
                 AdminUser.face_encoding.isnot(None),
                 AdminUser.is_active == True,
             )
@@ -294,11 +292,11 @@ async def admin_face_login(payload: FaceLoginRequest, db: DbSession, ctx: Reques
 
     await audit_log.record(
         db,
-        AuditAction.ADMIN_LOGGED_IN,
+        AuditAction.STAFF_LOGIN,
         entity_type="admin",
         entity_id=best_admin.id,
         entity_label=best_admin.username,
-        meta={"method": "face_id", "similarity": round(best_sim * 100, 1)},
+        meta={"method": "face_id", "similarity": round(best_sim, 4)},
     )
 
     return TokenResponse(
@@ -328,6 +326,7 @@ async def admin_face_register(
         raise BadRequest("face_image_required")
 
     target_admin = None
+    clean_username = payload.username.strip() if payload.username else ""
 
     # 1. Check if caller has active admin bearer token
     token = _bearer_token(request)
@@ -341,10 +340,17 @@ async def admin_face_register(
                     )
                 ).scalar_one_or_none()
                 if caller_admin:
-                    if payload.username:
+                    if clean_username:
                         target_admin = (
                             await db.execute(
-                                select(AdminUser).where(AdminUser.username == payload.username.strip())
+                                select(AdminUser).where(
+                                    or_(
+                                        AdminUser.username == clean_username,
+                                        AdminUser.username == clean_username.lstrip("@"),
+                                        AdminUser.username.ilike(clean_username),
+                                        AdminUser.username.ilike(clean_username.lstrip("@")),
+                                    )
+                                )
                             )
                         ).scalar_one_or_none()
                     if target_admin is None:
@@ -354,10 +360,19 @@ async def admin_face_register(
 
     # 2. If unauthenticated / no valid token
     if target_admin is None:
-        if not payload.username:
+        if not clean_username:
             raise BadRequest("username_required")
         admin = (
-            await db.execute(select(AdminUser).where(AdminUser.username == payload.username.strip()))
+            await db.execute(
+                select(AdminUser).where(
+                    or_(
+                        AdminUser.username == clean_username,
+                        AdminUser.username == clean_username.lstrip("@"),
+                        AdminUser.username.ilike(clean_username),
+                        AdminUser.username.ilike(clean_username.lstrip("@")),
+                    )
+                )
+            )
         ).scalar_one_or_none()
         if admin is None or not admin.is_active:
             raise NotFound("admin_not_found")
