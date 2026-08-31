@@ -710,9 +710,26 @@ export function FaceModal({
 
         {/* Error message alert */}
         {errorMsg && (
-          <div className="mb-2.5 p-2.5 sm:p-3 bg-rose-500/15 border border-rose-500/30 rounded-xl sm:rounded-2xl flex items-center gap-2 text-xs text-rose-300 animate-shake">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-            <p className="flex-1 text-[11px] sm:text-xs leading-tight">{errorMsg}</p>
+          <div className="mb-2.5 p-2.5 sm:p-3 bg-rose-500/15 border border-rose-500/30 rounded-xl sm:rounded-2xl space-y-1.5 animate-shake">
+            <div className="flex items-center gap-2 text-xs text-rose-300">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+              <p className="flex-1 text-[11px] sm:text-xs leading-tight">{errorMsg}</p>
+            </div>
+            {mode === 'login' && (
+              <div className="pt-1 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('register');
+                    setErrorMsg(null);
+                    setStatusMsg('Yangi yuz tasvirini saqlash uchun kameraga qarang.');
+                  }}
+                  className="text-[11px] text-amber-300 hover:text-amber-200 underline underline-offset-2 font-medium cursor-pointer"
+                >
+                  Yuzni qayta ro'yxatdan o'tkazish / yangilash →
+                </button>
+              </div>
+            )}
           </div>
         )}
 

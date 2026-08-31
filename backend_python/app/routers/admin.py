@@ -124,92 +124,135 @@ def _image_bytes_from_data_url(data_url: str) -> bytes:
     return base64.b64decode(data_url.replace(" ", "+"))
 
 
+def _extract_single_descriptor(face_img) -> list[float]:
+    import numpy as np
+    from PIL import ImageFilter
+
+    # Mild gaussian blur removes high-frequency webcam sensor noise
+    blurred = face_img.filter(ImageFilter.GaussianBlur(radius=0.8))
+    gray = np.array(blurred.convert("L"), dtype=np.float32)
+
+    gx = np.zeros_like(gray)
+    gy = np.zeros_like(gray)
+    gx[:, 1:-1] = gray[:, 2:] - gray[:, :-2]
+    gy[1:-1, :] = gray[2:, :] - gray[:-2, :]
+    mag = np.sqrt(gx**2 + gy**2)
+    angle = np.mod(np.arctan2(gy, gx), np.pi)
+
+    features = []
+    # Multi-scale spatial cells: 4x4 (coarse geometry) and 6x6 (fine geometry)
+    for num_cells in [4, 6]:
+        cell_sz = 128 // num_cells
+        bins = 8
+        for r in range(num_cells):
+            for c in range(num_cells):
+                c_mag = mag[r * cell_sz:(r + 1) * cell_sz, c * cell_sz:(c + 1) * cell_sz]
+                c_ang = angle[r * cell_sz:(r + 1) * cell_sz, c * cell_sz:(c + 1) * cell_sz]
+                bin_idx = np.clip((c_ang / np.pi * bins).astype(int), 0, bins - 1)
+                cell_hist = np.zeros(bins, dtype=np.float32)
+                for b in range(bins):
+                    cell_hist[b] = np.sum(c_mag[bin_idx == b])
+                n = np.linalg.norm(cell_hist)
+                if n > 1e-5:
+                    cell_hist = cell_hist / n
+                features.extend(cell_hist.tolist())
+
+    vec = np.array(features, dtype=np.float32)
+    vec = vec - np.mean(vec)
+    norm = np.linalg.norm(vec)
+    if norm > 1e-5:
+        vec = vec / norm
+    return vec.tolist()
+
+
 def _compute_face_encoding(image_bytes: bytes) -> list[float] | None:
     try:
         from PIL import Image
-        import numpy as np
 
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         w, h = img.size
         if w < 20 or h < 20:
             return None
 
-        # 1. Center-crop 85% facial region where user aligns face
+        # Center-crop 85% facial region where user aligns face
         side = min(w, h)
-        left = (w - side) // 2
-        top = (h - side) // 2
         margin = int(side * 0.075)
-        crop_box = (left + margin, top + margin, left + side - margin, top + side - margin)
+        crop_box = (
+            (w - side) // 2 + margin,
+            (h - side) // 2 + margin,
+            (w + side) // 2 - margin,
+            (h + side) // 2 - margin,
+        )
         face_img = img.crop(crop_box).resize((128, 128), Image.Resampling.LANCZOS)
-
-        gray = np.array(face_img.convert("L"), dtype=np.float32)
-
-        # 2. Multi-orientation Spatial Gradients (HOG)
-        gx = np.zeros_like(gray)
-        gy = np.zeros_like(gray)
-        gx[:, 1:-1] = gray[:, 2:] - gray[:, :-2]
-        gy[1:-1, :] = gray[2:, :] - gray[:-2, :]
-        mag = np.sqrt(gx**2 + gy**2)
-        angle = np.mod(np.arctan2(gy, gx), np.pi)
-
-        num_cells = 8
-        cell_sz = 128 // num_cells
-        bins = 8
-        features = []
-
-        for r in range(num_cells):
-            for c in range(num_cells):
-                c_mag = mag[r*cell_sz:(r+1)*cell_sz, c*cell_sz:(c+1)*cell_sz]
-                c_ang = angle[r*cell_sz:(r+1)*cell_sz, c*cell_sz:(c+1)*cell_sz]
-                bin_idx = np.clip((c_ang / np.pi * bins).astype(int), 0, bins - 1)
-                cell_hist = np.zeros(bins, dtype=np.float32)
-                for b in range(bins):
-                    cell_hist[b] = np.sum(c_mag[bin_idx == b])
-                # L2 block normalization
-                n = np.linalg.norm(cell_hist)
-                if n > 1e-5:
-                    cell_hist = cell_hist / n
-                features.extend(cell_hist.tolist())
-
-        # 3. Local Binary Patterns (LBP) texture descriptor across 4x4 spatial patches
-        lbp = np.zeros((126, 126), dtype=np.uint8)
-        g_core = gray[1:-1, 1:-1]
-        for dy, dx, bit in [(-1, -1, 0), (-1, 0, 1), (-1, 1, 2), (0, 1, 3), (1, 1, 4), (1, 0, 5), (1, -1, 6), (0, -1, 7)]:
-            neighbor = gray[1+dy:127+dy, 1+dx:127+dx]
-            lbp |= ((neighbor >= g_core).astype(np.uint8) << bit)
-
-        patch_sz = 126 // 4
-        for pr in range(4):
-            for pc in range(4):
-                patch = lbp[pr*patch_sz:(pr+1)*patch_sz, pc*patch_sz:(pc+1)*patch_sz]
-                hist, _ = np.histogram(patch, bins=16, range=(0, 256), density=True)
-                features.extend(hist.tolist())
-
-        vec = np.array(features, dtype=np.float32)
-        # 4. Zero-mean center the vector to eliminate ambient brightness bias
-        vec = vec - np.mean(vec)
-        norm = np.linalg.norm(vec)
-        if norm > 1e-5:
-            vec = vec / norm
-        return vec.tolist()
+        return _extract_single_descriptor(face_img)
     except Exception:
         return None
 
 
-def _face_similarity(enc_a: list[float], enc_b: list[float]) -> float:
-    import numpy as np
-    a = np.array(enc_a, dtype=np.float64)
-    b = np.array(enc_b, dtype=np.float64)
-    min_len = min(len(a), len(b))
-    a, b = a[:min_len], b[:min_len]
+def _compute_multi_probe_encodings(image_bytes: bytes) -> list[list[float]]:
+    try:
+        from PIL import Image
 
-    # Zero-mean Pearson correlation
-    a = a - np.mean(a)
+        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        w, h = img.size
+        if w < 20 or h < 20:
+            return []
+
+        side = min(w, h)
+        cx, cy = w // 2, h // 2
+        probes = []
+        for scale in [0.80, 0.85, 0.90]:
+            for dx in [-0.02, 0.0, 0.02]:
+                for dy in [-0.02, 0.0, 0.02]:
+                    half_sz = int(side * scale / 2)
+                    center_x = cx + int(side * dx)
+                    center_y = cy + int(side * dy)
+                    l = max(0, center_x - half_sz)
+                    t = max(0, center_y - half_sz)
+                    r = min(w, center_x + half_sz)
+                    b = min(h, center_y + half_sz)
+                    crop_img = img.crop((l, t, r, b)).resize((128, 128), Image.Resampling.LANCZOS)
+                    probes.append(_extract_single_descriptor(crop_img))
+        return probes
+    except Exception:
+        return []
+
+
+def _face_similarity(enc_a: list[float] | list[list[float]], enc_b: list[float]) -> float:
+    import numpy as np
+
+    b = np.array(enc_b, dtype=np.float64)
     b = b - np.mean(b)
-    norm_a, norm_b = np.linalg.norm(a), np.linalg.norm(b)
-    if norm_a == 0 or norm_b == 0:
-        return 0.0
-    return float(np.dot(a, b) / (norm_a * norm_b))
+
+    if enc_a and isinstance(enc_a[0], list):
+        best = -1.0
+        for cand in enc_a:
+            a = np.array(cand, dtype=np.float64)
+            min_len = min(len(a), len(b))
+            if min_len < 10:
+                continue
+            a_sub, b_sub = a[:min_len], b[:min_len]
+            a_sub = a_sub - np.mean(a_sub)
+            norm_a = np.linalg.norm(a_sub)
+            norm_b = np.linalg.norm(b_sub)
+            if norm_a == 0 or norm_b == 0:
+                continue
+            sim = float(np.dot(a_sub, b_sub) / (norm_a * norm_b))
+            if sim > best:
+                best = sim
+        return max(0.0, best)
+    else:
+        a = np.array(enc_a, dtype=np.float64)
+        min_len = min(len(a), len(b))
+        if min_len < 10:
+            return 0.0
+        a_sub, b_sub = a[:min_len], b[:min_len]
+        a_sub = a_sub - np.mean(a_sub)
+        norm_a = np.linalg.norm(a_sub)
+        norm_b = np.linalg.norm(b_sub)
+        if norm_a == 0 or norm_b == 0:
+            return 0.0
+        return float(np.dot(a_sub, b_sub) / (norm_a * norm_b))
 
 
 # ===========================================================================
@@ -304,9 +347,12 @@ async def admin_face_login(payload: FaceLoginRequest, db: DbSession, ctx: Reques
         raise BadRequest("face_image_required")
 
     image_bytes = _image_bytes_from_data_url(payload.image)
-    live_encoding = _compute_face_encoding(image_bytes)
-    if live_encoding is None:
-        raise BadRequest("face_not_detected")
+    live_probes = _compute_multi_probe_encodings(image_bytes)
+    if not live_probes:
+        single = _compute_face_encoding(image_bytes)
+        if single is None:
+            raise BadRequest("face_not_detected")
+        live_probes = [single]
 
     if not payload.username:
         raise BadRequest("username_required")
@@ -334,14 +380,14 @@ async def admin_face_login(payload: FaceLoginRequest, db: DbSession, ctx: Reques
     for adm in admins:
         try:
             stored = json.loads(adm.face_encoding)
-            sim = _face_similarity(live_encoding, stored)
+            sim = _face_similarity(live_probes, stored)
             if sim > best_sim:
                 best_sim = sim
                 best_admin = adm
         except Exception:
             continue
 
-    SIMILARITY_THRESHOLD = 0.70
+    SIMILARITY_THRESHOLD = 0.58
     if best_admin is None or best_sim < SIMILARITY_THRESHOLD:
         import logging
         logging.getLogger(__name__).warning(
