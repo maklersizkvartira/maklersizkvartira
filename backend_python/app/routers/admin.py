@@ -292,7 +292,7 @@ async def admin_face_login(payload: FaceLoginRequest, db: DbSession, ctx: Reques
 
     await audit_log.record(
         db,
-        AuditAction.STAFF_LOGIN,
+        AuditAction.ADMIN_LOGIN_SUCCESS,
         entity_type="admin",
         entity_id=best_admin.id,
         entity_label=best_admin.username,
@@ -396,7 +396,7 @@ async def admin_face_register(
 
     await audit_log.record(
         db,
-        AuditAction.STAFF_UPDATED,
+        AuditAction.ADMIN_USER_UPDATED,
         entity_type="admin",
         entity_id=target_admin.id,
         entity_label=target_admin.username,
@@ -427,7 +427,7 @@ async def admin_face_delete(
         await db.flush()
         await audit_log.record(
             db,
-            AuditAction.STAFF_UPDATED,
+            AuditAction.ADMIN_USER_UPDATED,
             entity_type="admin",
             entity_id=adm.id,
             entity_label=adm.username,
