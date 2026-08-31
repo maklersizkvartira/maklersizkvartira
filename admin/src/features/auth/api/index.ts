@@ -4,6 +4,19 @@ import type { AdminAccount, TokenResponse } from '@/shared/api/types';
 import type { LoginFormValues } from '../schemas';
 import type { LoginResult } from '../types';
 
+export interface VerifyCredentialsResult {
+  valid: boolean;
+  username: string;
+  fullName: string;
+  hasFace: boolean;
+}
+
+export async function verifyCredentials(payload: LoginFormValues): Promise<VerifyCredentialsResult> {
+  return http.raw.post<VerifyCredentialsResult>(api.auth.verifyCredentials, payload, {
+    skipAuth: true,
+  });
+}
+
 /**
  * `POST /admin/auth/login`
  *

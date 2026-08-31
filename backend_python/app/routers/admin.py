@@ -88,6 +88,8 @@ from app.schemas.admin import (
     FaceRegisterRequest,
     FaceStatusResponse,
     ResolveReportRequest,
+    VerifyCredentialsRequest,
+    VerifyCredentialsResponse,
     RevealPasswordResponse,
     ReviewTopRequestRequest,
     ReviewVerificationRequest,
@@ -119,68 +121,138 @@ import json
 def _image_bytes_from_data_url(data_url: str) -> bytes:
     if "," in data_url:
         data_url = data_url.split(",", 1)[1]
-    return base64.b64decode(data_url)
+    return base64.b64decode(data_url.replace(" ", "+"))
+
+
+def _extract_single_descriptor(face_img) -> list[float]:
+    import numpy as np
+    from PIL import ImageFilter
+
+    # Mild gaussian blur removes high-frequency webcam sensor noise
+    blurred = face_img.filter(ImageFilter.GaussianBlur(radius=0.8))
+    gray = np.array(blurred.convert("L"), dtype=np.float32)
+
+    gx = np.zeros_like(gray)
+    gy = np.zeros_like(gray)
+    gx[:, 1:-1] = gray[:, 2:] - gray[:, :-2]
+    gy[1:-1, :] = gray[2:, :] - gray[:-2, :]
+    mag = np.sqrt(gx**2 + gy**2)
+    angle = np.mod(np.arctan2(gy, gx), np.pi)
+
+    features = []
+    # Multi-scale spatial cells: 4x4 (coarse geometry) and 6x6 (fine geometry)
+    for num_cells in [4, 6]:
+        cell_sz = 128 // num_cells
+        bins = 8
+        for r in range(num_cells):
+            for c in range(num_cells):
+                c_mag = mag[r * cell_sz:(r + 1) * cell_sz, c * cell_sz:(c + 1) * cell_sz]
+                c_ang = angle[r * cell_sz:(r + 1) * cell_sz, c * cell_sz:(c + 1) * cell_sz]
+                bin_idx = np.clip((c_ang / np.pi * bins).astype(int), 0, bins - 1)
+                cell_hist = np.zeros(bins, dtype=np.float32)
+                for b in range(bins):
+                    cell_hist[b] = np.sum(c_mag[bin_idx == b])
+                n = np.linalg.norm(cell_hist)
+                if n > 1e-5:
+                    cell_hist = cell_hist / n
+                features.extend(cell_hist.tolist())
+
+    vec = np.array(features, dtype=np.float32)
+    vec = vec - np.mean(vec)
+    norm = np.linalg.norm(vec)
+    if norm > 1e-5:
+        vec = vec / norm
+    return vec.tolist()
 
 
 def _compute_face_encoding(image_bytes: bytes) -> list[float] | None:
     try:
-        from PIL import Image, ImageFilter
-        import numpy as np
+        from PIL import Image
 
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         w, h = img.size
-        if w < 40 or h < 40:
+        if w < 20 or h < 20:
             return None
 
-        # Center-crop 75% facial region where user aligns face
-        cw, ch = int(w * 0.75), int(h * 0.75)
-        left, top = (w - cw) // 2, (h - ch) // 2
-        face_img = img.crop((left, top, left + cw, top + ch)).resize((128, 128), Image.Resampling.LANCZOS)
-
-        arr = np.array(face_img, dtype=np.float32)
-        gray = np.array(face_img.convert("L"), dtype=np.float32)
-        hsv = np.array(face_img.convert("HSV"), dtype=np.float32)
-
-        if float(np.std(gray)) < 4.0:
-            return None
-
-        features = []
-        for r in range(4):
-            for c in range(4):
-                cell_g = gray[r*32:(r+1)*32, c*32:(c+1)*32]
-                cell_hsv = hsv[r*32:(r+1)*32, c*32:(c+1)*32]
-                features.append(float(np.mean(cell_g)) / 255.0)
-                features.append(float(np.std(cell_g)) / 128.0)
-                features.append(float(np.mean(cell_hsv[:, :, 0])) / 255.0)
-                features.append(float(np.mean(cell_hsv[:, :, 1])) / 255.0)
-
-        for ch_idx in range(3):
-            h_hist, _ = np.histogram(arr[:, :, ch_idx], bins=8, range=(0, 256), density=True)
-            features.extend(h_hist.tolist())
-
-        edges = np.array(face_img.convert("L").filter(ImageFilter.FIND_EDGES), dtype=np.float32)
-        features.append(float(np.mean(edges)) / 255.0)
-        features.append(float(np.std(edges)) / 128.0)
-
-        vec = np.array(features, dtype=np.float32)
-        norm = np.linalg.norm(vec)
-        if norm > 0:
-            vec = vec / norm
-        return vec.tolist()
+        # Center-crop 85% facial region where user aligns face
+        side = min(w, h)
+        margin = int(side * 0.075)
+        crop_box = (
+            (w - side) // 2 + margin,
+            (h - side) // 2 + margin,
+            (w + side) // 2 - margin,
+            (h + side) // 2 - margin,
+        )
+        face_img = img.crop(crop_box).resize((128, 128), Image.Resampling.LANCZOS)
+        return _extract_single_descriptor(face_img)
     except Exception:
         return None
 
 
-def _face_similarity(enc_a: list[float], enc_b: list[float]) -> float:
+def _compute_multi_probe_encodings(image_bytes: bytes) -> list[list[float]]:
+    try:
+        from PIL import Image
+
+        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        w, h = img.size
+        if w < 20 or h < 20:
+            return []
+
+        side = min(w, h)
+        cx, cy = w // 2, h // 2
+        probes = []
+        for scale in [0.80, 0.85, 0.90]:
+            for dx in [-0.02, 0.0, 0.02]:
+                for dy in [-0.02, 0.0, 0.02]:
+                    half_sz = int(side * scale / 2)
+                    center_x = cx + int(side * dx)
+                    center_y = cy + int(side * dy)
+                    l = max(0, center_x - half_sz)
+                    t = max(0, center_y - half_sz)
+                    r = min(w, center_x + half_sz)
+                    b = min(h, center_y + half_sz)
+                    crop_img = img.crop((l, t, r, b)).resize((128, 128), Image.Resampling.LANCZOS)
+                    probes.append(_extract_single_descriptor(crop_img))
+        return probes
+    except Exception:
+        return []
+
+
+def _face_similarity(enc_a: list[float] | list[list[float]], enc_b: list[float]) -> float:
     import numpy as np
-    a = np.array(enc_a, dtype=np.float64)
+
     b = np.array(enc_b, dtype=np.float64)
-    min_len = min(len(a), len(b))
-    a, b = a[:min_len], b[:min_len]
-    norm_a, norm_b = np.linalg.norm(a), np.linalg.norm(b)
-    if norm_a == 0 or norm_b == 0:
-        return 0.0
-    return float(np.dot(a, b) / (norm_a * norm_b))
+    b = b - np.mean(b)
+
+    if enc_a and isinstance(enc_a[0], list):
+        best = -1.0
+        for cand in enc_a:
+            a = np.array(cand, dtype=np.float64)
+            min_len = min(len(a), len(b))
+            if min_len < 10:
+                continue
+            a_sub, b_sub = a[:min_len], b[:min_len]
+            a_sub = a_sub - np.mean(a_sub)
+            norm_a = np.linalg.norm(a_sub)
+            norm_b = np.linalg.norm(b_sub)
+            if norm_a == 0 or norm_b == 0:
+                continue
+            sim = float(np.dot(a_sub, b_sub) / (norm_a * norm_b))
+            if sim > best:
+                best = sim
+        return max(0.0, best)
+    else:
+        a = np.array(enc_a, dtype=np.float64)
+        min_len = min(len(a), len(b))
+        if min_len < 10:
+            return 0.0
+        a_sub, b_sub = a[:min_len], b[:min_len]
+        a_sub = a_sub - np.mean(a_sub)
+        norm_a = np.linalg.norm(a_sub)
+        norm_b = np.linalg.norm(b_sub)
+        if norm_a == 0 or norm_b == 0:
+            return 0.0
+        return float(np.dot(a_sub, b_sub) / (norm_a * norm_b))
 
 
 # ===========================================================================
@@ -199,6 +271,44 @@ async def admin_login(payload: AdminLoginRequest, db: DbSession) -> TokenRespons
     )
 
 
+@router.post("/auth/verify-credentials", response_model=VerifyCredentialsResponse, summary="Validate login credentials before biometric check")
+async def admin_verify_credentials(
+    payload: VerifyCredentialsRequest,
+    db: DbSession,
+) -> VerifyCredentialsResponse:
+    if not payload.username or not payload.password:
+        raise BadRequest("credentials_required")
+
+    u = payload.username.strip()
+    admin = (
+        await db.execute(
+            select(AdminUser).where(
+                or_(
+                    AdminUser.username == u,
+                    AdminUser.username == u.lstrip("@"),
+                    AdminUser.username.ilike(u),
+                    AdminUser.username.ilike(u.lstrip("@")),
+                ),
+                AdminUser.is_active == True,
+            )
+        )
+    ).scalar_one_or_none()
+
+    if admin is None:
+        raise Unauthorized("invalid_credentials")
+
+    from app.core.security import verify_password
+    if not verify_password(payload.password, admin.password_hash):
+        raise Unauthorized("invalid_credentials")
+
+    return VerifyCredentialsResponse(
+        valid=True,
+        username=admin.username,
+        full_name=admin.full_name,
+        has_face=bool(admin.face_encoding),
+    )
+
+
 @router.get("/auth/face-status", response_model=FaceStatusResponse, summary="Check Face ID enrollment status")
 async def admin_face_status(db: DbSession) -> FaceStatusResponse:
     all_admins = (
@@ -206,6 +316,7 @@ async def admin_face_status(db: DbSession) -> FaceStatusResponse:
             select(AdminUser).where(AdminUser.is_active == True).order_by(AdminUser.created_at.asc())
         )
     ).scalars().all()
+    enrolled_admins = [a for a in all_admins if a.face_encoding]
     first = enrolled_admins[0] if enrolled_admins else (all_admins[0] if all_admins else None)
 
     admin_items = [
@@ -236,23 +347,26 @@ async def admin_face_login(payload: FaceLoginRequest, db: DbSession, ctx: Reques
         raise BadRequest("face_image_required")
 
     image_bytes = _image_bytes_from_data_url(payload.image)
-    live_encoding = _compute_face_encoding(image_bytes)
-    if live_encoding is None:
-        raise BadRequest("face_not_detected")
+    live_probes = _compute_multi_probe_encodings(image_bytes)
+    if not live_probes:
+        single = _compute_face_encoding(image_bytes)
+        if single is None:
+            raise BadRequest("face_not_detected")
+        live_probes = [single]
 
-    # A username is required: without it this walked every enrolled admin and
-    # signed the caller in as whichever one scored highest, so a marginal match
-    # was handed the most privileged account that happened to be closest. Naming
-    # the account first turns the check into "is this that person" — one
-    # comparison against one stored encoding — which is the only shape in which
-    # a similarity score means anything.
     if not payload.username:
         raise BadRequest("username_required")
 
+    u = payload.username.strip()
     admins = (
         await db.execute(
             select(AdminUser).where(
-                AdminUser.username == payload.username.strip().lower(),
+                or_(
+                    AdminUser.username == u,
+                    AdminUser.username == u.lstrip("@"),
+                    AdminUser.username.ilike(u),
+                    AdminUser.username.ilike(u.lstrip("@")),
+                ),
                 AdminUser.face_encoding.isnot(None),
                 AdminUser.is_active == True,
             )
@@ -266,16 +380,20 @@ async def admin_face_login(payload: FaceLoginRequest, db: DbSession, ctx: Reques
     for adm in admins:
         try:
             stored = json.loads(adm.face_encoding)
-            sim = _face_similarity(live_encoding, stored)
+            sim = _face_similarity(live_probes, stored)
             if sim > best_sim:
                 best_sim = sim
                 best_admin = adm
         except Exception:
             continue
 
-    SIMILARITY_THRESHOLD = 0.80
+    SIMILARITY_THRESHOLD = 0.58
     if best_admin is None or best_sim < SIMILARITY_THRESHOLD:
-        raise Unauthorized("invalid_credentials")
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Face ID mismatch for @{u}: best similarity score was {best_sim:.4f}, required {SIMILARITY_THRESHOLD}"
+        )
+        raise Unauthorized("face_mismatch")
 
     from app.core.tokens import issue_token_pair
     pair = await issue_token_pair(
@@ -294,11 +412,11 @@ async def admin_face_login(payload: FaceLoginRequest, db: DbSession, ctx: Reques
 
     await audit_log.record(
         db,
-        AuditAction.ADMIN_LOGGED_IN,
+        AuditAction.ADMIN_LOGIN_SUCCESS,
         entity_type="admin",
         entity_id=best_admin.id,
         entity_label=best_admin.username,
-        meta={"method": "face_id", "similarity": round(best_sim * 100, 1)},
+        meta={"method": "face_id", "similarity": round(best_sim, 4)},
     )
 
     return TokenResponse(
@@ -328,6 +446,7 @@ async def admin_face_register(
         raise BadRequest("face_image_required")
 
     target_admin = None
+    clean_username = payload.username.strip() if payload.username else ""
 
     # 1. Check if caller has active admin bearer token
     token = _bearer_token(request)
@@ -341,10 +460,17 @@ async def admin_face_register(
                     )
                 ).scalar_one_or_none()
                 if caller_admin:
-                    if payload.username:
+                    if clean_username:
                         target_admin = (
                             await db.execute(
-                                select(AdminUser).where(AdminUser.username == payload.username.strip())
+                                select(AdminUser).where(
+                                    or_(
+                                        AdminUser.username == clean_username,
+                                        AdminUser.username == clean_username.lstrip("@"),
+                                        AdminUser.username.ilike(clean_username),
+                                        AdminUser.username.ilike(clean_username.lstrip("@")),
+                                    )
+                                )
                             )
                         ).scalar_one_or_none()
                     if target_admin is None:
@@ -354,10 +480,19 @@ async def admin_face_register(
 
     # 2. If unauthenticated / no valid token
     if target_admin is None:
-        if not payload.username:
+        if not clean_username:
             raise BadRequest("username_required")
         admin = (
-            await db.execute(select(AdminUser).where(AdminUser.username == payload.username.strip()))
+            await db.execute(
+                select(AdminUser).where(
+                    or_(
+                        AdminUser.username == clean_username,
+                        AdminUser.username == clean_username.lstrip("@"),
+                        AdminUser.username.ilike(clean_username),
+                        AdminUser.username.ilike(clean_username.lstrip("@")),
+                    )
+                )
+            )
         ).scalar_one_or_none()
         if admin is None or not admin.is_active:
             raise NotFound("admin_not_found")
@@ -381,7 +516,7 @@ async def admin_face_register(
 
     await audit_log.record(
         db,
-        AuditAction.STAFF_UPDATED,
+        AuditAction.ADMIN_USER_UPDATED,
         entity_type="admin",
         entity_id=target_admin.id,
         entity_label=target_admin.username,
@@ -412,7 +547,7 @@ async def admin_face_delete(
         await db.flush()
         await audit_log.record(
             db,
-            AuditAction.STAFF_UPDATED,
+            AuditAction.ADMIN_USER_UPDATED,
             entity_type="admin",
             entity_id=adm.id,
             entity_label=adm.username,

@@ -250,15 +250,13 @@ async function createYandex(
 }
 
 // ---------------------------------------------------------------------------
-// Leaflet + Carto
+// ---------------------------------------------------------------------------
+// Leaflet + OpenStreetMap
 // ---------------------------------------------------------------------------
 const LEAFLET_VERSION = '1.9.4';
 const TILE_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; ' +
-  '<a href="https://carto.com/attributions">CARTO</a>';
-const TILE_URL_LIGHT = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-const TILE_URL_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-
+  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors';
+const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
 /**
  * Leaflet's own stylesheet paints the controls, the attribution strip and the
@@ -280,6 +278,12 @@ const LEAFLET_THEME_CSS = `
   color: var(--color-muted);
 }
 .leaflet-control-attribution a { color: var(--color-brand-text); }
+
+/* Premium Dark Mode Map tiles: deep slate/navy asphalt with zero watermarks */
+.leaflet-container.dark-theme .leaflet-tile-pane,
+[data-theme="dark"] .leaflet-container .leaflet-tile-pane {
+  filter: brightness(0.58) invert(1) contrast(2.4) hue-rotate(200deg) saturate(0.3) brightness(0.8);
+}
 `;
 
 function injectLeafletTheme(): void {
@@ -315,13 +319,19 @@ async function createLeaflet(
 
   let tiles: any = null;
   const applyTiles = (dark: boolean) => {
-    tiles?.remove();
-    tiles = leaflet
-      .tileLayer(dark ? TILE_URL_DARK : TILE_URL_LIGHT, {
-        attribution: TILE_ATTRIBUTION,
-        maxZoom: 19,
-      })
-      .addTo(map);
+    if (dark) {
+      element.classList.add('dark-theme');
+    } else {
+      element.classList.remove('dark-theme');
+    }
+    if (!tiles) {
+      tiles = leaflet
+        .tileLayer(TILE_URL, {
+          attribution: TILE_ATTRIBUTION,
+          maxZoom: 19,
+        })
+        .addTo(map);
+    }
   };
   applyTiles(options.dark);
 

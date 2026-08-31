@@ -154,6 +154,7 @@ export const api = {
    */
   auth: {
     login: '/admin/auth/login',
+    verifyCredentials: '/admin/auth/verify-credentials',
     faceLogin: '/admin/auth/face-login',
     faceRegister: '/admin/auth/face-register',
     faceStatus: '/admin/auth/face-status',
