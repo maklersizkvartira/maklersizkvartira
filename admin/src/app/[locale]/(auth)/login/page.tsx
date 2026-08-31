@@ -108,20 +108,13 @@ export default function LoginPage() {
     e.preventDefault();
     if (!canSubmit) return;
 
-    // After typing username and password, trigger Face ID verification
+    // Mandatory Face ID step: Opening Face ID modal with entered credentials
     if (selectedAdmin?.hasFace) {
       setFaceModalMode('login');
-      setIsFaceModalOpen(true);
     } else {
-      // If admin has no Face ID or wants direct login
-      login({ username: cleanUsername, password });
+      setFaceModalMode('register');
     }
-  };
-
-  const handleDirectLogin = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (!canSubmit) return;
-    login({ username: cleanUsername, password });
+    setIsFaceModalOpen(true);
   };
 
   return (
@@ -339,45 +332,25 @@ export default function LoginPage() {
                   </>
                 ) : isCountingDown ? (
                   <span className="leading-normal tabular-nums">{formatCountdown(remaining)}</span>
-                ) : selectedAdmin?.hasFace ? (
-                  <>
-                    <Camera size={16} />
-                    <span className="leading-normal">Yuzni Tasdiqlash & Kirish</span>
-                    <ArrowRight size={15} />
-                  </>
                 ) : (
                   <>
-                    <span className="leading-normal">{t('submit')}</span>
-                    {isFormValid && <ArrowRight size={15} />}
+                    <Camera size={16} />
+                    <span className="leading-normal">
+                      {selectedAdmin?.hasFace
+                        ? 'Yuzni Tasdiqlash & Kirish'
+                        : 'Face ID O\'rnatish & Kirish'}
+                    </span>
+                    <ArrowRight size={15} />
                   </>
                 )}
               </button>
 
-              {/* Direct Login or Enroll Face ID shortcuts */}
-              {isFormValid && (
-                <div className="flex items-center justify-between px-1 pt-1 text-xs">
-                  <button
-                    type="button"
-                    onClick={handleDirectLogin}
-                    disabled={isPending}
-                    className="text-slate-400 hover:text-slate-200 transition text-[11px] font-medium underline underline-offset-4 cursor-pointer"
-                  >
-                    Faqat parol bilan kirish
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFaceModalMode(selectedAdmin?.hasFace ? 'login' : 'register');
-                      setIsFaceModalOpen(true);
-                    }}
-                    className="text-emerald-400 hover:text-emerald-300 transition text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
-                  >
-                    <Smile size={12} />
-                    <span>{selectedAdmin?.hasFace ? 'Face ID bilan ochish' : 'Face ID o\'rnatish'}</span>
-                  </button>
-                </div>
-              )}
+              <div className="flex items-center justify-center pt-1.5">
+                <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Face ID biometrik tasdiqlash majburiy</span>
+                </span>
+              </div>
             </div>
           </form>
         </div>
