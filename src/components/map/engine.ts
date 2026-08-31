@@ -8,12 +8,18 @@
  *
  * Two implementations:
  *
- *  * **Yandex.** What people here actually use, and the only one whose Uzbek
- *    map has the mahalla-level detail a renter is looking for. Requires
- *    `VITE_YANDEX_MAPS_API_KEY`.
- *  * **Leaflet + Carto.** No key, so it always works. Used when the Yandex key
- *    is missing, which keeps the map on screen rather than showing an error
- *    to every visitor until someone remembers to set an environment variable.
+ *  * **Yandex.** Tried first, and what people here actually use: the only one
+ *    whose Uzbek map has the mahalla-level detail a renter is looking for.
+ *    Takes a key — see `YANDEX_KEY` below, which carries a working default.
+ *  * **Leaflet + OpenStreetMap.** No key, so it always works. It is the
+ *    fallback for everything that can stop Yandex — a missing or rejected key,
+ *    a referrer the key is not allowed on, a blocked request, a device with no
+ *    WebGL — so a visitor always gets a map, and only the detail differs.
+ *
+ * The order matters and was wrong for a long time: with Leaflet tried first it
+ * always succeeded, the Yandex branch never ran, and the site served OSM tiles
+ * while this comment claimed otherwise. If the map ever looks less detailed
+ * than it should, check `createMapEngine` at the foot of this file first.
  *
  * Coordinates are `[latitude, longitude]` throughout this module, because
  * that is what the rest of the app uses. Yandex wants them the other way
