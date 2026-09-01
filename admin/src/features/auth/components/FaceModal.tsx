@@ -617,41 +617,43 @@ export function FaceModal({
           </div>
         )}
 
-        {/* Mode Switch Tabs */}
-        <div className="flex rounded-xl bg-slate-900/90 p-1 border border-slate-800 mt-2.5">
-          <button
-            type="button"
-            onClick={() => {
-              setMode('login');
-              setCapturedPreview(null);
-              setErrorMsg(null);
-              setStatusMsg('Kameraga qarab tugmani bosing...');
-            }}
-            className={`flex-1 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-semibold transition cursor-pointer ${
-              mode === 'login'
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            📸 Face ID Kirish
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('register');
-              setCapturedPreview(null);
-              setErrorMsg(null);
-              setStatusMsg('Yuzingizni markazga to\'g\'rilab, suratga oling...');
-            }}
-            className={`flex-1 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-semibold transition cursor-pointer ${
-              mode === 'register'
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            ✨ Yuzni Qayta Saqlash / Yangilash
-          </button>
-        </div>
+        {/* Mode Switch Tabs (Only visible in authenticated settings panel) */}
+        {isAuthenticated && (
+          <div className="flex rounded-xl bg-slate-900/90 p-1 border border-slate-800 mt-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                setMode('login');
+                setCapturedPreview(null);
+                setErrorMsg(null);
+                setStatusMsg('Kameraga qarab tugmani bosing...');
+              }}
+              className={`flex-1 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-semibold transition cursor-pointer ${
+                mode === 'login'
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              📸 Face ID Tekshirish
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('register');
+                setCapturedPreview(null);
+                setErrorMsg(null);
+                setStatusMsg('Yuzingizni markazga to\'g\'rilab, suratga oling...');
+              }}
+              className={`flex-1 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-semibold transition cursor-pointer ${
+                mode === 'register'
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              ✨ Yuzni Qayta Saqlash
+            </button>
+          </div>
+        )}
 
         {/* Password input when registering in unauthenticated mode if not already filled */}
         {mode === 'register' && !isAuthenticated && (
@@ -756,12 +758,12 @@ export function FaceModal({
 
         {/* Error message alert */}
         {errorMsg && (
-          <div className="mb-2.5 p-2.5 sm:p-3 bg-rose-500/15 border border-rose-500/30 rounded-xl sm:rounded-2xl space-y-1.5 animate-shake">
+          <div className="p-2 sm:p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 animate-shake">
             <div className="flex items-center gap-2 text-xs text-rose-300">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
               <p className="flex-1 text-[11px] sm:text-xs leading-tight">{errorMsg}</p>
             </div>
-            {mode === 'login' && (
+            {mode === 'login' && (!selectedAdmin?.hasFace || isAuthenticated) && (
               <div className="pt-1 flex justify-end">
                 <button
                   type="button"
@@ -772,7 +774,7 @@ export function FaceModal({
                   }}
                   className="text-[11px] text-amber-300 hover:text-amber-200 underline underline-offset-2 font-medium cursor-pointer"
                 >
-                  Yuzni qayta ro'yxatdan o'tkazish / yangilash →
+                  Yuzni ro'yxatdan o'tkazish →
                 </button>
               </div>
             )}

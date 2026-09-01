@@ -65,25 +65,51 @@ async def lifespan(app: FastAPI):
         from app.models.user import AdminUser
         from app.core.security import hash_password
         from app.models.enums import AdminRole
+        from sqlalchemy import select, delete, text
 
         async with session_scope() as db:
             await db.execute(text("ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS face_image TEXT;"))
             await db.execute(text("ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS face_encoding TEXT;"))
 
-            admin_count = (await db.execute(select(AdminUser))).scalars().all()
-            if not admin_count:
-                bootstrap_user = settings.BOOTSTRAP_ADMIN_USERNAME or "admin"
+            # Keep only the two designated staff accounts
+            allowed_usernames = ["admin", "maklersizuy@admin.dev"]
+            await db.execute(
+                delete(AdminUser).where(AdminUser.username.not_in(allowed_usernames))
+            )
+
+            # 1. Ensure 'admin' exists
+            admin1 = (
+                await db.execute(select(AdminUser).where(AdminUser.username == "admin"))
+            ).scalar_one_or_none()
+            if not admin1:
                 bootstrap_pass = settings.BOOTSTRAP_ADMIN_PASSWORD or "admin123"
-                admin_obj = AdminUser(
-                    username=bootstrap_user,
+                admin1 = AdminUser(
+                    username="admin",
                     full_name="Bosh administrator",
                     password_hash=hash_password(bootstrap_pass),
                     role=AdminRole.SUPERADMIN.value,
                     is_active=True,
                     must_change_password=False,
                 )
-                db.add(admin_obj)
-                log.info("bootstrap_admin_created", username=bootstrap_user)
+                db.add(admin1)
+                log.info("admin_created", username="admin")
+
+            # 2. Ensure 'maklersizuy@admin.dev' exists
+            admin2 = (
+                await db.execute(select(AdminUser).where(AdminUser.username == "maklersizuy@admin.dev"))
+            ).scalar_one_or_none()
+            if not admin2:
+                bootstrap_pass2 = "AdminDev2026!"
+                admin2 = AdminUser(
+                    username="maklersizuy@admin.dev",
+                    full_name="Maklersizuy Admin Dev",
+                    password_hash=hash_password(bootstrap_pass2),
+                    role=AdminRole.SUPERADMIN.value,
+                    is_active=True,
+                    must_change_password=False,
+                )
+                db.add(admin2)
+                log.info("admin_dev_created", username="maklersizuy@admin.dev")
     except Exception as e:
         log.warning("schema_autoheal_failed", error=str(e))
 
