@@ -27,31 +27,19 @@ interface FaceModalProps {
   onSuccess?: () => void;
 }
 
-// Compress and resize image to lightweight dimensions (< 40KB) for instant upload
+// Crop to central 1:1 square and compress to high-quality JPEG (< 50KB)
 function compressImage(imgSource: CanvasImageSource, srcWidth: number, srcHeight: number): string {
-  const maxDim = 480;
-  let targetWidth = srcWidth;
-  let targetHeight = srcHeight;
-
-  if (targetWidth > targetHeight) {
-    if (targetWidth > maxDim) {
-      targetHeight = Math.round((targetHeight * maxDim) / targetWidth);
-      targetWidth = maxDim;
-    }
-  } else {
-    if (targetHeight > maxDim) {
-      targetWidth = Math.round((targetWidth * maxDim) / targetHeight);
-      targetHeight = maxDim;
-    }
-  }
-
   const canvas = document.createElement('canvas');
-  canvas.width = targetWidth || 480;
-  canvas.height = targetHeight || 360;
+  const side = Math.min(srcWidth, srcHeight);
+  const sx = Math.max(0, (srcWidth - side) / 2);
+  const sy = Math.max(0, (srcHeight - side) / 2);
+
+  canvas.width = 360;
+  canvas.height = 360;
   const ctx = canvas.getContext('2d');
   if (!ctx) return '';
-  ctx.drawImage(imgSource, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL('image/jpeg', 0.75);
+  ctx.drawImage(imgSource, sx, sy, side, side, 0, 0, 360, 360);
+  return canvas.toDataURL('image/jpeg', 0.85);
 }
 
 export function FaceModal({
@@ -85,7 +73,6 @@ export function FaceModal({
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const autoScanTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -284,7 +271,7 @@ export function FaceModal({
       if (!base64Img) {
         if (!isAuto) {
           setErrorMsg(
-            'Kameradan tasvir olinmadi. Iltimos, kamera to\'liq ishga tushishini kuting yoki pastdagi "Fayldan rasm yuklash" tugmasidan foydalaning.',
+            'Kameradan tasvir olinmadi. Iltimos, kamera to\'liq ishga tushishini kuting va kameraga to\'g\'ri qarang.',
           );
         }
         return;
@@ -478,25 +465,6 @@ export function FaceModal({
     selectedAdminUsername,
     handleScan,
   ]);
-
-  // File upload handler
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const rawB64 = reader.result as string;
-      const img = new Image();
-      img.onload = () => {
-        const compressed = compressImage(img, img.naturalWidth || img.width, img.naturalHeight || img.height);
-        setCapturedPreview(compressed);
-        handleScan(false, compressed);
-      };
-      img.src = rawB64;
-    };
-    reader.readAsDataURL(file);
-  };
 
   if (!isOpen) return null;
 
@@ -861,31 +829,14 @@ export function FaceModal({
             )}
           </div>
 
-          {/* Alternative: File Upload Fallback */}
-          <div className="flex items-center justify-between pt-0.5">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileUpload}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="text-[10px] sm:text-[11px] text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5 py-1 px-1.5 rounded-lg hover:bg-slate-800/50 cursor-pointer"
-            >
-              <Upload className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Fayldan rasm yuklash</span>
-            </button>
-
-            {mode === 'register' && isAuthenticated && (
+          {mode === 'register' && isAuthenticated && (
+            <div className="flex items-center justify-center pt-0.5">
               <span className="text-[10px] text-emerald-400/90 font-medium flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3" />
-                <span>Admin xavfsiz seansi</span>
+                <span>Admin xavfsiz seansi faol</span>
               </span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Security Notice */}

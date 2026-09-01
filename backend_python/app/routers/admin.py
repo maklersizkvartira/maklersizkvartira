@@ -131,6 +131,8 @@ def _extract_single_descriptor(face_img) -> list[float]:
     # Mild gaussian blur removes high-frequency webcam sensor noise
     blurred = face_img.filter(ImageFilter.GaussianBlur(radius=0.8))
     gray = np.array(blurred.convert("L"), dtype=np.float32)
+    # Lighting and contrast standardization (eliminates dim / bright room variations)
+    gray = (gray - np.mean(gray)) / (np.std(gray) + 1e-5)
 
     gx = np.zeros_like(gray)
     gy = np.zeros_like(gray)
@@ -174,14 +176,13 @@ def _compute_face_encoding(image_bytes: bytes) -> list[float] | None:
         if w < 20 or h < 20:
             return None
 
-        # Center-crop 85% facial region where user aligns face
+        # Center square 1:1 crop
         side = min(w, h)
-        margin = int(side * 0.075)
         crop_box = (
-            (w - side) // 2 + margin,
-            (h - side) // 2 + margin,
-            (w + side) // 2 - margin,
-            (h + side) // 2 - margin,
+            (w - side) // 2,
+            (h - side) // 2,
+            (w + side) // 2,
+            (h + side) // 2,
         )
         face_img = img.crop(crop_box).resize((128, 128), Image.Resampling.LANCZOS)
         return _extract_single_descriptor(face_img)
@@ -201,9 +202,9 @@ def _compute_multi_probe_encodings(image_bytes: bytes) -> list[list[float]]:
         side = min(w, h)
         cx, cy = w // 2, h // 2
         probes = []
-        for scale in [0.80, 0.85, 0.90]:
-            for dx in [-0.02, 0.0, 0.02]:
-                for dy in [-0.02, 0.0, 0.02]:
+        for scale in [0.90, 0.95, 1.0, 1.05]:
+            for dx in [-0.03, 0.0, 0.03]:
+                for dy in [-0.03, 0.0, 0.03]:
                     half_sz = int(side * scale / 2)
                     center_x = cx + int(side * dx)
                     center_y = cy + int(side * dy)
@@ -213,6 +214,7 @@ def _compute_multi_probe_encodings(image_bytes: bytes) -> list[list[float]]:
                     b = min(h, center_y + half_sz)
                     crop_img = img.crop((l, t, r, b)).resize((128, 128), Image.Resampling.LANCZOS)
                     probes.append(_extract_single_descriptor(crop_img))
+                    probes.append(_extract_single_descriptor(crop_img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)))
         return probes
     except Exception:
         return []
