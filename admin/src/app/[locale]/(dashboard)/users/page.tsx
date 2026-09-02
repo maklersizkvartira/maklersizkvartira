@@ -9,6 +9,8 @@ import { http } from '@/shared/lib/http';
 import { api, type UserListParams } from '@/shared/api/endpoints';
 import type { AdminUserRow, UserRole, UserSort, UserStatus } from '@/shared/api/types';
 import { useAdminList, countActiveFilters, type AdminFilters } from '@/shared/hooks/useAdminList';
+import { enumLabeller } from '@/shared/lib/enum-label';
+import { USER_ROLES, USER_STATUSES } from '@/features/users/constants';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { FilterBar } from '@/shared/ui/FilterBar';
 import { Input } from '@/shared/ui/Input';
@@ -30,23 +32,9 @@ import { Avatar } from '@/shared/ui/Avatar';
  * answers 200 with an unfiltered list. See the note at the top of endpoints.ts.
  */
 
-/** Wire values, in the order the filter dropdown should offer them. */
-const ROLES: UserRole[] = ['STUDENT', 'TENANT', 'OWNER', 'MODERATOR', 'ADMIN', 'DEVELOPER'];
-
-const STATUSES: UserStatus[] = [
-  'PENDING_VERIFICATION',
-  'ACTIVE',
-  'SUSPENDED',
-  'BANNED',
-  'REGISTRATION_REQUIRED',
-];
-
 const SORTS: UserSort[] = ['NEWEST', 'OLDEST', 'NAME', 'TRUST', 'LAST_LOGIN'];
 
 const PAGE_SIZE = 20;
-
-const KNOWN_ROLES = new Set<string>(ROLES);
-const KNOWN_STATUSES = new Set<string>(STATUSES);
 
 /** Every filter as a string so one `<Select>` shape drives them all; '' means
  *  "not set" and `useAdminList`/`qs()` both drop it before it reaches the URL. */
@@ -99,13 +87,14 @@ export default function UsersPage() {
   const showDate = (iso: string | null) => (iso ? dateFormat.format(new Date(iso)) : c('never'));
 
   /* ── Enum labels ──────────────────────────────────────────────────────────
-     Both fall back to the wire value. next-intl throws on a missing key rather
-     than rendering an empty string, so a role or status the backend adds before
-     the messages catch up must not reach `t()` unguarded. */
-  const roleLabel = (role: string) =>
-    KNOWN_ROLES.has(role) ? t(`role.${role}` as Parameters<typeof t>[0]) : role;
-  const statusLabel = (status: string) =>
-    KNOWN_STATUSES.has(status) ? t(`status.${status}` as Parameters<typeof t>[0]) : status;
+     next-intl throws on a missing key rather than rendering an empty string, so
+     a role or status the backend adds before the messages catch up must not
+     reach `t()` unguarded. `enumLabeller` asks the catalogue itself and prints a
+     readable word when the answer is no; the value list is what keeps that
+     fallback from also swallowing a missing translation for a role this build
+     does know about — see `shared/lib/enum-label`. */
+  const roleLabel = enumLabeller(t, 'role', USER_ROLES);
+  const statusLabel = enumLabeller(t, 'status', USER_STATUSES);
 
   const columns: Column<AdminUserRow>[] = [
     {
@@ -129,8 +118,6 @@ export default function UsersPage() {
     {
       key: 'role',
       header: t('columns.role'),
-      // A role the messages do not cover yet prints its wire value rather than
-      // throwing — next-intl treats a missing key as an error, not a blank.
       render: (row) => roleLabel(row.role),
     },
     {
@@ -178,7 +165,7 @@ export default function UsersPage() {
           placeholder={t('filters.role')}
           options={[
             { value: '', label: c('all') },
-            ...ROLES.map((role) => ({ value: role, label: roleLabel(role) })),
+            ...USER_ROLES.map((role) => ({ value: role, label: roleLabel(role) })),
           ]}
         />
         <Select
@@ -187,7 +174,7 @@ export default function UsersPage() {
           placeholder={t('filters.status')}
           options={[
             { value: '', label: c('all') },
-            ...STATUSES.map((status) => ({ value: status, label: statusLabel(status) })),
+            ...USER_STATUSES.map((status) => ({ value: status, label: statusLabel(status) })),
           ]}
         />
         <Select

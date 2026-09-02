@@ -1,4 +1,4 @@
-import type { ListingSort, ListingStatus } from '@/shared/api/types';
+import type { ListingSort, ListingStatus, SellerType } from '@/shared/api/types';
 
 /**
  * Wire values and limits for the listings queue, kept beside the fetchers so a
@@ -50,6 +50,15 @@ export const TRANSLATED_LISTING_STATUSES = new Set<string>([
   'REJECTED',
   'ARCHIVED',
 ]);
+
+/**
+ * Both claims a listing can make about who is publishing it.
+ *
+ * Passed to `enumLabeller` so a `listings.seller.*` message that goes missing
+ * is a dev-time warning rather than an English word rendered quietly into the
+ * Uzbek panel — see `shared/lib/enum-label`.
+ */
+export const SELLER_TYPES: SellerType[] = ['OWNER', 'AGENT'];
 
 /** Statuses offered as a one-tap decision in the moderation sheet. */
 export const APPROVE_STATUS: ListingStatus = 'APPROVED';

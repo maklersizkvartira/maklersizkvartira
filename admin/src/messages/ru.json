@@ -267,6 +267,12 @@
     "safetyBadges": {
       "VERIFIED_OWNER": "Проверенный владелец",
       "PROPERTY_VERIFIED": "Объект проверен"
+    },
+    "seller": {
+      "label": "Кто разместил",
+      "OWNER": "Собственник",
+      "AGENT": "Агент",
+      "agency": "Агентство"
     }
   },
   "reports": {
@@ -401,6 +407,7 @@
       "STUDENT": "Студент",
       "TENANT": "Арендатор",
       "OWNER": "Владелец",
+      "AGENT": "Агент",
       "MODERATOR": "Модератор",
       "ADMIN": "Администратор",
       "DEVELOPER": "Разработчик"
@@ -427,6 +434,7 @@
     },
     "detail": {
       "profile": "Профиль",
+      "agency": "Агентство",
       "activity": "История действий",
       "sessions": "Активные сессии",
       "listings": "Объявления",

@@ -267,6 +267,12 @@
     "safetyBadges": {
       "VERIFIED_OWNER": "Tasdiqlangan uy egasi",
       "PROPERTY_VERIFIED": "Obyekt tekshirilgan"
+    },
+    "seller": {
+      "label": "Eʼlon beruvchi",
+      "OWNER": "Uy egasi",
+      "AGENT": "Agent",
+      "agency": "Agentlik"
     }
   },
   "reports": {
@@ -401,6 +407,7 @@
       "STUDENT": "Talaba",
       "TENANT": "Ijarachi",
       "OWNER": "Uy egasi",
+      "AGENT": "Agent",
       "MODERATOR": "Moderator",
       "ADMIN": "Administrator",
       "DEVELOPER": "Dasturchi"
@@ -427,6 +434,7 @@
     },
     "detail": {
       "profile": "Profil",
+      "agency": "Agentlik",
       "activity": "Faoliyat tarixi",
       "sessions": "Faol sessiyalar",
       "listings": "Eʼlonlari",

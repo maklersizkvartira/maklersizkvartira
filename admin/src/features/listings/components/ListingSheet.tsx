@@ -9,6 +9,8 @@ import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
 import { StatusPill } from '@/shared/ui/StatusPill';
 import { Input, Textarea } from '@/shared/ui/Input';
+import { enumLabeller } from '@/shared/lib/enum-label';
+import { USER_ROLES } from '@/features/users/constants';
 import { useConfirm } from '@/providers/confirm-provider';
 
 import type { ListingModerationBody } from '../api';
@@ -23,6 +25,7 @@ import {
   FEATURE_WEIGHT_MIN,
   MODERATION_NOTE_MAX,
   REJECT_STATUS,
+  SELLER_TYPES,
 } from '../constants';
 import {
   KeyValue,
@@ -78,6 +81,15 @@ export function ListingSheet({
   // The owner block reuses `users.columns.*` rather than inventing a second
   // set of labels for phone / role / trust; they are the same three fields.
   const u = useTranslations('users');
+
+  // `ownerRole` is a bare wire value and was printed as one, so an agency read
+  // as the literal string "AGENT" in the block a moderator uses to decide who
+  // they are about to call. Both labellers ask the catalogue first — next-intl
+  // throws on a missing key, and the role enum grows on the backend. The value
+  // lists are what tells a role this build has never heard of (fine, humanise
+  // it) from one it ships and forgot to translate (a dev-time warning).
+  const roleLabel = enumLabeller(u, 'role', USER_ROLES);
+  const sellerLabel = enumLabeller(t, 'seller', SELLER_TYPES);
 
   /* ── Safety badges ────────────────────────────────────────────────────────
      The wire sends bare enum values, and this sheet is the only surface in the
@@ -214,6 +226,17 @@ export function ListingSheet({
             pulse={row.status === 'PENDING' || row.status === 'UNDER_REVIEW'}
           />
           <RiskPill score={row.riskScore} label={t('moderation.riskScore')} />
+          {/* AGENT only. OWNER is the column default, is what the migration
+              wrote on every listing that existed before the seller type did,
+              and is therefore the value on the overwhelming majority of rows —
+              a pill for it would say nothing on nearly every listing while
+              pushing this line, which already carries the status, the risk
+              score, `featured` and up to two safety badges, onto a third row
+              at 360px. The fact is not hidden by leaving it out: it is spelled
+              out in the owner block below, for every row. */}
+          {row.sellerType === 'AGENT' && (
+            <Badge variant="info" label={sellerLabel(row.sellerType)} />
+          )}
           {featured && <Badge variant="info" label={t('columns.featured')} />}
           {badgeLabels.map((badge) => (
             <Badge key={badge.value} variant="neutral" label={badge.label} />
@@ -286,11 +309,34 @@ export function ListingSheet({
                 )
               }
             />
-            <KeyValue label={u('columns.role')} value={row.ownerRole ?? c('unknown')} />
+            <KeyValue
+              label={u('columns.role')}
+              value={row.ownerRole ? roleLabel(row.ownerRole) : c('unknown')}
+            />
+            {/* Always shown, including the OWNER case the badge above skips:
+                this is where a moderator reads the claim next to the role that
+                made it. */}
+            <KeyValue label={t('seller.label')} value={sellerLabel(row.sellerType)} />
+            {row.agencyName && <KeyValue label={t('seller.agency')} value={row.agencyName} />}
             <KeyValue
               label={u('columns.trust')}
               value={row.ownerTrustScore === null ? c('unknown') : String(row.ownerTrustScore)}
             />
+
+            {/* There is deliberately no "agency account, posted as the owner"
+                warning here, tempting as the pair of fields makes it. The two
+                are not comparable: `ownerRole` is what the account is right
+                now, `sellerType` is what was claimed when the listing went up,
+                and the migration that introduced the column backfilled every
+                listing then in existence to OWNER. Today's agents signed up as
+                OWNER — that is the reason the AGENT role was added — so the
+                first admin to promote a real agent would set the whole of that
+                agent's back catalogue alight, in exactly the migration the
+                warning existed to help with. Telling a real mismatch from the
+                backfill needs the publisher's role recorded at publish time
+                (or an "agent since" date to compare `createdAt` against);
+                neither exists on the wire yet. A warning moderators learn to
+                scroll past is worse than none. */}
           </div>
         </SheetSection>
 

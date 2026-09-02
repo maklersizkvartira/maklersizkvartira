@@ -67,8 +67,31 @@ export interface MessageResponse {
  */
 export type AdminRole = 'MODERATOR' | 'ADMIN' | 'SUPERADMIN';
 
-/** Role of an end user of the platform (not staff). */
-export type UserRole = 'STUDENT' | 'TENANT' | 'OWNER' | 'MODERATOR' | 'ADMIN' | 'DEVELOPER';
+/**
+ * Role of an end user of the platform (not staff).
+ *
+ * AGENT is a realtor or an agency publishing on behalf of the people who own
+ * the property; before it existed they signed up as OWNER and explained
+ * themselves in the listing text. Anything that renders one of these goes
+ * through `enumLabeller` rather than `t()` — the backend has twice grown a role
+ * before the message catalogues did.
+ */
+export type UserRole =
+  | 'STUDENT'
+  | 'TENANT'
+  | 'OWNER'
+  | 'AGENT'
+  | 'MODERATOR'
+  | 'ADMIN'
+  | 'DEVELOPER';
+
+/**
+ * Who a single listing claims to be published by, which is deliberately not the
+ * publisher's `role`: an agent letting out a flat they own themselves posts as
+ * OWNER, and an owner who handed one property to an agency is still an owner.
+ * The backend lets only an AGENT account claim AGENT.
+ */
+export type SellerType = 'OWNER' | 'AGENT';
 
 export type UserStatus =
   | 'PENDING_VERIFICATION'
@@ -270,6 +293,13 @@ export interface AdminUserRow {
   email: string | null;
   avatar: string | null;
   role: UserRole;
+  /**
+   * The agency an AGENT account works for; null on every other role, and null
+   * for a freelance realtor who has one and belongs to nobody. The detail page
+   * shows the row only when there is a value, so nothing renders an empty
+   * "Agency —" line for the accounts this never applies to.
+   */
+  agencyName: string | null;
   status: UserStatus;
   /** 'google' when the account came from Google sign-in, otherwise 'phone'. */
   authType: string;
@@ -380,6 +410,22 @@ export interface AdminListingRow {
    */
   images: string[];
   status: ListingStatus;
+  /**
+   * The seller claim this listing makes, and the agency named on it.
+   *
+   * `sellerType` is never absent: the column is NOT NULL with a default of
+   * OWNER and the migration backfilled every row that predates it, so "OWNER"
+   * on an old listing means "nobody was ever asked", not "the owner said so".
+   * That is why the moderation sheet gives a badge to AGENT only.
+   *
+   * `agencyName` is the agency as it was at the moment of publishing, not as
+   * the account spells it today — an agent who changes agencies must not
+   * silently rewrite who every flat they ever listed was represented by. The
+   * backend clears it whenever `sellerType` is OWNER, so the two can never
+   * contradict each other on a row.
+   */
+  sellerType: SellerType;
+  agencyName: string | null;
   trustScore: number;
   riskScore: number;
   aiRiskReasons: string[];

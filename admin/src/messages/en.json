@@ -267,6 +267,12 @@
     "safetyBadges": {
       "VERIFIED_OWNER": "Verified owner",
       "PROPERTY_VERIFIED": "Property verified"
+    },
+    "seller": {
+      "label": "Posted by",
+      "OWNER": "Owner",
+      "AGENT": "Agent",
+      "agency": "Agency"
     }
   },
   "reports": {
@@ -401,6 +407,7 @@
       "STUDENT": "Student",
       "TENANT": "Tenant",
       "OWNER": "Owner",
+      "AGENT": "Agent",
       "MODERATOR": "Moderator",
       "ADMIN": "Admin",
       "DEVELOPER": "Developer"
@@ -427,6 +434,7 @@
     },
     "detail": {
       "profile": "Profile",
+      "agency": "Agency",
       "activity": "Activity history",
       "sessions": "Active sessions",
       "listings": "Listings",

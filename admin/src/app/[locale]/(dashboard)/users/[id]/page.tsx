@@ -21,6 +21,8 @@ import type {
   UserRole,
   UserStatus,
 } from '@/shared/api/types';
+import { enumLabeller } from '@/shared/lib/enum-label';
+import { USER_ROLES, USER_STATUSES } from '@/features/users/constants';
 import { useRole } from '@/providers/role-provider';
 import { useConfirm } from '@/providers/confirm-provider';
 import { PageHeader } from '@/shared/ui/PageHeader';
@@ -46,19 +48,6 @@ import { maskPhone } from '@/shared/lib/mask';
  * Every button below is gated on `ACTION_MIN_ROLE`, which mirrors the backend's
  * own rank check. A moderator may read this page and may change nothing on it.
  */
-
-const ROLES: UserRole[] = ['STUDENT', 'TENANT', 'OWNER', 'MODERATOR', 'ADMIN', 'DEVELOPER'];
-
-const STATUSES: UserStatus[] = [
-  'PENDING_VERIFICATION',
-  'ACTIVE',
-  'SUSPENDED',
-  'BANNED',
-  'REGISTRATION_REQUIRED',
-];
-
-const KNOWN_ROLES = new Set<string>(ROLES);
-const KNOWN_STATUSES = new Set<string>(STATUSES);
 
 /**
  * Password-policy rejections the `users.passwordPolicy.*` messages cover.
@@ -115,10 +104,12 @@ export default function UserDetailPage() {
     enabled: Boolean(id),
   });
 
-  const roleLabel = (role: string) =>
-    KNOWN_ROLES.has(role) ? t(`role.${role}` as Parameters<typeof t>[0]) : role;
-  const statusLabel = (status: string) =>
-    KNOWN_STATUSES.has(status) ? t(`status.${status}` as Parameters<typeof t>[0]) : status;
+  // Both ask the catalogue before they translate: next-intl throws on a missing
+  // key, and this page renders whatever role the account happens to hold. The
+  // value lists keep that guard from hiding a translation this build owes —
+  // only a value the backend added later falls back silently.
+  const roleLabel = enumLabeller(t, 'role', USER_ROLES);
+  const statusLabel = enumLabeller(t, 'status', USER_STATUSES);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['user', id] });
 
@@ -295,6 +286,9 @@ export default function UserDetailPage() {
 
           <dl className="space-y-2.5">
             <Field label={t('columns.role')} value={roleLabel(user.role)} />
+            {/* Only an AGENT account carries one, and the whole point of the
+                role is that the moderator can see whose name is on the door. */}
+            {user.agencyName && <Field label={t('detail.agency')} value={user.agencyName} />}
             <Field
               label={t('columns.status')}
               value={<StatusPill status={user.status} label={statusLabel(user.status)} />}
@@ -465,8 +459,11 @@ export default function UserDetailPage() {
           cancel: c('cancel'),
           close: c('close'),
         }}
-        roleOptions={ROLES.map((role) => ({ value: role, label: roleLabel(role) }))}
-        statusOptions={STATUSES.map((status) => ({ value: status, label: statusLabel(status) }))}
+        roleOptions={USER_ROLES.map((role) => ({ value: role, label: roleLabel(role) }))}
+        statusOptions={USER_STATUSES.map((status) => ({
+          value: status,
+          label: statusLabel(status),
+        }))}
       />
 
       <SetPasswordModal
