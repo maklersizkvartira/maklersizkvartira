@@ -15,6 +15,7 @@
 import { UZ_ARTICLES, UZ_HELP } from './articles.uz';
 import { UZ_DISTRICT_PROFILES, UZ_REGION_PROFILES } from './places.uz';
 import type { CategoryWords, CopyPack, FaqEntry, PlaceProfile, PlaceWords } from './types';
+import type { PropertyTypeCode } from '../taxonomy';
 
 const SUFFIX = ' | Uyiz.uz';
 
@@ -55,13 +56,36 @@ const CATEGORIES: Record<string, CategoryWords> = {
     headline: 'kvartira ijarasi',
     blurb:
       'Ko‘p qavatli uylardagi alohida kvartiralar — oila, juftlik yoki yolg‘iz yashovchi uchun.',
+    placeBlurb:
+      'Kvartira bu hududda eng ko‘p uchraydigan variant, va uning narxini asosan uchta narsa '
+      + 'belgilaydi: xonalar soni, ta’mir holati va markazgacha bo‘lgan vaqt. Lift, isitish va '
+      + 'avtoturargoh haqidagi ma’lumot e’londa yozilgan bo‘lsa, ko‘chib o‘tishdan oldin '
+      + 'o‘zingiz tekshirib oling.',
+    findTip: 'Ro‘yxatni xonalar soni, narx va qavat bo‘yicha filtrlang.',
+    priceTip:
+      'Kvartira narxini eng ko‘p uchta narsa o‘zgartiradi: xonalar soni, ta’mir holati va '
+      + 'markazgacha bo‘lgan masofa.',
   },
   house: {
     noun: 'uy',
-    plural: 'uylar',
-    label: 'Uy ijarasi',
-    headline: 'uy ijarasi',
+    // Nobody searches "uylar" for a detached house; they search "hovli".
+    // `noun` stays 'uy' because the slug `uy-ijaraga` — and the eighty live
+    // URLs built on it — must not move.
+    plural: 'hovli uylar',
+    label: 'Hovli uy ijarasi',
+    headline: 'hovli uy ijarasi',
     blurb: 'Hovlili uylar va yakka tartibdagi turar joylar — ko‘proq joy va alohida kirish.',
+    placeBlurb:
+      'Hovli uyda joy ko‘proq, kirish alohida, ko‘pincha avtoturargoh ham bor. Shartnoma '
+      + 'imzolashdan oldin isitish turi, suv va gaz ta’minoti hamda hovlidan foydalanish '
+      + 'chegarasi aniq kelishib olinadi — bular kvartira ijarasida umuman chiqmaydigan '
+      + 'savollar.',
+    findTip:
+      'Hovli uyda maydon va hovlining o‘lchami xonalar sonidan muhimroq — filtrda avval '
+      + 'shularga qarang.',
+    priceTip:
+      'Hovli uy narxi yer maydoni, isitish turi va shahar markazidan uzoqligiga qarab '
+      + 'belgilanadi.',
   },
   room: {
     noun: 'xona',
@@ -69,6 +93,16 @@ const CATEGORIES: Record<string, CategoryWords> = {
     label: 'Xona ijarasi',
     headline: 'xona ijarasi',
     blurb: 'Umumiy kvartiradagi alohida xona — eng arzon va eng tez topiladigan variant.',
+    placeBlurb:
+      'Alohida xona — bu hududga eng kam pul bilan kirib kelish yo‘li. Oshxona va hammom '
+      + 'umumiy bo‘lgani uchun kim bilan yashashingiz, qo‘shnilar soni va uy qoidalari xona '
+      + 'maydonidan ham muhimroq bo‘lib chiqadi.',
+    findTip:
+      'Alohida xona izlayotganda xonalar soni bo‘yicha filtr ish bermaydi: narx va tumanni '
+      + 'tanlang, qolganini e’lon matnidan o‘qing.',
+    priceTip:
+      'Xona ijarasi butun kvartiradan sezilarli arzon, chunki oshxona va hammom umumiy '
+      + 'bo‘ladi.',
   },
   studio: {
     noun: 'studiya',
@@ -76,14 +110,35 @@ const CATEGORIES: Record<string, CategoryWords> = {
     label: 'Studiya ijarasi',
     headline: 'studiya ijarasi',
     blurb: 'Yotoq va oshxona bir xonada — yolg‘iz yashovchi va yosh juftliklar uchun.',
+    placeBlurb:
+      'Studiyada yotoq joyi va oshxona bir xonada bo‘ladi, shuning uchun kundalik qulaylikni '
+      + 'xonalar soni emas, maydon, shift balandligi va derazaning qayerga qarashi hal qiladi.',
+    findTip:
+      'Studiyada xona bitta, shuning uchun filtrda xonalar sonini emas, maydon va tumanni '
+      + 'tanlang.',
+    priceTip:
+      'Studiya odatda bir xonali kvartiradan arzonroq, lekin markazda ikkalasining narxi '
+      + 'deyarli tenglashadi.',
   },
   roommate: {
     noun: 'sherikchilik',
     plural: 'sherikchilik e’lonlari',
     label: 'Sheriklikka ijara',
     headline: 'sheriklikka ijara',
-    blurb:
-      'Ijara haqini bo‘lishib to‘laydigan sherik izlayotganlar uchun. Jins bo‘yicha alohida tanlash bor.',
+    // Shortened to one sentence: with the description template's tail this
+    // used to come out at 162 characters and was clamped mid-phrase. The
+    // gender filter it named now lives in `findTip`, where it is advice.
+    blurb: 'Ijara haqini bo‘lishib to‘laydigan sherik izlayotganlar uchun.',
+    placeBlurb:
+      'Sheriklikda siz butun uyni emas, undagi joyni olasiz. E’londa sherik jinsi va nechta '
+      + 'joy bo‘shligi ko‘rsatiladi; ijara haqi bilan kommunal to‘lov qanday bo‘linishini esa '
+      + 'birinchi suhbatdayoq aniqlashtirib oling.',
+    findTip:
+      'Sheriklikda sherik jinsi va bo‘sh joylar soni ko‘rsatiladi — filtrni xonalar sonidan '
+      + 'emas, shulardan boshlang.',
+    priceTip:
+      'Sheriklikda ijara haqi va kommunal to‘lov sheriklar o‘rtasida bo‘linadi — summalar '
+      + 'butun kvartira narxidan past bo‘ladi.',
   },
   student: {
     noun: 'talabalar uchun uy',
@@ -92,6 +147,16 @@ const CATEGORIES: Record<string, CategoryWords> = {
     headline: 'talabalar uchun ijara',
     blurb:
       'Universitetga yaqin, yotoqxonaga muqobil bo‘ladigan narxdagi uylar va sherikchilik.',
+    placeBlurb:
+      'Talaba uchun asosiy o‘lchov — darsga ketadigan vaqt. Kampusgacha piyoda yoki bir marta '
+      + 'transportda yetib boradigan uy, odatda, arzonroq lekin uzoqroq variantdan foydaliroq '
+      + 'chiqadi: yo‘lkira va uyqu ham xarajat.',
+    findTip:
+      'Bu bo‘limga universitet nomi ko‘rsatilgan, kampus tumanidagi va sheriklikka '
+      + 'beriladigan e’lonlar tushadi — universitetgacha bo‘lgan masofani mezon qiling.',
+    priceTip:
+      'Talaba uchun eng arzoni — sheriklik: butun kvartira o‘rniga undagi bitta joy uchun '
+      + 'to‘laysiz.',
   },
   family: {
     noun: 'oilaviy kvartira',
@@ -99,6 +164,16 @@ const CATEGORIES: Record<string, CategoryWords> = {
     label: 'Oilalar uchun ijara',
     headline: 'oilalar uchun ijara',
     blurb: 'Ikki va undan ortiq xonali, uzoq muddatga topshiriladigan turar joylar.',
+    placeBlurb:
+      'Oila uchun uy tanlashda maktab, bog‘cha va poliklinika masofasi narxdan keyingi '
+      + 'ikkinchi mezon. Uzoq muddatga olinadigani uchun shartnoma muddatini va narx qachon, '
+      + 'qanchaga oshishi mumkinligini boshidayoq yozib qo‘ying.',
+    findTip:
+      'Bu bo‘limda kamida ikki xonali, butun holda topshiriladigan uylar yig‘ilgan — filtrda '
+      + 'xonalar sonini o‘zingizga qarab oshiring.',
+    priceTip:
+      'Oilaviy ijarada oylik narxdan tashqari kommunal to‘lov va maktabgacha bo‘lgan yo‘l ham '
+      + 'hisobga olinadi.',
   },
   budget: {
     noun: 'arzon ijara',
@@ -106,19 +181,76 @@ const CATEGORIES: Record<string, CategoryWords> = {
     label: 'Arzon ijara',
     headline: 'arzon ijara',
     blurb: 'Oyiga 3 million so‘mgacha bo‘lgan e’lonlar, narx bo‘yicha saralangan.',
+    placeBlurb:
+      'Arzon variantlar tez ketadi: e’lon chiqqan kuni qo‘ng‘iroq qilgan odam ko‘pincha '
+      + 'birinchi bo‘ladi. Narxdan tashqari kommunal to‘lov kimning zimmasida ekanini ham '
+      + 'so‘rab oling — u oylik xarajatni sezilarli o‘zgartiradi.',
+    findTip:
+      'Bu bo‘limdagi barcha e’lonlar oyiga 3 million so‘mgacha; qolganini tuman va xonalar '
+      + 'soni bilan toraytiring.',
+    priceTip:
+      'Yuqori chegara — oyiga 3 million so‘m. Eng arzon variantlar odatda markazdan uzoqroq '
+      + 'tumanlarda va sheriklikda chiqadi.',
   },
 };
 
 /**
+ * The noun a listing's own head is built from.
+ *
+ * Four of the five codes have a landing page and take their word from
+ * `CATEGORIES`; DORMITORY has neither, so it is named here. Without this line
+ * a lookup by key would fall through to the raw enum value and put the
+ * English word "dormitory" in the middle of an Uzbek title.
+ */
+const TYPE_NOUNS: Record<PropertyTypeCode, string> = {
+  APARTMENT: CATEGORIES.apartment.noun,
+  HOUSE: CATEGORIES.house.noun,
+  ROOM: CATEGORIES.room.noun,
+  STUDIO: CATEGORIES.studio.noun,
+  DORMITORY: 'yotoqxona',
+};
+
+/**
+ * A room count is meaningless on the three types that have one room by
+ * definition: "1 xonali studiya" is noise, not information.
+ */
+const TYPES_WITH_ROOMS: ReadonlySet<PropertyTypeCode> = new Set<PropertyTypeCode>([
+  'APARTMENT',
+  'HOUSE',
+]);
+
+/** Titles beyond this are truncated in a result, so the head has to fit first. */
+const LISTING_TITLE_MAX = 65;
+
+/**
+ * Appends the landlord's own title to the controlled head, but only as far as
+ * the budget goes — the head is the part that has to survive truncation.
+ */
+function withOwnTitle(head: string, title: string): string {
+  if (!head) return title.slice(0, LISTING_TITLE_MAX);
+  const room = LISTING_TITLE_MAX - head.length - 3;
+  // Under a few words the fragment says nothing and only eats the budget.
+  if (room < 14) return head;
+  if (title.length <= room) return `${head} — ${title}`;
+  const cut = title.slice(0, room - 1);
+  const space = cut.lastIndexOf(' ');
+  return `${head} — ${cut.slice(0, space > 10 ? space : cut.length).trimEnd()}…`;
+}
+
+/**
  * The one sentence every landing page's first paragraph ends with.
  *
- * It describes how the marketplace works — the number is in the advert and the
- * two sides talk to each other — and deliberately says nothing about who the
- * other side is. Uy egasi ham, agentlik ham e’lon joylaydi.
+ * It describes how the marketplace works — the two sides settle the terms
+ * between themselves — and deliberately says nothing about who the other side
+ * is. Uy egasi ham, agentlik ham e’lon joylaydi.
+ *
+ * It used to open with "har bir e’londa telefon raqam ochiq". The API strips
+ * `owner.phone` from every payload a stranger receives, so that sentence was
+ * a promise the page could not keep for the visitor who arrived from a search
+ * result — the landing-page half of a snippet mismatch.
  */
 const MARKETPLACE_LINE =
-  'Har bir e’londa telefon raqam ochiq: kelishuvni e’lon beruvchi bilan '
-  + 'to‘g‘ridan-to‘g‘ri o‘zingiz qilasiz.';
+  'Kelishuv shartlarini e’lon beruvchi bilan to‘g‘ridan-to‘g‘ri o‘zingiz hal qilasiz.';
 
 function placeIntro(
   place: PlaceWords,
@@ -131,6 +263,11 @@ function placeIntro(
     `${place.inPlace} ijaraga beriladigan ${what} — bitta ro‘yxatda. `
       + MARKETPLACE_LINE,
   ];
+
+  // What makes /toshkent/chilonzor/uy-ijaraga a different page from
+  // /toshkent/chilonzor: the place profile below is the same on both, so
+  // without this the two differ by a couple of words in one sentence.
+  if (category) paragraphs.push(category.placeBlurb);
 
   if (profile?.about) paragraphs.push(profile.about);
 
@@ -153,20 +290,26 @@ function placeIntro(
 
 function placeFaq(place: PlaceWords, category: CategoryWords | null): FaqEntry[] {
   const what = category ? category.noun : 'uy';
+  // The first two answers are where a category page earns its place: the
+  // generic "filter by price and rooms" is wrong advice on half of them, and
+  // the useful half of a price answer is what moves the price *here*.
+  const findTip =
+    category?.findTip ?? 'Ro‘yxatni narx, xonalar soni va hudud bo‘yicha filtrlang.';
+  const priceTip =
+    category?.priceTip
+    ?? 'Narx xonalar soni, uyning holati va joylashuviga qarab keskin farq qiladi.';
   return [
     {
       q: `${place.inPlace} ${what} qanday topiladi?`,
       a:
-        `Yuqoridagi ro‘yxatni narx, xonalar soni va hudud bo‘yicha filtrlang. `
-        + `Sizga yoqqan e’lonni oching, telefon raqamni ko‘ring va e’lon beruvchining `
-        + `o‘ziga qo‘ng‘iroq qiling.`,
+        `${findTip} So‘ng mos e’lonni oching va e’lon beruvchining o‘zi bilan bog‘laning: `
+        + `kelishuvda platforma vositachi bo‘lmaydi.`,
     },
     {
       q: `${place.inPlace} ijara narxi qancha turadi?`,
       a:
-        'Narx xonalar soni, uyning holati va joylashuviga qarab keskin farq qiladi, shuning '
-        + 'uchun biz o‘rtacha raqam yozib qo‘ymaymiz. Yuqoridagi ro‘yxatni narx bo‘yicha '
-        + 'saralang — hozirgi real narxlar shundoq ko‘rinadi.',
+        `${priceTip} Shuning uchun biz o‘rtacha raqam yozib qo‘ymaymiz — yuqoridagi ro‘yxatni `
+        + 'narx bo‘yicha saralang, bugungi real narxlar shundoq ko‘rinadi.',
     },
     {
       q: 'Komissiya yoki xizmat haqi bormi?',
@@ -314,8 +457,11 @@ export const UZ_COPY: CopyPack = {
     categoryTitle: (category) =>
       `${category.headline.charAt(0).toUpperCase()}${category.headline.slice(1)}`
       + ` — O‘zbekiston${SUFFIX}`,
+    // The filter list this used to end on is what every rival snippet says,
+    // so it gave a searcher no reason to pick this result. What the platform
+    // has and they mostly do not is that it costs nothing to use.
     categoryDescription: (category) =>
-      `${category.blurb} O‘zbekiston bo‘ylab e’lonlar — narx va hudud bo‘yicha filtrlang.`,
+      `${category.blurb} O‘zbekiston bo‘ylab e’lonlar; qidirish ham, e’lon berish ham bepul.`,
     categoryH1: (category) =>
       `${category.headline.charAt(0).toUpperCase()}${category.headline.slice(1)}`,
     categoryIntro: (category) => [
@@ -325,16 +471,21 @@ export const UZ_COPY: CopyPack = {
     ],
 
     regionTitle: (place) => `${place.inPlace} uy va kvartira ijarasi${SUFFIX}`,
-    regionDescription: (place) =>
-      `${place.inPlace} ijaraga beriladigan kvartira, uy va xonalar. Narx, xonalar soni, `
-      + `metro bekati va qulayliklar bo‘yicha filtrlab toping.`,
+    // The metro clause is kept, not deleted: it is true and it is worth
+    // reading on the Tashkent pages. It is only false on the thirteen regions
+    // that have no metro at all, which is what `hasMetro` decides.
+    regionDescription: (place, hasMetro) =>
+      `${place.inPlace} ijaraga beriladigan kvartira, uy va xonalar. `
+      + (hasMetro ? 'Metro bekati bo‘yicha ham saralaysiz. ' : '')
+      + 'Qidirish ham, e’lon berish ham bepul.',
     regionH1: (place) => `${place.inPlace} uy-joy ijarasi`,
 
     placeCategoryTitle: (place, category) =>
       `${place.inPlace} ${category.headline}${SUFFIX}`,
-    placeCategoryDescription: (place, category) =>
-      `${place.inPlace} ijaraga beriladigan ${category.plural}. Narx, xonalar soni va metro `
-      + `bekati bo‘yicha filtrlang, e’lon beruvchi bilan bog‘laning.`,
+    placeCategoryDescription: (place, category, hasMetro) =>
+      `${place.inPlace} ijaraga beriladigan ${category.plural}. `
+      + (hasMetro ? 'Metro bekati bo‘yicha ham saralaysiz. ' : '')
+      + 'Qidirish ham, e’lon berish ham bepul.',
     placeCategoryH1: (place, category) => `${place.inPlace} ${category.headline}`,
 
     placeIntro,
@@ -350,9 +501,32 @@ export const UZ_COPY: CopyPack = {
     },
     studentProgram: {
       title: `Talabalar uchun ijara dasturi${SUFFIX}`,
+      // This described proximity to universities, which is what
+      // /talabalar-uchun-ijara already says — two indexable pages whose
+      // descriptions agreed for their first sixty characters. This one
+      // describes the programme itself: what it does and what it asks of you.
+      // It claims no student discount or verified-student terms, because
+      // nothing in the API grants either; the hero's "talaba bonusi" chip has
+      // no rule behind it yet.
       description:
-        'Universitetga yaqin, yotoqxonaga muqobil narxdagi uylar va sheriklik. '
-        + 'Talabalar uchun alohida shartlar va filtrlar.',
+        'Universitetingizni tanlaysiz — dastur o‘sha kampus tumanidagi talabalarga mos '
+        + 'e’lonlarni yig‘adi: kvartira ham, sheriklik ham. Ro‘yxatdan o‘tish bepul.',
+    },
+    login: {
+      title: `Kirish${SUFFIX}`,
+      description:
+        'Telefon raqamingiz va parolingiz bilan Uyiz hisobingizga kiring.',
+    },
+    register: {
+      title: `Ro‘yxatdan o‘tish${SUFFIX}`,
+      description:
+        'Uy egasi, ko‘chmas mulk agenti yoki uy izlayotgan sifatida bepul '
+        + 'ro‘yxatdan o‘ting — bir daqiqada.',
+    },
+    forgotPassword: {
+      title: `Parolni tiklash${SUFFIX}`,
+      description:
+        'Telefon raqamingizga SMS kod yuboramiz va yangi parol o‘rnatasiz.',
     },
     ecosystem: {
       title: `Uyiz ekotizimi — nima ustida ishlayapmiz${SUFFIX}`,
@@ -362,17 +536,27 @@ export const UZ_COPY: CopyPack = {
     },
   },
   listing: {
-    title: ({ title, district, rooms }) => {
-      const bits = [
-        rooms ? `${rooms} xonali` : '',
-        district ? displayPlaceName(district) : '',
-      ].filter(Boolean);
-      const prefix = bits.length ? `${bits.join(', ')} — ` : '';
-      return `${prefix}${title}`.slice(0, 65);
+    // The landlord's own title is whatever they typed, so the search-legible
+    // part is built here instead — from the place, the room count and the
+    // property type — and their words are appended only as far as the budget
+    // stretches.
+    title: ({ title, district, rooms, propertyType }) => {
+      const kind = propertyType ? TYPE_NOUNS[propertyType] : '';
+      const countable = !propertyType || TYPES_WITH_ROOMS.has(propertyType);
+      const head = [
+        district ? locative(shortName(district)) : '',
+        rooms && countable ? `${rooms} xonali` : '',
+        kind ? `${kind} ijaraga` : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
+      return withOwnTitle(head, title);
     },
-    description: ({ title, district, rooms, area, price }) => {
+    description: ({ title, district, rooms, area, price, propertyType }) => {
+      const kind = propertyType ? TYPE_NOUNS[propertyType] : null;
+      const countable = !propertyType || TYPES_WITH_ROOMS.has(propertyType);
       const bits = [
-        rooms ? `${rooms} xonali` : null,
+        rooms && countable ? `${rooms} xonali${kind ? ` ${kind}` : ''}` : kind,
         area ? `${area} m²` : null,
         district ? displayPlaceName(district) : null,
         price,

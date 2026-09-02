@@ -21,6 +21,7 @@
 import { EN_ARTICLES, EN_HELP } from './articles.en';
 import { EN_DISTRICT_PROFILES, EN_REGION_PROFILES } from './places.en';
 import type { CategoryWords, CopyPack, FaqEntry, PlaceProfile, PlaceWords } from './types';
+import type { PropertyTypeCode } from '../taxonomy';
 
 const SUFFIX = ' | Uyiz.uz';
 
@@ -80,6 +81,15 @@ const CATEGORIES: Record<string, CategoryWords> = {
     blurb:
       'Self-contained apartments in multi-storey buildings — for a family, a couple or someone '
       + 'living alone.',
+    placeBlurb:
+      'An apartment is the commonest thing to rent in this part of the city, and three things '
+      + 'move its price more than anything else: the number of rooms, the state of the '
+      + 'decoration and how long it takes to reach the centre. Check the lift, the heating and '
+      + 'the parking in person before you sign, even where the listing names them.',
+    findTip: 'Narrow the list by number of rooms, price and floor.',
+    priceTip:
+      'Three things move an apartment’s rent more than anything else: the number of rooms, the '
+      + 'state of the decoration and the distance to the centre.',
   },
   house: {
     noun: 'house',
@@ -87,6 +97,16 @@ const CATEGORIES: Record<string, CategoryWords> = {
     label: 'House rentals',
     headline: 'houses for rent',
     blurb: 'Houses with their own courtyard — more space and a private entrance.',
+    placeBlurb:
+      'A house means more space, a private entrance and usually somewhere to park. Settle the '
+      + 'heating, the water and gas supply and what you may do with the courtyard before you '
+      + 'sign — none of these questions comes up when you rent an apartment.',
+    findTip:
+      'For a house the floor area and the size of the plot matter more than the room count — '
+      + 'start the filters there.',
+    priceTip:
+      'What a house costs follows the size of the plot, the kind of heating and how far out it '
+      + 'is.',
   },
   room: {
     noun: 'room',
@@ -94,6 +114,16 @@ const CATEGORIES: Record<string, CategoryWords> = {
     label: 'Room rentals',
     headline: 'rooms for rent',
     blurb: 'A private room in a shared apartment — the cheapest option and the quickest to find.',
+    placeBlurb:
+      'A room of your own is the cheapest way into this part of the city. The kitchen and the '
+      + 'bathroom are shared, so who else lives there, how many of them there are and what the '
+      + 'house rules say matter more than the size of the room itself.',
+    findTip:
+      'Filtering by number of rooms does nothing when you are after a single room: set the '
+      + 'price and the area, and read the rest in the listing text.',
+    priceTip:
+      'A room costs markedly less than a whole apartment, because the kitchen and bathroom are '
+      + 'shared.',
   },
   studio: {
     noun: 'studio',
@@ -101,6 +131,16 @@ const CATEGORIES: Record<string, CategoryWords> = {
     label: 'Studio rentals',
     headline: 'studios for rent',
     blurb: 'Sleeping area and kitchen in one room — for people living alone and young couples.',
+    placeBlurb:
+      'A studio puts the bed and the kitchen in one room, so what makes it liveable day to day '
+      + 'is not the room count but the floor area, the ceiling height and which way the window '
+      + 'faces.',
+    findTip:
+      'A studio has one room by definition, so filter on floor area and district rather than '
+      + 'on the room count.',
+    priceTip:
+      'A studio usually costs less than a one-room apartment, though in the centre the two all '
+      + 'but converge.',
   },
   roommate: {
     noun: 'shared rental',
@@ -109,6 +149,16 @@ const CATEGORIES: Record<string, CategoryWords> = {
     headline: 'shared rentals',
     blurb:
       'For people looking for someone to split the rent with. You can filter by gender.',
+    placeBlurb:
+      'In a share you are not renting the property but a place in it. The listing states the '
+      + 'gender of the flatmates and how many places are free; how the rent and the bills get '
+      + 'divided is worth settling in the first conversation.',
+    findTip:
+      'Shared listings state the flatmates’ gender and how many places are free — start there '
+      + 'rather than with the room count.',
+    priceTip:
+      'In a share the rent and the bills are split between the flatmates, so the figures here '
+      + 'sit below the price of a whole apartment.',
   },
   student: {
     noun: 'student rental',
@@ -118,6 +168,16 @@ const CATEGORIES: Record<string, CategoryWords> = {
     blurb:
       'Places near the universities, priced as a real alternative to halls — whole flats and '
       + 'shares alike.',
+    placeBlurb:
+      'For a student the measure that matters is the time it takes to get to a lecture. A '
+      + 'place you can walk to, or reach without changing, usually beats a cheaper one further '
+      + 'out once the fares and the lost sleep are counted.',
+    findTip:
+      'This section collects listings that name a university, places in the campus districts '
+      + 'and shares — judge them by the distance to your faculty.',
+    priceTip:
+      'The cheapest option for a student is a share: you pay for a place in the flat rather '
+      + 'than for the flat.',
   },
   family: {
     noun: 'family apartment',
@@ -125,6 +185,16 @@ const CATEGORIES: Record<string, CategoryWords> = {
     label: 'Family rentals',
     headline: 'family rentals',
     blurb: 'Two rooms or more, let on long terms.',
+    placeBlurb:
+      'Choosing a family home, the distance to a school, a nursery and a clinic is the second '
+      + 'criterion after the price. These are long lets, so put the length of the agreement '
+      + 'and the terms for raising the rent in writing at the start.',
+    findTip:
+      'This section holds places of two rooms and up, let whole — raise the room count in the '
+      + 'filter to suit your family.',
+    priceTip:
+      'On a family let the monthly rent is only part of it: the bills and the school run count '
+      + 'too.',
   },
   budget: {
     noun: 'budget rental',
@@ -132,19 +202,75 @@ const CATEGORIES: Record<string, CategoryWords> = {
     label: 'Budget rentals',
     headline: 'budget rentals',
     blurb: 'Listings up to 3 million so‘m a month, sorted by price.',
+    placeBlurb:
+      'The cheap ones go quickly: whoever rings on the day it is posted usually gets there '
+      + 'first. Beyond the rent itself, ask who pays the utilities — it changes the monthly '
+      + 'figure appreciably.',
+    findTip:
+      'Everything in this section is up to 3 million so‘m a month; narrow the rest by district '
+      + 'and room count.',
+    priceTip:
+      'The ceiling here is 3 million so‘m a month. The cheapest of them are usually further '
+      + 'out and in shares.',
   },
 };
 
 /**
+ * The noun a listing's own head is built from.
+ *
+ * Four of the five codes have a landing page and take their word from
+ * `CATEGORIES`; DORMITORY has neither, so it is named here rather than left to
+ * fall through a lookup to the raw enum value.
+ */
+const TYPE_NOUNS: Record<PropertyTypeCode, string> = {
+  APARTMENT: CATEGORIES.apartment.noun,
+  HOUSE: CATEGORIES.house.noun,
+  ROOM: CATEGORIES.room.noun,
+  STUDIO: CATEGORIES.studio.noun,
+  DORMITORY: 'dormitory place',
+};
+
+/**
+ * A room count is meaningless on the three types that have one room by
+ * definition: "1-room room" is noise, not information.
+ */
+const TYPES_WITH_ROOMS: ReadonlySet<PropertyTypeCode> = new Set<PropertyTypeCode>([
+  'APARTMENT',
+  'HOUSE',
+]);
+
+/** Titles beyond this are truncated in a result, so the head has to fit first. */
+const LISTING_TITLE_MAX = 65;
+
+/**
+ * Appends the landlord's own title to the controlled head, but only as far as
+ * the budget goes — the head is the part that has to survive truncation.
+ */
+function withOwnTitle(head: string, title: string): string {
+  if (!head) return title.slice(0, LISTING_TITLE_MAX);
+  const room = LISTING_TITLE_MAX - head.length - 3;
+  // Under a few words the fragment says nothing and only eats the budget.
+  if (room < 14) return head;
+  if (title.length <= room) return `${head} — ${title}`;
+  const cut = title.slice(0, room - 1);
+  const space = cut.lastIndexOf(' ');
+  return `${head} — ${cut.slice(0, space > 10 ? space : cut.length).trimEnd()}…`;
+}
+
+/**
  * The sentence every landing page's opening paragraph closes on.
  *
- * It says how the marketplace works — the number is in the advert, the two
- * sides talk to each other — and deliberately says nothing about who is on
- * the other side. Owners and agencies both post here.
+ * It says how the marketplace works — the two sides settle the terms between
+ * themselves — and deliberately says nothing about who is on the other side.
+ * Owners and agencies both post here.
+ *
+ * It used to open with "the phone number is on the listing itself". The API
+ * strips `owner.phone` from every payload a stranger receives, so for the
+ * visitor arriving from a search result that was a promise the page does not
+ * keep.
  */
 const MARKETPLACE_LINE =
-  'The phone number is on the listing itself, so you deal with whoever posted it '
-  + 'directly.';
+  'The terms are settled directly between you and whoever posted the listing.';
 
 function placeIntro(
   place: PlaceWords,
@@ -156,6 +282,11 @@ function placeIntro(
   const paragraphs: string[] = [
     `${capitalize(what)} to rent ${place.inPlace}, in one list. ${MARKETPLACE_LINE}`,
   ];
+
+  // What makes /en/toshkent/chilonzor/uy-ijaraga a different page from
+  // /en/toshkent/chilonzor: the profile of the place below is the same on
+  // both, so without this the two differ by a couple of words in one sentence.
+  if (category) paragraphs.push(category.placeBlurb);
 
   if (profile?.about) paragraphs.push(profile.about);
 
@@ -183,19 +314,27 @@ function indefinite(noun: string): string {
 
 function placeFaq(place: PlaceWords, category: CategoryWords | null): FaqEntry[] {
   const what = category ? category.noun : 'place';
+  // The first two answers are where a category page earns its keep: the
+  // generic "filter by price and rooms" is wrong advice on half of them, and
+  // the useful half of a price answer is what moves the price *here*.
+  const findTip =
+    category?.findTip ?? 'Narrow the list above by price, number of rooms and area.';
+  const priceTip =
+    category?.priceTip
+    ?? 'The rent varies sharply with the number of rooms, the condition of the property and '
+      + 'exactly where it is.';
   return [
     {
       q: `How do I find ${indefinite(what)} ${what} ${place.inPlace}?`,
       a:
-        'Narrow the list above by price, number of rooms and area, open the one you like and '
-        + 'reveal the phone number. The call goes straight to whoever posted the listing.',
+        `${findTip} Then open the one you like and contact whoever posted it — the platform `
+        + 'takes no part in the agreement itself.',
     },
     {
       q: `What does renting ${place.inPlace} cost?`,
       a:
-        'The rent varies sharply with the number of rooms, the condition of the property and '
-        + 'exactly where it is, which is why we do not publish an average figure. Sort the list '
-        + 'above by price instead — that shows you what people are actually asking today.',
+        `${priceTip} Which is why we do not publish an average figure — sort the list above by `
+        + 'price instead, and you see what people are actually asking today.',
     },
     {
       q: 'Is there a commission or a service fee?',
@@ -341,8 +480,11 @@ export const EN_COPY: CopyPack = {
     // instead: "Apartments for rent" on its own is too thin to rank.
     categoryTitle: (category) =>
       `${capitalize(category.headline)} in Uzbekistan${SUFFIX}`,
+    // The filter list this used to end on is what every rival snippet says,
+    // so it gave a searcher no reason to pick this result. What the platform
+    // has and they mostly do not is that it costs nothing to use.
     categoryDescription: (category) =>
-      `${category.blurb} Listings across Uzbekistan, filtered by price and area.`,
+      `${category.blurb} Listings across Uzbekistan; free to search and to post.`,
     categoryH1: (category) => capitalize(category.headline),
     categoryIntro: (category) => [
       `${category.blurb} ${MARKETPLACE_LINE}`,
@@ -351,16 +493,21 @@ export const EN_COPY: CopyPack = {
     ],
 
     regionTitle: (place) => `Homes to rent ${place.inPlace}${SUFFIX}`,
-    regionDescription: (place) =>
-      `Apartments, houses and rooms to rent ${place.inPlace}. Filter by price, number of `
-      + `rooms, metro station and the features you need.`,
+    // The metro clause is kept rather than dropped: it is true and worth
+    // reading on the Tashkent pages. It is only false on the thirteen regions
+    // with no metro at all, which is what `hasMetro` decides.
+    regionDescription: (place, hasMetro) =>
+      `Apartments, houses and rooms to rent ${place.inPlace}. `
+      + (hasMetro ? 'Filter by metro station too. ' : '')
+      + 'Free to search and free to post a listing.',
     regionH1: (place) => `Property to rent ${place.inPlace}`,
 
     placeCategoryTitle: (place, category) =>
       `${capitalize(category.headline)} ${place.inPlace}${SUFFIX}`,
-    placeCategoryDescription: (place, category) =>
-      `${capitalize(category.plural)} available to rent ${place.inPlace}. Filter by price, `
-      + `rooms and metro station, then contact whoever posted the listing.`,
+    placeCategoryDescription: (place, category, hasMetro) =>
+      `${capitalize(category.plural)} available to rent ${place.inPlace}. `
+      + (hasMetro ? 'Filter by metro station too. ' : '')
+      + 'Free to search and free to post a listing.',
     placeCategoryH1: (place, category) => `${capitalize(category.headline)} ${place.inPlace}`,
 
     placeIntro,
@@ -376,9 +523,29 @@ export const EN_COPY: CopyPack = {
     },
     studentProgram: {
       title: `Student housing programme${SUFFIX}`,
+      // This described proximity to a university, which is what
+      // /en/talabalar-uchun-ijara already says — two indexable pages agreeing
+      // for their first sixty characters. This one describes the programme
+      // itself. It promises no student discount and no special terms: nothing
+      // in the API grants either, and the "student bonus" chip on the page has
+      // no rule behind it yet.
       description:
-        'Housing near the university at dormitory-comparable prices, plus roommate '
-        + 'matching. Separate terms and filters for students.',
+        'Pick your university and the programme gathers the listings in that campus’s district '
+        + 'into one list — whole flats and shares alike. Signing up is free.',
+    },
+    login: {
+      title: `Sign in${SUFFIX}`,
+      description: 'Sign in to your Uyiz account with your phone number and password.',
+    },
+    register: {
+      title: `Create an account${SUFFIX}`,
+      description:
+        'Sign up free in a minute — as an owner, a real-estate agent, or '
+        + 'someone looking for a place.',
+    },
+    forgotPassword: {
+      title: `Reset your password${SUFFIX}`,
+      description: 'We send an SMS code to your number and you choose a new password.',
     },
     ecosystem: {
       title: `The Uyiz ecosystem — what we are building${SUFFIX}`,
@@ -388,17 +555,27 @@ export const EN_COPY: CopyPack = {
     },
   },
   listing: {
-    title: ({ title, district, rooms }) => {
-      const bits = [
-        rooms ? `${rooms}-room` : '',
-        district ? displayPlaceName(district) : '',
-      ].filter(Boolean);
-      const prefix = bits.length ? `${bits.join(', ')} — ` : '';
-      return `${prefix}${title}`.slice(0, 65);
+    // The landlord's own title is whatever they typed, so the search-legible
+    // part is built here instead — from the type, the room count and the
+    // place — and their words are appended only as far as the budget goes.
+    title: ({ title, district, rooms, propertyType }) => {
+      const kind = propertyType ? TYPE_NOUNS[propertyType] : '';
+      const countable = !propertyType || TYPES_WITH_ROOMS.has(propertyType);
+      const head = [
+        rooms && countable ? `${rooms}-room` : '',
+        kind,
+        kind ? 'to rent' : '',
+        district ? locative(shortName(district)) : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
+      return withOwnTitle(capitalize(head), title);
     },
-    description: ({ title, district, rooms, area, price }) => {
+    description: ({ title, district, rooms, area, price, propertyType }) => {
+      const kind = propertyType ? TYPE_NOUNS[propertyType] : null;
+      const countable = !propertyType || TYPES_WITH_ROOMS.has(propertyType);
       const bits = [
-        rooms ? `${rooms}-room` : null,
+        rooms && countable ? `${rooms}-room${kind ? ` ${kind}` : ''}` : kind,
         area ? `${area} m²` : null,
         district ? displayPlaceName(district) : null,
         price,

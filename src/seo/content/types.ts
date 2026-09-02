@@ -11,6 +11,8 @@
  * like machine output while "Chilonzorda kvartira" reads like a sentence.
  */
 
+import type { PropertyTypeCode } from '../taxonomy';
+
 /** A place in every grammatical form the copy needs. */
 export interface PlaceWords {
   /** Nominative, as displayed: "Chilonzor", "Toshkent shahri". */
@@ -40,6 +42,29 @@ export interface CategoryWords {
   headline: string;
   /** One sentence describing who this category is for. */
   blurb: string;
+  /**
+   * A paragraph about renting THIS kind of home, for a place page's body.
+   *
+   * Deliberately not `blurb`. `blurb` is the whole of the national category
+   * page's meta description, so reusing it on the twenty-six place pages
+   * would trade one duplication for another; and a description is written to
+   * be read in a result list, which is a different job from a paragraph read
+   * on the page. What belongs here is the advice that is true of the
+   * category and of nowhere in particular — the questions to ask, the thing
+   * that decides the price — because that is what a district page and its two
+   * category children have to differ by.
+   */
+  placeBlurb: string;
+  /**
+   * How to narrow the list for this category, for the first FAQ answer.
+   *
+   * The generic "filter by price, rooms and area" is wrong advice on half of
+   * these pages: a room and a studio have one room by definition, and a
+   * roommate offer is picked by who else lives there.
+   */
+  findTip: string;
+  /** What actually moves the price here, for the second FAQ answer. */
+  priceTip: string;
 }
 
 export interface FaqEntry {
@@ -171,11 +196,21 @@ export interface CopyPack {
     categoryIntro: (category: CategoryWords) => string[];
 
     regionTitle: (place: PlaceWords) => string;
-    regionDescription: (place: PlaceWords) => string;
+    /**
+     * `hasMetro` gates the one clause here that is not true everywhere: only
+     * Tashkent has a metro, so on the other thirteen regions the promise of a
+     * station filter is a promise the page cannot keep. It is passed rather
+     * than derived because the copy pack has no access to the taxonomy.
+     */
+    regionDescription: (place: PlaceWords, hasMetro: boolean) => string;
     regionH1: (place: PlaceWords) => string;
 
     placeCategoryTitle: (place: PlaceWords, category: CategoryWords) => string;
-    placeCategoryDescription: (place: PlaceWords, category: CategoryWords) => string;
+    placeCategoryDescription: (
+      place: PlaceWords,
+      category: CategoryWords,
+      hasMetro: boolean,
+    ) => string;
     placeCategoryH1: (place: PlaceWords, category: CategoryWords) => string;
 
     /** Paragraphs shared by every geography page, given its profile. */
@@ -199,18 +234,43 @@ export interface CopyPack {
    * pages Google will pick one of.
    */
   views?: Partial<
-    Record<'map' | 'studentProgram' | 'ecosystem', { title: string; description: string }>
+    Record<
+      | 'map'
+      | 'studentProgram'
+      | 'ecosystem'
+      // The auth routes. They are noindex, so this is not about ranking — it
+      // is about the browser tab, the bookmark and the link preview all
+      // saying which of the three screens they point at, instead of the brand
+      // title that thirty private documents were sharing.
+      | 'login'
+      | 'register'
+      | 'forgotPassword',
+      { title: string; description: string }
+    >
   >;
 
-  /** Listing detail page, built from the listing itself. */
+  /**
+   * Listing detail page, built from the listing itself.
+   *
+   * `propertyType` is the enum the API stores, not a word: each pack maps it
+   * to its own noun, so a title says "kvartira" on the Uzbek page and
+   * "квартира" on the Russian one. Optional because a payload served by a
+   * container that predates the field carries nothing.
+   */
   listing: {
-    title: (input: { title: string; district?: string | null; rooms?: number | null }) => string;
+    title: (input: {
+      title: string;
+      district?: string | null;
+      rooms?: number | null;
+      propertyType?: PropertyTypeCode | null;
+    }) => string;
     description: (input: {
       title: string;
       district?: string | null;
       rooms?: number | null;
       area?: number | null;
       price: string;
+      propertyType?: PropertyTypeCode | null;
     }) => string;
     loadingTitle: string;
     notFoundTitle: string;

@@ -34,6 +34,7 @@ import {
   type RouteMatch,
 } from './routes';
 import { listingSlug } from './slugs';
+import type { SeoRegion } from './taxonomy';
 import { LANGUAGES, type Language } from '../i18n/types';
 import { VIEW_PATHS } from '../router/views';
 import type { Listing } from '../types';
@@ -130,8 +131,24 @@ function categoryWords(copy: CopyPack, key: string): CategoryWords {
       label: key,
       headline: key,
       blurb: '',
+      placeBlurb: '',
+      findTip: '',
+      priceTip: '',
     }
   );
+}
+
+/**
+ * Whether a "filter by metro station" clause is true of this page.
+ *
+ * Tashkent is the only city in the country with a metro, so the clause is
+ * worth its space on the ~117 pages under `/toshkent` and is a promise the
+ * page cannot keep on the other 123. A district qualifies on its own
+ * stations; a region qualifies when any district in it has them, which is
+ * what keeps Toshkent viloyati — no metro, similar name — out.
+ */
+function regionHasMetro(region: SeoRegion): boolean {
+  return region.districts.some((district) => district.metroStations.length > 0);
 }
 
 function articleFor(language: Language, slug: string): Article | undefined {
@@ -221,7 +238,7 @@ function rawPageCopy(
       const profile = copy.places.regions[route.region!.slug] ?? null;
       return {
         title: copy.landing.regionTitle(place),
-        description: copy.landing.regionDescription(place),
+        description: copy.landing.regionDescription(place, regionHasMetro(route.region!)),
         h1: copy.landing.regionH1(place),
         intro: copy.landing.placeIntro(place, null, profile, []),
         faq: copy.landing.placeFaq(place, null),
@@ -235,7 +252,11 @@ function rawPageCopy(
       const profile = copy.places.regions[route.region!.slug] ?? null;
       return {
         title: copy.landing.placeCategoryTitle(place, category),
-        description: copy.landing.placeCategoryDescription(place, category),
+        description: copy.landing.placeCategoryDescription(
+          place,
+          category,
+          regionHasMetro(route.region!),
+        ),
         h1: copy.landing.placeCategoryH1(place, category),
         intro: copy.landing.placeIntro(place, category, profile, []),
         faq: copy.landing.placeFaq(place, category),
@@ -253,7 +274,10 @@ function rawPageCopy(
       const profile = copy.places.districts[route.district!.slug] ?? null;
       return {
         title: copy.landing.regionTitle(place),
-        description: copy.landing.regionDescription(place),
+        description: copy.landing.regionDescription(
+          place,
+          route.district!.metroStations.length > 0,
+        ),
         h1: copy.landing.regionH1(place),
         intro: copy.landing.placeIntro(
           place,
@@ -277,7 +301,11 @@ function rawPageCopy(
       const profile = copy.places.districts[route.district!.slug] ?? null;
       return {
         title: copy.landing.placeCategoryTitle(place, category),
-        description: copy.landing.placeCategoryDescription(place, category),
+        description: copy.landing.placeCategoryDescription(
+          place,
+          category,
+          route.district!.metroStations.length > 0,
+        ),
         h1: copy.landing.placeCategoryH1(place, category),
         intro: copy.landing.placeIntro(
           place,
@@ -314,10 +342,15 @@ function rawPageCopy(
         ? data.formatPrice(listing.price, listing.currency)
         : `${listing.price} ${listing.currency}`;
       return {
+        // `propertyType` is on the listing and was being dropped here, which
+        // left every title and description to say how many rooms a thing has
+        // without ever saying what the thing is. The pack turns the code into
+        // its own noun, so the type arrives in the page's own language.
         title: copy.listing.title({
           title: listing.title,
           district: listing.district,
           rooms: listing.rooms,
+          propertyType: listing.propertyType,
         }),
         description: copy.listing.description({
           title: listing.title,
@@ -325,6 +358,7 @@ function rawPageCopy(
           rooms: listing.rooms,
           area: listing.area,
           price,
+          propertyType: listing.propertyType,
         }),
         h1: listing.title,
         intro: [],
@@ -402,7 +436,13 @@ function rawPageCopy(
             ? copy.views?.studentProgram
             : route.view === 'ECOSYSTEM_PREVIEW'
               ? copy.views?.ecosystem
-              : undefined;
+              : route.view === 'LOGIN'
+                ? copy.views?.login
+                : route.view === 'REGISTER'
+                  ? copy.views?.register
+                  : route.view === 'FORGOT_PASSWORD'
+                    ? copy.views?.forgotPassword
+                    : undefined;
       if (!view) break;
       return {
         title: view.title,

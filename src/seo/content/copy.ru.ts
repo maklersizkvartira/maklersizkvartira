@@ -24,6 +24,7 @@
 import { RU_ARTICLES, RU_HELP } from './articles.ru';
 import { RU_DISTRICT_PROFILES, RU_REGION_PROFILES } from './places.ru';
 import type { CategoryWords, CopyPack, FaqEntry, PlaceProfile, PlaceWords } from './types';
+import type { PropertyTypeCode } from '../taxonomy';
 
 const SUFFIX = ' | Uyiz.uz';
 
@@ -151,6 +152,14 @@ const CATEGORIES: Record<string, CategoryWords> = {
     headline: 'аренда квартир',
     blurb:
       'Отдельные квартиры в многоэтажных домах — для семьи, пары или тех, кто живёт один.',
+    placeBlurb:
+      'Квартира — самый частый вариант в этом районе, и цену определяют прежде всего три '
+      + 'вещи: число комнат, состояние ремонта и время до центра. Лифт, отопление и парковку '
+      + 'стоит проверить на месте до переезда, даже если они перечислены в объявлении.',
+    findTip: 'Сузьте список по числу комнат, цене и этажу.',
+    priceTip:
+      'Цену квартиры сильнее всего меняют три вещи: число комнат, состояние ремонта и '
+      + 'расстояние до центра.',
   },
   house: {
     noun: 'дом',
@@ -158,6 +167,14 @@ const CATEGORIES: Record<string, CategoryWords> = {
     label: 'Аренда домов',
     headline: 'аренда домов',
     blurb: 'Дома с участком и отдельные постройки — больше места и собственный вход.',
+    placeBlurb:
+      'В доме больше места, отдельный вход и чаще всего место для машины. До подписания '
+      + 'договора обговорите тип отопления, воду и газ и то, как можно пользоваться участком, '
+      + '— при аренде квартиры этих вопросов просто не возникает.',
+    findTip:
+      'Для дома площадь и размер участка важнее числа комнат — начните фильтры с них.',
+    priceTip:
+      'Цена дома складывается из площади участка, типа отопления и удалённости от центра.',
   },
   room: {
     noun: 'комната',
@@ -165,6 +182,15 @@ const CATEGORIES: Record<string, CategoryWords> = {
     label: 'Аренда комнат',
     headline: 'аренда комнат',
     blurb: 'Отдельная комната в общей квартире — самый доступный и самый быстрый вариант.',
+    placeBlurb:
+      'Отдельная комната — самый дешёвый способ поселиться в этом районе. Кухня и санузел '
+      + 'общие, поэтому кто живёт рядом, сколько всего соседей и какие в квартире правила, '
+      + 'важнее площади самой комнаты.',
+    findTip:
+      'При поиске комнаты фильтр по числу комнат бесполезен: задайте цену и район, остальное '
+      + 'читайте в тексте объявления.',
+    priceTip:
+      'Комната заметно дешевле целой квартиры, потому что кухня и санузел остаются общими.',
   },
   studio: {
     noun: 'студия',
@@ -172,6 +198,14 @@ const CATEGORIES: Record<string, CategoryWords> = {
     label: 'Аренда студий',
     headline: 'аренда студий',
     blurb: 'Спальня и кухня в одном пространстве — для одного человека и молодых пар.',
+    placeBlurb:
+      'В студии спальное место и кухня в одном помещении, поэтому повседневное удобство '
+      + 'определяет не число комнат, а площадь, высота потолков и то, куда выходят окна.',
+    findTip:
+      'В студии комната одна, поэтому в фильтрах выбирайте не число комнат, а площадь и '
+      + 'район.',
+    priceTip:
+      'Студия обычно дешевле однокомнатной квартиры, но в центре разница почти исчезает.',
   },
   roommate: {
     noun: 'подселение',
@@ -180,6 +214,16 @@ const CATEGORIES: Record<string, CategoryWords> = {
     headline: 'подселение',
     blurb:
       'Для тех, кто ищет соседа и делит плату за жильё. Есть отдельный отбор по полу.',
+    placeBlurb:
+      'При подселении вы снимаете не жильё целиком, а место в нём. В объявлении указаны пол '
+      + 'соседа и число свободных мест; как делится плата за аренду и коммунальные, стоит '
+      + 'выяснить в первом же разговоре.',
+    findTip:
+      'В подселении указаны пол соседа и число свободных мест — начинайте фильтры с них, а '
+      + 'не с числа комнат.',
+    priceTip:
+      'При подселении аренда и коммунальные делятся между соседями, и суммы здесь ниже цены '
+      + 'целой квартиры.',
   },
   student: {
     noun: 'жильё для студентов',
@@ -188,6 +232,16 @@ const CATEGORIES: Record<string, CategoryWords> = {
     headline: 'жильё для студентов',
     blurb:
       'Рядом с вузом и по цене, которая может заменить общежитие: квартиры, комнаты и подселение.',
+    placeBlurb:
+      'Главная мера для студента — время до пары. Жильё, от которого до кампуса можно дойти '
+      + 'пешком или доехать без пересадки, обычно выгоднее более дешёвого, но далёкого: '
+      + 'проезд и сон тоже чего-то стоят.',
+    findTip:
+      'Сюда попадают объявления с названием вуза, жильё в районах кампусов и подселение — '
+      + 'меряйте расстоянием до университета.',
+    priceTip:
+      'Самое дешёвое для студента — подселение: вы платите за место, а не за квартиру '
+      + 'целиком.',
   },
   family: {
     noun: 'семейная квартира',
@@ -195,6 +249,15 @@ const CATEGORIES: Record<string, CategoryWords> = {
     label: 'Жильё для семей',
     headline: 'семейное жильё',
     blurb: 'Жильё от двух комнат, которое сдают на длительный срок.',
+    placeBlurb:
+      'При выборе жилья для семьи расстояние до школы, детского сада и поликлиники — второй '
+      + 'критерий после цены. Снимают надолго, поэтому срок договора и условия повышения '
+      + 'платы стоит зафиксировать сразу.',
+    findTip:
+      'Здесь собрано жильё от двух комнат, которое сдают целиком, — поднимите в фильтре '
+      + 'число комнат под себя.',
+    priceTip:
+      'В семейной аренде к ежемесячной плате добавляются коммунальные и дорога до школы.',
   },
   budget: {
     noun: 'недорогая аренда',
@@ -202,17 +265,73 @@ const CATEGORIES: Record<string, CategoryWords> = {
     label: 'Недорогая аренда',
     headline: 'недорогая аренда',
     blurb: 'Объявления до 3 млн сум в месяц, отсортированные по цене.',
+    placeBlurb:
+      'Недорогие варианты разбирают быстро: чаще всего успевает тот, кто позвонил в день '
+      + 'публикации. Кроме цены спросите, кто платит коммунальные, — это заметно меняет '
+      + 'ежемесячный расход.',
+    findTip:
+      'Все объявления в этом разделе — до 3 млн сум в месяц; остальное сузьте районом и '
+      + 'числом комнат.',
+    priceTip:
+      'Верхняя граница — 3 млн сум в месяц. Самое дешёвое обычно находится в районах '
+      + 'подальше от центра и в подселении.',
   },
 };
 
 /**
+ * The noun a listing's own head is built from.
+ *
+ * Four of the five codes have a landing page and take their word from
+ * `CATEGORIES`; DORMITORY has neither, so it is named here. Without this line
+ * a lookup by key would fall through to the raw enum value and put the
+ * English word "dormitory" into a Russian title.
+ */
+const TYPE_NOUNS: Record<PropertyTypeCode, string> = {
+  APARTMENT: CATEGORIES.apartment.noun,
+  HOUSE: CATEGORIES.house.noun,
+  ROOM: CATEGORIES.room.noun,
+  STUDIO: CATEGORIES.studio.noun,
+  DORMITORY: 'общежитие',
+};
+
+/**
+ * A room count is meaningless on the three types that have one room by
+ * definition: «1-комн. комната» is noise, not information.
+ */
+const TYPES_WITH_ROOMS: ReadonlySet<PropertyTypeCode> = new Set<PropertyTypeCode>([
+  'APARTMENT',
+  'HOUSE',
+]);
+
+/** Titles beyond this are truncated in a result, so the head has to fit first. */
+const LISTING_TITLE_MAX = 65;
+
+/**
+ * Appends the landlord's own title to the controlled head, but only as far as
+ * the budget goes — the head is the part that has to survive truncation.
+ */
+function withOwnTitle(head: string, title: string): string {
+  if (!head) return title.slice(0, LISTING_TITLE_MAX);
+  const room = LISTING_TITLE_MAX - head.length - 3;
+  // Under a few words the fragment says nothing and only eats the budget.
+  if (room < 14) return head;
+  if (title.length <= room) return `${head} — ${title}`;
+  const cut = title.slice(0, room - 1);
+  const space = cut.lastIndexOf(' ');
+  return `${head} — ${cut.slice(0, space > 10 ? space : cut.length).trimEnd()}…`;
+}
+
+/**
  * Единственная фраза, которой заканчивается первый абзац каждой посадочной
- * страницы: как площадка устроена — телефон в объявлении, стороны говорят
- * между собой — и ни слова о том, кто именно на другой стороне.
+ * страницы: как площадка устроена — стороны договариваются между собой — и ни
+ * слова о том, кто именно на другой стороне.
+ *
+ * Раньше она начиналась с «телефон указан прямо в объявлении». API вырезает
+ * `owner.phone` из каждого ответа постороннему, так что для посетителя,
+ * пришедшего из выдачи, это было обещанием, которого страница не выполняет.
  */
 const MARKETPLACE_LINE =
-  'Телефон указан прямо в объявлении: вы договариваетесь с тем, кто его разместил, '
-  + 'напрямую.';
+  'Условия сделки вы обсуждаете напрямую с тем, кто разместил объявление.';
 
 function placeIntro(
   place: PlaceWords,
@@ -224,6 +343,11 @@ function placeIntro(
   const paragraphs: string[] = [
     `${cap(what)} ${place.inPlace} — в одном списке. ` + MARKETPLACE_LINE,
   ];
+
+  // Что отличает /ru/toshkent/chilonzor/uy-ijaraga от /ru/toshkent/chilonzor:
+  // абзац о самом районе ниже на обеих страницах одинаков, и без этого они
+  // расходились бы парой слов в одном предложении.
+  if (category) paragraphs.push(category.placeBlurb);
 
   if (profile?.about) paragraphs.push(profile.about);
 
@@ -250,20 +374,26 @@ function placeFaq(place: PlaceWords, category: CategoryWords | null): FaqEntry[]
   // On the category pages there is no place at all, only the brand name, so
   // the locative is left out rather than glued into the middle of a question.
   const where = place.short ? ` ${place.inPlace}` : '';
+  // Первые два ответа — то, ради чего страница категории вообще существует:
+  // «фильтруйте по числу комнат» на половине из них плохой совет, а в ответе
+  // о цене полезна ровно та часть, которая говорит, что цену двигает здесь.
+  const findTip =
+    category?.findTip ?? 'Сузьте список выше фильтрами по цене, числу комнат и району.';
+  const priceTip =
+    category?.priceTip
+    ?? 'Цена сильно зависит от числа комнат, состояния жилья и расположения.';
   return [
     {
       q: `Как найти ${what}${where}?`,
       a:
-        'Сузьте список выше фильтрами по цене, числу комнат и району, откройте подходящее '
-        + 'объявление и посмотрите номер телефона. Звонить вы будете напрямую тому, кто это '
-        + 'объявление разместил.',
+        `${findTip} Затем откройте подходящее объявление и свяжитесь с тем, кто его `
+        + 'разместил: в самой сделке площадка не участвует.',
     },
     {
       q: `Сколько стоит аренда${where}?`,
       a:
-        'Цена сильно зависит от числа комнат, состояния жилья и расположения, поэтому мы не '
-        + 'пишем среднюю цифру. Отсортируйте список выше по цене — реальные цены на сегодня '
-        + 'видны сразу.',
+        `${priceTip} Поэтому средней цифры мы не пишем — отсортируйте список выше по цене, и `
+        + 'реальные цены на сегодня видны сразу.',
     },
     {
       q: 'Есть ли комиссия или плата за услуги?',
@@ -410,8 +540,11 @@ export const RU_COPY: CopyPack = {
     // На странице категории места нет, поэтому поисковый смысл несёт страна:
     // одна «Аренда квартир» слишком коротка, чтобы ранжироваться.
     categoryTitle: (category) => `${cap(category.headline)} в Узбекистане${SUFFIX}`,
+    // Перечень фильтров, которым это заканчивалось, есть в сниппете у каждого
+    // конкурента, то есть не давал повода выбрать именно эту ссылку. Повод,
+    // которого у них чаще всего нет: площадкой можно пользоваться бесплатно.
     categoryDescription: (category) =>
-      `${category.blurb} Объявления по всему Узбекистану — фильтры по цене и региону.`,
+      `${category.blurb} Объявления по всему Узбекистану; поиск и размещение бесплатны.`,
     categoryH1: (category) => cap(category.headline),
     categoryIntro: (category) => [
       `${category.blurb} ${MARKETPLACE_LINE}`,
@@ -420,16 +553,21 @@ export const RU_COPY: CopyPack = {
     ],
 
     regionTitle: (place) => `Аренда квартир и домов ${place.inPlace}${SUFFIX}`,
-    regionDescription: (place) =>
-      `Квартиры, дома и комнаты, которые сдают ${place.inPlace}. Фильтруйте по цене, числу `
-      + 'комнат, станции метро и удобствам.',
+    // Про метро сказано не везде, а только там, где оно есть: в тринадцати
+    // регионах из четырнадцати метро нет вовсе, и обещать отбор по станции
+    // на их страницах нельзя. Сама фраза ценна — на ташкентских она остаётся.
+    regionDescription: (place, hasMetro) =>
+      `Квартиры, дома и комнаты, которые сдают ${place.inPlace}. `
+      + (hasMetro ? 'Есть отбор по станции метро. ' : '')
+      + 'И поиск, и размещение объявлений бесплатны.',
     regionH1: (place) => `Аренда жилья ${place.inPlace}`,
 
     placeCategoryTitle: (place, category) =>
       `${cap(category.headline)} ${place.inPlace}${SUFFIX}`,
-    placeCategoryDescription: (place, category) =>
-      `${cap(category.plural)}, которые сдают ${place.inPlace}. Фильтруйте по цене, числу `
-      + 'комнат и станции метро и звоните автору объявления напрямую.',
+    placeCategoryDescription: (place, category, hasMetro) =>
+      `${cap(category.plural)}, которые сдают ${place.inPlace}. `
+      + (hasMetro ? 'Есть отбор по станции метро. ' : '')
+      + 'И поиск, и размещение объявлений бесплатны.',
     placeCategoryH1: (place, category) => `${cap(category.headline)} ${place.inPlace}`,
 
     placeIntro,
@@ -445,9 +583,28 @@ export const RU_COPY: CopyPack = {
     },
     studentProgram: {
       title: `Программа аренды для студентов${SUFFIX}`,
+      // Было описание близости к вузу — ровно то, что говорит о себе
+      // /ru/talabalar-uchun-ijara: две индексируемые страницы совпадали в
+      // первых шестидесяти символах. Здесь описана сама программа. Ни скидки,
+      // ни особых условий для студентов не обещано: в API их нет, за плашкой
+      // «студенческий бонус» на самой странице пока не стоит никакого правила.
       description:
-        'Жильё рядом с университетом по цене, сравнимой с общежитием, и поиск соседа. '
-        + 'Отдельные условия и фильтры для студентов.',
+        'Выбираете свой вуз — программа собирает в один список объявления в районе этого '
+        + 'кампуса: квартиры и подселение. Регистрация бесплатная.',
+    },
+    login: {
+      title: `Вход${SUFFIX}`,
+      description: 'Войдите в аккаунт Uyiz по номеру телефона и паролю.',
+    },
+    register: {
+      title: `Регистрация${SUFFIX}`,
+      description:
+        'Зарегистрируйтесь бесплатно за минуту — как собственник, агент по '
+        + 'недвижимости или тот, кто ищет жильё.',
+    },
+    forgotPassword: {
+      title: `Восстановление пароля${SUFFIX}`,
+      description: 'Отправим SMS-код на ваш номер, и вы зададите новый пароль.',
     },
     ecosystem: {
       title: `Экосистема Uyiz — что мы строим${SUFFIX}`,
@@ -457,17 +614,28 @@ export const RU_COPY: CopyPack = {
     },
   },
   listing: {
-    title: ({ title, district, rooms }) => {
-      const bits = [
-        rooms ? `${rooms}-комн.` : '',
-        district ? displayPlaceName(district) : '',
-      ].filter(Boolean);
-      const prefix = bits.length ? `${bits.join(', ')} — ` : '';
-      return `${prefix}${title}`.slice(0, 65);
+    // Заголовок автора — это то, что он набрал сам, поэтому читаемая для
+    // поиска часть собирается здесь: «Сдаётся» плюс именительный падеж —
+    // ровно так пишут объявления, — а слова автора добавляются настолько,
+    // насколько хватает бюджета строки.
+    title: ({ title, district, rooms, propertyType }) => {
+      const kind = propertyType ? TYPE_NOUNS[propertyType] : '';
+      const countable = !propertyType || TYPES_WITH_ROOMS.has(propertyType);
+      const head = [
+        kind ? 'Сдаётся' : '',
+        rooms && countable ? `${rooms}-комн.` : '',
+        kind,
+        district ? placeWords(district, 'district').inPlace : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
+      return withOwnTitle(head, title);
     },
-    description: ({ title, district, rooms, area, price }) => {
+    description: ({ title, district, rooms, area, price, propertyType }) => {
+      const kind = propertyType ? TYPE_NOUNS[propertyType] : null;
+      const countable = !propertyType || TYPES_WITH_ROOMS.has(propertyType);
       const bits = [
-        rooms ? `${rooms} комн.` : null,
+        rooms && countable ? `${rooms} комн.${kind ? ` ${kind}` : ''}` : kind,
         area ? `${area} м²` : null,
         district ? displayPlaceName(district) : null,
         price,

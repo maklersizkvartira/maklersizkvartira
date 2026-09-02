@@ -25,7 +25,7 @@ import { buildPageCopy } from '../../seo/meta';
 import { relatedLinks } from '../../seo/links';
 import { useSeoHead } from '../../seo/useSeoHead';
 import { useSeoCopy } from '../../seo/useSeoCopy';
-import { useAppStore } from '../../stores/useAppStore';
+import { DEFAULT_FILTERS, useAppStore, type Filters } from '../../stores/useAppStore';
 import type { Listing } from '../../types';
 import { ListingsApi } from '../../services/listingsApi';
 import { ApiError } from '../../services/http';
@@ -42,6 +42,7 @@ export const SeoLandingPage: React.FC = () => {
   const { t, formatNumber } = useTranslation();
   const route = useAppStore((state) => state.route);
   const language = useAppStore((state) => state.language);
+  const setFilters = useAppStore((state) => state.setFilters);
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [total, setTotal] = useState<number | undefined>(undefined);
@@ -93,6 +94,42 @@ export const SeoLandingPage: React.FC = () => {
 
   useSeoHead(route, language, { resultCount: total, sample: listings });
 
+  /**
+   * The catalogue is one page, so the facet travels in the click, not in the
+   * address.
+   *
+   * Both links below keep the bare `/elonlar` as their `to`: that is the URL a
+   * crawler is meant to follow, and a query-string variant per landing page
+   * would offer Google a hundred copies of the catalogue instead. What was
+   * missing is the other half — the visitor. Without this, "load more" under
+   * Chilonzor's grid answered with the national list.
+   *
+   * Navigation stays with `AppLink`; `onNavigate` runs inside the click it has
+   * already decided to handle, so this only has to leave the store holding the
+   * right search. It fires on plain left clicks only, which is correct: a
+   * ctrl-click opens a second tab that resolves `/elonlar` from its own URL.
+   *
+   * A whole filter set, never a patch, for the reason the store's quick
+   * filters commit whole sets: a patch leaves whatever the visitor narrowed
+   * the catalogue by earlier standing beside this page's facet, and the pair
+   * can describe a search nothing satisfies. Every key of `FacetFilters` is
+   * spelled out here — one the URL can express and this cannot is a link that
+   * silently widens the search.
+   */
+  const applyRouteFilters = () => {
+    const facet = route.filters;
+    const next: Filters = {
+      ...DEFAULT_FILTERS,
+      region: facet.region ?? DEFAULT_FILTERS.region,
+      district: facet.district ?? DEFAULT_FILTERS.district,
+      propertyType: facet.propertyType ?? DEFAULT_FILTERS.propertyType,
+      rentalType: facet.rentalType ?? DEFAULT_FILTERS.rentalType,
+      audience: facet.audience ?? DEFAULT_FILTERS.audience,
+      maxPrice: facet.maxPrice ?? DEFAULT_FILTERS.maxPrice,
+    };
+    setFilters(next);
+  };
+
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
       <Breadcrumbs crumbs={page.crumbs} label={t('common.a11y.menu')} />
@@ -135,6 +172,13 @@ export const SeoLandingPage: React.FC = () => {
           <div className="rounded-2xl border border-line bg-surface p-8 text-center sm:p-10">
             <h3 className="text-base font-black text-content">{copy.common.emptyTitle}</h3>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted">{copy.common.emptyBody}</p>
+            {/* Deliberately WITHOUT applyRouteFilters. This button only exists
+                because the page found nothing, so carrying its filters through
+                would land the visitor on a catalogue guaranteed to be empty —
+                under a label that reads "all listings". The unfiltered
+                catalogue is the honest destination here; the "load more" link
+                below keeps the filters, because it only appears when there is
+                something to load more OF. */}
             <AppLink
               to={VIEW_PATHS.LISTINGS ?? '/elonlar'}
               className="mt-5 inline-flex items-center rounded-xl bg-brand px-5 py-3 text-sm font-bold text-on-brand shadow-brand"
@@ -153,6 +197,7 @@ export const SeoLandingPage: React.FC = () => {
               <div className="mt-6 flex justify-center">
                 <AppLink
                   to={VIEW_PATHS.LISTINGS ?? '/elonlar'}
+                  onNavigate={applyRouteFilters}
                   className="inline-flex items-center gap-2 rounded-xl border border-line bg-surface px-5 py-3 text-sm font-bold text-content transition-colors hover:bg-surface-2"
                 >
                   <Loader2 className="h-4 w-4" aria-hidden="true" />

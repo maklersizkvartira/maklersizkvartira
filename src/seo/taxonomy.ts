@@ -38,7 +38,13 @@ export interface RentCategory {
   filters: FacetFilters;
   /** Whether `/<region>/<category>` pages exist for this category. */
   regionPages: boolean;
-  /** Whether `/<region>/<district>/<category>` pages exist. */
+  /**
+   * Whether `/<region>/<district>/<category>` pages exist.
+   *
+   * Never set without `regionPages`: `relatedLinks` builds the district group
+   * inside the region branch, so districts alone generate pages that only the
+   * sitemap ever mentions.
+   */
   districtPages: boolean;
 }
 
@@ -61,23 +67,33 @@ export const CATEGORIES: readonly RentCategory[] = [
     slug: 'xona-ijaraga',
     key: 'room',
     filters: { propertyType: 'ROOM' },
-    regionPages: false,
-    districtPages: false,
+    regionPages: true,
+    districtPages: true,
   },
+  // Studios and the price cap stop at the region: both are thin enough that a
+  // twelve-way district split would divide the same handful of listings into
+  // twelve near-empty pages.
   {
     slug: 'studiya-ijaraga',
     key: 'studio',
     filters: { propertyType: 'STUDIO' },
-    regionPages: false,
+    regionPages: true,
     districtPages: false,
   },
   {
     slug: 'sheriklikka-ijara',
     key: 'roommate',
     filters: { rentalType: 'ROOMMATE' },
-    regionPages: false,
-    districtPages: false,
+    regionPages: true,
+    districtPages: true,
   },
+  // The two audience facets get no geography, and it is not for want of demand:
+  // both are derived rather than stored. STUDENT is an OR that already includes
+  // membership of five Tashkent districts (`services/listings.py`), so
+  // /toshkent/chilonzor/talabalar-uchun-ijara would return exactly the rows
+  // /toshkent/chilonzor returns — a duplicate of the highest-inventory pages on
+  // the site. FAMILY is "two rooms or more", which every place page already
+  // shows. Give these two geography only if the audience becomes a real field.
   {
     slug: 'talabalar-uchun-ijara',
     key: 'student',
@@ -96,7 +112,7 @@ export const CATEGORIES: readonly RentCategory[] = [
     slug: 'arzon-ijara',
     key: 'budget',
     filters: { maxPrice: 3_000_000 },
-    regionPages: false,
+    regionPages: true,
     districtPages: false,
   },
 ] as const;
@@ -137,17 +153,17 @@ const DISTRICT_PAGE_REGIONS = new Set(['Toshkent shahri']);
  * thing a district page can say to somebody choosing where to rent.
  */
 const METRO_BY_DISTRICT: Record<string, readonly string[]> = {
-  Chilonzor: ['Chilonzor', 'Mirzo Ulugbek', 'Novza', 'Milliy Bog', 'Xalqlar Dostligi'],
+  Chilonzor: ['Chilonzor', 'Mirzo Ulugʻbek', 'Novza', 'Milliy Bogʻ', 'Xalqlar Doʻstligi'],
   Yunusobod: ['Yunusobod', 'Bodomzor', 'Minor', 'Shahriston', 'Turkiston', 'Abdulla Qodiriy'],
-  Mirobod: ['Oybek', 'Toshkent (Vokzal)', 'Kosmonavtlar', 'Ming Orik', 'Amir Temur Xiyoboni'],
-  'Mirzo Ulugʻbek': ['Buyuk Ipak Yoli', 'Pushkin', 'Hamid Olimjon', 'Yunus Rajabiy'],
+  Mirobod: ['Oybek', 'Toshkent (Vokzal)', 'Kosmonavtlar', 'Ming Oʻrik', 'Amir Temur Xiyoboni'],
+  'Mirzo Ulugʻbek': ['Buyuk Ipak Yoʻli', 'Pushkin', 'Hamid Olimjon', 'Yunus Rajabiy'],
   Olmazor: ['Olmazor', 'Choshtepa', 'Chorsu'],
-  Yakkasaroy: ['Paxtakor', 'Mustaqillik Maydoni', 'Milliy Bog'],
-  Sergeli: ['Sergeli', 'Qipchoq', 'Otkir', 'Qiyot (9-bekat)'],
-  Shayxontohur: ['Chorsu', 'Gafur Gulom', 'Alisher Navoiy', 'Tinchlik', 'Beruniy'],
-  Yashnobod: ['Mashinasozlar', 'Dostlik (Chkalov)', 'Yashnobod (2-bekat)', 'Tuzel (3-bekat)'],
+  Yakkasaroy: ['Paxtakor', 'Mustaqillik Maydoni', 'Milliy Bogʻ'],
+  Sergeli: ['Sergeli', 'Qipchoq', 'Oʻtkir', 'Qiyot (9-bekat)'],
+  Shayxontohur: ['Chorsu', 'Gʻafur Gʻulom', 'Alisher Navoiy', 'Tinchlik', 'Beruniy'],
+  Yashnobod: ['Mashinasozlar', 'Doʻstlik (Chkalov)', 'Yashnobod (2-bekat)', 'Tuzel (3-bekat)'],
   Uchtepa: ['Beruniy', 'Tinchlik', 'Chorsu'],
-  Bektemir: ['Qoyliq (7-bekat)', 'Matonat (8-bekat)'],
+  Bektemir: ['Qoʻyliq (7-bekat)', 'Matonat (8-bekat)'],
   Yangihayot: ['Rohat (5-bekat)', 'Yangiobod (6-bekat)', 'Olmos (4-bekat)'],
 };
 
@@ -229,6 +245,34 @@ export function findSlugCollisions(): string[] {
   return collisions;
 }
 
+/**
+ * Guards the mistake that reaches a reader rather than a crawler: every
+ * `metroStations` entry is printed verbatim into the visible copy of a
+ * district page, so a station typed without its apostrophe type-checks,
+ * routes, renders — and misspells itself on thirty-six pages.
+ *
+ * `TASHKENT_METRO_LINES` is the authority; `METRO_BY_DISTRICT` is hand-made and
+ * only borrows names from it, which is exactly where the two drift apart.
+ */
+export function findUnknownMetroStations(): string[] {
+  // `mockLocations` writes the stations with an ASCII apostrophe while the
+  // district keys here use U+02BB, so a literal comparison would reject every
+  // correctly spelled name. Only the apostrophe is folded — a missing one still
+  // has to fail, which is the whole point of the check.
+  const fold = (name: string) => name.replace(/['‘’ʻʼ`´]/g, 'ʻ');
+  const known = new Set(ALL_METRO_STATIONS.map(fold));
+
+  const unknown: string[] = [];
+  for (const [district, stations] of Object.entries(METRO_BY_DISTRICT)) {
+    for (const station of stations) {
+      if (!known.has(fold(station))) {
+        unknown.push(`"${station}" (${district}) is not a Toshkent metro station`);
+      }
+    }
+  }
+  return unknown;
+}
+
 /*
  * Fail the build, not the site. taxonomy -> routes -> entry-server, so this
  * throws during `vite build --ssr` — before a single page is prerendered.
@@ -236,4 +280,9 @@ export function findSlugCollisions(): string[] {
 const SLUG_COLLISIONS = findSlugCollisions();
 if (SLUG_COLLISIONS.length > 0) {
   throw new Error(`taxonomy: ${SLUG_COLLISIONS.join('; ')}`);
+}
+
+const UNKNOWN_METRO_STATIONS = findUnknownMetroStations();
+if (UNKNOWN_METRO_STATIONS.length > 0) {
+  throw new Error(`taxonomy: ${UNKNOWN_METRO_STATIONS.join('; ')}`);
 }

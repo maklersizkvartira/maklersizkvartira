@@ -77,6 +77,26 @@ function absolute(routePath) {
   return `${SITE_URL}${routePath === '/' ? '/' : routePath}`;
 }
 
+/** The API keeps at most this many `budget` ceilings per request. */
+const MAX_BUDGET_CEILINGS = 8;
+
+/**
+ * The price ceilings this build actually has a page for.
+ *
+ * Read off the routes instead of written down, so `arzon-ijara` can move its
+ * ceiling — or gain a sibling — without the number having to be remembered in
+ * a second place. Normalised the way the API normalises it, so a ceiling we
+ * ask about cannot be trimmed on arrival and come back looking like a zero.
+ */
+function budgetCeilings(pages) {
+  const ceilings = new Set();
+  for (const page of pages) {
+    const maxPrice = page.route.filters?.maxPrice;
+    if (typeof maxPrice === 'number' && maxPrice > 0) ceilings.add(maxPrice);
+  }
+  return [...ceilings].sort((a, b) => a - b).slice(0, MAX_BUDGET_CEILINGS);
+}
+
 /**
  * How many public listings each facet has, straight from the API.
  *
@@ -85,7 +105,7 @@ function absolute(routePath) {
  * count could not be fetched would be a worse outcome than a slightly generous
  * sitemap.
  */
-async function fetchFacets() {
+async function fetchFacets(ceilings) {
   const apiUrl = process.env.VITE_API_URL;
   if (!apiUrl) {
     console.log('sitemap: VITE_API_URL is unset — including every page');
@@ -93,7 +113,14 @@ async function fetchFacets() {
   }
   try {
     const { origin } = new URL(apiUrl);
-    const response = await fetch(`${origin}/api/v1/meta/seo-facets`, {
+    const endpoint = new URL('/api/v1/meta/seo-facets', origin);
+    // Budget counts are asked for by value and answered keyed by the same
+    // value. Ceilings that are not asked about come back absent, which is why
+    // `facetKey` refuses to build a budget key for one we skipped.
+    for (const ceiling of ceilings) {
+      endpoint.searchParams.append('budget', String(ceiling));
+    }
+    const response = await fetch(endpoint, {
       signal: AbortSignal.timeout(15_000),
       headers: { accept: 'application/json' },
     });
@@ -107,6 +134,90 @@ async function fetchFacets() {
 }
 
 /**
+ * Where in the response the count for a page's filters lives.
+ *
+ * One key, because the axes are not independent questions.
+ * `/toshkent/bektemir/uy-ijaraga` was submitted whenever Bektemir held any
+ * listing at all and a house existed anywhere in the country, and then
+ * rendered itself `noindex` because that *intersection* was empty — which
+ * Search Console files as "Submitted URL marked noindex", an error rather
+ * than a warning.
+ *
+ * Null means no count can answer: a page with no filters (home, catalogue,
+ * blog, help — none of which is inventory-gated), or a budget ceiling this
+ * build did not ask about.
+ */
+function facetKey(filters, ceilings) {
+  const { region, district, propertyType, rentalType, audience, maxPrice } = filters;
+
+  if (propertyType) {
+    if (district) {
+      return { field: 'districtPropertyTypes', key: `${district}|${propertyType}` };
+    }
+    if (region) return { field: 'regionPropertyTypes', key: `${region}|${propertyType}` };
+    return { field: 'propertyTypes', key: propertyType };
+  }
+  // The derived categories are counted server-side through the same filter
+  // predicates the pages themselves use, so `family` already carries its
+  // `rentalType: 'FULL'` half and there is nothing left here to intersect.
+  //
+  // The two that now have geography are composited the same way the property
+  // types are. Falling through to the national scalar for them would submit
+  // /toshkent/bektemir/sheriklikka-ijara whenever one roommate listing existed
+  // anywhere in the country — the same over-inclusion, on 120 more URLs.
+  if (rentalType === 'ROOMMATE') {
+    if (district) return { field: 'districtRoommate', key: district };
+    if (region) return { field: 'regionRoommate', key: region };
+    return { field: 'roommate' };
+  }
+  if (audience === 'FAMILY') return { field: 'family' };
+  if (audience === 'STUDENT') return { field: 'student' };
+  if (maxPrice) {
+    // A ceiling this build did not ask about cannot be answered at all, which
+    // is a different thing from "asked and the answer was zero".
+    if (!ceilings.includes(maxPrice)) return null;
+    if (district) return { field: 'districtBudget', key: `${district}|${maxPrice}` };
+    if (region) return { field: 'regionBudget', key: `${region}|${maxPrice}` };
+    return { field: 'budget', key: String(maxPrice) };
+  }
+  if (district) return { field: 'districts', key: district };
+  if (region) return { field: 'regions', key: region };
+  return null;
+}
+
+/**
+ * The single number behind a page, or null when the response cannot answer.
+ *
+ * A key absent from a map that *is* present means zero — the API omits pairs
+ * with no listings rather than sending them as `0`. A missing map means an
+ * older API that predates that field, which is a different answer entirely:
+ * the frontend and the backend deploy separately, so for a window after this
+ * ships the build talks to a server that never heard of the composites.
+ */
+function facetCount(facets, { field, key }) {
+  const value = facets[field];
+  if (value === undefined || value === null) return null;
+  if (key === undefined) return typeof value === 'number' ? value : null;
+  return typeof value[key] === 'number' ? value[key] : 0;
+}
+
+/**
+ * The pre-composite test, kept for exactly one reason: an API that does not
+ * send the composite maps yet. It over-includes — that is the whole reason the
+ * composites exist — but it still catches a region or a property type that is
+ * empty everywhere, which is better than including every page blind.
+ */
+function hasInventoryByAxis(filters, facets) {
+  const { region, district, propertyType, rentalType } = filters;
+
+  if (district && !(facets.districts?.[district] > 0)) return false;
+  if (region && !district && !(facets.regions?.[region] > 0)) return false;
+  if (propertyType && !(facets.propertyTypes?.[propertyType] > 0)) return false;
+  if (rentalType === 'ROOMMATE' && !(facets.roommate > 0)) return false;
+  return true;
+}
+
+/**
  * Whether a generated page currently has anything to show.
  *
  * A page with an empty grid is thin content. It stays on the site — its links
@@ -114,21 +225,23 @@ async function fetchFacets() {
  * there is no reason to invite a crawler to it, and the page marks itself
  * `noindex` at runtime for the same reason.
  */
-function hasInventory(page, facets) {
+function hasInventory(page, facets, ceilings) {
+  // No counts at all — an unset VITE_API_URL or an unreachable API. Shipping a
+  // near-empty sitemap because a fetch failed is far worse than a generous one.
   if (!facets) return true;
-  const { region, district, category } = page.route;
 
-  if (district && !(facets.districts?.[district.name] > 0)) return false;
-  if (region && !district && !(facets.regions?.[region.name] > 0)) return false;
+  const lookup = facetKey(page.route.filters, ceilings);
+  const count = lookup ? facetCount(facets, lookup) : null;
+  return count === null ? hasInventoryByAxis(page.route.filters, facets) : count > 0;
+}
 
-  if (category) {
-    const filters = category.filters ?? {};
-    if (filters.propertyType && !(facets.propertyTypes?.[filters.propertyType] > 0)) {
-      return false;
-    }
-    if (filters.rentalType === 'ROOMMATE' && !(facets.roommate > 0)) return false;
+/** Which count emptied a page, for the build log. */
+function pruneReason(filters, facets, ceilings) {
+  const lookup = facetKey(filters, ceilings);
+  if (!lookup || facets[lookup.field] === undefined || facets[lookup.field] === null) {
+    return 'no listings on its region, district or property type';
   }
-  return true;
+  return `${lookup.field}${lookup.key === undefined ? '' : `[${lookup.key}]`} is 0`;
 }
 
 function urlEntry({ loc, alternates, lastmod, changefreq, priority }) {
@@ -163,9 +276,13 @@ async function main() {
   // changes when the code does.
   const lastmod = new Date().toISOString().slice(0, 10);
 
-  const facets = await fetchFacets();
-  const included = INDEXABLE_PAGES.filter((page) => hasInventory(page, facets));
-  const pruned = INDEXABLE_PAGES.length - included.length;
+  const ceilings = budgetCeilings(INDEXABLE_PAGES);
+  const facets = await fetchFacets(ceilings);
+  const included = [];
+  const pruned = [];
+  for (const page of INDEXABLE_PAGES) {
+    (hasInventory(page, facets, ceilings) ? included : pruned).push(page);
+  }
 
   const entries = [];
   for (const page of included) {
@@ -265,12 +382,20 @@ async function main() {
     `sitemap: ${entries.length} URLs across ${LANGUAGES.length} languages ` +
       `(${included.length} pages), plus robots.txt`,
   );
-  if (pruned > 0) {
-    // Named, not silent: a build that quietly drops thirty pages from the
-    // sitemap looks identical to one that covered everything.
+  if (pruned.length > 0) {
+    // Listed one by one, not just counted: a build that quietly drops thirty
+    // pages from the sitemap looks identical to one that covered everything,
+    // and the useful question is always *which* thirty. Composite pruning cuts
+    // deeper than the old per-axis test did, so the first build after it lands
+    // is expected to drop more pages — this is where you check that the ones it
+    // dropped are the empty ones and not, say, all of Tashkent because a region
+    // name drifted apart from what the listings store.
     console.log(
-      `sitemap: left out ${pruned} page(s) whose facet currently has no listings`,
+      `sitemap: left out ${pruned.length} of ${INDEXABLE_PAGES.length} page(s) with nothing to show:`,
     );
+    for (const page of pruned) {
+      console.log(`sitemap:   ${page.path} — ${pruneReason(page.route.filters, facets, ceilings)}`);
+    }
   }
 }
 

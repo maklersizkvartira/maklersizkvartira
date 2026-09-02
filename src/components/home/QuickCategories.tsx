@@ -24,6 +24,18 @@ interface HomeCategory {
    * 256px for a 44px slot so they stay sharp on a 3x phone screen.
    */
   image: string;
+  /**
+   * The landing page whose facet is this card's search, where one exists.
+   *
+   * A card earns one only when the route filters by exactly what the card
+   * filters by, because the link is a promise about the result set: `qizlarga`
+   * (roommateGender), `komfort` (amenities), `metro` (metroStation) and
+   * `premium` (trust) have no page that keeps it, and pointing them at a
+   * broader one would widen the search on the way. Where the promise holds the
+   * card ships as an `<a href>` — the only form of it a crawler can follow out
+   * of the home page, which otherwise passes authority to four categories and
+   * nothing else.
+   */
   landing?: string;
 }
 
@@ -48,6 +60,7 @@ const CATEGORIES: HomeCategory[] = [
   },
   {
     id: 'hovli',
+    landing: '/uy-ijaraga',
     title: { uz: 'Hovli', ru: 'Дома', en: 'House' },
     image: '/img/hovli.webp',
   },
@@ -63,6 +76,10 @@ const CATEGORIES: HomeCategory[] = [
   },
   {
     id: 'center',
+    /* "The centre" is Mirobod and nothing else — the district hub is the same
+       result set with the prose and the neighbouring districts around it, and
+       it is the only district the root links to at all. */
+    landing: '/toshkent/mirobod',
     title: { uz: 'Markazda', ru: 'В центре', en: 'Center' },
     image: '/img/markaz.webp',
   },
