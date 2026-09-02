@@ -56,7 +56,14 @@ hreflang tags true.
 | `/yordam`, `/yordam/<slug>` (4) | Help centre, terms, privacy, safety |
 | `/profil`, `/saqlanganlar`, `/elon-berish`, … | Signed-in screens — `noindex`, disallowed in robots.txt |
 
-**107 indexable pages × 3 languages = 321 URLs**, plus every listing.
+**186 indexable pages × 3 languages = 558 URLs**, plus every listing.
+
+The sitemap carries a subset of them, not all: `generate-sitemap.mjs` drops
+any page whose facet currently holds no listing, because an empty page
+submitted to Google earns "Crawled – currently not indexed" and nothing
+else. With the inventory as it stands that is 31 of the 186. The rest stay
+reachable and internally linked, and re-enter on their own as listings
+appear — nothing has to be done by hand.
 
 The route table lives in `src/seo/routes.ts` and the facet taxonomy in
 `src/seo/taxonomy.ts`. `findSlugCollisions()` proves a district slug can never
@@ -139,7 +146,7 @@ are not. It currently reports **zero errors**.
 `dist/sitemap.xml` is a sitemap **index** with two children, split by how often
 they change:
 
-- `sitemap-pages.xml` — generated at build time, 321 URLs, each with the full
+- `sitemap-pages.xml` — generated at build time, facet-pruned, each with the full
   `xhtml:link` hreflang set.
 - `sitemap-listings.xml` — served by FastAPI (`backend_python/app/routers/seo.py`)
   and proxied onto `uyiz.uz` by a Vercel rewrite, because listings

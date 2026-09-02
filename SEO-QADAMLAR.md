@@ -9,116 +9,127 @@ Tartib muhim: 0-bosqichsiz qolganlarining hech biri to'liq ishlamaydi.
 
 ## Hozirgi holat
 
-Kod tayyor: 346 ta prerender qilingan sahifa, SEO audit 0 xato. Lekin **sayt
-yangi domenga ko'chyapti** — `maklersizuy.uz` dan `uyiz.uz` ga — shuning uchun
-Search Console, Yandex va analitika tarafidagi ishlarning hammasi **qaytadan**
-qilinadi. Eski domendagi tasdiqlash yangi domenga o'z-o'zidan o'tmaydi.
-
-Sitemapda hozir e'loni bor tumanlarning sahifalari turadi, hammasi emas —
-chunki `VITE_API_URL` qo'yilgani uchun generator **e'loni yo'q tuman
-sahifalarini sitemapdan chiqarib tashlayapti**. Bu to'g'ri xatti-harakat:
-bo'sh sahifani Google'ga tiqishtirish "Crawled – currently not indexed"
-beradi, foyda emas. **E'lon qo'shilgan tuman avtomat sitemapga qo'shiladi** —
-qo'lda hech narsa qilish shart emas. Qolgan 300+ sahifa o'chib ketgani yo'q,
-hammasi ochiladi va ichki linklar orqali topiladi.
-
-Yangi domen uchun holat:
+**2026-09-02 da tekshirilgan, jonli saytdan.** Domen ko'chishining kod va
+hosting qismi tugadi. Qolgani — Search Console, va u faqat sizning qo'lingizda.
 
 | Nima | Holat |
 |---|---|
-| `uyiz.uz` sotib olingan va DNS Vercel'ga qaratilgan | ❌ |
-| Vercel'da `uyiz.uz` — Primary Domain, `www` → apex | ❌ |
-| `admin.uyiz.uz` — admin panel loyihasiga ulangan | ❌ |
-| Railway `CORS_ORIGINS` ichida yangi domenlar | ❌ **domen ulanishidan OLDIN** |
-| Railway `SITE_URL=https://uyiz.uz` | ❌ |
-| Vercel `VITE_SITE_URL=https://uyiz.uz` | ❌ |
-| Yandex kaliti referrer ro'yxatida `uyiz.uz` | ❌ |
-| Firebase Authorized Domains'da `uyiz.uz`, `admin.uyiz.uz` | ❌ |
-| `maklersizuy.uz` → `uyiz.uz` 301 (yo'lni saqlagan holda) | ❌ |
-| Google Search Console — yangi domen tasdiqlangan | ❌ |
-| Search Console — Change of Address | ❌ |
+| `uyiz.uz` DNS Vercel'ga qaragan | ✅ |
+| Vercel: `uyiz.uz` — Primary Domain, `www` → apex 308 | ✅ |
+| Sahifalar `canonical` sifatida `uyiz.uz` ni ko'rsatadi | ✅ |
+| `hreflang` uz/ru/en/x-default — hammasi `uyiz.uz` da | ✅ |
+| `sitemap.xml`, `robots.txt` — `uyiz.uz` | ✅ |
+| `sitemap-listings.xml` (Railway proksi) — `uyiz.uz` | ✅ |
+| Vercel `VITE_SITE_URL` | kerak emas — kod standarti `uyiz.uz` |
+| Railway `SITE_URL` | kerak emas — kod standarti `uyiz.uz` |
+| Railway `CORS_ORIGINS` | ✅ `main.py` regexi `*.uyiz.uz` ni qamraydi |
+| `admin.uyiz.uz` — admin loyihasiga ulangan | ❌ ochilmaydi |
+| Firebase Authorized Domains'da `uyiz.uz` | ❌ tekshirilmagan |
+| Yandex kaliti referrerlarida `uyiz.uz` | ❌ tekshirilmagan |
+| Google Search Console — `uyiz.uz` tasdiqlangan | ❌ |
+| Search Console — `maklersizuy.uz` DNS bilan tasdiqlangan | ❌ |
+| `maklersizuy.uz` → `uyiz.uz` 301 | ❌ **ataylab, hali erta** |
+| Change of Address | ❌ |
 | Bing / Yandex Webmaster | ❌ |
-| Google Analytics 4 — data stream URL yangilangan | ❌ |
+| Google Analytics 4 — stream URL | ❌ |
+
+### Raqamlar, hozirgi holicha
+
+| | Soni |
+|---|---|
+| Prerender qilingan sahifa | **595** |
+| Indekslanadigan sahifa | **186** |
+| Sitemapga tushgani | **31** |
+| Sitemapdan kesilgani (ortida e'lon yo'q) | **155** |
+| **Saytdagi haqiqiy e'lon** | **2 ta** |
+
+Oxirgi qator qolganini tushuntiradi. 155 sahifa o'chib ketgani yo'q — ochiladi,
+ichki linklardan topiladi va **e'lon qo'shilgan zahoti o'zi sitemapga tushadi**.
+Bo'sh sahifani Google'ga tiqishtirish "Crawled – currently not indexed" beradi,
+foyda emas.
+
+Va ikkala mavjud e'lon ham test ma'lumot: `ggggggssssssss` va `yengi toshmi`.
+Ular hozir Google'ga topshirilgan sitemapda turibdi.
 
 ---
 
-## 0-BOSQICH — ⚠️ ENG SHOSHILINCH: domenni to'g'ri ulash
+## 0-BOSQICH — ✅ BAJARILGAN (2026-09-02)
 
-Domen bir marta noto'g'ri ulansa, Google noto'g'ri manzilni o'rganib oladi va
-uni keyin tuzatish haftalar oladi. Shuning uchun **Search Console'ga
-qo'shishdan oldin** quyidagi tartib bajarilsin.
+Bu bosqich tugagan. Nima qilinganini bilib turish uchun qoldirilgan.
 
-### 0.1. Avval Railway, keyin domen
+Vercel'da `uyiz.uz` Primary Domain qilindi va `www.uyiz.uz` unga 308 bilan
+yo'naltirildi. Kodning besh joyidagi manzil `uyiz.uz` ga o'tkazildi
+(`src/seo/config.ts`, `scripts/generate-sitemap.mjs`, `index.html`,
+`backend_python/app/core/config.py`; `public/CNAME` o'chirildi — u Vercel'da
+ishlamaydigan GitHub Pages mexanizmi edi).
 
-Domen ishlashidan **oldin** Railway → API servisi → Variables ichida shular
-bo'lsin (to'liq blok `RAILWAY_ENV.md` da):
+Muhim: `VITE_SITE_URL` va `SITE_URL` **qo'yilmadi va kerak emas**. Kodning
+o'zi endi `https://uyiz.uz` ni standart qilib beradi, ikkala platforma ham
+push'dan keyin avtomat qayta deploy bo'lib o'sha qiymatni oldi. Qo'ysangiz
+ham bo'ladi — bir kun domen yana o'zgarsa, kodni qayta yozmasdan boshqarish
+imkonini beradi. `CORS_ORIGINS` ham kerak emas: `main.py` dagi regex
+`https://(.*\.)?uyiz\.uz` ni allaqachon qamraydi.
 
-```env
-CORS_ORIGINS=https://uyiz.uz,https://www.uyiz.uz,https://admin.uyiz.uz,https://maklersizuy.uz,https://www.maklersizuy.uz,https://admin.maklersizuy.uz
-SITE_URL=https://uyiz.uz
-```
-
-Moslik **aniq** — yulduzcha ham, shablon ham ishlamaydi. Agar domen avval
-ishlab, `CORS_ORIGINS` keyin yangilansa, sayt ham, admin panel ham ochiladi va
-keyin **har bir so'rov** tushunarsiz "network error" bilan yiqiladi, API
-logida esa hech qanday xato ko'rinmaydi.
-
-### 0.2. Vercel — sayt loyihasi
-
-**Settings → Domains**:
-
-1. `uyiz.uz` ni qo'shing → **⋯** → **Set as Primary Domain**
-2. `www.uyiz.uz` → **Redirect to `uyiz.uz`**
-3. `maklersizuy.uz` va `www.maklersizuy.uz` ni **o'chirmang** — ular ham shu
-   loyihada qolib, `uyiz.uz` ga **301** qilsin. Muhim: yo'lni saqlagan holda.
-   `/toshkent/chilonzor` → `https://uyiz.uz/toshkent/chilonzor` bo'lsin,
-   bosh sahifaga emas.
-
-**Kamida 12 oy** eski domen shu holatda tursin. Uni o'chirish — saytning
-hozirgacha yiqqan barcha o'rinlari va tashqi linklarini bir zarbada yo'qotish.
-
-**Settings → Environment Variables**: `VITE_SITE_URL=https://uyiz.uz` →
-Redeploy.
-
-### 0.3. Vercel — admin loyihasi
-
-`admin.uyiz.uz` ni admin loyihasiga ulang, `NEXT_PUBLIC_API_URL` o'z joyida
-qolsin (Railway manzili o'zgarmagan).
-
-### 0.4. Yandex va Firebase
-
-- Yandex konsolida (developer.tech.yandex.ru) kalitning **ruxsat etilgan
-  referrerlari** ro'yxatiga `uyiz.uz` ni qo'shing. Bo'lmasa yangi domenda
-  xarita ham, "manzilni aniqlash" tugmasi ham ishlamay qoladi.
-- Firebase → Authentication → Settings → **Authorized domains**: `uyiz.uz` va
-  `admin.uyiz.uz` ni qo'shing. Bo'lmasa Google orqali kirish ishlamaydi.
-
-### 0.5. Tekshirish
+Tekshiruv (hozir shu natijani beradi):
 
 ```bash
+curl -sI https://uyiz.uz/ | head -1
+# 200
+
 curl -s -o /dev/null -w "%{http_code} -> %{redirect_url}\n" https://www.uyiz.uz/
-# Kutilgan: 308 -> https://uyiz.uz/
+# 308 -> https://uyiz.uz/
 
-curl -s -o /dev/null -w "%{http_code} -> %{redirect_url}\n" https://maklersizuy.uz/toshkent/chilonzor
-# Kutilgan: 301 -> https://uyiz.uz/toshkent/chilonzor   (bosh sahifa EMAS)
+curl -s https://uyiz.uz/toshkent/chilonzor | grep -o 'canonical" href="[^"]*"'
+# canonical" href="https://uyiz.uz/toshkent/chilonzor"
 
-curl -s -o /dev/null -w "%{http_code}\n" https://uyiz.uz/robots.txt
-# Kutilgan: 200
+curl -s https://uyiz.uz/robots.txt | tail -1
+# Sitemap: https://uyiz.uz/sitemap.xml
 ```
+
+### Hali qilinmagani
+
+- **`admin.uyiz.uz`** ochilmaydi. Uni admin Vercel loyihasiga ulang
+  (Root Directory `admin`). Tekshiruv:
+  `curl -sI https://admin.uyiz.uz/ | grep -i x-robots-tag` → `noindex, nofollow`.
+- **Firebase → Authentication → Settings → Authorized domains**: `uyiz.uz`,
+  `www.uyiz.uz`, `admin.uyiz.uz` qo'shing. Eski yozuvlarni o'chirmang.
+  Bo'lmasa Google orqali kirish `auth/unauthorized-domain` bilan yiqiladi.
+- **Yandex** (developer.tech.yandex.ru) — kalitning ruxsat etilgan
+  referrerlariga `uyiz.uz`, `www.uyiz.uz`, `*.uyiz.uz`. Bo'lmasa xarita
+  Yandex plitkalari o'rniga OSM'ga tushadi.
 
 ---
 
-## 1-BOSQICH — Deploy
+## 1-BOSQICH — eski domendan 301 (⚠️ HALI ERTA)
 
-- Vercel `VITE_API_URL` — qo'yilgan (o'zgarmaydi, Railway manzili eski)
-- Vercel `VITE_SITE_URL=https://uyiz.uz` — **yangi, qo'yish shart**
-- Railway `SITE_URL=https://uyiz.uz` — **yangi, qo'yish shart**
-- Railway `CORS_ORIGINS` — 0.1 dagi qator
+**Buni 3-bosqichdagi ikkala Search Console property DNS bilan tasdiqlanmaguncha
+qilmang.** 301 — qaytarib bo'lmaydigan qadam: uni ko'rgan har bir brauzer
+keshlaydi, va eski domen 200 qaytarmay qolgach Change of Address imkoni
+butunlay yo'qoladi.
 
-`SITE_URL` / `VITE_SITE_URL` unutilsa hech narsa qulamaydi — kod eski domenga
-qaytadi va `sitemap.xml` butunlay o'lik manzillarni e'lon qiladi. Build yashil
-bo'ladi, ogohlantirish chiqmaydi, Google esa hech narsani qabul qilmaydi.
-Shuning uchun bu ro'yxatdagi eng jimgina xato.
+Vaqti kelganda `vercel.json` ichiga, `"redirects"` ro'yxatining **eng
+boshiga** (Vercel yuqoridan pastga qarab moslaydi):
+
+```json
+{ "source": "/:path*", "has": [{ "type": "host", "value": "maklersizuy.uz" }],
+  "destination": "https://uyiz.uz/:path*", "permanent": true },
+{ "source": "/:path*", "has": [{ "type": "host", "value": "www.maklersizuy.uz" }],
+  "destination": "https://uyiz.uz/:path*", "permanent": true }
+```
+
+Diqqat: `maklersizuy.uz` hozir `www.maklersizuy.uz` ga 308 qilyapti. Vercel →
+Domains'da o'sha yo'naltirishni avval tozalang, aks holda eski apex ikki
+qadamda yuradi.
+
+Tekshiruv — **yo'l saqlanishi shart**, bosh sahifaga tushmasin:
+
+```bash
+curl -s -o /dev/null -w "%{http_code} -> %{redirect_url}\n" https://maklersizuy.uz/toshkent/chilonzor
+# 301 -> https://uyiz.uz/toshkent/chilonzor
+```
+
+Eski domen **kamida 12 oy** shu holatda tursin. Uni o'chirish — saytning
+yiqqan barcha o'rinlarini va tashqi linklarini bir zarbada yo'qotish.
 
 ---
 
@@ -327,7 +338,7 @@ yo'qligini emas, **yashash uchun joy** qidiradi:
 | Uzun (tuman) | `Chilonzorda kvartira ijaraga` | `снять квартиру Чиланзар` |
 | Auditoriya | `talabalar uchun ijara`, `arzon ijara` | `аренда для студентов` |
 
-Sahifalar tuzilishi o'zgarmaydi — `SEO.md` §2 dagi 346 sahifa aynan shu
+Sahifalar tuzilishi o'zgarmaydi — `SEO.md` §2 dagi sahifalar aynan shu
 daraxt uchun qurilgan. O'zgaradigani — sahifadagi matn va biz kutayotgan
 brend so'rovi.
 
@@ -350,7 +361,7 @@ Bu jadval **e'lonlar soni o'sib borsa** amal qiladi. Kod Google'ga saytni
 ko'rsatadi; nimani ko'rsatishni e'lonlar hal qiladi.
 
 **Ochig'ini aytganda: saytda e'lon juda kam.** Bu SEO'ning emas, biznesning
-muammosi, va hozir eng katta to'siq aynan shu — kodda emas. 346 sahifa Google
+muammosi, va hozir eng katta to'siq aynan shu — kodda emas. 595 sahifa Google
 uchun tayyor idish; idish bo'sh bo'lsa Google uni ko'rsatmaydi.
 
 Amaliy chegara:
