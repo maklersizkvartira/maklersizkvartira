@@ -15,6 +15,24 @@ Disallow: /elon-berish
 Disallow: /tasdiqlash
 Disallow: /dostni-taklif-qilish
 Disallow: /xabarlar
+
+# The same surfaces under the language prefixes. /ru/profil is a different URL
+# from /profil and was reachable while this list only named the bare paths.
+Disallow: /ru/profil
+Disallow: /ru/saqlanganlar
+Disallow: /ru/mening-elonlarim
+Disallow: /ru/elon-berish
+Disallow: /ru/tasdiqlash
+Disallow: /ru/dostni-taklif-qilish
+Disallow: /ru/xabarlar
+Disallow: /en/profil
+Disallow: /en/saqlanganlar
+Disallow: /en/mening-elonlarim
+Disallow: /en/elon-berish
+Disallow: /en/tasdiqlash
+Disallow: /en/dostni-taklif-qilish
+Disallow: /en/xabarlar
+
 Disallow: /admin
 Disallow: /api/
 

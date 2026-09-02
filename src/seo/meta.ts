@@ -477,14 +477,13 @@ export function buildHead(
   let ogType: HeadTags['ogType'] = 'website';
   let ogImage = absoluteUrl(OG_IMAGE_PATH);
 
-  // The publisher/provider nodes are referenced by `@id` from the listing,
-  // article and collection nodes below. A reference that resolves to nothing
-  // on the page it appears on is a dangling one, so the organisation ships
-  // with every page rather than only with the home page.
-  nodes.push(ld.organisation(copy.brand.about));
-  if (route.kind === 'HOME') {
-    nodes.push(ld.website(copy.brand.about, language));
-  }
+  // Both ship with every page, for the same reason: the listing, article and
+  // collection nodes below reference them by `@id`, and a reference that
+  // resolves to nothing on the page it appears on is a dangling one. The
+  // WebSite node used to be home-page-only, which left `isPartOf: {'@id':
+  // SITE_ID}` pointing at nothing on all 342 other pages.
+  nodes.push(ld.organisation(copy.brand.about, copy.country?.name));
+  nodes.push(ld.website(copy.brand.about));
 
   if (page.crumbs.length > 1) {
     nodes.push(

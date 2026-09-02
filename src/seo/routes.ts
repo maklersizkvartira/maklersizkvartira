@@ -232,7 +232,15 @@ export function routeForView(view: ViewState, listingId?: string | null): RouteM
     path: viewPath(view, listingId),
     view,
     filters: {},
-    indexable: !PRIVATE_VIEWS.has(view),
+    // MAP is public but not indexable. The map is drawn by a client-side
+    // library, so the prerenderer emits a body of exactly zero characters for
+    // /xarita, /ru/xarita and /en/xarita while the head says `index, follow`
+    // and the sitemap lists all three: three blank pages offered to Google as
+    // content. It stays OUT of PRIVATE_VIEWS on purpose — that set is mirrored
+    // into robots.txt as Disallow lines, and a URL a crawler is forbidden to
+    // fetch is a URL whose noindex is never read, which is the one way to make
+    // a blank page harder to remove rather than easier.
+    indexable: !PRIVATE_VIEWS.has(view) && view !== 'MAP',
   };
 }
 

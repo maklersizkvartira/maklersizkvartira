@@ -41,7 +41,10 @@ export function shareImage(images?: readonly string[]): string {
   return crawlableImages(images)[0] ?? absoluteUrl(OG_IMAGE_PATH);
 }
 
-export function organisation(description: string): JsonLd {
+export function organisation(
+  description: string,
+  countryName: string = COUNTRY.name,
+): JsonLd {
   return {
     '@type': 'Organization',
     '@id': ORG_ID,
@@ -59,7 +62,10 @@ export function organisation(description: string): JsonLd {
     description,
     email: CONTACT.email,
     telephone: CONTACT.phones[0],
-    areaServed: { '@type': 'Country', name: COUNTRY.name },
+    // Localised: the Russian and English pages used to declare the Uzbek
+    // spelling of the country, which is the one string on those pages that
+    // was not in the page's own language.
+    areaServed: { '@type': 'Country', name: countryName },
     sameAs: [CONTACT.telegram, CONTACT.instagram],
     contactPoint: CONTACT.phones.map((phone) => ({
       '@type': 'ContactPoint',
@@ -78,15 +84,21 @@ export function organisation(description: string): JsonLd {
  * endpoint the router strips on the way in, and Google retired the sitelinks
  * searchbox it fed. Describing a search that does not answer is worse than
  * describing none.
+ *
+ * No `inLanguage` either, and that is the whole reason this node can ship on
+ * every page. `SITE_ID` is one identifier for one site; carrying a language on
+ * it meant the uz, ru and en pages each asserted a different language for the
+ * *same* `@id`, which is a contradiction rather than a translation. The
+ * per-page language is already stated where it belongs — `<html lang>`, the
+ * hreflang set, and `inLanguage` on the listing and article nodes.
  */
-export function website(description: string, language: string): JsonLd {
+export function website(description: string): JsonLd {
   return {
     '@type': 'WebSite',
     '@id': SITE_ID,
     url: `${SITE_URL}/`,
     name: SITE_NAME,
     description,
-    inLanguage: language,
     publisher: { '@id': ORG_ID },
   };
 }
@@ -161,8 +173,14 @@ export function realEstateListing({
   const hasGeo =
     typeof listing.latitude === 'number' && typeof listing.longitude === 'number';
 
+  const streetAddress = (listing.address ?? '').trim();
+
+  // Identified, so `offers.itemOffered` can point at it. Without an `@id` the
+  // Offer describes a price attached to nothing in particular, and the
+  // accommodation and the thing being let read as two unrelated entities.
   const accommodation: JsonLd = {
     '@type': residenceType(listing.propertyType),
+    '@id': `${url}#accommodation`,
     name,
     ...(listing.rooms ? { numberOfRooms: listing.rooms } : {}),
     ...(listing.area
@@ -173,6 +191,7 @@ export function realEstateListing({
       addressCountry: COUNTRY.code,
       ...(listing.region ? { addressRegion: listing.region } : {}),
       ...(listing.district ? { addressLocality: listing.district } : {}),
+      ...(streetAddress ? { streetAddress } : {}),
     },
     ...(hasGeo
       ? {
@@ -201,20 +220,21 @@ export function realEstateListing({
     offers: {
       '@type': 'Offer',
       url,
+      itemOffered: { '@id': `${url}#accommodation` },
       price: listing.price,
       priceCurrency: listing.currency || 'UZS',
       businessFunction: 'http://purl.org/goodrelations/v1#LeaseOut',
       availability: 'https://schema.org/InStock',
-      ...(listing.currency === 'UZS' || !listing.currency
-        ? {
-            priceSpecification: {
-              '@type': 'UnitPriceSpecification',
-              price: listing.price,
-              priceCurrency: listing.currency || 'UZS',
-              unitCode: 'MON',
-            },
-          }
-        : {}),
+      // Unconditional. This is a monthly rent whatever it is denominated in,
+      // and the currency was never the thing that made it periodic: gating on
+      // UZS published every dollar-priced flat as a flat $400 — a price to buy
+      // a property, not to rent one for a month.
+      priceSpecification: {
+        '@type': 'UnitPriceSpecification',
+        price: listing.price,
+        priceCurrency: listing.currency || 'UZS',
+        unitCode: 'MON',
+      },
     },
   };
 }
