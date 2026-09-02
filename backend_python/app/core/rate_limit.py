@@ -91,6 +91,41 @@ class RateLimiter:
         async with self._lock:
             self._windows.pop(f"{rule.name}:{identifier}", None)
 
+    async def refund(
+        self, rule: RateLimitRule, identifier: str, *, cost: int = 1
+    ) -> None:
+        """Give back at most ``cost`` hits - the newest ones - to this bucket.
+
+        The counterpart of :meth:`check` for work that was charged and then
+        provably did not happen: a verification SMS the provider refused, say,
+        where keeping the charge would make a provider outage cost the user
+        their whole hourly allowance for messages that never left the building.
+
+        Deliberately not :meth:`reset`, which pops the entire window. A refund
+        that hands back everything turns any provokable failure into a way to
+        empty a bucket on demand, and on a bucket keyed by IP - which everyone
+        behind one carrier NAT shares - it empties it for all of them. Removing
+        as much as was taken and no more leaves the rest of the window standing.
+
+        Which hits are removed does not have to be *this* caller's: under
+        concurrency the newest may belong to a request that arrived meanwhile.
+        A sliding window is a count, and the count is what is being corrected.
+        """
+        key = f"{rule.name}:{identifier}"
+        now = time.monotonic()
+        cutoff = now - rule.window_seconds
+        async with self._lock:
+            window = self._windows.get(key)
+            if window is None:
+                return
+            hits = window.hits
+            while hits and hits[0] <= cutoff:
+                hits.popleft()
+            for _ in range(min(cost, len(hits))):
+                hits.pop()
+            if not hits:
+                self._windows.pop(key, None)
+
     def _maybe_sweep(self, now: float) -> None:
         """Drop empty and stale windows so memory cannot grow without bound."""
         if now - self._last_sweep < 60 and len(self._windows) < self._max_keys:
@@ -128,6 +163,35 @@ def _rules() -> dict[str, RateLimitRule]:
         "session_revoke": RateLimitRule("session_revoke", 30, 60),
         "otp_phone": RateLimitRule("otp_phone", settings.RATE_LIMIT_OTP_PER_HOUR, 3600),
         "otp_ip": RateLimitRule("otp_ip", settings.RATE_LIMIT_OTP_PER_HOUR * 2, 3600),
+        # Checking a code costs no SMS, so it is not capped like sending one —
+        # but it is still a guess against a six-digit secret, and the wizard
+        # step that uses it is one press away from being held down. The row's
+        # own attempt counter is the real defence; this only stops a script
+        # from cycling fresh codes fast enough to matter.
+        "otp_check": RateLimitRule("otp_check", 20, 900),
+        "otp_check_ip": RateLimitRule("otp_check_ip", 60, 900),
+        # The two endpoints that SPEND a code — /auth/verify-code and
+        # /auth/reset-password — had no limiter of any kind, which left the
+        # row's own five-attempt counter as the only thing between a guesser
+        # and somebody's password. Sized so a real person mistyping a six-digit
+        # code, twice, across two different codes, never meets it: the row's
+        # counter is what stops the guessing, this stops the volume.
+        "otp_verify": RateLimitRule("otp_verify", 30, 900),
+        # Far looser than its per-phone sibling, and deliberately. A guesser
+        # attacks ONE number, so the per-phone rule is the one that bounds
+        # them; this only stops a flood. Sized for the fact that an IP here is
+        # usually a carrier NAT or an office egress shared by hundreds of
+        # people, where a tight cap punishes everyone except the attacker —
+        # which is the same mistake that made an SMS outage lock out a whole
+        # building.
+        "otp_verify_ip": RateLimitRule("otp_verify_ip", 120, 900),
+        # Charged ONLY when a send definitively failed, and never refunded.
+        # The two send buckets above are refunded on that path — a provider
+        # outage must not cost the user their hourly allowance — and the row
+        # the daily cap counts is deleted, so without this nothing at all
+        # bounds how fast a retry loop can hammer a provider that is already
+        # unwell. A handful of retries, then a short wait.
+        "otp_retry": RateLimitRule("otp_retry", 6, 900),
         "register_ip": RateLimitRule("register_ip", 8, 3600),
         "listing_create": RateLimitRule(
             "listing_create", settings.RATE_LIMIT_LISTING_CREATE_PER_HOUR, 3600
@@ -165,4 +229,16 @@ async def enforce(name: str, identifier: str, *, cost: int = 1) -> None:
 
 
 async def clear(name: str, identifier: str) -> None:
+    """Empty a bucket completely. Only correct when the whole window is
+    forgiven - a successful login, say. To undo one charge, use ``refund``."""
     await limiter.reset(rule(name), identifier)
+
+
+async def refund(name: str, identifier: str, *, cost: int = 1) -> None:
+    """Hand back ``cost`` hits charged for work that provably did not happen."""
+    await limiter.refund(rule(name), identifier, cost=cost)
+
+
+async def peek(name: str, identifier: str) -> int:
+    """How much of a bucket is left, charging nothing."""
+    return await limiter.peek(rule(name), identifier)

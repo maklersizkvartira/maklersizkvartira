@@ -23,9 +23,11 @@ from app.core.tokens import (
     rotate_token_pair,
 )
 from app.models.auth import RefreshToken
-from app.models.enums import AuditAction, OtpPurpose, SIGNUP_ROLES
+from app.models.enums import SIGNUP_ROLE_VALUES, AuditAction, OtpPurpose, UserRole
 from app.schemas.auth import (
     ChangePasswordRequest,
+    CheckCodeRequest,
+    CheckCodeResponse,
     ForgotPasswordRequest,
     GoogleAuthRequest,
     LoginRequest,
@@ -73,13 +75,14 @@ async def register(payload: RegisterRequest, db: DbSession, lang: Lang) -> Regis
         phone=payload.phone,
         password=payload.password,
         role=payload.role.value,
+        agency_name=payload.agency_name,
         language=payload.language.value,
     )
     return RegisterResponse(
         message=_sent_message(lang),
         phone=mask_phone(payload.phone),
         resend_after=resend_after,
-        expires_in=settings.OTP_TTL_MINUTES * 60,
+        expires_in=auth_service.otp_ttl_minutes(OtpPurpose.REGISTER) * 60,
         debug_code=debug_code,
     )
 
@@ -117,6 +120,35 @@ async def verify_code(
     )
 
 
+@router.post(
+    "/check-code",
+    response_model=CheckCodeResponse,
+    summary="Judge an SMS code without spending it",
+)
+async def check_code(
+    payload: CheckCodeRequest, db: DbSession, lang: Lang
+) -> CheckCodeResponse:
+    """Answer a multi-step form's "may I show the next screen?".
+
+    ``/verify-code`` finishes a registration and ``/reset-password`` spends a
+    reset code; neither can be asked mid-wizard without destroying the thing
+    the last step needs. This one only judges: a wrong code raises exactly the
+    ``otp_*`` errors the other two do, and a right one leaves the row untouched
+    for the call that will consume it.
+    """
+    await auth_service.check_otp(
+        db, phone=payload.phone, code=payload.code, purpose=payload.purpose
+    )
+    return CheckCodeResponse(
+        valid=True,
+        message={
+            "uz": "Kod tasdiqlandi.",
+            "ru": "Код подтверждён.",
+            "en": "The code is correct.",
+        }.get(lang, "Kod tasdiqlandi."),
+    )
+
+
 @router.post("/resend-code", response_model=RegisterResponse)
 async def resend_code(
     payload: ResendCodeRequest, db: DbSession, lang: Lang
@@ -128,7 +160,9 @@ async def resend_code(
         message=_sent_message(lang),
         phone=mask_phone(payload.phone),
         resend_after=resend_after,
-        expires_in=settings.OTP_TTL_MINUTES * 60,
+        # Keyed on the purpose that was actually resent: this route serves both
+        # registration and password reset, and those no longer share a lifetime.
+        expires_in=auth_service.otp_ttl_minutes(payload.purpose) * 60,
         debug_code=debug_code,
     )
 
@@ -257,8 +291,18 @@ async def update_profile(
     # who opens the profile page would otherwise be silently demoted to OWNER
     # by a form that has no idea those roles exist, with no way back except a
     # seeding script.
-    if "role" in changes and user.role not in {r.value for r in SIGNUP_ROLES}:
+    if "role" in changes and user.role not in SIGNUP_ROLE_VALUES:
         changes.pop("role")
+
+    # An agency belongs to an agent. Whoever stops being one stops having one,
+    # or the name would go on sitting beside their listings claiming a
+    # representation that no longer exists.
+    next_role = changes.get("role")
+    next_role = getattr(next_role, "value", next_role) or user.role
+    if next_role != UserRole.AGENT.value:
+        changes["agency_name"] = None
+    elif "agency_name" in changes:
+        changes["agency_name"] = (changes["agency_name"] or "").strip()[:120] or None
 
     before = {key: getattr(user, key) for key in changes}
 
@@ -422,7 +466,7 @@ async def forgot_password(
         message=_sent_message(lang),
         phone=mask_phone(payload.phone),
         resend_after=resend_after,
-        expires_in=settings.OTP_TTL_MINUTES * 60,
+        expires_in=auth_service.otp_ttl_minutes(OtpPurpose.PASSWORD_RESET) * 60,
         debug_code=debug_code,
     )
 

@@ -344,8 +344,20 @@ async def dashboard_stats(db: AsyncSession) -> dict[str, Any]:
     )
 
     sms_today = await _count(db, count_of(SmsLog, SmsLog.created_at >= today))
+    # UNKNOWN counts as failed here, deliberately. It means the provider never
+    # answered, so nobody can say whether the message exists — and the dashboard
+    # asks one question, "did SMS work today", which UNKNOWN answers "no" just
+    # as loudly as FAILED. Counting only FAILED made the outages that land in
+    # UNKNOWN invisible on the one screen somebody actually watches, while the
+    # user was being told a code was on its way. The two stay tellable apart
+    # where that is useful: the SMS log lists each row's own status.
     sms_failed_today = await _count(
-        db, count_of(SmsLog, SmsLog.created_at >= today, SmsLog.status == "FAILED")
+        db,
+        count_of(
+            SmsLog,
+            SmsLog.created_at >= today,
+            SmsLog.status.in_((SmsStatus.FAILED.value, SmsStatus.UNKNOWN.value)),
+        ),
     )
 
     visitors_today = int(

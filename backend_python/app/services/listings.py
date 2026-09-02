@@ -26,6 +26,7 @@ from app.models.enums import (
     AuditAction,
     ListingStatus,
     RoommateGender,
+    SellerType,
     TopRequestStatus,
     UserRole,
 )
@@ -125,6 +126,8 @@ def apply_filters(stmt: Select, filters: ListingFilters) -> Select:
         )
     elif filters.audience == "FAMILY":
         stmt = stmt.where(and_(Listing.rooms >= 2, Listing.is_roommate.is_(False)))
+    if filters.seller_type:
+        stmt = stmt.where(Listing.seller_type == filters.seller_type.value)
     if filters.only_verified:
         stmt = stmt.where(Listing.safety_badges.any("VERIFIED_OWNER"))
     if filters.min_trust_score:
@@ -244,6 +247,38 @@ async def list_for_owner(db: AsyncSession, user: User) -> list[Listing]:
     return list((await db.execute(stmt)).unique().scalars().all())
 
 
+def _normalise_seller(
+    payload: dict[str, Any], user: User, *, current: str | None = None
+) -> None:
+    """Settle who a listing says it comes from, in one place.
+
+    The form is trusted for the choice itself — an agent may own a flat, and an
+    owner represents nobody — but not for the claim behind it: only an AGENT
+    account may publish as an agent, and an agency name is meaningless on a
+    listing that is not one. Create and edit both come through here, so an edit
+    cannot smuggle in what a create would have refused.
+
+    ``current`` is the listing's existing seller type on an edit. Without it,
+    changing only the agency name on an agent's listing would read as "no
+    seller type given" and wipe the agency it was just given.
+    """
+    requested = payload.get("seller_type")
+    requested = getattr(requested, "value", requested) or current or SellerType.OWNER.value
+    if requested == SellerType.AGENT.value and user.role != UserRole.AGENT.value:
+        requested = SellerType.OWNER.value
+    if "seller_type" in payload:
+        payload["seller_type"] = requested
+
+    # Only rewrite the agency when this call is about the seller at all;
+    # otherwise an unrelated edit (a price, a photo) would clear it.
+    if "agency_name" in payload or "seller_type" in payload:
+        if requested == SellerType.AGENT.value:
+            agency = (payload.get("agency_name") or user.agency_name or "").strip()
+            payload["agency_name"] = agency[:120] or None
+        else:
+            payload["agency_name"] = None
+
+
 async def create_listing(
     db: AsyncSession, *, user: User, payload: dict[str, Any]
 ) -> Listing:
@@ -263,6 +298,9 @@ async def create_listing(
         raise BadRequest(
             "too_many_images", params={"limit": settings.MAX_IMAGES_PER_LISTING}
         )
+
+    _normalise_seller(payload, user)
+    payload.setdefault("seller_type", SellerType.OWNER.value)
 
     listing = Listing(
         **payload,
@@ -307,6 +345,12 @@ async def update_listing(
     penalty an admin had deliberately applied. The reliability percentage has
     exactly one writer: the confirmed-report recompute.
     """
+    # The same rule as on the way in: an edit is not a back door to a claim
+    # the account cannot make. `listing.owner`, not `user` — a moderator
+    # fixing a typo must not turn an agent's listing into an owner's.
+    if "seller_type" in changes or "agency_name" in changes:
+        _normalise_seller(changes, listing.owner or user, current=listing.seller_type)
+
     before = {key: getattr(listing, key) for key in changes}
     for key, value in changes.items():
         setattr(listing, key, value)

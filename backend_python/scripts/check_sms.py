@@ -28,6 +28,7 @@ from app.models.enums import OtpPurpose  # noqa: E402
 from app.services.sms import (  # noqa: E402
     check_balance,
     deliver_otp,
+    moderation_rejection,
     service_name,
 )
 
@@ -132,13 +133,23 @@ async def send_test(raw_phone: str) -> bool:
 
 
 def _rejection_note(body: dict) -> str:
-    """Strike counters, when the provider returned any."""
-    data = body.get("data") if isinstance(body.get("data"), dict) else {}
-    streak = body.get("reject_streak", data.get("reject_streak"))
-    left = body.get("remaining_attempts", data.get("remaining_attempts"))
-    if streak is None and body.get("charged") is not False:
+    """Strike counters, when this really was a company-name rejection.
+
+    Asks ``app.services.sms`` rather than deciding for itself. This function
+    used to carry its own copy of the rule, and the copy still accepted
+    ``charged is not False`` as proof of a moderation refusal — which is equally
+    true of an exhausted balance, a rejected token and an unroutable number. So
+    the one tool a human runs during an incident answered "your company name was
+    rejected" while the real cause was an empty account, and sent them off to
+    re-register a brand name that was never the problem. One rule, one place.
+    """
+    rejection = moderation_rejection(body)
+    if rejection is None:
         return ""
-    return f"Ketma-ket rad: {streak}, qolgan urinish: {left}."
+    return (
+        f"Ketma-ket rad: {rejection['reject_streak']}, "
+        f"qolgan urinish: {rejection['remaining_attempts']}."
+    )
 
 
 async def main() -> int:

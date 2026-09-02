@@ -15,7 +15,7 @@ from typing import Annotated, Any, Literal
 from pydantic import Field, computed_field, field_validator, model_validator
 
 from app.core.config import settings
-from app.models.enums import ListingStatus, PropertyType, RoommateGender
+from app.models.enums import ListingStatus, PropertyType, RoommateGender, SellerType
 from app.schemas.common import CamelModel, ORMCamelModel
 
 TitleStr = Annotated[str, Field(min_length=8, max_length=160)]
@@ -116,6 +116,12 @@ class ListingBase(CamelModel):
     roommate_gender: RoommateGender | None = None
     roommate_spots_available: int | None = Field(default=None, ge=1, le=20)
 
+    #: Who is publishing THIS listing. Defaults to OWNER, which is what every
+    #: listing filed before the field existed meant.
+    seller_type: SellerType = SellerType.OWNER
+    #: Shown only on an AGENT listing; ignored otherwise (see the service).
+    agency_name: str | None = Field(default=None, max_length=120)
+
     contact_telegram: str | None = Field(default=None, max_length=64)
     preferred_contact_time: str | None = Field(default=None, max_length=64)
 
@@ -203,6 +209,8 @@ class ListingUpdate(CamelModel):
     is_roommate: bool | None = None
     roommate_gender: RoommateGender | None = None
     roommate_spots_available: int | None = Field(default=None, ge=1, le=20)
+    seller_type: SellerType | None = None
+    agency_name: str | None = Field(default=None, max_length=120)
     contact_telegram: str | None = Field(default=None, max_length=64)
     preferred_contact_time: str | None = Field(default=None, max_length=64)
 
@@ -219,6 +227,7 @@ class OwnerOut(ORMCamelModel):
     name: str
     avatar: str | None = None
     role: str
+    agency_name: str | None = None
     trust_score: int
     is_verified: bool
     verification_level: int
@@ -261,6 +270,8 @@ class ListingOut(ORMCamelModel):
     is_roommate: bool
     roommate_gender: str | None = None
     roommate_spots_available: int | None = None
+    seller_type: str = SellerType.OWNER.value
+    agency_name: str | None = None
     contact_telegram: str | None = None
     preferred_contact_time: str | None = None
 
@@ -330,6 +341,10 @@ class ListingFilters(CamelModel):
     # everyone is open to her too — only BOYS-only rooms are excluded.
     roommate_gender: RoommateGender | None = None
     audience: Literal["ALL", "STUDENT", "FAMILY"] = "ALL"
+    #: "Direct from the owner", the thing the platform was built on, is only a
+    #: promise it can keep if a searcher can ask for it — now that agents may
+    #: publish here too.
+    seller_type: SellerType | None = None
     only_verified: bool = False
     min_trust_score: int = Field(default=0, ge=0, le=100)
     furnished: bool | None = None

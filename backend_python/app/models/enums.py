@@ -13,6 +13,12 @@ class UserRole(StrEnum):
     STUDENT = "STUDENT"
     TENANT = "TENANT"
     OWNER = "OWNER"
+    #: A professional — a realtor, or somebody running an agency — publishing
+    #: on behalf of the people who own the property. They were forced to sign
+    #: up as OWNER and then describe themselves in the listing text, which is
+    #: both a lie the platform made them tell and information a buyer has a
+    #: right to see before they call.
+    AGENT = "AGENT"
     MODERATOR = "MODERATOR"
     ADMIN = "ADMIN"
     #: Full access to every user-side capability at once. Exists so the people
@@ -23,16 +29,17 @@ class UserRole(StrEnum):
 
 #: Roles a self-service signup may request. Everything else is admin-granted —
 #: DEVELOPER deliberately among them, so nobody can register into it.
-SIGNUP_ROLES = {UserRole.STUDENT, UserRole.OWNER}
+SIGNUP_ROLES = {UserRole.STUDENT, UserRole.OWNER, UserRole.AGENT}
 #: Roles that see staff-only material: listings that are pending, rejected or
 #: otherwise not public yet.
 STAFF_ROLES = {UserRole.MODERATOR, UserRole.ADMIN, UserRole.DEVELOPER}
 #: Roles that bypass ownership checks — they may edit or remove any listing.
 FULL_ACCESS_ROLES = {UserRole.ADMIN, UserRole.DEVELOPER}
 #: Roles allowed to publish listings.
-PUBLISHER_ROLES = {UserRole.OWNER, UserRole.DEVELOPER}
+PUBLISHER_ROLES = {UserRole.OWNER, UserRole.AGENT, UserRole.DEVELOPER}
 
 #: Column values, not enum members: ``User.role`` stores the raw string.
+SIGNUP_ROLE_VALUES = frozenset(r.value for r in SIGNUP_ROLES)
 STAFF_ROLE_VALUES = frozenset(r.value for r in STAFF_ROLES)
 FULL_ACCESS_ROLE_VALUES = frozenset(r.value for r in FULL_ACCESS_ROLES)
 PUBLISHER_ROLE_VALUES = frozenset(r.value for r in PUBLISHER_ROLES)
@@ -84,6 +91,20 @@ class PropertyType(StrEnum):
     DORMITORY = "DORMITORY"
 
 
+class SellerType(StrEnum):
+    """Who is publishing *this* listing, as opposed to what the account is.
+
+    Kept per listing rather than read off ``User.role`` because the two really
+    do come apart: an agent letting out a flat they own themselves posts as
+    OWNER, and an owner who has handed one property to an agency does not stop
+    being an owner. The person calling about the flat wants to know which of
+    the two will pick up, and the account's role cannot tell them.
+    """
+
+    OWNER = "OWNER"
+    AGENT = "AGENT"
+
+
 class RoommateGender(StrEnum):
     BOYS = "BOYS"
     GIRLS = "GIRLS"
@@ -102,6 +123,16 @@ class SmsStatus(StrEnum):
     SENT = "SENT"
     FAILED = "FAILED"
     SKIPPED = "SKIPPED"
+    #: The request never came back — a timeout or a dropped connection. The
+    #: provider may well have accepted and delivered it, so this is not FAILED:
+    #: treating it as one invalidated codes that had already reached the
+    #: handset, and told the user nothing had been sent while they were holding
+    #: the SMS. It is not QUEUED either, because QUEUED is the placeholder every
+    #: ledger row starts life with, and a row still reading QUEUED after a send
+    #: means the process died mid-attempt — a different thing worth telling
+    #: apart. Stored as a plain string (``sms_logs.status`` is a VARCHAR, not a
+    #: Postgres enum), so no migration is needed to start writing it.
+    UNKNOWN = "UNKNOWN"
 
 
 class ActorType(StrEnum):

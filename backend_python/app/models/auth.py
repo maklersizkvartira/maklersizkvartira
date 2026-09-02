@@ -117,6 +117,9 @@ class PendingRegistration(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     password_secret: Mapped[str | None] = mapped_column(Text, nullable=True)
     role: Mapped[str] = mapped_column(String(20), nullable=False)
+    #: Carried through the SMS step so an agent does not have to name their
+    #: agency a second time on the profile page after verifying.
+    agency_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
     language: Mapped[str] = mapped_column(String(2), default="uz", nullable=False)
 
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

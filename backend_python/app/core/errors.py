@@ -202,6 +202,16 @@ MESSAGES: dict[str, dict[str, str]] = {
         "ru": "Срок действия кода истёк. Запросите новый.",
         "en": "The code has expired. Please request a new one.",
     },
+    # The single answer every password-reset code failure gets. It has to
+    # cover "wrong", "expired" and "never existed" at once, and it must carry
+    # no attempts-remaining count — a count only exists when a code does, so
+    # printing one would rebuild the very oracle collapsing these closed. See
+    # `_otp_failure` in app/services/auth.py.
+    "otp_reset_invalid": {
+        "uz": "Kod noto‘g‘ri yoki muddati tugagan. Yangi kod so‘rang.",
+        "ru": "Код неверный или истёк. Запросите новый.",
+        "en": "That code is wrong or has expired. Request a new one.",
+    },
     "otp_invalid": {
         "uz": "Tasdiqlash kodi noto‘g‘ri. Yana {remaining} ta urinish qoldi.",
         "ru": "Неверный код подтверждения. Осталось попыток: {remaining}.",

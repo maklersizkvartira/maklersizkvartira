@@ -31,6 +31,12 @@ class AdminUserRow(ORMCamelModel):
     email: str | None = None
     avatar: str | None = None
     role: str
+    #: The agency an AGENT account works for; null for every other role, and
+    #: null for a freelance realtor. Declared because a field this model does
+    #: not name is simply not serialised, however faithfully the column is
+    #: filled: the user detail page could show "Agent" and never whose name is
+    #: on the door.
+    agency_name: str | None = None
     status: str
     auth_type: str = "phone"
     trust_score: int
@@ -110,6 +116,14 @@ class AdminListingRow(ORMCamelModel):
     address: str | None = None
     images: list[str]
     status: str
+    #: What this listing itself claims - OWNER or AGENT - and the agency named
+    #: on it when it was published. Both are columns on ``listings``, not facts
+    #: about the account: ``owner_role`` below is the publisher's role *now*.
+    #: A moderator deciding whether a listing may say "from the owner" needs
+    #: the claim in front of them, and an undeclared field never reaches the
+    #: panel no matter what the column holds.
+    seller_type: str
+    agency_name: str | None = None
     trust_score: int
     risk_score: int
     ai_risk_reasons: list[str]

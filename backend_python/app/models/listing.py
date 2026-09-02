@@ -23,7 +23,7 @@ from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin, UUIDPrimaryKeyMixin
-from app.models.enums import ListingStatus, PropertyType, TopRequestStatus
+from app.models.enums import ListingStatus, PropertyType, SellerType, TopRequestStatus
 
 if TYPE_CHECKING:
     from app.models.moderation import Report
@@ -87,6 +87,18 @@ class Listing(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     is_roommate: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     roommate_gender: Mapped[str | None] = mapped_column(String(10), nullable=True)
     roommate_spots_available: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # -- Who is publishing ----------------------------------------------------
+    #: OWNER or AGENT, chosen per listing rather than read off the account —
+    #: see :class:`app.models.enums.SellerType`. Indexed because it is a facet
+    #: a searcher filters on ("only from owners"), not merely a badge.
+    seller_type: Mapped[str] = mapped_column(
+        String(10), default=SellerType.OWNER.value, nullable=False, index=True
+    )
+    #: Snapshot of the agency at the moment of publishing. Denormalised on
+    #: purpose: an agent who later changes agencies must not silently rewrite
+    #: who every flat they ever listed was represented by.
+    agency_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
     # -- Contact -------------------------------------------------------------
     contact_telegram: Mapped[str | None] = mapped_column(String(64), nullable=True)

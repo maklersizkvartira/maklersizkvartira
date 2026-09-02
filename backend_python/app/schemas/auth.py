@@ -32,6 +32,12 @@ from app.schemas.common import CamelModel, IPStr, ORMCamelModel
 PhoneStr = Annotated[str, Field(min_length=7, max_length=24, examples=["+998 90 123 45 67"])]
 PasswordStr = Annotated[str, Field(min_length=1, max_length=128)]
 NameStr = Annotated[str, Field(min_length=2, max_length=120, examples=["Dilshod Karimov"])]
+AgencyStr = Annotated[str, Field(max_length=120, examples=["Zamin Realty"])]
+
+#: The roles a person may give themselves, here and on the profile page. Kept
+#: as one alias so the two never drift apart — the register form used to offer
+#: a role the profile editor would then refuse to switch back to.
+SignupRoleLiteral = Literal[UserRole.STUDENT, UserRole.OWNER, UserRole.AGENT]
 
 
 def _validate_phone(value: str) -> str:
@@ -49,7 +55,9 @@ class RegisterRequest(CamelModel):
     phone: PhoneStr
     password: PasswordStr
     confirm_password: str | None = None
-    role: Literal[UserRole.STUDENT, UserRole.OWNER] = UserRole.STUDENT
+    role: SignupRoleLiteral = UserRole.STUDENT
+    #: Only meaningful for AGENT, and optional even then.
+    agency_name: AgencyStr | None = None
     language: Language = Language.UZ
 
     @field_validator("phone")
@@ -119,6 +127,37 @@ class ResendCodeRequest(CamelModel):
     @classmethod
     def _phone(cls, v: str) -> str:
         return _validate_phone(v)
+
+
+class CheckCodeRequest(CamelModel):
+    """A dry-run of :class:`VerifyCodeRequest`, for a multi-step form.
+
+    The reset wizard asks for the code on one screen and the new password on
+    the next, and only the second call may spend the code. Without this the
+    first screen had nothing to ask and accepted any six digits.
+    """
+
+    phone: PhoneStr
+    code: Annotated[str, Field(min_length=4, max_length=8)]
+    purpose: OtpPurpose = OtpPurpose.PASSWORD_RESET
+
+    @field_validator("phone")
+    @classmethod
+    def _phone(cls, v: str) -> str:
+        return _validate_phone(v)
+
+    @field_validator("code")
+    @classmethod
+    def _code(cls, v: str) -> str:
+        digits = "".join(ch for ch in v if ch.isdigit())
+        if not digits:
+            raise ValueError("otp_invalid")
+        return digits
+
+
+class CheckCodeResponse(CamelModel):
+    valid: bool
+    message: str
 
 
 # ---------------------------------------------------------------------------
@@ -226,7 +265,7 @@ class PasswordStrengthResponse(CamelModel):
 # ---------------------------------------------------------------------------
 class GoogleAuthRequest(CamelModel):
     id_token: str = Field(min_length=16, max_length=4096)
-    role: Literal[UserRole.STUDENT, UserRole.OWNER] = UserRole.STUDENT
+    role: SignupRoleLiteral = UserRole.STUDENT
     language: Language = Language.UZ
 
 
@@ -257,7 +296,10 @@ class SubmitVerificationRequest(CamelModel):
 class UpdateProfileRequest(CamelModel):
     name: NameStr | None = None
     avatar: str | None = Field(default=None, max_length=8_000_000)
-    role: Literal[UserRole.STUDENT, UserRole.OWNER] | None = None
+    role: SignupRoleLiteral | None = None
+    #: An empty string clears it, which is how an agent who has gone freelance
+    #: removes an agency they no longer work for. ``None`` means "unchanged".
+    agency_name: AgencyStr | None = None
     language: Language | None = None
     theme: ThemePreference | None = None
 
@@ -288,6 +330,7 @@ class UserOut(ORMCamelModel):
     avatar: str | None = None
     role: str
     status: str
+    agency_name: str | None = None
     trust_score: int
     verification_level: int
     is_verified: bool

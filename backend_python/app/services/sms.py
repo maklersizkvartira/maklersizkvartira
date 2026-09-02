@@ -154,6 +154,88 @@ def service_name() -> str:
     return cleaned
 
 
+#: Transport failures that prove the request never reached the provider: the
+#: connection was refused, timed out before it opened, could not be taken from
+#: the pool, died at the proxy, named a scheme httpx will not speak, or was
+#: rejected while still being built. Nothing was sent, nothing was billed and no
+#: message exists — which makes these as definitive as an outright refusal, and
+#: they are the shape a provider outage or a DNS failure actually takes.
+#:
+#: Routing the whole ``httpx.HTTPError`` tree to UNKNOWN therefore reported "the
+#: provider is down" to the user as "your code is on its way": no raise, no
+#: refund of the rate-limit tokens, and a dead code left live for a message that
+#: was never composed. Everything NOT listed here happened after the request was
+#: on the wire and stays UNKNOWN, because the provider accepts, bills and
+#: delivers in the same call, so a request that died on the way back has very
+#: often already put an SMS on the handset.
+_NEVER_REACHED_PROVIDER = (
+    httpx.ConnectError,
+    httpx.ConnectTimeout,
+    httpx.PoolTimeout,
+    httpx.ProxyError,
+    httpx.UnsupportedProtocol,
+    httpx.LocalProtocolError,
+)
+
+_REDACTED = "[redacted]"
+
+#: A run of 4 to 8 digits standing on its own — the whole range of code lengths
+#: the provider will carry, which ``OTP_LENGTH``'s validator pins at boot.
+#: Bounded by non-digits on both sides so a phone number or a message id is not
+#: chopped in half: mangling those would hide what went wrong without hiding
+#: anything that matters.
+_CODE_SHAPED = re.compile(r"(?<!\d)\d{4,8}(?!\d)")
+
+#: Keys whose value is free provider prose rather than an identifier. Scrubbed
+#: rather than dropped, because they are the only thing that says why a send
+#: failed and that is what the ledger is for.
+_FREE_TEXT_KEYS = {"error", "reason", "detail", "details", "description"}
+
+
+def _without_code(text: str, code: str | None = None) -> str:
+    """Provider prose with anything code-shaped taken out of it.
+
+    On a failure the provider fills ``error``, and on some rejections what it
+    puts there is the message it refused to send — which contains the live code.
+    That string is written to ``SmsLog.error`` and to a structlog line, so
+    echoing it back would break this module's one promise: the code is never
+    stored and never logged. ``_safe_meta`` already drops ``message`` for
+    exactly this reason; ``error`` is the same text arriving under another name.
+
+    The code we sent is removed by value, and any remaining isolated digit run
+    of code length by shape — the second pass costs at most a balance figure
+    inside an error sentence, which is in ``response_meta`` and in the logs
+    anyway, and buys cover against a provider wording nobody has seen yet.
+    """
+    cleaned = text.replace(code, _REDACTED) if code else text
+    return _CODE_SHAPED.sub(_REDACTED, cleaned)
+
+
+#: What the provider has been seen to put in ``success`` when it means yes.
+#: JSON booleans, the digit 1 and these words all appear in the wild.
+_TRUTHY_SUCCESS = {"1", "true", "yes", "ok", "success"}
+
+
+def _means_success(value: Any) -> bool:
+    """Whether the provider's ``success`` field says the message went out.
+
+    It is not always a JSON boolean: the same endpoint answers ``true``, ``1``
+    and ``"true"`` depending on which layer of theirs handled the request. An
+    identity test against ``True`` read the other two as a refusal, so the
+    handset received a code while we recorded a failure, threw the code away
+    and told the user nothing had been sent — the single worst outcome
+    available, because the user can see the SMS we are denying we sent.
+    """
+    if isinstance(value, bool):
+        return value
+    # bool is a subclass of int, so this only ever sees genuine numbers.
+    if isinstance(value, (int, float)):
+        return value == 1
+    if isinstance(value, str):
+        return value.strip().lower() in _TRUTHY_SUCCESS
+    return False
+
+
 async def deliver_otp(*, phone: str, code: str, purpose: str) -> SmsResult:
     """POST one verification code to the provider. No database, no ledger.
 
@@ -174,11 +256,29 @@ async def deliver_otp(*, phone: str, code: str, purpose: str) -> SmsResult:
             response = await client.post(
                 _endpoint("send_sms.php"), json=payload, headers=_headers()
             )
-    except httpx.HTTPError as exc:
-        log.warning("sms.transport_error", phone=mask_phone(phone), error=str(exc))
+    except (httpx.HTTPError, httpx.InvalidURL) as exc:
+        # Which of the two this is decides whether the caller may throw the code
+        # away: a request that never reached the provider is a failure like any
+        # refusal, while a read timeout means the ANSWER was lost, not the
+        # message. Reporting the second as FAILED made the caller destroy a code
+        # the user was looking at and tell them none had been sent; reporting
+        # the first as UNKNOWN told the user a code was coming during an outage.
+        # `InvalidURL` is not an `HTTPError` — a misconfigured DEVSMS_API_URL
+        # used to escape this handler entirely, taking the ledger row, both
+        # audit rows, the refund and the code deletion down with it through
+        # `get_db`'s rollback, and answering the visitor with a bare 500.
+        never_sent = isinstance(exc, (_NEVER_REACHED_PROVIDER, httpx.InvalidURL))
+        log.warning(
+            "sms.transport_error",
+            phone=mask_phone(phone),
+            purpose=purpose,
+            error=str(exc),
+            error_type=type(exc).__name__,
+            never_sent=never_sent,
+        )
         return SmsResult(
             ok=False,
-            status=SmsStatus.FAILED.value,
+            status=SmsStatus.FAILED.value if never_sent else SmsStatus.UNKNOWN.value,
             error=f"transport: {type(exc).__name__}",
         )
 
@@ -188,9 +288,36 @@ async def deliver_otp(*, phone: str, code: str, purpose: str) -> SmsResult:
     except ValueError:
         body = {"raw": response.text[:500]}
 
+    # A 5xx is the same shape of doubt as a read timeout: the request reached
+    # something that took responsibility for it, and whether the message was
+    # forwarded before it fell over is unknowable from here. Calling that
+    # FAILED made the caller delete a code that may well have been delivered
+    # and tell the visitor nothing was sent — the exact failure the transport
+    # split above exists to prevent, arriving one branch later.
+    if response.status_code >= 500:
+        error = _without_code(
+            str(body.get("error") or body.get("message") or response.status_code), code
+        )
+        log.warning(
+            "sms.indeterminate",
+            phone=mask_phone(phone),
+            purpose=purpose,
+            status=response.status_code,
+            error=error,
+        )
+        return SmsResult(
+            ok=False, status=SmsStatus.UNKNOWN.value, error=error, raw=body
+        )
+
     data = body.get("data") if isinstance(body.get("data"), dict) else {}
 
-    if response.is_success and body.get("success") is True:
+    # Read before the success branch rather than inside it. The provider returns
+    # the remaining balance on rejections too, and running out of credit is the
+    # one condition that can never produce a successful send — so warning only
+    # on success meant the warning that exists for this could never fire.
+    _warn_on_low_balance(data)
+
+    if response.is_success and _means_success(body.get("success")):
         log.info(
             "sms.sent",
             phone=mask_phone(phone),
@@ -198,7 +325,6 @@ async def deliver_otp(*, phone: str, code: str, purpose: str) -> SmsResult:
             cost=data.get("total_cost"),
             balance=data.get("balance"),
         )
-        _warn_on_low_balance(data)
         return SmsResult(
             ok=True,
             status=SmsStatus.SENT.value,
@@ -210,10 +336,14 @@ async def deliver_otp(*, phone: str, code: str, purpose: str) -> SmsResult:
 
     # On a failure the provider fills "error"; "message" carries the wording of
     # a *successful* send. Reading "message" first turned a rejection into a
-    # ledger row that read like a delivery.
-    error = str(body.get("error") or body.get("message") or response.status_code)[:500]
+    # ledger row that read like a delivery. Both are the provider's own prose
+    # and both have been seen to quote the message being refused, so neither
+    # reaches the ledger or a log line before the code is taken back out.
+    error = _without_code(
+        str(body.get("error") or body.get("message") or response.status_code), code
+    )[:500]
 
-    rejection = _moderation_rejection(body)
+    rejection = moderation_rejection(body)
     if rejection is not None:
         # A company name moderation refuses is not a transient failure: every
         # later send fails identically, and twenty in a row suspend OTP for 24
@@ -278,7 +408,7 @@ async def send_otp_sms(
     entry.error = result.error
     entry.provider_message_id = result.provider_message_id
     if result.raw:
-        entry.response_meta = _safe_meta(result.raw)
+        entry.response_meta = _safe_meta(result.raw, code)
     data = result.raw.get("data") if isinstance(result.raw.get("data"), dict) else {}
     if data.get("parts_count"):
         entry.parts = int(data["parts_count"])
@@ -318,13 +448,25 @@ async def check_balance() -> dict[str, Any] | None:
         return None
 
 
-def _moderation_rejection(body: dict[str, Any]) -> dict[str, Any] | None:
+def moderation_rejection(body: dict[str, Any]) -> dict[str, Any] | None:
     """Describe a company-name rejection, or ``None`` for any other failure.
 
-    The provider signals one two ways: ``charged: false`` (the send never
-    reached Eskiz, so nothing was billed) and a ``reject_streak`` counter. Both
-    live either at the top level or inside ``data`` depending on the endpoint,
-    so both places are checked.
+    Public because ``scripts/check_sms.py`` needs the same answer and used to
+    carry its own copy of the rule — the copy that still read ``charged`` and so
+    still told whoever was on call, during the incident, to go and re-register a
+    brand name that was never the problem.
+
+    ``reject_streak`` is the signal, and the only one: it is the provider's own
+    count of consecutive moderation refusals, and twenty of them suspend OTP
+    sending for a day. ``charged: false`` used to be accepted as equivalent, but
+    it says nothing more than "you were not billed" — which is equally true of
+    an exhausted balance, a rejected API token and an unroutable number. Every
+    one of those was therefore logged as ``sms.moderation_rejected`` with the
+    company name attached, sending whoever was on call to re-register a brand
+    name that was never the problem while signup stayed down.
+
+    The counter lives either at the top level or inside ``data`` depending on
+    the endpoint, so both places are checked.
     """
     data = body.get("data") if isinstance(body.get("data"), dict) else {}
 
@@ -332,10 +474,10 @@ def _moderation_rejection(body: dict[str, Any]) -> dict[str, Any] | None:
         value = body.get(name)
         return data.get(name) if value is None else value
 
-    charged = field("charged")
     streak = field("reject_streak")
-    if charged is not False and streak is None:
+    if streak is None:
         return None
+    charged = field("charged")
     return {
         "charged": charged,
         "reject_streak": streak,
@@ -361,17 +503,37 @@ def _warn_on_low_balance(data: dict[str, Any]) -> None:
         log.warning("sms.balance_low", balance=balance)
 
 
-def _safe_meta(body: dict[str, Any]) -> dict[str, Any]:
-    """Keep provider metadata but never echo anything code-shaped back."""
+def _safe_meta(body: dict[str, Any], code: str | None = None) -> dict[str, Any]:
+    """Keep provider metadata but never echo anything code-shaped back.
+
+    Dropping ``message`` is not enough on its own: the same wording comes back
+    under ``error`` on a rejection, and that key has to be kept because it is
+    the only thing in the row that says what went wrong. It is scrubbed instead.
+    """
     drop = {"message", "text", "code", "otp_code"}
-    data = body.get("data")
-    cleaned = {
-        key: value
-        for key, value in body.items()
-        if key.lower() not in drop and key != "data"
-    }
-    if isinstance(data, dict):
-        cleaned["data"] = {
-            key: value for key, value in data.items() if key.lower() not in drop
-        }
-    return cleaned
+
+    def clean(value: Any, key: str | None = None) -> Any:
+        """Walk the whole body, not the top two levels.
+
+        The earlier version dropped and scrubbed at exactly two depths, which
+        was fine for the responses this provider sends today and silently
+        wrong for any of them that grows a nested request echo or a
+        per-message array — the live code would have been copied into
+        ``SmsLog.response_meta`` verbatim, in a column the admin panel reads.
+        """
+        if isinstance(value, dict):
+            return {
+                k: clean(v, k) for k, v in value.items() if k.lower() not in drop
+            }
+        if isinstance(value, list):
+            return [clean(item, key) for item in value]
+        if isinstance(value, str):
+            # Every string, not only the five named keys: a provider free to
+            # invent a key name is free to invent one this list has not heard
+            # of, and the cost of scrubbing a string that never held a code is
+            # nothing at all.
+            return _without_code(value, code)
+        return value
+
+    cleaned = clean(body)
+    return cleaned if isinstance(cleaned, dict) else {}

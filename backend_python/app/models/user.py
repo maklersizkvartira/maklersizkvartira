@@ -55,6 +55,10 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     status: Mapped[str] = mapped_column(
         String(30), default=UserStatus.PENDING_VERIFICATION.value, nullable=False, index=True
     )
+    #: The agency an ``AGENT`` works for or runs. Optional even for them — a
+    #: freelance realtor has none — and shown beside their listings so a caller
+    #: knows who they are reaching before they dial.
+    agency_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
     phone_verified_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
