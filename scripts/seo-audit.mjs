@@ -287,9 +287,31 @@ async function main() {
     // 297 errors on Vercel, where it is set to a different host. What is left
     // after the strip is prose and names, which is what this is guarding.
     //
+    // The API host too, for the same reason and a sharper one. The Railway
+    // service is called `maklersizkvartira-production`, and prerender.mjs
+    // injects a preconnect and a dns-prefetch at it whenever VITE_API_URL is
+    // set. That is infrastructure — a hostname no visitor reads and no crawler
+    // treats as content — but it put the retired brand into the served HTML of
+    // every page, twice, on Vercel and never locally, because the variable is
+    // only set there. The check was failing on all 326 pages the whole time
+    // and nobody saw it: the build ran the audit with `--warn`.
+    //
+    // Renaming the Railway service would be the other fix, and a worse one:
+    // the service name is also the host in vercel.json's sitemap rewrite and
+    // in every deployment URL, so it is not a rename, it is a migration.
+    const apiOrigin = (() => {
+      if (!process.env.VITE_API_URL) return null;
+      try {
+        return new URL(process.env.VITE_API_URL).origin;
+      } catch {
+        return null;
+      }
+    })();
+
     // Delete this list the day both old domains stop resolving.
     const TRANSITION_HOSTS = [
       process.env.VITE_SITE_URL,
+      apiOrigin,
       'https://maklersizuy.uz',
       'https://www.maklersizuy.uz',
       'https://maklersiz.uz',
