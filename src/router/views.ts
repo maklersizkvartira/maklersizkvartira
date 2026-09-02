@@ -13,6 +13,19 @@
 
 export type ViewState =
   | 'HOME'
+  /**
+   * The three auth screens.
+   *
+   * They are routes, not a dialog. Signing in used to happen in a modal over
+   * whatever page you were on, which meant the flow had no address of its
+   * own: it could not be linked to, Android's Back button dismissed the page
+   * underneath instead of the sheet, and a half-filled registration was lost
+   * to any navigation. A phone keyboard covering two thirds of a bottom sheet
+   * was the other half of the complaint.
+   */
+  | 'LOGIN'
+  | 'REGISTER'
+  | 'FORGOT_PASSWORD'
   | 'LISTINGS'
   | 'MAP'
   | 'LISTING_DETAIL'
@@ -40,6 +53,13 @@ export type ViewState =
  */
 export const VIEW_PATHS: Partial<Record<ViewState, string>> = {
   HOME: '/',
+  // English, unlike every other path here, and deliberately: these are the
+  // three addresses people type from memory and paste to each other, and
+  // `/login` is the one every visitor already knows. `/forget-password` is
+  // spelled the way the owner asked for it.
+  LOGIN: '/login',
+  REGISTER: '/register',
+  FORGOT_PASSWORD: '/forget-password',
   LISTINGS: '/elonlar',
   MAP: '/xarita',
   FAVORITES: '/saqlanganlar',
@@ -65,6 +85,12 @@ export const PATH_TO_VIEW: ReadonlyMap<string, ViewState> = new Map(
  * elsewhere can still be indexed without ever being fetched.
  */
 export const PRIVATE_VIEWS: ReadonlySet<ViewState> = new Set<ViewState>([
+  // A sign-in form is thin content that would compete with the pages that
+  // actually answer a search, and there is nothing on it for a crawler to
+  // read. Being here also keeps them out of the sitemap.
+  'LOGIN',
+  'REGISTER',
+  'FORGOT_PASSWORD',
   'FAVORITES',
   'PROFILE',
   'MY_LISTINGS',
@@ -105,6 +131,19 @@ export const REQUIRES_AUTH: ReadonlySet<ViewState> = new Set<ViewState>([
 export function authTabForView(view: ViewState): 'LOGIN' | 'REGISTER' {
   return view === 'CREATE_LISTING' ? 'REGISTER' : 'LOGIN';
 }
+
+/**
+ * The auth routes themselves.
+ *
+ * Used to keep the "where was I going?" target from being overwritten by the
+ * auth pages' own navigation: pressing "create an account" on /login must not
+ * make /login the place the visitor is returned to after signing up.
+ */
+export const AUTH_VIEWS: ReadonlySet<ViewState> = new Set<ViewState>([
+  'LOGIN',
+  'REGISTER',
+  'FORGOT_PASSWORD',
+]);
 
 /** The query-string vocabulary of the previous build, kept working. */
 export const LEGACY_VIEW_QUERY: Record<string, ViewState> = {
