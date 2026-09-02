@@ -179,7 +179,7 @@ your public git history or were shipped to browsers, so they are compromised.
 
 | Variable | Where to get a new one |
 |---|---|
-| `DEVSMS_API_TOKEN` | DevSMS dashboard → revoke the old token, issue a new one. Not needed yet — leave `SMS_ENABLED=false` until then |
+| `DEVSMS_API_TOKEN` | DevSMS dashboard → Sozlamalar → API. The working token is in `backend_python/.env` locally (that file is gitignored, which is why it is not written out here). After pasting it into Railway, confirm with `python -m scripts.check_sms` |
 | `TELEGRAM_BOT_TOKEN` | Telegram → @BotFather → `/revoke`, then `/token` |
 | `OPENAI_API_KEY` | platform.openai.com → API keys → revoke old, create new |
 | `DATABASE_URL` | nothing to paste — use "Add all from Postgres" in the API service, or the reference form |

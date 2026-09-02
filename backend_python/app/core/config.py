@@ -142,6 +142,9 @@ class Settings(BaseSettings):
     # -- External services ---------------------------------------------------
     DEVSMS_API_TOKEN: str = ""
     DEVSMS_API_URL: str = "https://devsms.uz/api"
+    #: Only used by the plain-text endpoint, which OTPs do not go through —
+    #: a universal-OTP send has no "from" field at all. Kept because the
+    #: provider defaults to this short number and support asks for it.
     DEVSMS_SENDER: str = "4546"
     #: The company name inside a verification SMS. Screened by the provider on
     #: every send, and twenty consecutive rejections suspend the account for a
@@ -331,6 +334,19 @@ class Settings(BaseSettings):
     def _check_jwt_secret(cls, v: str) -> str:
         if v and len(v) < 32:
             raise ValueError("JWT_SECRET must be at least 32 characters")
+        return v
+
+    @field_validator("OTP_LENGTH")
+    @classmethod
+    def _check_otp_length(cls, v: int) -> int:
+        """The SMS provider only carries 4 to 8 digit codes.
+
+        Outside that range every send is refused one by one, which reads as
+        "registration is broken" rather than as a bad setting — so it fails
+        here, at boot, where the cause is visible.
+        """
+        if not 4 <= v <= 8:
+            raise ValueError("OTP_LENGTH must be between 4 and 8 (provider limit)")
         return v
 
     def _looks_like_production(self) -> bool:
