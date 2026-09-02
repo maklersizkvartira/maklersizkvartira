@@ -74,6 +74,9 @@ backend/dist
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+# Editor workspace files land in public/, which is served verbatim: an
+# unignored one is a local path listing published at a public URL.
+*.code-workspace
 .idea
 .DS_Store
 *.suo

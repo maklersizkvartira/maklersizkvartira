@@ -194,7 +194,12 @@ export const ALL_METRO_STATIONS: readonly string[] = Array.from(
 /**
  * Guards the one collision that would silently break routing: a district
  * whose slug is also a category slug makes `/toshkent/<x>` ambiguous.
- * The SEO audit script fails the build on a non-empty result.
+ *
+ * Called at module load below, not from the audit script. The audit reads the
+ * built `dist/`, so by the time it could complain the ambiguous pages have
+ * already been generated and one of them has silently overwritten the other;
+ * and nothing in `scripts/` imports this module, so the check it was said to
+ * perform never ran at all.
  */
 export function findSlugCollisions(): string[] {
   const categorySlugs = new Set(CATEGORIES.map((category) => category.slug));
@@ -222,4 +227,13 @@ export function findSlugCollisions(): string[] {
     }
   }
   return collisions;
+}
+
+/*
+ * Fail the build, not the site. taxonomy -> routes -> entry-server, so this
+ * throws during `vite build --ssr` — before a single page is prerendered.
+ */
+const SLUG_COLLISIONS = findSlugCollisions();
+if (SLUG_COLLISIONS.length > 0) {
+  throw new Error(`taxonomy: ${SLUG_COLLISIONS.join('; ')}`);
 }

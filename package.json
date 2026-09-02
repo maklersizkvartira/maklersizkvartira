@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && npm run build:client && npm run build:ssr && npm run build:prerender && npm run build:sitemap && npm run seo:audit",
+    "build": "tsc --noEmit && npm run build:client && npm run build:ssr && npm run build:prerender && npm run build:sitemap && npm run seo:audit:strict",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "backend:dev": "cd backend_python && python3 run_dev.py",
