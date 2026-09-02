@@ -46,8 +46,12 @@ class Settings(BaseSettings):
     #: The public origin of the SITE, not of this API. Sitemaps served here are
     #: proxied onto that host, so every <loc> they publish has to name it —
     #: a sitemap listing URLs for a host it is not served from is only honoured
-    #: when both hosts are verified in Search Console.
-    SITE_URL: str = "https://maklersizuy.uz"
+    #: when both hosts are verified in Search Console. It must also be the host
+    #: that answers 200 rather than a redirect, and it must match the frontend's
+    #: VITE_SITE_URL exactly: sitemap-listings.xml is proxied onto the same host
+    #: as the page sitemap, and a listing <loc> on one host beside pages that
+    #: canonicalise to another is a split site as far as a crawler is concerned.
+    SITE_URL: str = "https://uyiz.uz"
     PORT: int = 5000
     LOG_LEVEL: str = "INFO"
     # Number of reverse proxies in front of the app. Controls how far back in
@@ -121,6 +125,15 @@ class Settings(BaseSettings):
     # -- OTP policy ----------------------------------------------------------
     OTP_LENGTH: int = 6
     OTP_TTL_MINUTES: int = 5
+    #: Password-reset codes only. A registration or sign-in code is typed on the
+    #: screen that asked for it, so five minutes is generous; a reset is not one
+    #: screen but three — phone, then code, then choose-and-confirm a new
+    #: password — and somebody thinking up a password they will actually
+    #: remember spends longer on the last screen than the code survives. They
+    #: then finish, and are told the code they already typed correctly has
+    #: expired. Read through ``app.services.auth.otp_ttl_minutes``, never
+    #: directly, so the row and the countdown the client shows cannot disagree.
+    OTP_PASSWORD_RESET_TTL_MINUTES: int = 15
     OTP_MAX_ATTEMPTS: int = 5
     OTP_RESEND_COOLDOWN_SECONDS: int = 60
     OTP_MAX_PER_PHONE_PER_DAY: int = 10

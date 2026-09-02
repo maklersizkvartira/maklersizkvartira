@@ -39,14 +39,20 @@ const ENTRY = path.join(ROOT, '.prerender', 'entry-server.js');
  * strips the host before comparing. Setting VITE_SITE_URL makes both
  * defaults moot, which is how it should be deployed.
  */
-// Still maklersizuy.uz: this must be the host the pages are SERVED from, not
-// the brand. See the long note in src/seo/config.ts — flip both together.
-const SITE_URL = (process.env.VITE_SITE_URL || 'https://maklersizuy.uz').replace(/\/+$/, '');
+// The host that answers 200 — the Vercel Primary Domain, not merely the brand.
+// A <loc> pointing at a URL that redirects is dropped as "Page with redirect".
+// See the long note in src/seo/config.ts; the two defaults flip together.
+const SITE_URL = (process.env.VITE_SITE_URL || 'https://uyiz.uz').replace(/\/+$/, '');
 
 /** Private and duplicate surfaces. Also `noindex` in the page head itself: */
 /* robots.txt only stops the crawl, and a URL linked from elsewhere can still
    be indexed without ever being fetched. */
 const DISALLOWED = [
+  // The sign-in flow. Thin content that would compete with the pages that
+  // actually answer a search, and there is nothing on it for a crawler.
+  '/login',
+  '/register',
+  '/forget-password',
   '/profil',
   '/saqlanganlar',
   '/mening-elonlarim',
@@ -220,7 +226,15 @@ async function main() {
     '# Signed-in surfaces and the API. Nothing here is useful in a search',
     '# result, and crawling it only spends crawl budget that the listing',
     '# pages need.',
-    ...DISALLOWED.map((rule) => `Disallow: ${rule}`),
+    // Every private surface exists three times over — /profil, /ru/profil and
+    // /en/profil are three different URLs and only the first was disallowed.
+    // Derived from LANGUAGES rather than written out, so a fourth language
+    // cannot quietly reopen them. /admin and /api/ are not language-prefixed.
+    ...DISALLOWED.flatMap((rule) =>
+      rule === '/api/' || rule === '/admin'
+        ? [rule]
+        : [rule, ...LANGUAGES.filter((code) => code !== 'uz').map((code) => `/${code}${rule}`)],
+    ).map((rule) => `Disallow: ${rule}`),
     '',
     '# Filter and tracking parameters. The canonical page is the clean path;',
     '# these produce endless near-identical variants of it.',

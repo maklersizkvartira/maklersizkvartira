@@ -35,6 +35,10 @@
       module graph and cannot import src/seo/config.ts. The other two copies
       live in that file and in scripts/generate-sitemap.mjs; all three move
       together, and VITE_SITE_URL overrides the two that are code.
+
+      It must name the host that answers 200 — the Vercel Primary Domain. A
+      canonical or hreflang target that answers a redirect is discarded rather
+      than followed, and nothing in the build catches it.
     -->
     <!--seo-head-start-->
     <title>Kvartira va uy ijarasi O‘zbekistonda | Uyiz.uz</title>
@@ -43,11 +47,11 @@
       content="Uyiz — O‘zbekiston bo‘ylab kvartira, uy va xona ijarasi e’lonlari. Hudud, narx, xonalar soni va metro bekati bo‘yicha filtrlab, o‘zingizga mosini toping."
     />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
-    <link rel="canonical" href="https://maklersizuy.uz/" />
-    <link rel="alternate" hreflang="uz" href="https://maklersizuy.uz/" />
-    <link rel="alternate" hreflang="ru" href="https://maklersizuy.uz/ru" />
-    <link rel="alternate" hreflang="en" href="https://maklersizuy.uz/en" />
-    <link rel="alternate" hreflang="x-default" href="https://maklersizuy.uz/" />
+    <link rel="canonical" href="https://uyiz.uz/" />
+    <link rel="alternate" hreflang="uz" href="https://uyiz.uz/" />
+    <link rel="alternate" hreflang="ru" href="https://uyiz.uz/ru" />
+    <link rel="alternate" hreflang="en" href="https://uyiz.uz/en" />
+    <link rel="alternate" hreflang="x-default" href="https://uyiz.uz/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Uyiz" />
     <meta property="og:locale" content="uz_UZ" />
@@ -56,10 +60,10 @@
       property="og:description"
       content="O‘zbekiston bo‘ylab kvartira, uy va xona ijarasi e’lonlari. Hudud, narx va metro bekati bo‘yicha filtrlang."
     />
-    <meta property="og:url" content="https://maklersizuy.uz/" />
+    <meta property="og:url" content="https://uyiz.uz/" />
     <!-- Absolute, because the Open Graph protocol requires it: a root-relative
          path leaves Telegram, WhatsApp and Slack with no preview image. -->
-    <meta property="og:image" content="https://maklersizuy.uz/brand/og-image.png" />
+    <meta property="og:image" content="https://uyiz.uz/brand/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -68,7 +72,7 @@
       name="twitter:description"
       content="O‘zbekiston bo‘ylab kvartira, uy va xona ijarasi e’lonlari. Hudud, narx va metro bekati bo‘yicha filtrlang."
     />
-    <meta name="twitter:image" content="https://maklersizuy.uz/brand/og-image.png" />
+    <meta name="twitter:image" content="https://uyiz.uz/brand/og-image.png" />
     <!--seo-head-end-->
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
