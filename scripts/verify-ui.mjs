@@ -103,23 +103,21 @@ for (const [theme, language] of checks) {
   await context.close();
 }
 
-// The auth dialog is the flow that was specifically requested — open it.
+// Signing in is a route now, not a dialog over the page it was opened from,
+// so this visits it directly: that is also the case that used to be broken —
+// a pasted /login had no page behind it at all.
 {
   const { context, page } = await newPage('dark', 'uz');
-  await page.goto(BASE, { waitUntil: 'networkidle', timeout: 30000 });
-  await page.waitForTimeout(600);
-  const signUp = page.locator('header button', { hasText: /E.lon berish|Kirish/ }).first();
-  if (await signUp.count()) {
-    await signUp.click();
-    await page.waitForTimeout(700);
-    const dialog = page.locator('[role="dialog"]');
-    if (await dialog.count()) {
-      await page.screenshot({ path: `${OUT}/auth-dialog.png` });
-      const fields = await dialog.locator('input').count();
-      console.log(`auth       dialog opened, ${fields} input(s)`);
-    } else {
-      problems.push('[auth] dialog did not open');
-    }
+  await page.goto(`${BASE}/login`, { waitUntil: 'networkidle', timeout: 30000 });
+  await page.waitForTimeout(700);
+  const form = page.locator('main form').first();
+  if (await form.count()) {
+    await page.screenshot({ path: `${OUT}/auth-login.png` });
+    const fields = await form.locator('input').count();
+    console.log(`auth       /login rendered, ${fields} input(s)`);
+    if (fields < 2) problems.push('[auth] /login is missing the phone or password field');
+  } else {
+    problems.push('[auth] /login did not render a form');
   }
   await context.close();
 }

@@ -38,6 +38,7 @@ import { cn } from '../../lib/cn';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useAppStore } from '../../stores/useAppStore';
 import type { Listing } from '../../types';
+import { sellerTypeOf } from '../../types/roles';
 import { AppLink } from '../../router/AppLink';
 import { listingPath } from '../../seo/routes';
 import { listingSlug } from '../../seo/slugs';
@@ -143,6 +144,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
 
   const isFavorite = favoriteIds.has(listing.id);
   const trust = trustTone(listing.trustScore ?? 0);
+  const isAgentListing = sellerTypeOf(listing) === 'AGENT';
   const href = listingPath({ id: listing.id, slug: listingSlug(listing) });
   const rotates = autoRotate ?? images.length > 1;
 
@@ -418,7 +420,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
           optional metro line and the closing row leave under ten pixels of
           slack at 144. A second meta line costs ~21px, so on a narrow phone a
           listing that has rooms AND area AND district AND a metro station
-          pushed the closing row — the direct-contact badge and the age of the
+          pushed the closing row — the seller badge and the age of the
           listing — out through the bottom edge, where the clip silently ate
           it. This is the same call the title makes two rows up and for the
           same reason: in the list variant a row that can grow is a row that
@@ -466,8 +468,21 @@ export const ListingCard: React.FC<ListingCardProps> = ({
       )}
 
       <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-        <span className="inline-flex items-center gap-1 rounded-md bg-brand-soft px-1.5 py-0.5 text-[9px] sm:text-[10px] font-black text-brand-text">
-          {t('listings.card.directContact')}
+        {/* This slot promised "direct contact" on every card in the grid,
+            which is a claim about who picks up the phone — and agents publish
+            here now, so on their listings it was simply untrue. Saying which
+            of the two it is costs the same pixels and is the only version a
+            visitor can act on.
+            The agent tone is `info`, not `warning`: an agency listing is a
+            legitimate one, and any of the colours this app spends on problems
+            would turn a statement of fact into a caution. */}
+        <span
+          className={cn(
+            'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] sm:text-[10px] font-black',
+            isAgentListing ? 'bg-info-soft text-info' : 'bg-brand-soft text-brand-text',
+          )}
+        >
+          {t(isAgentListing ? 'listings.seller.agentBadge' : 'listings.seller.ownerBadge')}
         </span>
         <span className="text-[10px] sm:text-[11px] text-subtle">
           {listing.createdAt ? formatRelativeTime(listing.createdAt) : null}

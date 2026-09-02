@@ -13,6 +13,7 @@ export const common = {
 
   role: {
     owner: 'Владелец жилья',
+    agent: 'Агент по недвижимости',
     student: 'Студент',
     tenant: 'Арендатор',
     guest: 'Гость',

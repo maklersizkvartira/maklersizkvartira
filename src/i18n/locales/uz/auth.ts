@@ -17,6 +17,10 @@ export const auth = {
       title: 'Men uy egasiman',
       description: 'Kvartiramni ijaraga bermoqchiman',
     },
+    agent: {
+      title: 'Men ko‘chmas mulk agentiman',
+      description: 'Uy egalari nomidan e’lon joylashtiraman',
+    },
     student: {
       title: 'Kvartira izlayapman',
       description: 'Oila, talaba yoki sheriklikka uy qidiryapman',
@@ -43,6 +47,20 @@ export const auth = {
     showPassword: 'Parolni ko‘rsatish',
     hidePassword: 'Parolni yashirish',
     rememberMe: 'Meni eslab qol',
+    agency: 'Agentlik nomi',
+    agencyPlaceholder: 'Masalan: Zamin Realty',
+    agencyHint: 'Ixtiyoriy. Mustaqil rieltor bo‘lsangiz, bo‘sh qoldiring.',
+  },
+
+  /**
+   * The full-screen /login, /register va /forget-password sahifalari uchun —
+   * modalda X tugmasi bor edi, sahifada esa chiqib ketish yo‘li kerak.
+   */
+  page: {
+    guest: 'Mehmon sifatida davom etish',
+    backHome: 'Bosh sahifaga qaytish',
+    terms: 'Davom etish orqali siz Ommaviy Oferta shartlariga rozilik bildirasiz.',
+    secure: 'Ma’lumotlaringiz shifrlangan holda uzatiladi.',
   },
 
   strength: {
@@ -111,6 +129,9 @@ export const auth = {
     title: 'Yangi parol o‘rnating',
     subtitle: 'SMS kodni kiriting va yangi parol tanlang',
     submit: 'Parolni yangilash',
+    submitting: 'Parol yangilanmoqda...',
+    signInFailed:
+      'Parol yangilandi, lekin avtomatik kirib bo‘lmadi. Yangi parol bilan kiring.',
     success: 'Parol yangilandi. Endi yangi parol bilan kiring.',
     // One fused screen became three: phone, then the SMS code, then the new
     // password twice. Each step needs its own heading, and the code step
@@ -120,6 +141,7 @@ export const auth = {
     passwordTitle: 'Yangi parol tanlang',
     passwordSubtitle: 'Parolni ikki marta kiriting — birini boshqasi tasdiqlaydi.',
     continue: 'Davom etish',
+    checking: 'Kod tekshirilmoqda...',
     codeInvalid: 'Kod noto‘g‘ri yoki muddati tugagan. Yangi kod so‘rang.',
     stepOf: '{current}-qadam / {total}',
   },
@@ -179,6 +201,10 @@ export const auth = {
     passwordMismatch: 'Parollar mos kelmadi.',
     codeRequired: 'Tasdiqlash kodini kiriting.',
     codeIncomplete: 'Kodni to‘liq kiriting.',
+    codeInvalid: 'Kod noto‘g‘ri. Diqqat bilan qayta kiriting.',
+    codeExpired: 'Kod muddati tugadi. Yangi kod so‘rang.',
+    codeInvalidOrExpired: 'Kod noto‘g‘ri yoki muddati tugagan. Yangi kod so‘rang.',
+    codeAttempts: 'Urinishlar tugadi. Yangi kod so‘rang.',
     roleRequired: 'Avval rolni tanlang.',
     googleDomain:
       'Google orqali kirish bu manzil uchun sozlanmagan. Telefon raqami bilan kiring yoki administratorga xabar bering.',

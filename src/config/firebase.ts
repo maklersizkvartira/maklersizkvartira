@@ -7,10 +7,12 @@
  * from the client and the server believed it, which meant anyone could sign
  * in as anyone by typing their address into a request.
  *
- * The SDK is loaded on demand rather than imported at the top of the file.
- * `AuthDialog` is part of the app shell, so a static import put ~94KB of
- * Firebase (28KB gzipped) on the critical path of every first paint — for a
- * button that most visitors never press, on a page most of them never open.
+ * The SDK is loaded on demand rather than imported at the top of the file. A
+ * static import put ~94KB of Firebase (28KB gzipped) on the critical path of
+ * every first paint — for a button that most visitors never press, on a page
+ * most of them never open. `AuthPage` is a lazy route now as well, which is
+ * belt and braces: `preloadGoogleAuth()` starts the fetch as the page mounts,
+ * so the download still overlaps with the visitor reading the form.
  * Everything below that a caller needs synchronously (is it configured, was
  * the popup dismissed) stays synchronous.
  *

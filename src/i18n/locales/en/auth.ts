@@ -17,6 +17,10 @@ export const auth = {
       title: 'I am a property owner',
       description: 'I want to rent out my flat',
     },
+    agent: {
+      title: 'I am a real-estate agent',
+      description: 'I post on behalf of the owners I represent',
+    },
     student: {
       title: 'I am looking for a flat',
       description: 'Looking for a place for a family, a student or shared / roommate living',
@@ -43,6 +47,16 @@ export const auth = {
     showPassword: 'Show password',
     hidePassword: 'Hide password',
     rememberMe: 'Remember me',
+    agency: 'Agency name',
+    agencyPlaceholder: 'For example: Zamin Realty',
+    agencyHint: 'Optional. Leave it blank if you work independently.',
+  },
+
+  page: {
+    guest: 'Continue as a guest',
+    backHome: 'Back to the home page',
+    terms: 'By continuing you agree to the Public Offer terms.',
+    secure: 'Your details are sent over an encrypted connection.',
   },
 
   strength: {
@@ -111,6 +125,9 @@ export const auth = {
     title: 'Set a new password',
     subtitle: 'Enter the SMS code and choose a new password',
     submit: 'Update password',
+    submitting: 'Updating your password...',
+    signInFailed:
+      'Your password was updated, but signing you in automatically failed. Sign in with the new one.',
     success: 'Password updated. Now sign in with the new password.',
     // One fused screen became three: phone, then the SMS code, then the new
     // password twice. Each step needs its own heading, and the code step
@@ -120,6 +137,7 @@ export const auth = {
     passwordTitle: 'Choose a new password',
     passwordSubtitle: 'Type the password twice — the second one confirms the first.',
     continue: 'Continue',
+    checking: 'Checking the code...',
     codeInvalid: 'That code is wrong or has expired. Request a new one.',
     stepOf: 'Step {current} of {total}',
   },
@@ -179,6 +197,10 @@ export const auth = {
     passwordMismatch: 'The passwords do not match.',
     codeRequired: 'Enter the verification code.',
     codeIncomplete: 'Enter the full code.',
+    codeInvalid: 'That code is wrong. Check it and enter it again.',
+    codeExpired: 'That code has expired. Request a new one.',
+    codeInvalidOrExpired: 'That code is wrong or has expired. Request a new one.',
+    codeAttempts: 'You have run out of attempts. Request a new code.',
     roleRequired: 'Select a role first.',
     googleDomain:
       'Google sign-in is not configured for this address. Sign in with your phone number instead.',

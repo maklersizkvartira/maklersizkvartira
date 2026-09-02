@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 
 import { VerificationBadge } from '../common/VerificationBadge';
+import { sellerTypeOf } from '../../types/roles';
 import { useTranslation } from '../../i18n';
 import { AMENITIES } from '../../data/amenities';
 import { ApiError } from '../../services/http';
@@ -396,6 +397,9 @@ export const ListingDetailPage: React.FC = () => {
   }
 
   const propertyTypeKey = PROPERTY_TYPE_KEYS[listing.propertyType];
+  // Through the shared helper rather than a second reading of the field, so a
+  // listing cannot be an owner's in the grid and an agent's on this page.
+  const isAgentListing = sellerTypeOf(listing) === 'AGENT';
   const joinedDate = listing.owner?.joinedDate;
   const joinedLabel =
     joinedDate && !Number.isNaN(new Date(joinedDate).getTime()) ? formatDate(joinedDate) : null;
@@ -891,8 +895,18 @@ export const ListingDetailPage: React.FC = () => {
                 </span>
               </p>
               <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-                <span className="rounded-md bg-brand-soft px-2 py-0.5 font-black text-brand-text">
-                  {t('listings.card.directContact')}
+                {/* The same badge the grid card carries, in the same two
+                    tones, because this is the same promise: it stood here as
+                    an unconditional "direct contact" and an agent's listing
+                    made that a false one. It leads the line above the
+                    publisher block, so who is offering the flat is read
+                    before the price is acted on. */}
+                <span
+                  className={`rounded-md px-2 py-0.5 font-black ${
+                    isAgentListing ? 'bg-info-soft text-info' : 'bg-brand-soft text-brand-text'
+                  }`}
+                >
+                  {t(isAgentListing ? 'listings.seller.agentBadge' : 'listings.seller.ownerBadge')}
                 </span>
                 <span className={listing.utilitiesIncluded ? 'text-brand-text' : 'text-subtle'}>
                   {listing.utilitiesIncluded
@@ -907,9 +921,23 @@ export const ListingDetailPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Owner */}
+            {/* Publisher.
+
+                Not "owner" any more, in the heading or in the fallback name.
+                An agent's listing put a real agent's name under a block
+                headed "Uy egasi" and, when the account had no name on it,
+                under the word "Uy egasi" itself — on the one card a visitor
+                reads to decide who they are about to ring.
+
+                Both halves of every one of these ternaries come from
+                `listings.seller`, because the two families do not describe the
+                same people: `common.role.*` names an account's role, and in
+                English it says "Landlord" where this slot's agent half says
+                "Real-estate agent" — one screen, two vocabularies. */}
             <div className="space-y-3 rounded-xl border border-line bg-surface-2 p-4">
-              <h3 className="sr-only">{t('listings.detail.ownerTitle')}</h3>
+              <h3 className="sr-only">
+                {t(isAgentListing ? 'listings.seller.agentLabel' : 'listings.seller.ownerLabel')}
+              </h3>
               <div className="flex items-center gap-3">
                 {listing.owner?.avatar ? (
                   <img
@@ -925,8 +953,30 @@ export const ListingDetailPage: React.FC = () => {
                 )}
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold text-content">
-                    {listing.owner?.name || t('common.role.owner')}
+                    {listing.owner?.name ||
+                      t(
+                        isAgentListing
+                          ? 'listings.seller.agentLabel'
+                          : 'listings.seller.ownerLabel',
+                      )}
                   </p>
+                  {/* A person's name reads the same whoever they are, so on an
+                      agent listing this is the line that says what the name
+                      above it is — and which firm, when the listing carries
+                      one. The agency is snapshotted at publish time rather
+                      than read from the account, so it is the name that was
+                      true when this flat went up.
+
+                      With neither a name nor an agency there is nothing left
+                      to qualify: the line above has already fallen back to
+                      the label, and this would print it a second time. */}
+                  {isAgentListing && (listing.agencyName || listing.owner?.name) && (
+                    <p className="truncate text-[11px] font-bold text-info">
+                      {listing.agencyName
+                        ? t('listings.seller.agency', { name: listing.agencyName })
+                        : t('listings.seller.agentLabel')}
+                    </p>
+                  )}
                   {joinedLabel && (
                     <p className="text-[11px] text-subtle">
                       {t('listings.detail.memberSince', { date: joinedLabel })}
@@ -944,14 +994,24 @@ export const ListingDetailPage: React.FC = () => {
                 {/* The PERSON's score, not the listing's. It is a different
                     number under a different rule — it rises when an account is
                     verified — so it carries its own label rather than the one
-                    that explains confirmed complaints. */}
+                    that explains confirmed complaints.
+
+                    Which person, though, has to agree with the badge three
+                    rows up: the figure is the publishing account's, so on an
+                    agent's listing the fixed "owner" wording credited it to
+                    somebody who has no account on this page at all. */}
                 <span
                   className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-black ${trustToneClass(
                     listing.owner?.trustScore ?? 0,
                   )}`}
                 >
                   <ShieldCheck className="h-3 w-3" aria-hidden="true" />
-                  {t('listings.detail.ownerTrustScore', { score: listing.owner?.trustScore ?? 0 })}
+                  {t(
+                    isAgentListing
+                      ? 'listings.seller.trustAgent'
+                      : 'listings.detail.ownerTrustScore',
+                    { score: listing.owner?.trustScore ?? 0 },
+                  )}
                 </span>
                 {listing.owner?.verificationLevel ? (
                   <VerificationBadge level={listing.owner.verificationLevel} size="sm" />
@@ -986,7 +1046,12 @@ export const ListingDetailPage: React.FC = () => {
                 }}
               >
                 <MessageSquare className="h-4 w-4" aria-hidden="true" />
-                {t('listings.card.contactOwner')}
+                {/* The one control the whole page is built to get pressed, so
+                    it is the last place that may name the wrong party: the
+                    badge, the name and the agency line above it had already
+                    said "agent" while this still offered to contact an owner
+                    who never sees the message. */}
+                {t(isAgentListing ? 'listings.seller.contactAgent' : 'listings.card.contactOwner')}
               </Button>
 
               {phoneVisible && ownerPhone ? (
@@ -1011,7 +1076,11 @@ export const ListingDetailPage: React.FC = () => {
 
               {currentUser && !ownerPhone && (
                 <p className="text-[11px] leading-tight text-warning">
-                  {t('listings.detail.phoneUnavailable')}
+                  {t(
+                    isAgentListing
+                      ? 'listings.seller.phoneUnavailableAgent'
+                      : 'listings.detail.phoneUnavailable',
+                  )}
                 </p>
               )}
 

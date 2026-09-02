@@ -6,6 +6,23 @@
  * closes. Saving goes through `ListingsApi.update`, which returns the listing
  * as the server stored it; the caller gets that copy back rather than the
  * optimistic local object the previous version invented.
+ *
+ * Two things this form used to get wrong about numbers, both of which made a
+ * perfectly ordinary edit impossible:
+ *
+ *  - The browser refused the submit. Price and deposit carried
+ *    `step={100000}` on a `<form>` with no `noValidate`, so 3 450 000 so‘m —
+ *    not a multiple of a hundred thousand — was rejected by a native bubble
+ *    with no way to act on it, and the area box defaulted to a step of 1, so
+ *    54.5 m² could not be saved either.
+ *  - Every number field snapped to 0 the moment it was cleared, because
+ *    `Number('')` is 0. Backspacing a price to retype it wrote a literal zero
+ *    into the box and, if the owner then pressed Save, into the listing.
+ *
+ * Validation is done here rather than left to the API for the same reason the
+ * create wizard does it: a rejected update comes back as one 422 for the whole
+ * form, which the dialog could only render as "saving failed" over a form
+ * where nothing said which box was wrong.
  */
 
 import React, { useEffect, useId, useRef, useState } from 'react';
@@ -14,13 +31,66 @@ import { Edit3, Save, X } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 import { UZBEKISTAN_REGIONS, TASHKENT_METRO_LINES } from '../../data/mockLocations';
 import { AMENITIES, amenityStateFrom, type AmenityState } from '../../data/amenities';
+import { ApiError } from '../../services/http';
 import { ListingsApi } from '../../services/listingsApi';
 import { useAppStore } from '../../stores/useAppStore';
-import type { Listing } from '../../types';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
+import type { Listing, PropertyType } from '../../types';
 import { Button, Field, FormError, SelectInput, TextInput } from '../ui/Field';
 
 /** Stored value for "no metro nearby"; the label is translated at render time. */
 const METRO_NONE = 'NONE';
+
+/**
+ * The schema's own caps (`app/schemas/listing.py`), mirrored — as the create
+ * wizard mirrors them.
+ *
+ * They are re-declared rather than imported from `CreateListingPage`: that
+ * module is the lazily loaded "post a listing" route and this dialog ships
+ * with My Listings, so importing two numbers out of it would pull the whole
+ * wizard into the listings chunk.
+ */
+const MAX_TITLE_LENGTH = 160;
+const MAX_DESCRIPTION_LENGTH = 5000;
+const MAX_ADDRESS_LENGTH = 255;
+
+/** The five kinds of place the API knows about, in the wizard's order. */
+const PROPERTY_TYPES: readonly { value: PropertyType; labelKey: string }[] = [
+  { value: 'APARTMENT', labelKey: 'listings.propertyType.apartment' },
+  { value: 'HOUSE', labelKey: 'listings.propertyType.house' },
+  { value: 'ROOM', labelKey: 'listings.propertyType.room' },
+  { value: 'STUDIO', labelKey: 'listings.propertyType.studio' },
+  { value: 'DORMITORY', labelKey: 'listings.propertyType.dormitory' },
+];
+
+/**
+ * Which box a 422 is about.
+ *
+ * The API answers with the camelCase alias it was sent
+ * (`preferredContactTime`), which is not this form's error key, so the two are
+ * written down rather than assumed to line up.
+ */
+const SERVER_FIELDS: Record<string, string> = {
+  title: 'title',
+  description: 'description',
+  price: 'price',
+  depositPrice: 'deposit',
+  rooms: 'rooms',
+  area: 'area',
+  floor: 'floor',
+  totalFloors: 'floor',
+  propertyType: 'propertyType',
+  address: 'address',
+  metroDistanceMinutes: 'metroMinutes',
+};
+
+/**
+ * `number | ''` rather than `number`.
+ *
+ * `Number('')` is 0, so with a plain number state clearing a box wrote a
+ * literal zero into it and there was no way to type a new value over the top.
+ */
+type NumberField = number | '';
 
 const checkboxClass =
   'h-4 w-4 shrink-0 rounded border-line-2 text-brand accent-[var(--color-brand)] focus:ring-brand';
@@ -45,23 +115,36 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
 }) => {
   const { t, tRaw } = useTranslation();
   const pushToast = useAppStore((state) => state.pushToast);
+  const prefersReducedMotion = useReducedMotion();
 
   const titleId = useId();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const errorBannerRef = useRef<HTMLDivElement>(null);
 
   const [title, setTitle] = useState(listing.title);
   const [description, setDescription] = useState(listing.description);
-  const [price, setPrice] = useState(listing.price);
-  const [deposit, setDeposit] = useState(listing.depositPrice ?? 0);
+  const [propertyType, setPropertyType] = useState<PropertyType>(
+    listing.propertyType ?? 'APARTMENT',
+  );
+  const [price, setPrice] = useState<NumberField>(listing.price ?? '');
+  // `?? ''`, not `?? 0`: a listing with no deposit asks for no deposit, and
+  // showing a zero in the box turned that into "the deposit is nothing" on
+  // the next save.
+  const [deposit, setDeposit] = useState<NumberField>(listing.depositPrice ?? '');
   const [rooms, setRooms] = useState(listing.rooms);
-  const [area, setArea] = useState(listing.area);
-  const [floor, setFloor] = useState(listing.floor);
-  const [totalFloors, setTotalFloors] = useState(listing.totalFloors);
+  const [area, setArea] = useState<NumberField>(listing.area ?? '');
+  const [floor, setFloor] = useState<NumberField>(listing.floor ?? '');
+  const [totalFloors, setTotalFloors] = useState<NumberField>(listing.totalFloors ?? '');
   const [region, setRegion] = useState(listing.region);
   const [district, setDistrict] = useState(listing.district);
   const [address, setAddress] = useState(listing.address ?? '');
   const [metro, setMetro] = useState(listing.metroStation ?? METRO_NONE);
-  const [metroMinutes, setMetroMinutes] = useState(listing.metroDistanceMinutes ?? 5);
+  // Empty rather than a plausible 5: the previous default invented a
+  // walking distance for every listing that had never been asked for one, and
+  // saving the form published it.
+  const [metroMinutes, setMetroMinutes] = useState<NumberField>(
+    listing.metroDistanceMinutes ?? '',
+  );
   // All seven, from the shared list. This form used to expose four, so the
   // three it left out — air conditioning, a washing machine, internet — could
   // be switched on while posting and never switched off again.
@@ -69,6 +152,19 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  /** Field name -> translation key, so errors survive a language switch. */
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  /**
+   * Counts refused saves, so the effect below runs again on the second one.
+   *
+   * The panel is `max-h-[90vh] overflow-y-auto` and the banner is its first
+   * child, so pressing Save at the bottom of the form on a phone set a message
+   * several screens above the thumb that pressed it and moved nothing: the
+   * dialog looked like it had ignored the press. A counter rather than the
+   * message itself, because pressing Save twice on the same unfixed form sets
+   * the identical string and would not re-run an effect keyed on it.
+   */
+  const [errorNudge, setErrorNudge] = useState(0);
 
   const activeRegion =
     UZBEKISTAN_REGIONS.find((item) => item.name === region) ?? UZBEKISTAN_REGIONS[0];
@@ -84,28 +180,114 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
+  // Bring the banner back into the panel's own scroll after a refused save,
+  // and take focus with it — the message is the answer to the press, and
+  // moving focus is what tells a screen reader what the scroll tells everyone
+  // else.
+  useEffect(() => {
+    if (errorNudge === 0) return;
+    const banner = errorBannerRef.current;
+    if (!banner) return;
+    banner.focus({ preventScroll: true });
+    banner.scrollIntoView({
+      block: 'start',
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+    });
+  }, [errorNudge, prefersReducedMotion]);
+
+  /** Clears one field's error the moment it is corrected, rather than leaving
+   *  a red box around a value that has already been fixed. */
+  const clearError = (field: string) =>
+    setFormErrors((current) => (current[field] ? { ...current, [field]: '' } : current));
+
+  const numberHandler =
+    (set: (value: NumberField) => void, field: string) =>
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const raw = event.target.value;
+      set(raw === '' ? '' : Number(raw));
+      clearError(field);
+    };
+
+  /** The create wizard's rules, applied to the same fields. Both ends of every
+   *  length: the server trims before it measures, so `.trim().length` is what
+   *  is compared here too. */
+  const validate = (): Record<string, string> => {
+    const errors: Record<string, string> = {};
+
+    if (title.trim().length < 8) errors.title = 'owner.create.validation.title';
+    else if (title.trim().length > MAX_TITLE_LENGTH) errors.title = 'common.error.validation';
+
+    if (description.trim().length < 20) {
+      errors.description = 'owner.create.validation.description';
+    } else if (description.trim().length > MAX_DESCRIPTION_LENGTH) {
+      errors.description = 'common.error.validation';
+    }
+
+    if (price === '' || price <= 0) errors.price = 'owner.create.validation.price';
+    if (deposit !== '' && deposit < 0) errors.deposit = 'owner.create.validation.deposit';
+    if (area !== '' && area <= 0) errors.area = 'owner.create.validation.area';
+    if (
+      (floor !== '' && floor < 1) ||
+      (totalFloors !== '' && totalFloors < 1) ||
+      (floor !== '' && totalFloors !== '' && floor > totalFloors)
+    ) {
+      errors.floor = 'owner.create.validation.floor';
+    }
+    if (address.trim().length > MAX_ADDRESS_LENGTH) errors.address = 'common.error.validation';
+    // Only a value that is there is checked. The create wizard insists on the
+    // minutes once a station is named, but this dialog also opens on listings
+    // published before the question existed, and an empty box must not be the
+    // reason an unrelated correction cannot be saved.
+    if (
+      metro !== METRO_NONE &&
+      metroMinutes !== '' &&
+      (metroMinutes < 1 || metroMinutes > 60)
+    ) {
+      errors.metroMinutes = 'owner.create.validation.metroMinutes';
+    }
+
+    return errors;
+  };
+
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault();
+
+    const errors = validate();
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      // A line at the top as well as the red boxes: the dialog scrolls, and
+      // the field that failed is often above the fold of the Save button that
+      // was just pressed. Setting it is not enough on its own — the nudge is
+      // what brings the panel back to it.
+      setSaveError(t('common.error.validation'));
+      setErrorNudge((count) => count + 1);
+      return;
+    }
 
     setSaving(true);
     setSaveError(null);
 
     // Only fields the owner may change; server-owned values (status, scores,
     // counters) are never echoed back or the API rejects the payload with 422.
+    // An optional number that has been cleared travels as null, which is the
+    // API's way of saying "this listing has no answer to that" — a zero would
+    // be an answer.
     const changes: Record<string, unknown> = {
       title: title.trim(),
       description: description.trim(),
-      price,
-      depositPrice: deposit,
+      propertyType,
+      price: price === '' ? null : price,
+      depositPrice: deposit === '' ? null : deposit,
       rooms,
-      area,
-      floor,
-      totalFloors,
+      area: area === '' ? null : area,
+      floor: floor === '' ? null : floor,
+      totalFloors: totalFloors === '' ? null : totalFloors,
       region,
       district,
       address: address.trim(),
       metroStation: metro === METRO_NONE ? null : metro,
-      metroDistanceMinutes: metro === METRO_NONE ? null : metroMinutes,
+      metroDistanceMinutes:
+        metro === METRO_NONE || metroMinutes === '' ? null : metroMinutes,
       // `videoUrl` is deliberately absent rather than sent as null: video is
       // gone from the product, but a listing posted before that still has one
       // stored, and an update that names the field would wipe it on every save.
@@ -117,9 +299,31 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
       pushToast('layout.toast.listingUpdated', 'success');
       onSaved?.(updated);
       onClose();
-    } catch {
-      setSaveError(t('owner.edit.saveFailed'));
-      pushToast('common.error.generic', 'error');
+    } catch (error) {
+      // Every branch below ends in a message in that same banner, so the panel
+      // is brought back to it once, here, rather than three times over.
+      setErrorNudge((count) => count + 1);
+      if (error instanceof ApiError && error.isRateLimited) {
+        // A real cap on writes, not a broken connection: saying "try again"
+        // sends the owner into a wall that has not moved yet.
+        setSaveError(t('common.error.rateLimited'));
+        pushToast('common.error.rateLimited', 'warning');
+      } else if (error instanceof ApiError && error.status === 422) {
+        // The server names the field it rejected. Marking that field is the
+        // difference between "saving failed" and a red box around the box
+        // that is wrong.
+        const target = error.field ? SERVER_FIELDS[error.field] : undefined;
+        if (target) {
+          setFormErrors({ [target]: 'common.error.validation' });
+          setSaveError(t('common.error.validation'));
+        } else {
+          setSaveError(error.message || t('common.error.validation'));
+        }
+        pushToast('common.error.validation', 'error');
+      } else {
+        setSaveError(t('owner.edit.saveFailed'));
+        pushToast('common.error.generic', 'error');
+      }
     } finally {
       setSaving(false);
     }
@@ -162,55 +366,109 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSave} className="space-y-4">
-          <FormError message={saveError} />
+        {/* `noValidate`, so the rules above are the ones that decide. The
+            browser's own were both stricter than the API's and unactionable:
+            a price of 3 450 000 failed the `step` attribute and all the owner
+            got was a bubble saying the nearest valid values were 3 400 000
+            and 3 500 000. */}
+        <form noValidate onSubmit={handleSave} className="space-y-4">
+          {/* Wrapped, and the wrapper is conditional rather than always there:
+              `FormError` renders nothing when there is no message, so a
+              permanent wrapper would put an empty first child into the
+              `space-y-4` stack and open a gap above the title box on a form
+              that is perfectly fine. `tabIndex={-1}` is what lets the effect
+              above move focus here without adding a tab stop. */}
+          {saveError && (
+            <div ref={errorBannerRef} tabIndex={-1} className="outline-none">
+              <FormError message={saveError} />
+            </div>
+          )}
 
-          <Field label={t('owner.create.details.titleLabel')} required>
-            {({ id, describedBy }) => (
+          <Field
+            label={t('owner.create.details.titleLabel')}
+            required
+            error={formErrors.title ? tRaw(formErrors.title) : undefined}
+          >
+            {({ id, describedBy, invalid }) => (
               <TextInput
                 id={id}
                 aria-describedby={describedBy}
+                invalid={invalid}
                 value={title}
-                onChange={(event) => setTitle(event.target.value)}
+                maxLength={MAX_TITLE_LENGTH}
+                onChange={(event) => {
+                  setTitle(event.target.value);
+                  clearError('title');
+                }}
                 required
               />
             )}
           </Field>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Field label={t('owner.create.details.priceLabel')} required>
-              {({ id }) => (
+            <Field
+              label={t('owner.create.details.priceLabel')}
+              required
+              error={formErrors.price ? tRaw(formErrors.price) : undefined}
+            >
+              {({ id, describedBy, invalid }) => (
                 <TextInput
                   id={id}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
                   type="number"
+                  inputMode="numeric"
                   min={0}
-                  step={100000}
-                  value={price}
-                  onChange={(event) => setPrice(Number(event.target.value))}
+                  // `any`, not 100 000. Rents are not round: the old step made
+                  // every price between the hundred-thousands unsubmittable.
+                  step="any"
+                  value={price === '' ? '' : price}
+                  onChange={numberHandler(setPrice, 'price')}
                   required
                 />
               )}
             </Field>
 
-            <Field label={t('owner.create.details.depositLabel')}>
-              {({ id }) => (
+            <Field
+              label={t('owner.create.details.depositLabel')}
+              error={formErrors.deposit ? tRaw(formErrors.deposit) : undefined}
+            >
+              {({ id, describedBy, invalid }) => (
                 <TextInput
                   id={id}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
                   type="number"
+                  inputMode="numeric"
                   min={0}
-                  step={100000}
-                  value={deposit}
-                  onChange={(event) => setDeposit(Number(event.target.value))}
+                  step="any"
+                  value={deposit === '' ? '' : deposit}
+                  onChange={numberHandler(setDeposit, 'deposit')}
                 />
               )}
             </Field>
 
-            <Field label={t('common.filters.rooms')}>
-              {({ id }) => (
+            {/* The `error` prop is what makes `SERVER_FIELDS.rooms` mean
+                anything. The 422 handler writes that key and this dialog has
+                no summary list to catch it, so without a render site here the
+                server's one explanation of the refusal was put into state and
+                dropped — leaving "saving failed" over a form with nothing
+                marked on it. Reached whenever `listing.rooms` is outside the
+                range this select offers. */}
+            <Field
+              label={t('common.filters.rooms')}
+              error={formErrors.rooms ? tRaw(formErrors.rooms) : undefined}
+            >
+              {({ id, describedBy, invalid }) => (
                 <SelectInput
                   id={id}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
                   value={rooms}
-                  onChange={(event) => setRooms(Number(event.target.value))}
+                  onChange={(event) => {
+                    setRooms(Number(event.target.value));
+                    clearError('rooms');
+                  }}
                 >
                   {[1, 2, 3].map((count) => (
                     <option key={count} value={count}>
@@ -224,25 +482,42 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Field label={t('owner.create.details.areaLabel')}>
-              {({ id }) => (
+            <Field
+              label={t('owner.create.details.areaLabel')}
+              error={formErrors.area ? tRaw(formErrors.area) : undefined}
+            >
+              {({ id, describedBy, invalid }) => (
                 <TextInput
                   id={id}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
                   type="number"
+                  // Both halves of the fraction: without `step` the field
+                  // accepts whole metres only, and `inputMode="numeric"` gives
+                  // iOS a keypad with no decimal separator on it — so 54.5 m²
+                  // could neither be typed nor saved.
+                  inputMode="decimal"
+                  step="any"
                   min={1}
-                  value={area}
-                  onChange={(event) => setArea(Number(event.target.value))}
+                  value={area === '' ? '' : area}
+                  onChange={numberHandler(setArea, 'area')}
                 />
               )}
             </Field>
-            <Field label={t('owner.create.details.floorLabel')}>
-              {({ id }) => (
+            <Field
+              label={t('owner.create.details.floorLabel')}
+              error={formErrors.floor ? tRaw(formErrors.floor) : undefined}
+            >
+              {({ id, describedBy, invalid }) => (
                 <TextInput
                   id={id}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
                   type="number"
+                  inputMode="numeric"
                   min={1}
-                  value={floor}
-                  onChange={(event) => setFloor(Number(event.target.value))}
+                  value={floor === '' ? '' : floor}
+                  onChange={numberHandler(setFloor, 'floor')}
                 />
               )}
             </Field>
@@ -251,13 +526,41 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
                 <TextInput
                   id={id}
                   type="number"
+                  inputMode="numeric"
                   min={1}
-                  value={totalFloors}
-                  onChange={(event) => setTotalFloors(Number(event.target.value))}
+                  value={totalFloors === '' ? '' : totalFloors}
+                  onChange={numberHandler(setTotalFloors, 'floor')}
                 />
               )}
             </Field>
           </div>
+
+          {/* The wizard published every listing as an APARTMENT for as long as
+              it never asked, so this is also where the back catalogue of
+              houses, rooms and dormitories gets corrected. */}
+          <Field
+            label={t('common.filters.propertyType')}
+            error={formErrors.propertyType ? tRaw(formErrors.propertyType) : undefined}
+          >
+            {({ id, describedBy, invalid }) => (
+              <SelectInput
+                id={id}
+                aria-describedby={describedBy}
+                invalid={invalid}
+                value={propertyType}
+                onChange={(event) => {
+                  setPropertyType(event.target.value as PropertyType);
+                  clearError('propertyType');
+                }}
+              >
+                {PROPERTY_TYPES.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {tRaw(option.labelKey)}
+                  </option>
+                ))}
+              </SelectInput>
+            )}
+          </Field>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label={t('owner.create.location.regionLabel')}>
@@ -298,12 +601,21 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
             </Field>
           </div>
 
-          <Field label={t('owner.create.location.addressLabel')}>
-            {({ id }) => (
+          <Field
+            label={t('owner.create.location.addressLabel')}
+            error={formErrors.address ? tRaw(formErrors.address) : undefined}
+          >
+            {({ id, describedBy, invalid }) => (
               <TextInput
                 id={id}
+                aria-describedby={describedBy}
+                invalid={invalid}
                 value={address}
-                onChange={(event) => setAddress(event.target.value)}
+                maxLength={MAX_ADDRESS_LENGTH}
+                onChange={(event) => {
+                  setAddress(event.target.value);
+                  clearError('address');
+                }}
                 placeholder={t('owner.create.location.addressPlaceholder')}
               />
             )}
@@ -331,28 +643,44 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
               )}
             </Field>
 
-            <Field label={t('owner.create.location.metroMinutesLabel')}>
-              {({ id }) => (
+            <Field
+              label={t('owner.create.location.metroMinutesLabel')}
+              error={formErrors.metroMinutes ? tRaw(formErrors.metroMinutes) : undefined}
+            >
+              {({ id, describedBy, invalid }) => (
                 <TextInput
                   id={id}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
                   type="number"
+                  inputMode="numeric"
                   min={1}
                   max={60}
-                  value={metroMinutes}
+                  value={metroMinutes === '' ? '' : metroMinutes}
                   disabled={metro === METRO_NONE}
-                  onChange={(event) => setMetroMinutes(Number(event.target.value))}
+                  onChange={numberHandler(setMetroMinutes, 'metroMinutes')}
                 />
               )}
             </Field>
           </div>
 
-          <Field label={t('owner.create.details.descriptionLabel')}>
-            {({ id }) => (
+          <Field
+            label={t('owner.create.details.descriptionLabel')}
+            required
+            error={formErrors.description ? tRaw(formErrors.description) : undefined}
+          >
+            {({ id, describedBy, invalid }) => (
               <textarea
                 id={id}
                 rows={3}
+                aria-describedby={describedBy}
+                aria-invalid={invalid || undefined}
                 value={description}
-                onChange={(event) => setDescription(event.target.value)}
+                maxLength={MAX_DESCRIPTION_LENGTH}
+                onChange={(event) => {
+                  setDescription(event.target.value);
+                  clearError('description');
+                }}
                 className="w-full rounded-xl border border-line bg-surface-2 p-3.5 text-sm font-medium text-content transition-colors placeholder:text-subtle focus:border-brand focus:bg-surface focus:outline-none"
               />
             )}

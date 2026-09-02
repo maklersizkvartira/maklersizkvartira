@@ -57,6 +57,21 @@ export function Segmented<T extends string>({
 }: SegmentedProps<T>): React.ReactElement {
   const trackRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * The one segment that carries the tab stop.
+   *
+   * Normally that is the selected one, which is the roving-tabindex pattern a
+   * radio group is expected to follow. It cannot be when the selected segment
+   * is also disabled: a disabled button is not focusable, so the group's only
+   * tab stop was on something Tab skips while every other segment sat at
+   * `-1` — the whole control became unreachable by keyboard, with no way to
+   * move the selection off the option that had been taken away. The first
+   * enabled segment takes the stop instead.
+   */
+  const tabStop =
+    options.find((option) => option.value === value && !option.disabled)?.value ??
+    options.find((option) => !option.disabled)?.value;
+
   /** Arrow keys move between segments and select as they go, as a native
    *  radio group does — the selection IS the focus in this control. */
   const onKeyDown = useCallback(
@@ -104,10 +119,10 @@ export function Segmented<T extends string>({
             role="radio"
             data-segment={option.value}
             aria-checked={active}
-            // Only the selected segment is in the tab order; the arrow keys
-            // reach the others. That is the roving-tabindex pattern a radio
-            // group is expected to follow.
-            tabIndex={active ? 0 : -1}
+            // Only one segment is in the tab order; the arrow keys reach the
+            // others. See `tabStop` for why that is not always the selected
+            // one.
+            tabIndex={option.value === tabStop ? 0 : -1}
             disabled={option.disabled}
             onClick={() => onChange(option.value)}
             className={cn(

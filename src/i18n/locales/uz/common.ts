@@ -17,6 +17,7 @@ export const common = {
 
   role: {
     owner: 'Uy egasi',
+    agent: 'Ko‘chmas mulk agenti',
     student: 'Talaba',
     tenant: 'Ijarachi',
     guest: 'Mehmon',

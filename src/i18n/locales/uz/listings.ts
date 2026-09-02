@@ -204,6 +204,29 @@ export const listings = {
     dormitory: 'Yotoqxona',
   },
 
+  /**
+   * Kim e’lon berayotgani — uy egasimi yoki agent. Platformada endi ikkalasi
+   * ham e’lon joylashtiradi, shuning uchun qidiruvchi qo‘ng‘iroq qilishdan
+   * oldin kim javob berishini bilishi kerak.
+   */
+  seller: {
+    ownerLabel: 'Uy egasi',
+    agentLabel: 'Ko‘chmas mulk agenti',
+    ownerBadge: 'Uy egasidan',
+    agentBadge: 'Agent orqali',
+    agency: 'Agentlik: {name}',
+    filterLabel: 'E’lon beruvchi',
+    filterAll: 'Hammasi',
+    filterOwner: 'Uy egalaridan',
+    filterAgent: 'Agentlardan',
+    // The detail page's own copy. Its call-to-action and its trust line both
+    // named the owner, on a screen the badge above them had just said belongs
+    // to an agent — three claims about the same person, one of them false.
+    contactAgent: 'Agent bilan bog‘lanish',
+    trustAgent: 'Agent ishonchi: {score}',
+    phoneUnavailableAgent: 'Agent raqamini yashirgan. Boshqa aloqa usulidan foydalaning.',
+  },
+
   empty: {
     title: 'Bu shartlarga mos e’lon topilmadi',
     body: 'Filtrlarni kengaytirib ko‘ring yoki boshqa tumanni tanlang.',

@@ -26,11 +26,20 @@ const CODE_TO_KEY: Record<string, TranslationKey> = {
   phone_invalid_length: 'auth.errors.phoneInvalid',
   phone_unknown_operator: 'auth.errors.phoneInvalid',
 
-  // OTP
-  otp_not_found: 'auth.errors.codeRequired',
-  otp_expired: 'auth.errors.codeRequired',
-  otp_invalid: 'auth.errors.codeIncomplete',
-  otp_too_many_attempts: 'auth.errors.codeRequired',
+  // OTP. Each of these means something different and each has a different
+  // way out, so they must not share a sentence: "the code is wrong" invites
+  // another try, "it expired" and "you are out of attempts" both mean ask for
+  // a new one. `otp_invalid` used to say "enter the whole code", which told
+  // somebody who had entered all six digits to do the thing they had done.
+  // The single answer every password-reset code failure now gets, so that a
+  // stranger's phone number and a real account's cannot be told apart by the
+  // error they produce. It has to read correctly for a wrong code, an expired
+  // one and one that never existed.
+  otp_reset_invalid: 'auth.errors.codeInvalidOrExpired',
+  otp_not_found: 'auth.errors.codeExpired',
+  otp_expired: 'auth.errors.codeExpired',
+  otp_invalid: 'auth.errors.codeInvalid',
+  otp_too_many_attempts: 'auth.errors.codeAttempts',
 
   // Transport
   network: 'common.error.network',
@@ -69,11 +78,18 @@ export function useAuthErrors() {
   /**
    * Prefers the server's own localised sentence, because it can carry
    * specifics the client cannot know (attempts remaining, lockout minutes).
+   *
+   * Except when there was no server. A request that never completed is built
+   * here, in `http.ts`, with an English developer string for a message — so
+   * preferring `error.message` showed "Network request failed" to an Uzbek
+   * visitor whose connection had dropped, while the three translations of
+   * that exact sentence sat unused in the dictionaries. `status === 0` is the
+   * marker for those: nothing came back to be localised.
    */
   const messageFor = useCallback(
     (error: unknown): string => {
       if (error instanceof ApiError) {
-        if (error.message) return error.message;
+        if (error.message && error.status !== 0) return error.message;
         const key = CODE_TO_KEY[error.code];
         if (key) return t(key, (error.params as Record<string, string | number>) ?? undefined);
         return t('common.error.generic');
@@ -84,7 +100,11 @@ export function useAuthErrors() {
         // The raw code is worth keeping in the console: the message a visitor
         // reads is deliberately not the one that identifies the misconfiguration.
         if (import.meta.env.DEV) console.warn('auth provider error:', code);
-        if (key) return t(key);
+        // A code this map has not heard of still came from the SDK, and the
+        // SDK's own `message` is an English developer sentence with the code
+        // in brackets. Falling through to it below was the exact thing the
+        // note above says was fixed.
+        return t(key ?? 'auth.errors.googleUnavailable');
       }
       if (error instanceof Error && error.message) return error.message;
       return t('common.error.generic');

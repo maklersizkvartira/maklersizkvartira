@@ -10,7 +10,20 @@
 import { clearTokens, getRefreshToken, http, saveTokens } from './http';
 import type { Language } from '../i18n';
 
-export type UserRole = 'STUDENT' | 'OWNER' | 'TENANT' | 'MODERATOR' | 'ADMIN';
+/**
+ * Mirrors the server's `UserRole` enum. It has to be complete: a role the
+ * server can send but this union does not name type-checks as impossible, so
+ * every `role === …` branch written against it silently excludes real
+ * accounts. DEVELOPER was missing here for exactly that reason.
+ */
+export type UserRole =
+  | 'STUDENT'
+  | 'OWNER'
+  | 'AGENT'
+  | 'TENANT'
+  | 'MODERATOR'
+  | 'ADMIN'
+  | 'DEVELOPER';
 
 export interface ApiUser {
   id: string;
@@ -20,6 +33,8 @@ export interface ApiUser {
   avatar?: string | null;
   role: UserRole;
   status: string;
+  /** Set only on an AGENT account, and optional even there. */
+  agencyName?: string | null;
   trustScore: number;
   verificationLevel: number;
   isVerified: boolean;
@@ -74,7 +89,8 @@ export interface RegisterInput {
   phone: string;
   password: string;
   confirmPassword: string;
-  role: 'STUDENT' | 'OWNER';
+  role: 'STUDENT' | 'OWNER' | 'AGENT';
+  agencyName?: string | null;
   language: Language;
 }
 
@@ -101,6 +117,27 @@ export const AuthApi = {
   resendCode: (phone: string, purpose: 'REGISTER' | 'PASSWORD_RESET' = 'REGISTER') =>
     http.post<PendingRegistration>('/auth/resend-code', { phone, purpose }, { anonymous: true }),
 
+  /**
+   * Judges a code without spending it, so a wizard can gate its next screen.
+   *
+   * The reset flow asks for the code and the new password on separate screens
+   * and only `/auth/reset-password` may consume the code. Before this existed
+   * the code screen could not ask anything, so it waved through any six digits
+   * and the mistake surfaced two screens later — on the one screen where there
+   * was nothing to correct. Rejects with the same `otp_*` codes as the calls
+   * that do consume it.
+   */
+  checkCode: (
+    phone: string,
+    code: string,
+    purpose: 'REGISTER' | 'PASSWORD_RESET' = 'PASSWORD_RESET',
+  ) =>
+    http.post<{ valid: boolean; message: string }>(
+      '/auth/check-code',
+      { phone, code, purpose },
+      { anonymous: true },
+    ),
+
   login: async (phone: string, password: string): Promise<ApiUser> => {
     const response = await http.post<TokenResponse>(
       '/auth/login',
@@ -112,7 +149,7 @@ export const AuthApi = {
 
   loginWithGoogle: async (
     idToken: string,
-    role: 'STUDENT' | 'OWNER',
+    role: 'STUDENT' | 'OWNER' | 'AGENT',
     language: Language,
   ): Promise<ApiUser> => {
     const response = await http.post<TokenResponse>(
@@ -131,7 +168,9 @@ export const AuthApi = {
   updateProfile: async (changes: {
     name?: string;
     avatar?: string;
-    role?: 'STUDENT' | 'OWNER';
+    role?: 'STUDENT' | 'OWNER' | 'AGENT';
+    /** An empty string clears it; omitting the key leaves it untouched. */
+    agencyName?: string;
     language?: Language;
     theme?: 'light' | 'dark' | 'system';
   }): Promise<ApiUser> => {

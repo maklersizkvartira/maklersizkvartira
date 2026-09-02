@@ -23,7 +23,7 @@ import {
 } from '../i18n/storage';
 import { DEFAULT_LANGUAGE, type Language } from '../i18n/types';
 import { prefersReducedMotion } from '../hooks/useReducedMotion';
-import type { ViewState } from '../router/views';
+import { AUTH_VIEWS, REQUIRES_AUTH, VIEW_PATHS, type ViewState } from '../router/views';
 import { stripLanguagePrefix } from '../router/language';
 import {
   localisedPath,
@@ -44,12 +44,18 @@ import { trackEvent } from '../services/analytics';
 import { isAutomatedAgent } from '../services/crawler';
 import { ListingsApi, type ListingQuery } from '../services/listingsApi';
 import { chatApi } from '../services/chatApi';
-import type { Listing } from '../types';
+import type { Listing, SignupRole } from '../types';
 import { canPublishListings } from '../types/roles';
 
 export type { ViewState };
 
-export type SignupRole = 'STUDENT' | 'OWNER';
+/**
+ * Re-exported rather than redeclared. There used to be a second copy of the
+ * union here, and it went out of date the moment a third self-service role was
+ * added: the profile page imports the name from this module and could not
+ * offer a role the register form was already offering.
+ */
+export type { SignupRole };
 
 export interface Toast {
   id: number;
@@ -74,6 +80,12 @@ export interface Filters {
   /** 'ALL' is the sentinel; 'GIRLS'/'BOYS' also match rooms left open to anyone. */
   roommateGender: 'ALL' | 'GIRLS' | 'BOYS';
   audience: 'ALL' | 'STUDENT' | 'FAMILY';
+  /**
+   * Who published the listing. 'ALL' is the sentinel, as everywhere else here
+   * — the wire format drops the key entirely rather than sending it, because
+   * the server's enum has only the two real values.
+   */
+  sellerType: 'ALL' | 'OWNER' | 'AGENT';
   onlyVerified: boolean;
   minTrustScore: number;
   sortBy: ListingQuery['sortBy'];
@@ -95,6 +107,7 @@ export const DEFAULT_FILTERS: Filters = {
   rentalType: 'ALL',
   roommateGender: 'ALL',
   audience: 'ALL',
+  sellerType: 'ALL',
   onlyVerified: false,
   minTrustScore: 0,
   sortBy: 'RECOMMENDED',
@@ -218,11 +231,38 @@ interface AppState {
   // -- Session -------------------------------------------------------------
   currentUser: ApiUser | null;
   authReady: boolean;
-  showAuth: boolean;
-  authModalTab: 'LOGIN' | 'REGISTER';
+  /**
+   * Where to put the visitor once they are signed in.
+   *
+   * Sign-in is a detour, and it has to end where it started: someone who
+   * tapped "post a listing" and was asked to sign in expects the listing form
+   * afterwards, not the home page. Null means there was no errand — they
+   * opened /login themselves — and the home page is the right answer.
+   */
+  authReturnTo: string | null;
+  /**
+   * Whose arrival to celebrate, if anyone's.
+   *
+   * Lives here rather than in the auth page because the welcome outlives it:
+   * `login` navigates to wherever the visitor was going, which unmounts the
+   * page and everything it was rendering. Held locally, the celebration's
+   * five-second timer was cancelled by that unmount — and by a Back press —
+   * and the handoff that was waiting on it never ran, leaving somebody signed
+   * in on the server and signed out in the app.
+   */
+  welcomeName: string | null;
+  dismissWelcome: () => void;
   initAuth: () => Promise<void>;
-  login: (user: ApiUser) => void;
+  login: (user: ApiUser, options?: { celebrate?: boolean }) => void;
   logout: () => Promise<void>;
+  /**
+   * Send the visitor to the sign-in flow, or bring them back out of it.
+   *
+   * Named for the modal it used to open, and kept that way on purpose: it is
+   * called from fifteen places, and the question every one of them is asking
+   * — "this needs an account, deal with it" — did not change when the answer
+   * became a route instead of a dialog.
+   */
   setShowAuth: (open: boolean, tab?: 'LOGIN' | 'REGISTER') => void;
   switchRole: (role: SignupRole) => Promise<void>;
   updateAvatar: (avatar: string) => Promise<void>;
@@ -447,6 +487,7 @@ function toQuery(filters: Filters, page: number, pageSize: number): ListingQuery
     roommateGender:
       filters.roommateGender !== 'ALL' ? filters.roommateGender : undefined,
     audience: filters.audience,
+    sellerType: filters.sellerType !== 'ALL' ? filters.sellerType : undefined,
     onlyVerified: filters.onlyVerified || undefined,
     minTrustScore: filters.minTrustScore || undefined,
     sortBy: filters.sortBy,
@@ -504,8 +545,8 @@ const store = createStore<AppState>((set, get) => ({
   // -- Session -------------------------------------------------------------
   currentUser: null,
   authReady: false,
-  showAuth: false,
-  authModalTab: 'LOGIN',
+  authReturnTo: null,
+  welcomeName: null,
 
   initAuth: async () => {
     // Wipe anything the previous build stored, including plaintext passwords.
@@ -553,16 +594,35 @@ const store = createStore<AppState>((set, get) => ({
     }
   },
 
-  login: (user) => {
-    set({ currentUser: user, showAuth: false });
+  dismissWelcome: () => set({ welcomeName: null }),
+
+  login: (user, options = {}) => {
+    // The session is adopted the moment the tokens exist, never later. It used
+    // to wait behind a five-second welcome animation, so any navigation during
+    // that hold left the app anonymous while localStorage held a valid token.
+    set({ currentUser: user, welcomeName: options.celebrate ? user.name : null });
     // Setting `language` in the same breath would have left the address, the
     // canonical tag and the hreflang set describing the language the visitor
     // was reading a moment ago.
     if (user.language) adoptPreferredLanguage(user.language);
     get().pushToast(
-      user.role === 'OWNER' ? 'layout.toast.welcomeOwner' : 'layout.toast.welcomeStudent',
+      user.role === 'AGENT'
+        ? 'layout.toast.welcomeAgent'
+        : user.role === 'OWNER'
+          ? 'layout.toast.welcomeOwner'
+          : 'layout.toast.welcomeStudent',
       'success',
     );
+
+    // The errand the sign-in interrupted. Consumed here rather than by the
+    // auth page, so it is cleared exactly once however the session was
+    // obtained — the sign-in form, the registration, a Google popup or a
+    // password reset that ends by signing the visitor straight in.
+    const { authReturnTo } = get();
+    set({ authReturnTo: null });
+    get().navigate(authReturnTo && authReturnTo !== '/' ? authReturnTo : '/', {
+      replace: true,
+    });
     void get().fetchFavorites();
     void get().fetchUnreadChatCount();
     if (canPublishListings(user.role)) void get().fetchMyListings();
@@ -587,16 +647,57 @@ const store = createStore<AppState>((set, get) => ({
     get().setCurrentView('HOME');
   },
 
-  setShowAuth: (open, tab = 'LOGIN') => set({ showAuth: open, authModalTab: tab }),
+  setShowAuth: (open, tab = 'LOGIN') => {
+    const state = get();
+
+    if (!open) {
+      // Backing out, which is the "continue as a guest" button and the back
+      // link at the top of the page.
+      //
+      // The errand is only a destination if a guest can actually be there.
+      // Somebody who followed a link to /profil and then declined to sign in
+      // was sent back to /profil, where the route guard met them and returned
+      // them to the form they had just walked away from — a button that, from
+      // where they were sitting, did nothing at all.
+      const errand = state.authReturnTo;
+      const reachable =
+        errand && !REQUIRES_AUTH.has(matchUrl(errand).route.view) ? errand : '/';
+      set({ authReturnTo: null });
+      state.navigate(reachable, { replace: true });
+      return;
+    }
+
+    // Already inside the flow: this is "switch to the register form", not a
+    // fresh errand, so the original destination has to survive it.
+    const inFlow = AUTH_VIEWS.has(state.currentView);
+    set({ authReturnTo: inFlow ? state.authReturnTo : (state.route.path ?? null) });
+
+    // Whether this becomes a history entry depends on who asked.
+    //
+    // A "sign in" button on a page the visitor chose to be on should push, so
+    // Back returns them to it. The route guard must REPLACE: it fires on a URL
+    // the visitor never got to see, and pushing over it left /login on top of
+    // /profil — press Back and the guard fires again and puts /login straight
+    // back, which is a trap on every guarded route, and the trap this whole
+    // conversion away from a modal existed to remove.
+    const target =
+      (tab === 'REGISTER' ? VIEW_PATHS.REGISTER : VIEW_PATHS.LOGIN) ?? '/login';
+    state.navigate(target, { replace: REQUIRES_AUTH.has(state.currentView) });
+  },
 
   switchRole: async (role) => {
     const user = get().currentUser;
     if (!user || user.role === role) return;
     const updated = await AuthApi.updateProfile({ role });
     set({ currentUser: updated });
-    get().pushToast('layout.toast.roleSwitched', 'success', {
-      role: role === 'OWNER' ? 'owner' : 'student',
-    });
+    get().pushToast(
+      role === 'AGENT'
+        ? 'layout.toast.roleSwitchedAgent'
+        : role === 'OWNER'
+          ? 'layout.toast.roleSwitchedOwner'
+          : 'layout.toast.roleSwitchedStudent',
+      'success',
+    );
   },
 
   updateAvatar: async (avatar) => {
@@ -626,9 +727,22 @@ const store = createStore<AppState>((set, get) => ({
   fxRate: 12700,
 
   // -- Navigation ----------------------------------------------------------
-  currentView: 'HOME',
+  // Seeded from the address, not from HOME.
+  //
+  // `adoptLocation` runs from an effect, so for one frame every deep link —
+  // which is most arrivals, all 355 prerendered pages being deep links —
+  // rendered as the home page. Nobody noticed while every route wore the same
+  // chrome; the auth routes deliberately wear none, so a direct visit to
+  // /login painted a full header, footer and tab bar and then threw them away.
+  // On the server there is no address to read and `seedStore` sets this
+  // explicitly, so the guard is what keeps SSR deterministic.
+  ...(typeof window === 'undefined'
+    ? { currentView: 'HOME' as ViewState, route: routeForView('HOME') }
+    : (() => {
+        const match = matchUrl(window.location.pathname, window.location.search);
+        return { currentView: match.route.view, route: match.route };
+      })()),
   selectedListingId: null,
-  route: routeForView('HOME'),
   activeListingId: null,
   activeConversationId: null,
   unreadChatCount: 0,
@@ -719,6 +833,11 @@ const store = createStore<AppState>((set, get) => ({
       currentView: match.route.view,
       selectedListingId: match.route.listingId ?? null,
       route: match.route,
+      // Arriving at an auth route by URL — a typed address, a shared link, a
+      // Back press — is not the errand `setShowAuth` records, and inheriting
+      // a stale one sent somebody who opened /login on purpose to whichever
+      // private page had bounced them an hour earlier.
+      ...(AUTH_VIEWS.has(match.route.view) ? { authReturnTo: null } : {}),
     });
 
     // A legacy `/?listing=…` link or a trailing slash resolves to the same
@@ -865,7 +984,7 @@ const store = createStore<AppState>((set, get) => ({
   toggleFavorite: async (listingId) => {
     const { currentUser, favoriteIds } = get();
     if (!currentUser) {
-      set({ showAuth: true, authModalTab: 'LOGIN' });
+      get().setShowAuth(true, 'LOGIN');
       return;
     }
     const wasFavorite = favoriteIds.has(listingId);
@@ -961,6 +1080,7 @@ const store = createStore<AppState>((set, get) => ({
     if (filters.rentalType !== 'ALL') count += 1;
     if (filters.roommateGender !== 'ALL') count += 1;
     if (filters.audience !== 'ALL') count += 1;
+    if (filters.sellerType !== 'ALL') count += 1;
     if (filters.onlyVerified) count += 1;
     if (filters.minTrustScore > 0) count += 1;
     return count + filters.amenities.length;

@@ -150,13 +150,19 @@ export const layout = {
     listingDeleted: 'E’lon o‘chirildi.',
     favoriteAdded: 'Saqlanganlarga qo‘shildi.',
     favoriteRemoved: 'Saqlanganlardan olib tashlandi.',
-    roleSwitched: 'Rol “{role}” ga o‘zgartirildi.',
+    // Three keys rather than one with a {role} placeholder: the store
+    // raises this toast and cannot translate, so the old version dropped the
+    // English word "owner" into an Uzbek sentence.
+    roleSwitchedOwner: 'Rol “Uy egasi” ga o‘zgartirildi.',
+    roleSwitchedAgent: 'Rol “Ko‘chmas mulk agenti” ga o‘zgartirildi.',
+    roleSwitchedStudent: 'Rol “Talaba” ga o‘zgartirildi.',
     avatarUpdated: 'Profil rasmi yangilandi.',
     languageChanged: 'Til o‘zgartirildi.',
     themeChanged: 'Ko‘rinish o‘zgartirildi.',
     copiedLink: 'Havola nusxalandi.',
     xpEarned: '+{amount} XP — {reason}',
     welcomeOwner: 'Xush kelibsiz! Endi e’lon joylashingiz mumkin.',
+    welcomeAgent: 'Xush kelibsiz! Endi mijozlaringiz nomidan e’lon joylashingiz mumkin.',
     welcomeStudent: 'Xush kelibsiz! Kvartirangizni tanlang.',
     sessionExpired: 'Sessiya muddati tugadi. Qaytadan kiring.',
   },

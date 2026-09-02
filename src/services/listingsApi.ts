@@ -24,6 +24,8 @@ export interface ListingQuery {
   /** Matches rooms marked for this gender plus the ones open to anyone. */
   roommateGender?: 'GIRLS' | 'BOYS' | 'ANY';
   audience?: 'ALL' | 'STUDENT' | 'FAMILY';
+  /** Omitted means "either"; the server has no 'ALL' value for this one. */
+  sellerType?: 'OWNER' | 'AGENT';
   onlyVerified?: boolean;
   minTrustScore?: number;
   furnished?: boolean;

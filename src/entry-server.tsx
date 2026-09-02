@@ -128,7 +128,7 @@ function seedStore(route: RouteMatch, language: Language): void {
     listingsLoading: true,
     listingsError: null,
     filters: { ...DEFAULT_FILTERS },
-    showAuth: false,
+    authReturnTo: null,
     activeConversationId: null,
     unreadChatCount: 0,
   });

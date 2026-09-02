@@ -17,6 +17,10 @@ export const auth = {
       title: 'Я владелец жилья',
       description: 'Хочу сдать свою квартиру',
     },
+    agent: {
+      title: 'Я агент по недвижимости',
+      description: 'Размещаю объявления от имени собственников',
+    },
     student: {
       title: 'Ищу квартиру',
       description: 'Ищу жильё для семьи, для студента или подселение',
@@ -43,6 +47,16 @@ export const auth = {
     showPassword: 'Показать пароль',
     hidePassword: 'Скрыть пароль',
     rememberMe: 'Запомнить меня',
+    agency: 'Название агентства',
+    agencyPlaceholder: 'Например: Zamin Realty',
+    agencyHint: 'Необязательно. Если работаете самостоятельно — оставьте пустым.',
+  },
+
+  page: {
+    guest: 'Продолжить как гость',
+    backHome: 'Вернуться на главную',
+    terms: 'Продолжая, вы соглашаетесь с условиями Публичной оферты.',
+    secure: 'Ваши данные передаются в зашифрованном виде.',
   },
 
   strength: {
@@ -111,6 +125,9 @@ export const auth = {
     title: 'Задайте новый пароль',
     subtitle: 'Введите код из SMS и выберите новый пароль',
     submit: 'Обновить пароль',
+    submitting: 'Обновляем пароль...',
+    signInFailed:
+      'Пароль обновлён, но войти автоматически не удалось. Войдите с новым паролем.',
     success: 'Пароль обновлён. Теперь войдите с новым паролем.',
     // One fused screen became three: phone, then the SMS code, then the new
     // password twice. Each step needs its own heading, and the code step
@@ -120,6 +137,7 @@ export const auth = {
     passwordTitle: 'Выберите новый пароль',
     passwordSubtitle: 'Введите пароль дважды — второй раз подтверждает первый.',
     continue: 'Продолжить',
+    checking: 'Проверяем код...',
     codeInvalid: 'Код неверный или истёк. Запросите новый код.',
     stepOf: 'Шаг {current} из {total}',
   },
@@ -179,6 +197,10 @@ export const auth = {
     passwordMismatch: 'Пароли не совпадают.',
     codeRequired: 'Введите код подтверждения.',
     codeIncomplete: 'Введите код полностью.',
+    codeInvalid: 'Код неверный. Введите его ещё раз внимательно.',
+    codeExpired: 'Срок действия кода истёк. Запросите новый.',
+    codeInvalidOrExpired: 'Код неверный или истёк. Запросите новый.',
+    codeAttempts: 'Попытки закончились. Запросите новый код.',
     roleRequired: 'Сначала выберите роль.',
     googleDomain:
       'Вход через Google не настроен для этого адреса. Войдите по номеру телефона.',

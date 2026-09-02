@@ -40,6 +40,21 @@ export const owner = {
       toPhotos: 'Next: photos and contact',
     },
 
+    seller: {
+      heading: 'Who are you posting as?',
+      subheading: 'Searchers will know who picks up before they call.',
+      owner: 'The owner',
+      ownerHint: 'This is my own property',
+      agent: 'A real-estate agent',
+      agentHint: 'On the owner’s behalf',
+      agencyLabel: 'Agency name',
+      agencyPlaceholder: 'For example: Zamin Realty',
+      agencyHint: 'Optional — leave it blank if you work independently.',
+      agentLocked:
+        'To post as an agent, choose the “Real-estate agent” role in your profile.',
+      agentLockedCta: 'Open my profile',
+    },
+
     location: {
       heading: 'Address and location',
       subheading: 'Which district and street is the apartment on?',

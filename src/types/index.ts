@@ -2,12 +2,26 @@ export type UserRole =
   | 'TENANT'
   | 'STUDENT'
   | 'OWNER'
+  /**
+   * A realtor, or somebody running an agency, publishing on behalf of the
+   * people who own the property. Before this role existed they had to sign up
+   * as an owner and explain themselves in the listing text — a lie the
+   * platform made them tell, and one a caller had no way to see through.
+   */
+  | 'AGENT'
   | 'MODERATOR'
   | 'ADMIN'
   /** Full access to every user-side capability. Granted, never signed up for. */
   | 'DEVELOPER';
 
-export type SignupRole = 'STUDENT' | 'OWNER';
+export type SignupRole = 'STUDENT' | 'OWNER' | 'AGENT';
+
+/**
+ * Who a *listing* says it comes from, which is not the same question as what
+ * the account is: an agent may let out a flat of their own, and an owner who
+ * hands one property to an agency is still an owner. Asked per listing.
+ */
+export type SellerType = 'OWNER' | 'AGENT';
 
 export interface CurrentUser {
   id: string;
@@ -66,6 +80,8 @@ export interface OwnerProfile {
   email: string;
   avatar: string;
   role: UserRole;
+  /** Set only on an AGENT account, and optional even there. */
+  agencyName?: string | null;
   trustScore: number;
   trustLevel: TrustLevel;
   riskScore: number;
@@ -112,6 +128,15 @@ export interface Listing {
   images: string[];
   hasVirtualTour: boolean;
   owner: OwnerProfile;
+  /**
+   * Whether this listing comes from the owner or from an agent acting for
+   * them. Optional because a response served by a container predating the
+   * field carries nothing; read it through a helper that defaults to 'OWNER',
+   * which is what every such row meant.
+   */
+  sellerType?: SellerType;
+  /** The agency, snapshotted at publish time. Only set on an agent listing. */
+  agencyName?: string | null;
   contactTelegram?: string;
   preferredContactTime?: string;
   trustScore: number;

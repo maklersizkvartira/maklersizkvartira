@@ -35,6 +35,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Award,
+  BadgeCheck,
+  Briefcase,
   Building2,
   Check,
   CheckCircle2,
@@ -68,8 +70,10 @@ import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { cn } from '../../lib/cn';
 import { Button, Field, FormError, SelectInput, TextInput } from '../ui/Field';
 import { Card } from '../ui/Card';
+import { Segmented } from '../ui/Segmented';
 import { Sheet } from '../ui/Sheet';
-import { canPublishListings } from '../../types/roles';
+import type { PropertyType, SellerType } from '../../types';
+import { canPublishAsAgent, canPublishListings } from '../../types/roles';
 import {
   districtCentre,
   reverseGeocode,
@@ -78,6 +82,23 @@ import {
 
 /** Stored value for "no metro nearby"; the label is translated at render time. */
 const METRO_NONE = 'NONE';
+
+/**
+ * The five kinds of place the API knows about.
+ *
+ * The wizard never asked, and sent `propertyType: 'APARTMENT'` for every
+ * listing on the site — so a house, a room, a studio and a dormitory could not
+ * be posted as such, and none of them were ever returned by the search that
+ * filters on the type. The order is the one they are offered in, commonest
+ * first.
+ */
+const PROPERTY_TYPES: readonly { value: PropertyType; labelKey: string }[] = [
+  { value: 'APARTMENT', labelKey: 'listings.propertyType.apartment' },
+  { value: 'HOUSE', labelKey: 'listings.propertyType.house' },
+  { value: 'ROOM', labelKey: 'listings.propertyType.room' },
+  { value: 'STUDIO', labelKey: 'listings.propertyType.studio' },
+  { value: 'DORMITORY', labelKey: 'listings.propertyType.dormitory' },
+];
 
 const MAX_IMAGES = 12;
 /**
@@ -123,11 +144,19 @@ const LEGACY_DRAFT_KEY_PREFIX = 'maklersiz.owner.createDraft';
 /** The key from before the per-account split, deleted rather than adopted. */
 const LEGACY_SHARED_DRAFT_KEY = LEGACY_DRAFT_KEY_PREFIX;
 /**
- * Bumped to 2 with the video field and the fourth step.
+ * Still 2, although the property type and the "who is publishing" question
+ * were added to the shape after version 2 was written.
  *
- * A version-1 draft carries a `videoUrl` that no longer has a home and a
- * `step` that can be 4, which this wizard cannot render. It is discarded
- * rather than half-restored.
+ * Bumping it to 3 read as caution and would have been destruction: `readDraft`
+ * throws away every draft whose version does not match, so the deploy that
+ * carried the bump would have deleted a week of them — address, description,
+ * price and up to twelve photos each — from the one form whose second rule is
+ * that nothing is lost. The reasoning behind the bump does not survive contact
+ * with the empty form either: a new wizard already opens on APARTMENT and on
+ * the seller the account's own role implies, so a migrated version-2 draft
+ * shows exactly the defaults an untouched one shows and claims nothing extra.
+ * A version bump is for a shape whose old values can no longer be read; these
+ * can, so the two missing answers are defaulted in `readDraft` instead.
  */
 const DRAFT_VERSION = 2;
 const DRAFT_DEBOUNCE_MS = 800;
@@ -151,6 +180,7 @@ const TELEGRAM_PATTERN = /^@?[A-Za-z0-9_]{4,32}$/;
 const MAX_TITLE_LENGTH = 160;
 const MAX_DESCRIPTION_LENGTH = 5000;
 const MAX_CONTACT_TIME_LENGTH = 64;
+const MAX_AGENCY_NAME_LENGTH = 120;
 
 /** Whichever step the draft claims, it has to be one this wizard renders. */
 function clampStep(step: number): number {
@@ -170,6 +200,7 @@ const SERVER_FIELDS: Record<string, { step: number; field: string }> = {
   metroDistanceMinutes: { step: 1, field: 'metroMinutes' },
   title: { step: 2, field: 'title' },
   description: { step: 2, field: 'description' },
+  propertyType: { step: 2, field: 'propertyType' },
   price: { step: 2, field: 'price' },
   depositPrice: { step: 2, field: 'deposit' },
   rooms: { step: 2, field: 'rooms' },
@@ -177,6 +208,7 @@ const SERVER_FIELDS: Record<string, { step: number; field: string }> = {
   floor: { step: 2, field: 'floor' },
   totalFloors: { step: 2, field: 'floor' },
   images: { step: 3, field: 'images' },
+  agencyName: { step: 3, field: 'agency' },
   contactTelegram: { step: 3, field: 'telegram' },
   preferredContactTime: { step: 3, field: 'preferredTime' },
 };
@@ -207,6 +239,9 @@ interface Draft {
   version: number;
   savedAt: number;
   step: number;
+  /** The furthest step reached, so a reload does not re-lock the steps that
+   *  were already earned before it. */
+  maxStep: number;
   region: string;
   district: string;
   address: string;
@@ -216,6 +251,7 @@ interface Draft {
   longitude: number | null;
   title: string;
   description: string;
+  propertyType: PropertyType;
   price: NumberField;
   deposit: NumberField;
   rooms: NumberField;
@@ -227,6 +263,8 @@ interface Draft {
   roommateGender: RoommateGender;
   roommateSpots: number;
   images: string[];
+  sellerType: SellerType;
+  agencyName: string;
   telegram: string;
   preferredTime: string;
   /** The Top choice made on the last step, kept so a reload does not lose it. */
@@ -327,7 +365,11 @@ function legacyDraftKeyFor(userId: string): string {
   return `${LEGACY_DRAFT_KEY_PREFIX}.${userId}`;
 }
 
-function readDraft(key: string | null, legacyKey: string | null): Draft | null {
+function readDraft(
+  key: string | null,
+  legacyKey: string | null,
+  sellerFallback: SellerType,
+): Draft | null {
   if (!key) return null;
   try {
     // One-time migration off the old brand's key. The value is moved rather
@@ -363,7 +405,23 @@ function readDraft(key: string | null, legacyKey: string | null): Draft | null {
       clearDraft(key);
       return null;
     }
-    return { ...parsed, amenities: { ...NO_AMENITIES, ...parsed.amenities } };
+    // The keys a draft written before those two questions existed cannot have,
+    // filled in with the values an untouched form opens on — the same
+    // treatment the amenities have had since they were split out. Nothing is
+    // answered on the owner's behalf by doing so: a new wizard shows APARTMENT
+    // and the role's own seller before anybody has touched it, so a restored
+    // draft that shows them is saying no more than an empty one does.
+    return {
+      ...parsed,
+      amenities: { ...NO_AMENITIES, ...parsed.amenities },
+      propertyType: parsed.propertyType ?? 'APARTMENT',
+      sellerType: parsed.sellerType ?? sellerFallback,
+      agencyName: parsed.agencyName ?? '',
+      // The `maxStep` state's own initialiser already copes with this being
+      // missing; defaulting it here is so the object matches the type it is
+      // being read as rather than only happening to work.
+      maxStep: parsed.maxStep ?? parsed.step,
+    };
   } catch {
     // Corrupt or unreadable storage must not stop the form from opening.
     return null;
@@ -432,18 +490,48 @@ export const CreateListingPage: React.FC = () => {
 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
   const dragFromRef = useRef<number | null>(null);
 
-  // Derived above the sign-in gate below, because the initialiser on the next
-  // line runs before that gate does. `null` when nobody is signed in, and every
-  // draft helper does nothing with a null key.
+  // Derived above the sign-in gate below, because the draft initialiser a few
+  // lines down runs before that gate does. `null` when nobody is signed in, and
+  // every draft helper does nothing with a null key.
   const draftKey = currentUser ? draftKeyFor(currentUser.id) : null;
   const legacyDraftKey = currentUser ? legacyDraftKeyFor(currentUser.id) : null;
 
+  /**
+   * Whether this account may file a listing as coming from an agent.
+   *
+   * The API decides this too — `_normalise_seller` puts a non-agent's listing
+   * back to OWNER whatever it was sent — so what is decided here is only what
+   * the form offers. An option that is silently ignored is worse than one that
+   * is visibly locked with the way to unlock it beside it.
+   *
+   * Derived up here beside the draft key, above the gates below, because the
+   * seller state and the draft it is restored from both have to consult it and
+   * both are initialised before any gate runs.
+   */
+  const canActAsAgent = canPublishAsAgent(currentUser?.role);
+  /** What the seller question opens on when nothing has answered it yet. */
+  const defaultSellerType: SellerType = canActAsAgent ? 'AGENT' : 'OWNER';
+
   // Read once, so every field below can open on the value the owner left.
-  const [initialDraft] = useState<Draft | null>(() => readDraft(draftKey, legacyDraftKey));
+  const [initialDraft] = useState<Draft | null>(() =>
+    readDraft(draftKey, legacyDraftKey, defaultSellerType),
+  );
 
   const [step, setStep] = useState(() => clampStep(initialDraft?.step ?? 1));
+  /**
+   * The furthest step this form has been walked to.
+   *
+   * The step header used to unlock nothing above the step you were standing
+   * on, so going back to correct the district re-locked the two steps behind
+   * it: the photos were still uploaded and the price still typed, but the
+   * only way back to them was to press "next" through every gate again.
+   */
+  const [maxStep, setMaxStep] = useState(() =>
+    clampStep(Math.max(initialDraft?.maxStep ?? 1, initialDraft?.step ?? 1)),
+  );
 
   // -- Step 1: location ------------------------------------------------------
   const [region, setRegion] = useState(initialDraft?.region ?? TASHKENT_CITY);
@@ -475,6 +563,9 @@ export const CreateListingPage: React.FC = () => {
   // -- Step 2: the property --------------------------------------------------
   const [title, setTitle] = useState(initialDraft?.title ?? '');
   const [description, setDescription] = useState(initialDraft?.description ?? '');
+  const [propertyType, setPropertyType] = useState<PropertyType>(
+    initialDraft?.propertyType ?? 'APARTMENT',
+  );
   const [price, setPrice] = useState<NumberField>(initialDraft?.price ?? '');
   const [deposit, setDeposit] = useState<NumberField>(initialDraft?.deposit ?? '');
   const [rooms, setRooms] = useState<NumberField>(initialDraft?.rooms ?? '');
@@ -494,6 +585,32 @@ export const CreateListingPage: React.FC = () => {
   const [images, setImages] = useState<string[]>(initialDraft?.images ?? []);
   const [processingImages, setProcessingImages] = useState(false);
   const [dragOverDropzone, setDragOverDropzone] = useState(false);
+  // Seeded from the role the account itself declared, not fixed at OWNER: an
+  // agency that has already told us what it is would otherwise publish
+  // listings badged "from the owner" every time it forgot to change this —
+  // precisely the claim the badge exists to stop being made. Nothing is
+  // hidden by it; both segments are on the screen, one of them lit.
+  //
+  // The draft only gets a say while the account can still act on it, because
+  // a draft outlives a role change and AGENT → OWNER is a switch the profile
+  // page offers. Restoring the stored AGENT afterwards lit a segment that was
+  // also disabled: the agency box asked for a name that would never be sent,
+  // the "you cannot do this" panel sat underneath a control saying it was
+  // already done, `validateStep(3)` length-checked that name, and the publish
+  // sent OWNER without a word — the screen saying one thing and the listing
+  // another. A disabled segment that is also the selected one takes the whole
+  // radiogroup out of the tab order as well, since `Segmented` keeps only the
+  // active segment at `tabIndex={0}` and the arrow keys are on a wrapper that
+  // is not focusable.
+  const [sellerType, setSellerType] = useState<SellerType>(() =>
+    canActAsAgent ? (initialDraft?.sellerType ?? defaultSellerType) : 'OWNER',
+  );
+  // Prefilled from the account, because an agency publishes under the same
+  // name every time and retyping it on each listing is how the third one ends
+  // up spelled differently from the first two.
+  const [agencyName, setAgencyName] = useState(
+    initialDraft?.agencyName ?? currentUser?.agencyName ?? '',
+  );
   const [telegram, setTelegram] = useState(initialDraft?.telegram ?? '');
   const [preferredTime, setPreferredTime] = useState(initialDraft?.preferredTime ?? '');
   const [topRequested, setTopRequested] = useState(initialDraft?.topRequested ?? false);
@@ -518,6 +635,18 @@ export const CreateListingPage: React.FC = () => {
 
   /** Field name -> translation key, so errors survive a language switch. */
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  /**
+   * Counts refused presses, so the effect that shows the summary can tell one
+   * refusal from the next.
+   *
+   * `setStep(invalidStep)` when the failure is on the step already showing —
+   * the ordinary case, a missing photo or a mistyped Telegram handle — is a
+   * React bail-out: no re-render, so an effect keyed on the step never runs
+   * again. Publishing an invalid form therefore fired the haptic and did
+   * nothing visible, because the summary sits at the top of the form, several
+   * screens above the button a thumb had just pressed on a 360px phone.
+   */
+  const [errorNudge, setErrorNudge] = useState(0);
 
   const activeRegion =
     UZBEKISTAN_REGIONS.find((item) => item.name === region) ?? UZBEKISTAN_REGIONS[0];
@@ -547,6 +676,16 @@ export const CreateListingPage: React.FC = () => {
     }
   }, [hasMetro, metro]);
 
+  // The seed above runs once, and `currentUser.role` is store state that can
+  // change while this form stays mounted — the gate below switches it, and so
+  // does anything else that refreshes the account — so the same clamp is
+  // repeated whenever the capability goes away. Without it the segment goes on
+  // showing AGENT, disabled and selected at the same time, while the publish
+  // quietly sends OWNER.
+  useEffect(() => {
+    if (!canActAsAgent && sellerType === 'AGENT') setSellerType('OWNER');
+  }, [canActAsAgent, sellerType]);
+
   const payloadBytes = useMemo(
     () => images.reduce((sum, image) => sum + dataUrlBytes(image), 0),
     [images],
@@ -564,6 +703,26 @@ export const CreateListingPage: React.FC = () => {
     headingRef.current?.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' });
   }, [step, prefersReducedMotion]);
+
+  /**
+   * Put the refusal in front of whoever was refused.
+   *
+   * Focus as well as scroll: the summary is the answer to the press, and
+   * moving focus into it is what tells a screen reader the same thing the
+   * scroll tells everyone else. Declared after the step effect above so that
+   * when a failure does move the wizard to another step this one runs second
+   * and the summary, not the top of the page, is where the owner is left.
+   */
+  useEffect(() => {
+    if (errorNudge === 0) return;
+    const summary = errorSummaryRef.current;
+    if (!summary) return;
+    summary.focus({ preventScroll: true });
+    summary.scrollIntoView({
+      block: 'start',
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+    });
+  }, [errorNudge, prefersReducedMotion]);
 
   /**
    * What the button will do, before it is pressed.
@@ -613,6 +772,7 @@ export const CreateListingPage: React.FC = () => {
       version: DRAFT_VERSION,
       savedAt: Date.now(),
       step,
+      maxStep,
       region,
       district,
       address,
@@ -622,6 +782,7 @@ export const CreateListingPage: React.FC = () => {
       longitude,
       title,
       description,
+      propertyType,
       price,
       deposit,
       rooms,
@@ -633,6 +794,8 @@ export const CreateListingPage: React.FC = () => {
       roommateGender,
       roommateSpots,
       images,
+      sellerType,
+      agencyName,
       telegram,
       preferredTime,
       topRequested,
@@ -640,10 +803,11 @@ export const CreateListingPage: React.FC = () => {
       topNote,
     }),
     [
-      step, region, district, address, metro, metroMinutes, latitude, longitude,
-      title, description, price, deposit, rooms, area, floor, totalFloors,
-      amenities, isRoommate, roommateGender, roommateSpots, images,
-      telegram, preferredTime, topRequested, topDays, topNote,
+      step, maxStep, region, district, address, metro, metroMinutes, latitude,
+      longitude, title, description, propertyType, price, deposit, rooms, area,
+      floor, totalFloors, amenities, isRoommate, roommateGender, roommateSpots,
+      images, sellerType, agencyName, telegram, preferredTime, topRequested,
+      topDays, topNote,
     ],
   );
 
@@ -907,6 +1071,15 @@ export const CreateListingPage: React.FC = () => {
       if (preferredTime.trim().length > MAX_CONTACT_TIME_LENGTH) {
         errors.preferredTime = 'common.error.validation';
       }
+      // Only when it is going to be sent. The box is prefilled from the
+      // profile, where the name was stored under the same 120-character cap,
+      // so this catches a paste rather than the prefill.
+      if (
+        sellerType === 'AGENT' &&
+        agencyName.trim().length > MAX_AGENCY_NAME_LENGTH
+      ) {
+        errors.agency = 'common.error.validation';
+      }
     }
 
     return errors;
@@ -919,14 +1092,25 @@ export const CreateListingPage: React.FC = () => {
       setStep(target);
       return;
     }
-    const errors = validateStep(step);
-    setFormErrors(errors);
-    if (Object.keys(errors).length === 0) {
-      haptics.select();
-      setStep(target);
-    } else {
-      haptics.warn();
+    // Every step between here and there is checked, not only the one being
+    // left. Now that a step already reached stays tappable, walking back to
+    // step 1 and tapping straight through to 3 would otherwise carry an
+    // emptied step 2 past its own gate. The first one that fails is where the
+    // owner lands, so the message is on the screen that can fix it.
+    for (let candidate = step; candidate < target; candidate += 1) {
+      const errors = validateStep(candidate);
+      if (Object.keys(errors).length > 0) {
+        setFormErrors(errors);
+        setErrorNudge((count) => count + 1);
+        haptics.warn();
+        setStep(candidate);
+        return;
+      }
     }
+    setFormErrors({});
+    haptics.select();
+    setStep(target);
+    setMaxStep((furthest) => Math.max(furthest, target));
   };
 
   const firstInvalidStep = (): number | null => {
@@ -963,6 +1147,10 @@ export const CreateListingPage: React.FC = () => {
     const invalidStep = firstInvalidStep();
     if (invalidStep !== null) {
       haptics.warn();
+      // Counted rather than left to the step change, which is usually no
+      // change at all: the field that failed is nearly always on step 3, the
+      // step the Publish button is on.
+      setErrorNudge((count) => count + 1);
       setStep(invalidStep);
       return;
     }
@@ -971,6 +1159,13 @@ export const CreateListingPage: React.FC = () => {
     setSubmitError(null);
 
     const point = coordinates();
+    // `sellerType` is already clamped to what this account may claim — when
+    // the draft is read and again whenever the role changes under the form —
+    // so this reads the same answer the segment is showing rather than
+    // correcting it behind the owner's back. It stays written through the
+    // capability because a publish that disagrees with the screen is the one
+    // failure this must not have. The API normalises the same way.
+    const publishAsAgent = canActAsAgent && sellerType === 'AGENT';
     // Only owner-editable fields: anything the server owns (status, scores,
     // counters, ownerId) makes the request fail validation with 422. Optional
     // numbers travel as null rather than 0 — `area` is validated `gt=0`, so a
@@ -986,7 +1181,7 @@ export const CreateListingPage: React.FC = () => {
       area: area === '' ? null : area,
       floor: floor === '' ? null : floor,
       totalFloors: totalFloors === '' ? null : totalFloors,
-      propertyType: 'APARTMENT',
+      propertyType,
       region,
       district,
       address: address.trim(),
@@ -1002,6 +1197,8 @@ export const CreateListingPage: React.FC = () => {
       washingMachine: amenities.washingMachine,
       images,
       hasVirtualTour: false,
+      sellerType: publishAsAgent ? 'AGENT' : 'OWNER',
+      agencyName: publishAsAgent ? agencyName.trim() || null : null,
       contactTelegram: telegram.trim() || null,
       preferredContactTime: preferredTime.trim() || null,
       isRoommate,
@@ -1049,6 +1246,15 @@ export const CreateListingPage: React.FC = () => {
           }),
         );
         pushToast('common.error.limitReached', 'warning');
+      } else if (error instanceof ApiError && error.isRateLimited) {
+        // The other 429. The router runs the in-process limiter (`enforce`)
+        // before it counts the hour's listings, so hitting the cap normally
+        // answers with the plain `rate_limited` code and no limit in it —
+        // which the branch below used to render as "check your internet
+        // connection", sending the owner off to reload a form that was
+        // working and to try again into a wall that has not moved.
+        setSubmitError(t('common.error.rateLimited'));
+        pushToast('common.error.rateLimited', 'warning');
       } else if (error instanceof ApiError && error.status === 422) {
         // The server names the field it rejected. Marking that field and
         // opening its step is the difference between "check the data you
@@ -1056,6 +1262,10 @@ export const CreateListingPage: React.FC = () => {
         const target = error.field ? SERVER_FIELDS[error.field] : undefined;
         if (target) {
           setFormErrors({ [target.field]: 'common.error.validation' });
+          // A server refusal about a step-3 field lands on the step already
+          // showing, so it needs the same nudge the local rules do or the red
+          // box appears somewhere nobody is looking.
+          setErrorNudge((count) => count + 1);
           setStep(target.step);
         } else {
           setSubmitError(error.message || t('common.error.validation'));
@@ -1087,6 +1297,10 @@ export const CreateListingPage: React.FC = () => {
     setDraftRestoredAt(null);
     setPhotosDropped(false);
     setStep(1);
+    // The steps go back with it: nothing has been earned on a form that is
+    // empty, so leaving 2 and 3 unlocked would offer a shortcut into a step
+    // whose answers have just been thrown away.
+    setMaxStep(1);
     setRegion(TASHKENT_CITY);
     setDistrict(
       (UZBEKISTAN_REGIONS.find((item) => item.name === TASHKENT_CITY) ?? UZBEKISTAN_REGIONS[0])
@@ -1099,6 +1313,7 @@ export const CreateListingPage: React.FC = () => {
     setLongitude(null);
     setTitle('');
     setDescription('');
+    setPropertyType('APARTMENT');
     setPrice('');
     setDeposit('');
     setRooms('');
@@ -1110,6 +1325,11 @@ export const CreateListingPage: React.FC = () => {
     setRoommateGender('ANY');
     setRoommateSpots(1);
     setImages([]);
+    setSellerType(defaultSellerType);
+    // Back to the profile's name rather than to nothing: that is what an
+    // untouched form shows an agency account, and discarding a draft asks for
+    // an empty form, not a stripped account.
+    setAgencyName(currentUser.agencyName ?? '');
     setTelegram('');
     setPreferredTime('');
     setFormErrors({});
@@ -1282,17 +1502,18 @@ export const CreateListingPage: React.FC = () => {
 
         <ol className="flex items-center gap-1.5">
           {stepMeta.map((item) => {
-            const isDone = step > item.num;
+            const isDone = item.num < maxStep;
             const isActive = step === item.num;
             return (
               <li key={item.num} className="flex-1">
-                {/* A finished step stays tappable — going back to fix the
-                    district should not mean walking forward through the form
-                    again. A future one is not a link to anywhere yet. */}
+                {/* Every step already reached stays tappable, ahead as well as
+                    behind: going back to fix the district used to lock the
+                    photos you had already uploaded behind two "next" presses.
+                    A step nobody has reached is still not a link to anywhere. */}
                 <button
                   type="button"
                   onClick={() => goToStep(item.num)}
-                  disabled={item.num > step}
+                  disabled={item.num > maxStep}
                   aria-current={isActive ? 'step' : undefined}
                   aria-label={`${item.num}. ${item.title}`}
                   className={cn(
@@ -1306,17 +1527,20 @@ export const CreateListingPage: React.FC = () => {
         </ol>
       </div>
 
-      {/* Step navigation. Completed steps stay reachable; future ones do not. */}
+      {/* Step navigation. Every step already reached stays reachable, in both
+          directions; the ones beyond it do not. The check mark is kept for a
+          step whose gate has actually been cleared, so the furthest step —
+          reached but not finished — is tappable without claiming to be done. */}
       <ol className="hidden gap-2.5 sm:grid sm:grid-cols-3 sm:gap-3">
         {stepMeta.map((item) => {
           const isActive = step === item.num;
-          const isDone = step > item.num;
+          const isDone = item.num < maxStep;
           return (
             <li key={item.num}>
               <button
                 type="button"
                 onClick={() => goToStep(item.num)}
-                disabled={item.num > step}
+                disabled={item.num > maxStep}
                 aria-current={isActive ? 'step' : undefined}
                 className={cn(
                   'press-sm relative w-full overflow-hidden rounded-2xl border p-3.5 text-left',
@@ -1339,7 +1563,14 @@ export const CreateListingPage: React.FC = () => {
                           : 'bg-surface-2 text-subtle',
                     )}
                   >
-                    {isDone ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : item.num}
+                    {/* The step you are standing on keeps its number even
+                        once it has been cleared, or the header would show a
+                        tick where the "you are here" marker belongs. */}
+                    {isDone && !isActive ? (
+                      <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                    ) : (
+                      item.num
+                    )}
                   </span>
                   <span className="text-[10px] font-bold">
                     {t('owner.create.stepCounter', { current: item.num, total: TOTAL_STEPS })}
@@ -1364,8 +1595,14 @@ export const CreateListingPage: React.FC = () => {
         >
           {errorKeys.length > 0 && (
             <div
+              ref={errorSummaryRef}
+              // Focusable by script only. The effect above moves focus here
+              // after a refused press, and a `-1` tabindex is what lets it
+              // without adding a stop to the tab order the owner has to walk
+              // past on every pass through the form.
+              tabIndex={-1}
               role="alert"
-              className="rounded-2xl border border-danger/30 bg-danger-soft p-4 text-sm text-danger"
+              className="rounded-2xl border border-danger/30 bg-danger-soft p-4 text-sm text-danger outline-none"
             >
               <p className="flex items-center gap-2 font-black">
                 <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -1727,6 +1964,34 @@ export const CreateListingPage: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              {/* Asked at last. The payload used to carry a hardcoded
+                  APARTMENT, so a hovli uy, a room, a studio and a dormitory
+                  were all published as flats — mislabelled on the card and
+                  dropped by the search of anyone looking for exactly them. */}
+              <Field
+                label={t('common.filters.propertyType')}
+                error={formErrors.propertyType ? tRaw(formErrors.propertyType) : undefined}
+              >
+                {({ id, describedBy, invalid }) => (
+                  <SelectInput
+                    id={id}
+                    aria-describedby={describedBy}
+                    invalid={invalid}
+                    value={propertyType}
+                    onChange={(event) => {
+                      setPropertyType(event.target.value as PropertyType);
+                      clearError('propertyType');
+                    }}
+                  >
+                    {PROPERTY_TYPES.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {tRaw(option.labelKey)}
+                      </option>
+                    ))}
+                  </SelectInput>
+                )}
+              </Field>
 
               <Field
                 label={t('owner.create.details.titleLabel')}
@@ -2133,10 +2398,111 @@ export const CreateListingPage: React.FC = () => {
                 </p>
               )}
 
+              {/*
+                Above the contact block rather than inside it, because it
+                decides what the number underneath means: the person who owns
+                the flat, or the agency letting it for them.
+
+                Until this existed the form had no way to say either. Agencies
+                signed up as owners and explained themselves in the
+                description — "I run an agency and work as a realtor, but I am
+                not allowed to post on the owner's behalf" — and a caller had
+                no way to know who would answer the phone.
+              */}
+              <div className="min-w-0 border-t border-line pt-5">
+                <h3 className={headingClass}>
+                  <BadgeCheck className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
+                  {t('owner.create.seller.heading')}
+                </h3>
+                <p className="mt-0.5 text-xs text-subtle">
+                  {t('owner.create.seller.subheading')}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                {/* `size="sm"`, as on the listings bar: "Ko‘chmas mulk agenti"
+                    and its icon do not fit half of a 360px phone at the
+                    default padding, and this is a control whose two labels
+                    have to be read to be answered. The type argument is
+                    spelled out because inferring it from a `useState` setter
+                    widens the union to `string`, and the option values with
+                    it. */}
+                <Segmented<SellerType>
+                  value={sellerType}
+                  onChange={setSellerType}
+                  label={t('owner.create.seller.heading')}
+                  size="sm"
+                  options={[
+                    {
+                      value: 'OWNER',
+                      label: t('owner.create.seller.owner'),
+                      icon: Home,
+                    },
+                    {
+                      value: 'AGENT',
+                      label: t('owner.create.seller.agent'),
+                      icon: Briefcase,
+                      disabled: !canActAsAgent,
+                    },
+                  ]}
+                />
+                <p className="text-[11px] font-medium text-subtle">
+                  {sellerType === 'AGENT'
+                    ? t('owner.create.seller.agentHint')
+                    : t('owner.create.seller.ownerHint')}
+                </p>
+              </div>
+
+              {/* The role is what unlocks the agent option and it is chosen on
+                  the profile, so the way there is a button rather than a
+                  sentence describing where to look. */}
+              {!canActAsAgent && (
+                <div className="flex flex-col gap-3 rounded-2xl border border-line bg-surface-2 p-3.5 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="min-w-0 text-xs font-medium leading-relaxed text-muted">
+                    {t('owner.create.seller.agentLocked')}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="press shrink-0"
+                    onClick={() => setCurrentView('PROFILE')}
+                  >
+                    {t('owner.create.seller.agentLockedCta')}
+                  </Button>
+                </div>
+              )}
+
+              {/* Optional even for an agency: an independent realtor has no
+                  company name to give, and demanding one would be a second
+                  reason not to tick the box that says what they are. */}
+              {sellerType === 'AGENT' && (
+                <Field
+                  label={t('owner.create.seller.agencyLabel')}
+                  hint={t('owner.create.seller.agencyHint')}
+                  error={formErrors.agency ? tRaw(formErrors.agency) : undefined}
+                >
+                  {({ id, describedBy, invalid }) => (
+                    <TextInput
+                      id={id}
+                      aria-describedby={describedBy}
+                      invalid={invalid}
+                      value={agencyName}
+                      maxLength={MAX_AGENCY_NAME_LENGTH}
+                      onChange={(event) => {
+                        setAgencyName(event.target.value);
+                        clearError('agency');
+                      }}
+                      placeholder={t('owner.create.seller.agencyPlaceholder')}
+                      icon={<Building2 className="h-4 w-4" aria-hidden="true" />}
+                    />
+                  )}
+                </Field>
+              )}
+
               {/* Contact used to be a step of its own. With the video card and
                   the pre-publish check gone it was two optional boxes behind a
                   "next" press, so it moved here: the last step now asks for
-                  the photos, who to ring, and nothing else. */}
+                  the photos, who is letting the place, and who to ring. */}
               <div className="min-w-0 border-t border-line pt-5">
                 <h3 className={headingClass}>
                   <Phone className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />

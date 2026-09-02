@@ -42,6 +42,27 @@ export const owner = {
       toPhotos: 'Keyingi: rasmlar va aloqa',
     },
 
+    /**
+     * Kim nomidan e’lon berilayotgani. Hisobning roli emas — bir agentning
+     * o‘z uyi ham bo‘lishi mumkin — shuning uchun har bir e’londa alohida
+     * so‘raladi. Foydalanuvchilar aynan shu tanlov yo‘qligidan shikoyat
+     * qilishgan edi.
+     */
+    seller: {
+      heading: 'Kim sifatida joylashtiryapsiz?',
+      subheading: 'Qidiruvchilar qo‘ng‘iroq qilishdan oldin kim javob berishini bilishadi.',
+      owner: 'Uy egasi',
+      ownerHint: 'Uy o‘zimniki',
+      agent: 'Ko‘chmas mulk agenti',
+      agentHint: 'Uy egasi nomidan',
+      agencyLabel: 'Agentlik nomi',
+      agencyPlaceholder: 'Masalan: Zamin Realty',
+      agencyHint: 'Ixtiyoriy — mustaqil rieltor bo‘lsangiz, bo‘sh qoldiring.',
+      agentLocked:
+        'Agent sifatida joylashtirish uchun profilingizdan “Ko‘chmas mulk agenti” rolini tanlang.',
+      agentLockedCta: 'Profilga o‘tish',
+    },
+
     location: {
       heading: 'Manzil va joylashuv',
       subheading: 'Kvartirangiz qaysi tuman va ko‘chada joylashgan?',

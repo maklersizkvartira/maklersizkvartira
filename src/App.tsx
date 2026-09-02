@@ -14,12 +14,12 @@
 
 import React, { Suspense, lazy, useEffect } from 'react';
 
-import { AuthDialog } from './components/auth/AuthDialog';
 import { BottomNav } from './components/layout/BottomNav';
 import { Footer } from './components/layout/Footer';
 import { Header } from './components/layout/Header';
 import { HEADER_CLEARANCE } from './components/layout/headerMetrics';
 import { Toaster } from './components/layout/Toaster';
+import { WelcomeCelebration } from './components/auth/WelcomeCelebration';
 import { ListingsPage } from './components/listings/ListingsPage';
 import { AiMascot } from './components/common/AiMascot';
 import { GlobalAINotification } from './components/common/GlobalAINotification';
@@ -30,13 +30,14 @@ import { isAutomatedAgent } from './services/crawler';
 import { trackPageView } from './services/analytics';
 import { MetaApi } from './services/listingsApi';
 import { useSeoHead } from './seo/useSeoHead';
-import { REQUIRES_AUTH, authTabForView } from './router/views';
+import { AUTH_VIEWS, REQUIRES_AUTH, authTabForView } from './router/views';
 import { useAppStore, type ViewState } from './stores/useAppStore';
 
 /** Per-tab analytics id, and the key it lived under before the brand changed. */
 const SESSION_KEY = 'uyiz.session';
 const LEGACY_SESSION_KEY = 'maklersiz.session';
 
+const AuthPage = lazy(() => import('./components/auth/AuthPage'));
 const HomePage = lazy(() => import('./components/home/HomePage'));
 const ListingDetailPage = lazy(() => import('./components/listing/ListingDetailPage'));
 const MapView = lazy(() => import('./components/map/MapView'));
@@ -62,6 +63,20 @@ const HelpPage = lazy(() => ArticlePages().then((module) => ({ default: module.H
 const NotFoundPage = lazy(() =>
   ArticlePages().then((module) => ({ default: module.NotFoundPage })),
 );
+
+/**
+ * Views that fill the screen on their own — no header, no footer, no tab bar.
+ *
+ * The auth screens are the whole of it. They are a task with one way forward
+ * and one way out, and every other piece of navigation on the page is a way
+ * to abandon it half-finished; on a phone the header and the tab bar also
+ * cost the two strips of screen the keyboard leaves you.
+ */
+const CHROMELESS: ReadonlySet<ViewState> = new Set<ViewState>([
+  'LOGIN',
+  'REGISTER',
+  'FORGOT_PASSWORD',
+]);
 
 /**
  * Views that write their own `<head>`, because it depends on data they load —
@@ -96,6 +111,10 @@ function renderView(view: ViewState): React.ReactNode {
   switch (view) {
     case 'HOME':
       return <HomePage />;
+    case 'LOGIN':
+    case 'REGISTER':
+    case 'FORGOT_PASSWORD':
+      return <AuthPage />;
     case 'LISTINGS':
       return <ListingsPage />;
     case 'LISTING_DETAIL':
@@ -146,6 +165,8 @@ export const App: React.FC = () => {
   const authReady = useAppStore((state) => state.authReady);
   const currentUser = useAppStore((state) => state.currentUser);
   const setShowAuth = useAppStore((state) => state.setShowAuth);
+  const welcomeName = useAppStore((state) => state.welcomeName);
+  const dismissWelcome = useAppStore((state) => state.dismissWelcome);
   const pushToast = useAppStore((state) => state.pushToast);
 
   const fetchUnreadChatCount = useAppStore((state) => state.fetchUnreadChatCount);
@@ -235,15 +256,27 @@ export const App: React.FC = () => {
   }, [guarded, currentView, setShowAuth]);
 
   /**
-   * The view actually on screen.
+   * Whether this route owns the whole screen.
    *
-   * A guarded view renders the home page rather than a dead end (see the
-   * `<main>` below), and this is the one expression that says so — it is both
-   * what `renderView` is handed and what the transition wrapper is keyed on,
-   * so signing in and having the real page swap in underneath the dialog is a
-   * transition rather than a jump cut.
+   * Read from `currentView` rather than from anything derived: a guarded view
+   * renders the loading state below and never reaches `renderView`, so there
+   * is no second "which view is really on screen" to disagree with.
    */
-  const activeView: ViewState = guarded ? 'HOME' : currentView;
+  const bare = CHROMELESS.has(currentView);
+
+  /**
+   * What the transition wrapper is keyed on — the view, except that the three
+   * auth routes share one key.
+   *
+   * They are three addresses over one task, and keying them separately made
+   * React unmount the whole flow on every switch between them. That took the
+   * form with it: the phone number typed on the sign-in screen was gone by the
+   * registration screen, the in-flight-request guard could not see the change
+   * it was written for, and a reply arriving after the switch wrote into an
+   * instance that no longer existed. They are also the one group of views
+   * where a fade between them would be wrong: nobody crossed a page boundary.
+   */
+  const viewKey = AUTH_VIEWS.has(currentView) ? 'AUTH' : currentView;
 
   /**
    * Has the visitor navigated yet?
@@ -272,20 +305,30 @@ export const App: React.FC = () => {
    * wrapper until `authReady`, so nothing before it can be a navigation away
    * from anything.
    */
-  const renderedView = React.useRef<ViewState | null>(null);
+  const renderedView = React.useRef<string | null>(null);
   const hasNavigated = React.useRef(false);
   if (authReady) {
     if (renderedView.current === null) {
-      renderedView.current = activeView;
-    } else if (renderedView.current !== activeView) {
-      renderedView.current = activeView;
+      renderedView.current = viewKey;
+    } else if (renderedView.current !== viewKey) {
+      renderedView.current = viewKey;
       hasNavigated.current = true;
     }
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-canvas text-content">
-      <Header />
+    <div
+      // `100dvh` on the chromeless routes, `100vh` everywhere else. On iOS
+      // Safari with the URL bar showing, `min-h-screen` makes the document
+      // taller than the visual viewport by the height of that bar — invisible
+      // on a page that scrolls anyway, and the one thing you notice on a
+      // centred sign-in form, which then is not centred and drifts as the bar
+      // hides.
+      className={`flex flex-col bg-canvas text-content ${
+        bare ? 'min-h-[100dvh]' : 'min-h-screen'
+      }`}
+    >
+      {!bare && <Header />}
 
       {/*
         The padding clears the fixed header. The number is not written here —
@@ -299,7 +342,12 @@ export const App: React.FC = () => {
         `id` is the skip link's target, so a keyboard visitor can jump the
         whole header in one press.
       */}
-      <main id="main-content" className={`flex-1 ${HEADER_CLEARANCE}`}>
+      {/*
+        `HEADER_CLEARANCE` is a complete literal class string, never built by
+        concatenation: Tailwind v4 scans source text, so a class assembled at
+        runtime generates no CSS and the header silently overlaps the page.
+      */}
+      <main id="main-content" className={bare ? 'flex-1' : `flex-1 ${HEADER_CLEARANCE}`}>
         {/*
           Inside <main>, not above it.
 
@@ -308,16 +356,12 @@ export const App: React.FC = () => {
           underneath the blue bar and was partly or wholly invisible. Here it
           inherits the same clearance as every other thing on the page.
         */}
-        <GlobalAINotification />
+        {!bare && <GlobalAINotification />}
 
-        {!authReady ? (
+        {!authReady || guarded ? (
           <Loading />
         ) : (
           /*
-            A guarded view renders the home page rather than a dead end: the
-            dialog is already open over it, and signing in swaps the real page
-            in underneath at the same URL, with no second navigation.
-
             The key is what turns a navigation from a cut into a movement.
             React tears the old view down and mounts the next one with
             `.view-enter` already on it — a 240ms fade and settle described in
@@ -334,16 +378,22 @@ export const App: React.FC = () => {
             outgoing view leaves with the frame rather than being held on
             screen to fade out.
           */
-          <div key={activeView} className={hasNavigated.current ? 'view-enter' : undefined}>
-            <Suspense fallback={<Loading />}>{renderView(activeView)}</Suspense>
+          <div key={viewKey} className={hasNavigated.current ? 'view-enter' : undefined}>
+            <Suspense fallback={<Loading />}>{renderView(currentView)}</Suspense>
           </div>
         )}
       </main>
 
-      {currentView !== 'CHAT' && <Footer />}
-      <BottomNav />
-      {currentView !== 'CHAT' && <AiMascot />}
-      <AuthDialog />
+      {currentView !== 'CHAT' && !bare && <Footer />}
+      {!bare && <BottomNav />}
+      {currentView !== 'CHAT' && !bare && <AiMascot />}
+      {/*
+        Rendered from the shell, not from the page that earned it. The sign-in
+        page navigates away the instant the session is adopted, so a welcome
+        owned by that page was unmounted before it had been read — and with it
+        the timer the handoff was waiting on.
+      */}
+      {welcomeName && <WelcomeCelebration name={welcomeName} onDone={dismissWelcome} />}
       <Toaster />
     </div>
   );

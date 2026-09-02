@@ -19,6 +19,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
+  Briefcase,
   Camera,
   Globe,
   GraduationCap,
@@ -276,6 +277,15 @@ export const ProfilePage: React.FC = () => {
 
   const [roleBusy, setRoleBusy] = useState<SignupRole | null>(null);
 
+  // Seeded from the account and re-seeded whenever the server's copy changes,
+  // so switching to AGENT (which clears the field server-side) or saving does
+  // not leave the input showing a value that is no longer stored.
+  const [agency, setAgency] = useState(currentUser.agencyName ?? '');
+  const [agencyBusy, setAgencyBusy] = useState(false);
+  useEffect(() => {
+    setAgency(currentUser.agencyName ?? '');
+  }, [currentUser.agencyName]);
+
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -407,6 +417,20 @@ export const ProfilePage: React.FC = () => {
         .finally(() => setAvatarBusy(false));
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleSaveAgency = async () => {
+    if (agencyBusy) return;
+    setAgencyBusy(true);
+    try {
+      const updated = await AuthApi.updateProfile({ agencyName: agency.trim() });
+      useAppStore.setState({ currentUser: updated });
+      pushToast('account.role.agencySaved', 'success');
+    } catch {
+      pushToast('account.role.agencyFailed', 'error');
+    } finally {
+      setAgencyBusy(false);
+    }
   };
 
   const handleSwitchRole = async (role: SignupRole) => {
@@ -624,6 +648,10 @@ export const ProfilePage: React.FC = () => {
                 {(
                   [
                     { value: 'OWNER', icon: Home, titleKey: 'account.role.owner.title', descriptionKey: 'account.role.owner.description' },
+                    // A realtor used to have to call themselves a homeowner
+                    // here, which is both untrue and the thing people
+                    // complained about not being able to say.
+                    { value: 'AGENT', icon: Briefcase, titleKey: 'account.role.agent.title', descriptionKey: 'account.role.agent.description' },
                     { value: 'STUDENT', icon: GraduationCap, titleKey: 'account.role.student.title', descriptionKey: 'account.role.student.description' },
                   ] as const
                 ).map((option) => {
@@ -661,6 +689,45 @@ export const ProfilePage: React.FC = () => {
                     </button>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Only an agent has an agency, and the name is what a caller
+                sees beside every listing they publish — so it belongs beside
+                the role that produces it, not on a settings page of its own. */}
+            {currentUser.role === 'AGENT' && (
+              <div className="space-y-2 rounded-xl border border-line bg-surface-2 p-3">
+                <div>
+                  <p className="text-xs font-black text-content">
+                    {t('account.role.agencyTitle')}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted">
+                    {t('account.role.agencySubtitle')}
+                  </p>
+                </div>
+                <Field label={t('account.role.agencyLabel')} hint={t('account.role.agencyHint')}>
+                  {({ id, describedBy }) => (
+                    <TextInput
+                      id={id}
+                      aria-describedby={describedBy}
+                      autoComplete="organization"
+                      value={agency}
+                      onChange={(event) => setAgency(event.target.value)}
+                      placeholder={t('account.role.agencyPlaceholder')}
+                      icon={<Briefcase className="h-4 w-4" />}
+                    />
+                  )}
+                </Field>
+                <Button
+                  variant="secondary"
+                  fullWidth
+                  loading={agencyBusy}
+                  disabled={agency.trim() === (currentUser.agencyName ?? '').trim()}
+                  onClick={() => void handleSaveAgency()}
+                  className="px-4 py-2.5 text-xs"
+                >
+                  {t('common.action.save')}
+                </Button>
               </div>
             )}
 

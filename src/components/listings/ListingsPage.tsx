@@ -467,6 +467,16 @@ export const ListingsPage: React.FC = () => {
       clear: () => setFilters({ audience: 'ALL' }),
     });
   }
+  if (filters.sellerType !== 'ALL') {
+    applied.push({
+      id: 'sellerType',
+      label:
+        filters.sellerType === 'OWNER'
+          ? t('listings.seller.filterOwner')
+          : t('listings.seller.filterAgent'),
+      clear: () => setFilters({ sellerType: 'ALL' }),
+    });
+  }
   if (filters.onlyVerified) {
     applied.push({
       id: 'onlyVerified',
@@ -919,6 +929,42 @@ export const ListingsPage: React.FC = () => {
               </ChipRow>
             </fieldset>
           )}
+
+          {/* Who published it.
+
+              The catalogue used to be able to leave this unsaid, because
+              there was only one answer: the site was "maklersiz" and every
+              listing came from the owner. Agents publish here now, and the
+              card badges say which is which — but a badge is something you
+              read after the search, one listing at a time, and the visitor
+              who only ever wants to deal with the owner had no way to ask.
+
+              Three chips, not a "hide agents" switch. An agent listing is a
+              legitimate one, so the third chip is a way of finding agents
+              rather than the leftovers of switching them off, and 'Hammasi'
+              stays the default: choosing owners is the visitor's decision to
+              make, not one this page makes on their behalf. */}
+          <fieldset>
+            <legend className="mb-2 text-xs font-black uppercase tracking-wide text-subtle">
+              {t('listings.seller.filterLabel')}
+            </legend>
+            <ChipRow label={t('listings.seller.filterLabel')}>
+              {(
+                [
+                  ['ALL', 'listings.seller.filterAll'],
+                  ['OWNER', 'listings.seller.filterOwner'],
+                  ['AGENT', 'listings.seller.filterAgent'],
+                ] as const
+              ).map(([value, labelKey]) => (
+                <Chip
+                  key={value}
+                  label={t(labelKey)}
+                  selected={filters.sellerType === value}
+                  onClick={() => setFilters({ sellerType: value })}
+                />
+              ))}
+            </ChipRow>
+          </fieldset>
 
           <fieldset>
             <legend className="mb-2 text-xs font-black uppercase tracking-wide text-subtle">

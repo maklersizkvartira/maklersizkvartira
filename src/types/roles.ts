@@ -8,15 +8,52 @@
  *
  * These helpers are the single place that answers "may this account do X",
  * so a future role is added once rather than found by bug report.
+ *
+ * `sellerTypeOf` is the one export here that reads a listing rather than an
+ * account, and it belongs beside the others because it is the other half of
+ * the same question: `canPublishAsAgent` decides who may post as an agent, and
+ * it decides which posts came from one.
  */
 
-import type { UserRole } from './index';
+import type { Listing, SellerType, UserRole } from './index';
 
 type MaybeRole = UserRole | null | undefined;
 
-/** May publish and manage listings of their own. */
+/**
+ * May publish and manage listings.
+ *
+ * "Of their own" is no longer the right phrase: an AGENT publishes on behalf
+ * of the owners they represent, which is the same capability and a different
+ * relationship. The relationship is recorded per listing (`sellerType`), not
+ * here.
+ */
 export const canPublishListings = (role: MaybeRole): boolean =>
-  role === 'OWNER' || role === 'DEVELOPER';
+  role === 'OWNER' || role === 'AGENT' || role === 'DEVELOPER';
+
+/** May publish a listing marked as coming from an agent rather than an owner. */
+export const canPublishAsAgent = (role: MaybeRole): boolean => role === 'AGENT';
+
+/**
+ * Who is offering the flat: the owner in person, or an agent acting for them.
+ *
+ * `sellerType` is optional on the wire — a row written before the column
+ * existed carries nothing, and so does a response from a container that
+ * predates it — and every one of those listings was published by an owner,
+ * which is exactly what the column now defaults to server-side.
+ *
+ * The default lives in one place rather than at each call site because the
+ * grid card and the detail page have to reach the same verdict about the same
+ * listing: a card badge reading "from the owner" above a page that names an
+ * agency is worse than either surface saying nothing at all.
+ *
+ * It lives in this module rather than in ListingCard because the detail page
+ * needs the verdict and renders no card: importing a one-line predicate from
+ * there pulled a component, nine icons and a module-level carousel ticker into
+ * the graph of a page that never mounts one.
+ */
+export function sellerTypeOf(listing: Pick<Listing, 'sellerType'>): SellerType {
+  return listing.sellerType === 'AGENT' ? 'AGENT' : 'OWNER';
+}
 
 /** Sees material that is not public: pending, rejected and hidden listings. */
 export const isStaffRole = (role: MaybeRole): boolean =>
@@ -28,7 +65,7 @@ export const hasFullAccess = (role: MaybeRole): boolean =>
 
 /** Roles a person may choose for themselves on the profile page. */
 export const isSwitchableRole = (role: MaybeRole): boolean =>
-  role === 'STUDENT' || role === 'OWNER' || role === 'TENANT';
+  role === 'STUDENT' || role === 'OWNER' || role === 'AGENT' || role === 'TENANT';
 
 /**
  * Translation key for a role name.
@@ -45,6 +82,7 @@ const ROLE_LABEL_KEYS = {
   ADMIN: 'common.role.admin',
   MODERATOR: 'common.role.moderator',
   OWNER: 'common.role.owner',
+  AGENT: 'common.role.agent',
   TENANT: 'common.role.tenant',
   STUDENT: 'common.role.student',
 } as const satisfies Record<UserRole, string>;

@@ -204,6 +204,21 @@ export const listings = {
     dormitory: 'Общежитие',
   },
 
+  seller: {
+    ownerLabel: 'Собственник',
+    agentLabel: 'Агент по недвижимости',
+    ownerBadge: 'От собственника',
+    agentBadge: 'Через агента',
+    agency: 'Агентство: {name}',
+    filterLabel: 'Кто разместил',
+    filterAll: 'Все',
+    filterOwner: 'Только собственники',
+    filterAgent: 'Агенты',
+    contactAgent: 'Связаться с агентом',
+    trustAgent: 'Доверие агенту: {score}',
+    phoneUnavailableAgent: 'Агент скрыл номер. Используйте другой способ связи.',
+  },
+
   empty: {
     title: 'По этим условиям объявлений не найдено',
     body: 'Попробуйте расширить фильтры или выберите другой район.',

@@ -204,6 +204,21 @@ export const listings = {
     dormitory: 'Dormitory',
   },
 
+  seller: {
+    ownerLabel: 'Owner',
+    agentLabel: 'Real-estate agent',
+    ownerBadge: 'From the owner',
+    agentBadge: 'Through an agent',
+    agency: 'Agency: {name}',
+    filterLabel: 'Posted by',
+    filterAll: 'Anyone',
+    filterOwner: 'Owners only',
+    filterAgent: 'Agents',
+    contactAgent: 'Contact the agent',
+    trustAgent: 'Agent trust: {score}',
+    phoneUnavailableAgent: 'The agent has hidden their number. Use another way to get in touch.',
+  },
+
   empty: {
     title: 'No listings match these criteria',
     body: 'Try widening your filters or choosing another district.',
