@@ -125,6 +125,20 @@ export const ListingCard: React.FC<ListingCardProps> = ({
   autoRotate,
 }) => {
   const { t, formatPrice, formatRelativeTime } = useTranslation();
+  const fxRate = useAppStore((state) => state.fxRate);
+
+  /**
+   * The same price in the other currency, or null when there is nothing
+   * useful to add. Rounded to whole units in both directions: a rate is an
+   * approximation and decimal places on an approximation only imply
+   * precision that is not there.
+   */
+  const converted =
+    fxRate > 0 && listing.price > 0
+      ? listing.currency === 'USD'
+        ? { amount: Math.round(listing.price * fxRate), currency: 'UZS' as const }
+        : { amount: Math.round(listing.price / fxRate), currency: 'USD' as const }
+      : null;
   const reducedMotion = useReducedMotion();
   const favoriteIds = useAppStore((state) => state.favoriteIds);
   const toggleFavorite = useAppStore((state) => state.toggleFavorite);
@@ -358,10 +372,23 @@ export const ListingCard: React.FC<ListingCardProps> = ({
     <div className={`flex min-w-0 flex-1 flex-col gap-1.5 ${isList ? 'p-3' : 'p-3.5 sm:p-4'}`}>
       <div className="flex items-start justify-between gap-2">
         <p className="text-base sm:text-lg font-black leading-tight text-content">
-          {formatPrice(listing.price)}
+          {/* The listing's own currency, not a converted one. A price set in
+              dollars is a dollar price — rewriting it into so'm at today's
+              rate would restate the owner's terms as something they never
+              said, and would change on its own overnight. */}
+          {formatPrice(listing.price, listing.currency)}
           <span className="ml-1 text-[10px] sm:text-xs font-semibold text-subtle">
             {t('listings.card.perMonth')}
           </span>
+          {/* The other currency underneath, marked approximate. Most searchers
+              here think in so'm and most agencies quote in dollars; showing
+              only one of them makes somebody do arithmetic before they can
+              compare two listings. */}
+          {converted !== null && (
+            <span className="block text-[10px] sm:text-xs font-semibold text-subtle">
+              ≈ {formatPrice(converted.amount, converted.currency)}
+            </span>
+          )}
         </p>
         <span
           className={`inline-flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-0.5 sm:px-2 sm:py-1 text-[9px] sm:text-[10px] font-black ${trust.className}`}

@@ -128,6 +128,10 @@ export const owner = {
       // These fields start empty now. A seeded number reads as an answer, and
       // people published it unchanged; a placeholder reads as an example.
       pricePlaceholder: 'Masalan: 4 000 000',
+      currencyLabel: 'Valyuta',
+      currencyUzs: 'so‘m',
+      currencyUsd: '$ dollar',
+      pricePlaceholderUsd: 'Masalan, 500',
       depositPlaceholder: 'Zaklad yo‘q bo‘lsa — 0',
       areaPlaceholder: 'Masalan: 54',
       floorPlaceholder: 'Masalan: 3',

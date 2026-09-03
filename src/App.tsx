@@ -162,6 +162,7 @@ export const App: React.FC = () => {
   const language = useAppStore((state) => state.language);
   const adoptLocation = useAppStore((state) => state.adoptLocation);
   const initAuth = useAppStore((state) => state.initAuth);
+  const loadFxRate = useAppStore((state) => state.loadFxRate);
   const authReady = useAppStore((state) => state.authReady);
   const currentUser = useAppStore((state) => state.currentUser);
   const setShowAuth = useAppStore((state) => state.setShowAuth);
@@ -174,6 +175,13 @@ export const App: React.FC = () => {
   useEffect(() => {
     void initAuth();
   }, [initAuth]);
+
+  // Once per load, and not awaited by anything. Prices render against the
+  // placeholder rate until this answers, which is a fraction of a second and
+  // never blocks a page.
+  useEffect(() => {
+    void loadFxRate();
+  }, [loadFxRate]);
 
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval>;

@@ -184,7 +184,14 @@ def _facet_clause(**filters: Any) -> ColumnElement[bool]:
     is a worse outcome than never pruning at all. Going through the real filter
     also means the count and the grid the visitor lands on cannot disagree.
     """
-    clause = apply_filters(select(Listing.id), ListingFilters(**filters)).whereclause
+    # The static rate, deliberately, and it is never used: the rate reaches
+    # `apply_filters` only through the price bounds, and a landing page's
+    # facets are geography, category and audience — never a price. Fetching
+    # the live one would mean making this helper and its callers async for a
+    # value that cannot affect the result.
+    clause = apply_filters(
+        select(Listing.id), ListingFilters(**filters), settings.USD_TO_UZS_RATE
+    ).whereclause
     return true() if clause is None else clause
 
 

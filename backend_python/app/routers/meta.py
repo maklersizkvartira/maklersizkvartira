@@ -15,6 +15,7 @@ from app.core.deps import DbSession, Lang, OptionalUser, RequestCtx
 from app.models.analytics import TrafficEvent
 from app.models.settings import SystemSetting
 from app.schemas.auth import SUPPORTED_LANGUAGE_LIST
+from app.services import fx as fx_service
 from app.schemas.common import CamelModel, MessageResponse
 
 router = APIRouter(tags=["meta"])
@@ -61,9 +62,16 @@ async def public_settings(db: DbSession) -> dict:
 
 @router.get("/meta/fx-rate", summary="Current UZS per USD")
 async def fx_rate() -> dict:
+    """The rate every converted price on the site is drawn against.
+
+    Live from the Central Bank now rather than a constant. The constant had
+    drifted 7.5% from the real figure, and it is read by the listing card, the
+    detail page and the map — so every one of them was showing the same wrong
+    number confidently.
+    """
     return {
         "status": "success",
-        "data": {"base": "USD", "quote": "UZS", "rate": settings.USD_TO_UZS_RATE},
+        "data": {"base": "USD", "quote": "UZS", "rate": await fx_service.usd_to_uzs()},
     }
 
 

@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import Select, and_, func, or_, select
+from sqlalchemy import Select, and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -33,6 +33,7 @@ from app.models.enums import (
 from app.models.listing import Favorite, Listing, TopRequest
 from app.models.user import User
 from app.schemas.listing import ListingFilters
+from app.services import fx
 
 #: Districts whose listings students are usually looking for.
 _STUDENT_DISTRICTS = {"Chilonzor", "Olmazor", "Yunusobod", "Shayxontohur", "Mirzo Ulug'bek"}
@@ -66,7 +67,31 @@ def visible_clause():
 _visible_clause = visible_clause
 
 
-def apply_filters(stmt: Select, filters: ListingFilters) -> Select:
+def price_in_uzs(rate: float):
+    """The listing's price expressed in so'm, whatever it was quoted in.
+
+    Everything that COMPARES prices has to go through this, because the
+    `price` column holds two different units: 500 in it may mean 500 dollars
+    or 500 so'm, and the currency lives in a second column. Compared raw, a
+    $500 flat is a four-figure number sitting next to seven-figure ones — so
+    it fell outside every so'm price filter a searcher could set, and sorted
+    to the top of "cheapest first" ahead of every listing that really was
+    cheaper.
+
+    Computed in SQL from the current rate rather than stored in a column. A
+    stored figure would need a migration, would have to be rewritten for every
+    USD listing each time the rate moved, and would be quietly wrong in
+    between. This is always today's rate, and at this catalogue's size the
+    unindexed expression costs nothing measurable.
+
+    Note what this deliberately does NOT do: it never changes what is shown.
+    A price quoted in dollars is displayed in dollars; this exists so the two
+    can be ranked against each other.
+    """
+    return case((Listing.currency == "USD", Listing.price * rate), else_=Listing.price)
+
+
+def apply_filters(stmt: Select, filters: ListingFilters, rate: float) -> Select:
     if filters.search:
         pattern = f"%{filters.search}%"
         stmt = stmt.where(
@@ -89,10 +114,12 @@ def apply_filters(stmt: Select, filters: ListingFilters) -> Select:
         stmt = stmt.where(Listing.university_name.ilike(f"%{filters.university_name}%"))
     if filters.rooms:
         stmt = stmt.where(Listing.rooms == filters.rooms)
+    # The bounds arrive in so'm — that is what the price slider is labelled in
+    # — so the listing has to be brought into so'm to be compared with them.
     if filters.min_price is not None:
-        stmt = stmt.where(Listing.price >= filters.min_price)
+        stmt = stmt.where(price_in_uzs(rate) >= filters.min_price)
     if filters.max_price is not None:
-        stmt = stmt.where(Listing.price <= filters.max_price)
+        stmt = stmt.where(price_in_uzs(rate) <= filters.max_price)
     if filters.min_area is not None:
         stmt = stmt.where(Listing.area >= filters.min_area)
     if filters.property_type:
@@ -143,11 +170,11 @@ def apply_filters(stmt: Select, filters: ListingFilters) -> Select:
     return stmt
 
 
-def apply_sort(stmt: Select, sort_by: str) -> Select:
+def apply_sort(stmt: Select, sort_by: str, rate: float) -> Select:
     if sort_by == "PRICE_LOW":
-        return stmt.order_by(Listing.price.asc(), Listing.created_at.desc())
+        return stmt.order_by(price_in_uzs(rate).asc(), Listing.created_at.desc())
     if sort_by == "PRICE_HIGH":
-        return stmt.order_by(Listing.price.desc(), Listing.created_at.desc())
+        return stmt.order_by(price_in_uzs(rate).desc(), Listing.created_at.desc())
     if sort_by == "TRUST":
         return stmt.order_by(Listing.trust_score.desc(), Listing.created_at.desc())
     if sort_by == "POPULAR":
@@ -183,8 +210,11 @@ async def list_public(
     offset: int,
     limit: int,
 ) -> tuple[list[Listing], int]:
+    # Fetched once per query, and cached for an hour inside the service — so
+    # this is a dictionary lookup, not a call to the Central Bank per request.
+    rate = await fx.usd_to_uzs()
     base = select(Listing).where(_visible_clause())
-    base = apply_filters(base, filters)
+    base = apply_filters(base, filters, rate)
 
     total = int(
         (
@@ -195,7 +225,7 @@ async def list_public(
         or 0
     )
 
-    stmt = apply_sort(base, filters.sort_by).offset(offset).limit(limit)
+    stmt = apply_sort(base, filters.sort_by, rate).offset(offset).limit(limit)
     rows = (await db.execute(stmt)).unique().scalars().all()
     return list(rows), total
 

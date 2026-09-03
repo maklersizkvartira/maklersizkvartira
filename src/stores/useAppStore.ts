@@ -282,6 +282,8 @@ interface AppState {
   currency: 'UZS' | 'USD';
   setCurrency: (currency: 'UZS' | 'USD') => void;
   fxRate: number;
+  /** Fetch the live rate; falls back to the placeholder on any failure. */
+  loadFxRate: () => Promise<void>;
 
   // -- Navigation ----------------------------------------------------------
   currentView: ViewState;
@@ -724,7 +726,31 @@ const store = createStore<AppState>((set, get) => ({
   },
   currency: 'UZS',
   setCurrency: (currency) => set({ currency }),
+  /**
+   * UZS per 1 USD, replaced by the live rate as soon as `loadFxRate` answers.
+   *
+   * The literal here is a first-paint placeholder, not the rate: it exists so
+   * a price can render before the API has replied. It used to be the only
+   * value there was, hardcoded at 12 700 while the Central Bank's figure was
+   * 11 813 — a 7.5% error applied confidently to every converted price on the
+   * site, on a listing card that gave no hint it was an approximation.
+   */
   fxRate: 12700,
+  loadFxRate: async () => {
+    try {
+      const { rate } = await http.get<{ base: string; quote: string; rate: number }>(
+        '/meta/fx-rate',
+        { anonymous: true },
+      );
+      // Guarded rather than trusted. A zero or a negative would divide every
+      // price on the site into nonsense, and the placeholder is far better
+      // than that.
+      if (Number.isFinite(rate) && rate > 0) set({ fxRate: rate });
+    } catch {
+      // The placeholder stands. Prices are approximate either way, and a
+      // failed rate lookup must not stop a listing from rendering.
+    }
+  },
 
   // -- Navigation ----------------------------------------------------------
   // Seeded from the address, not from HOME.

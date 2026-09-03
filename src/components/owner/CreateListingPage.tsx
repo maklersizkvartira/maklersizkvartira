@@ -283,6 +283,7 @@ interface Draft {
   roommateGender: RoommateGender;
   roommateSpots: number;
   images: string[];
+  currency?: 'UZS' | 'USD';
   sellerType: SellerType;
   agencyName: string;
   telegram: string;
@@ -549,6 +550,15 @@ export const CreateListingPage: React.FC = () => {
   const [roommateSpots, setRoommateSpots] = useState(initialDraft?.roommateSpots ?? 1);
 
   // -- Step 3: photos, contact, top, submit ----------------------------------
+  /**
+   * The currency the price is actually set in, not a display preference.
+   *
+   * It used to be hardcoded to UZS on the way out, so an agency whose prices
+   * are quoted in dollars had to convert every listing by hand and re-do it
+   * whenever the rate moved. What they type is now what is stored, and the
+   * conversion is the site's job rather than theirs.
+   */
+  const [currency, setCurrency] = useState<'UZS' | 'USD'>(initialDraft?.currency ?? 'UZS');
   const [images, setImages] = useState<string[]>(initialDraft?.images ?? []);
   /** Finished-file count while a batch uploads, so the button can say so. */
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
@@ -767,6 +777,7 @@ export const CreateListingPage: React.FC = () => {
       roommateGender,
       roommateSpots,
       images,
+      currency,
       sellerType,
       agencyName,
       telegram,
@@ -779,7 +790,7 @@ export const CreateListingPage: React.FC = () => {
       step, maxStep, region, district, address, metro, metroMinutes, latitude,
       longitude, title, description, propertyType, price, deposit, rooms, area,
       landArea, floor, totalFloors, amenities, isRoommate, categoryChosen, roommateGender, roommateSpots,
-      images, sellerType, agencyName, telegram, preferredTime, topRequested,
+      images, currency, sellerType, agencyName, telegram, preferredTime, topRequested,
       topDays, topNote,
     ],
   );
@@ -1176,7 +1187,7 @@ export const CreateListingPage: React.FC = () => {
       title: title.trim(),
       description: description.trim(),
       price: price === '' ? null : price,
-      currency: 'UZS',
+      currency,
       depositPrice: deposit === '' ? null : deposit,
       utilitiesIncluded: amenities.utilitiesIncluded,
       rooms: propertyType === 'LAND' ? (rooms === '' ? 1 : rooms) : (rooms === '' ? null : rooms),
@@ -1383,7 +1394,20 @@ export const CreateListingPage: React.FC = () => {
   // Deduplicated: two fields can now fail on the same shared message, and the
   // summary below keys its list by the message itself.
   const errorKeys = [...new Set(Object.values(formErrors).filter(Boolean))];
-  const usdPrice = price !== '' && fxRate > 0 ? Math.round(price / fxRate) : null;
+  /**
+   * The same price in the other currency, shown under the field as a hint.
+   *
+   * Which way it converts follows what the owner is typing in — an agency
+   * entering $500 wants to see the so'm figure, and an owner entering so'm
+   * wants the dollar one. Both are approximations against today's rate and
+   * neither is what gets stored.
+   */
+  const approxPrice =
+    price === '' || fxRate <= 0
+      ? null
+      : currency === 'USD'
+        ? { amount: Math.round(price * fxRate), currency: 'UZS' as const }
+        : { amount: Math.round(price / fxRate), currency: 'USD' as const };
 
   const stepBadge = (
     <span className="shrink-0 rounded-lg border border-line bg-brand-soft px-2.5 py-1 text-xs font-bold text-brand-text">
@@ -2257,27 +2281,53 @@ export const CreateListingPage: React.FC = () => {
                   label={t('owner.create.details.priceLabel')}
                   required
                   hint={
-                    usdPrice === null
+                    approxPrice === null
                       ? undefined
                       : t('owner.create.details.priceApprox', {
-                          amount: formatPrice(usdPrice, 'USD'),
+                          amount: formatPrice(approxPrice.amount, approxPrice.currency),
                         })
                   }
                   error={formErrors.price ? tRaw(formErrors.price) : undefined}
                 >
                   {({ id, describedBy, invalid }) => (
-                    <TextInput
-                      id={id}
-                      aria-describedby={describedBy}
-                      invalid={invalid}
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      step={100000}
-                      value={price === '' ? '' : price}
-                      onChange={numberHandler(setPrice, 'price')}
-                      placeholder={t('owner.create.details.pricePlaceholder')}
-                    />
+                    <div className="space-y-2">
+                      {/* Beside the amount, not buried in a settings screen:
+                          which currency the number is in is part of typing it,
+                          and an agency that prices in dollars should not have
+                          to convert anything to publish. */}
+                      <Segmented
+                        value={currency}
+                        onChange={(next) => {
+                          setCurrency(next);
+                          clearError('price');
+                        }}
+                        options={[
+                          { value: 'UZS', label: t('owner.create.details.currencyUzs') },
+                          { value: 'USD', label: t('owner.create.details.currencyUsd') },
+                        ]}
+                        label={t('owner.create.details.currencyLabel')}
+                        size="sm"
+                        fullWidth={false}
+                      />
+                      <TextInput
+                        id={id}
+                        aria-describedby={describedBy}
+                        invalid={invalid}
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        // A dollar price is a three-figure number; stepping it
+                        // by 100 000 would be absurd.
+                        step={currency === 'USD' ? 50 : 100000}
+                        value={price === '' ? '' : price}
+                        onChange={numberHandler(setPrice, 'price')}
+                        placeholder={t(
+                          currency === 'USD'
+                            ? 'owner.create.details.pricePlaceholderUsd'
+                            : 'owner.create.details.pricePlaceholder',
+                        )}
+                      />
+                    </div>
                   )}
                 </Field>
 
