@@ -203,6 +203,16 @@
       "district": "Район",
       "noData": "Нет данных для графика",
       "utcNote": "Даты по UTC (Ташкент +5)"
+    },
+    "balances": {
+      "title": "Баланс и расход",
+      "sms": "Баланс SMS",
+      "smsRemaining": "Осталось {count} SMS",
+      "smsCredit": "На счету {amount} сум",
+      "smsUnknown": "Провайдер недоступен",
+      "ai": "Uyiz AI — сообщений сегодня",
+      "aiMonth": "За месяц: {count}",
+      "aiCostNote": "Расход в деньгах виден в панели OpenAI."
     }
   },
   "listings": {

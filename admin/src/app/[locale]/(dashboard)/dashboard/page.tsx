@@ -9,6 +9,7 @@ import { http } from '@/shared/lib/http';
 import { api } from '@/shared/api/endpoints';
 import type {
   ActivityPoint,
+  AdminBalances,
   AdminStats,
   DistrictPoint,
   PublicSettings,
@@ -23,6 +24,7 @@ import { toast } from '@/shared/ui/Toast';
 import { STAT_COUNT } from '@/features/dashboard/dashboard-groups';
 import { Reveal } from '@/features/dashboard/components/Reveal';
 import { Storey } from '@/features/dashboard/components/Storey';
+import { BalancesCard } from '@/features/dashboard/components/BalancesCard';
 import { TriageCard } from '@/features/dashboard/components/TriageCard';
 import { RiskCard } from '@/features/dashboard/components/RiskCard';
 import { TodayCard } from '@/features/dashboard/components/TodayCard';
@@ -95,6 +97,20 @@ export default function DashboardPage() {
   const statsQuery = useQuery({
     queryKey: ['stats'],
     queryFn: ({ signal }) => http.get<AdminStats>(api.stats, { signal }),
+    refetchInterval: STATS_POLL_MS,
+    refetchIntervalInBackground: false,
+  });
+
+  /**
+   * Fetched on its own, and allowed to fail on its own.
+   *
+   * This one calls the SMS provider over the network, so it is slower and
+   * less reliable than the database counters beside it. Folded into `stats`
+   * a struggling provider would have delayed every number on the page.
+   */
+  const balancesQuery = useQuery({
+    queryKey: ['balances'],
+    queryFn: ({ signal }) => http.get<AdminBalances>(api.balances, { signal }),
     refetchInterval: STATS_POLL_MS,
     refetchIntervalInBackground: false,
   });
@@ -269,6 +285,13 @@ export default function DashboardPage() {
           <section id="triage" className="scroll-mt-[76px] grid gap-4 xl:grid-cols-[27fr_20fr_20fr]">
             <Reveal index={0} className="xl:row-span-2">
               <TriageCard stats={stats} />
+            </Reveal>
+
+            <Reveal index={1}>
+              <BalancesCard
+                data={balancesQuery.data}
+                isError={balancesQuery.isError}
+              />
             </Reveal>
 
             {/* Full width at 360px, two-up from sm, then dissolved by

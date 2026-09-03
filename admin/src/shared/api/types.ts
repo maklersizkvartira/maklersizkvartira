@@ -706,3 +706,31 @@ export interface CreateStaffPayload {
   role?: AdminRole;
   ipAllowlist?: string;
 }
+
+
+/**
+ * What the paid services have left.
+ *
+ * `sms` is null when the provider could not be reached or no token is set —
+ * shown as unknown rather than as zero, because zero is a real and alarming
+ * value and the two must not look alike.
+ */
+export interface AdminBalances {
+  sms: {
+    balance: number;
+    smsPrice: number;
+    /** How many more codes can be sent before signup stops working. */
+    remainingSms: number | null;
+  } | null;
+  ai: {
+    messagesToday: number;
+    messagesThisMonth: number;
+    sessionsToday: number;
+    /**
+     * Always false today. OpenAI publishes no credit endpoint for an ordinary
+     * API key, so the spend has to be read in their own dashboard; this flag
+     * is what lets the panel say that instead of showing a blank.
+     */
+    costAvailable: boolean;
+  };
+}

@@ -168,6 +168,15 @@ export const api = {
   /** `GET` — the 26 dashboard counters. MODERATOR+. */
   stats: '/admin/stats',
 
+  /**
+   * `GET` — SMS credit and assistant usage. MODERATOR+.
+   *
+   * Separate from `stats` because it leaves the building: it calls the SMS
+   * provider, so a slow one would hold up every counter on the page if the
+   * two were fetched together.
+   */
+  balances: '/admin/balances',
+
   charts: {
     /** `days` 1..90, default 7. Bare parameter, so snake/lowercase. */
     registrations: (days?: number) => `/admin/chart/registrations${qs({ days })}`,

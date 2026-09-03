@@ -203,6 +203,16 @@
       "district": "Tuman",
       "noData": "Grafik uchun maʼlumot yoʻq",
       "utcNote": "Sanalar UTC boʻyicha (Toshkent +5)"
+    },
+    "balances": {
+      "title": "Balans va sarf",
+      "sms": "SMS balansi",
+      "smsRemaining": "{count} ta SMS qoldi",
+      "smsCredit": "Hisobda {amount} so‘m",
+      "smsUnknown": "Provayderga ulanib bo‘lmadi",
+      "ai": "Uyiz AI — bugungi xabarlar",
+      "aiMonth": "Shu oyda {count} ta",
+      "aiCostNote": "Sarflangan pulni OpenAI hisobida ko‘rish mumkin."
     }
   },
   "listings": {

@@ -203,6 +203,16 @@
       "district": "District",
       "noData": "Nothing to chart yet",
       "utcNote": "Dates are in UTC (Tashkent +5)"
+    },
+    "balances": {
+      "title": "Balance and usage",
+      "sms": "SMS balance",
+      "smsRemaining": "{count} SMS left",
+      "smsCredit": "{amount} so‘m on account",
+      "smsUnknown": "Provider unreachable",
+      "ai": "Uyiz AI — messages today",
+      "aiMonth": "{count} this month",
+      "aiCostNote": "Spend is shown in the OpenAI dashboard."
     }
   },
   "listings": {
