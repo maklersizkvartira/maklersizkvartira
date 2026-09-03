@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations, useLocale } from 'next-intl';
 import { ShieldAlert } from 'lucide-react';
 
-import { http } from '@/shared/lib/http';
+import { http, endSession } from '@/shared/lib/http';
 import { api } from '@/shared/api/endpoints';
 import type {
   ActivityPoint,
@@ -256,12 +256,24 @@ export default function DashboardPage() {
               <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
                 {statsQuery.error instanceof Error && statsQuery.error.message !== 'Failed to fetch'
                   ? statsQuery.error.message
-                  : "Ma'lumotlarni yuklab bo'lmadi. Aloqani tekshirib qayta urinib ko'ring yoki tizimga qayta kiring."}
+                  : "Ma'lumotlarni yuklab bo'lmadi. Server aloqasini tekshiring yoki tizimga qayta kiring."}
               </p>
             </div>
-            <Button variant="secondary" size="sm" className="max-sm:w-full" onClick={() => statsQuery.refetch()}>
-              {c('retry')}
-            </Button>
+            <div className="flex items-center gap-2 max-sm:w-full">
+              <Button variant="secondary" size="sm" className="max-sm:flex-1" onClick={() => statsQuery.refetch()}>
+                {c('retry')}
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                className="max-sm:flex-1"
+                onClick={() => {
+                  void endSession();
+                }}
+              >
+                Tizimga kirish
+              </Button>
+            </div>
           </div>
         ) : (
           /* 27:20:20 is 1.35:1:1 written without a decimal point — Tailwind's

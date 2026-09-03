@@ -42,9 +42,16 @@ export function proxy(request: NextRequest) {
 
   if (isPublic) {
     const normalizedPath = pathname.replace(LOCALE_PREFIX, '/');
-    if (normalizedPath === '/login' && hasRefreshToken) {
-      const locale = pathname.match(LOCALE_PREFIX)?.[1] ?? routing.defaultLocale;
-      return NextResponse.redirect(new URL(`/${locale}${DASHBOARD_ROOT}`, request.url));
+    if (normalizedPath === '/login') {
+      if (request.nextUrl.searchParams.has('reauth')) {
+        const response = intlMiddleware(request);
+        response.cookies.delete('refresh_token');
+        return response;
+      }
+      if (hasRefreshToken) {
+        const locale = pathname.match(LOCALE_PREFIX)?.[1] ?? routing.defaultLocale;
+        return NextResponse.redirect(new URL(`/${locale}${DASHBOARD_ROOT}`, request.url));
+      }
     }
     return intlMiddleware(request);
   }

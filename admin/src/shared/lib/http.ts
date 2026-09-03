@@ -132,7 +132,7 @@ const LOCALE_SEGMENTS = new Set(['uz', 'ru', 'en']);
 function loginUrl(): string {
   const first = window.location.pathname.split('/').filter(Boolean)[0];
   const locale = first && LOCALE_SEGMENTS.has(first) ? first : _language;
-  return `/${locale}/login`;
+  return `/${locale}/login?reauth=1`;
 }
 
 /**
@@ -143,15 +143,17 @@ function loginUrl(): string {
  * client-side transition would keep the previous admin's cached rows alive in
  * the same tab.
  */
-async function endSession(): Promise<void> {
+export async function endSession(): Promise<void> {
+  setAccessToken(null);
   try {
     const { useAuthStore } = await import('@/store/auth.store');
     useAuthStore.getState().clearAuth();
-  } catch {
-    // The store may not be reachable during SSR; clearing the token cell is
-    // the part that actually matters.
-    setAccessToken(null);
-  }
+  } catch {}
+
+  try {
+    await fetch('/api/auth/logout', { method: 'POST' });
+  } catch {}
+
   if (typeof window !== 'undefined' && !window.location.pathname.endsWith('/login')) {
     window.location.href = loginUrl();
   }
@@ -456,8 +458,9 @@ async function send(
     headers['Content-Type'] = 'application/json';
   }
 
-  if (!skipAuth && _accessToken) {
-    headers['Authorization'] = `Bearer ${_accessToken}`;
+  const token = getAccessToken();
+  if (!skipAuth && token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   const url = endpoint.startsWith('http') ? endpoint : `${env.API_URL}${endpoint}`;
