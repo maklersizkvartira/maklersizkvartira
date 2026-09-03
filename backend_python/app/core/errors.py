@@ -273,6 +273,25 @@ MESSAGES: dict[str, dict[str, str]] = {
         "ru": "Загрузите хотя бы одно фото.",
         "en": "Upload at least one photo.",
     },
+    # -- Uploads -------------------------------------------------------------
+    "unsupported_image_type": {
+        "uz": "Faqat JPG, PNG yoki WebP rasm yuklash mumkin.",
+        "ru": "Загрузить можно только JPG, PNG или WebP.",
+        "en": "Only JPG, PNG or WebP images can be uploaded.",
+    },
+    "image_too_large": {
+        "uz": "Rasm hajmi juda katta. Kichikroq rasm tanlang.",
+        "ru": "Файл слишком большой. Выберите изображение поменьше.",
+        "en": "That image is too large. Choose a smaller one.",
+    },
+    #: Distinct from the generic service_unavailable so the client can say
+    #: "photos cannot be uploaded right now" while the rest of the form still
+    #: works — a listing without images is a fixable draft, a dead form is not.
+    "storage_unavailable": {
+        "uz": "Rasm yuklash vaqtincha ishlamayapti. Birozdan so‘ng urinib ko‘ring.",
+        "ru": "Загрузка фото временно недоступна. Попробуйте позже.",
+        "en": "Photo upload is temporarily unavailable. Please try again shortly.",
+    },
     # -- Top (promotion) requests -------------------------------------------
     "top_request_pending": {
         "uz": "Bu e’lon uchun Top so‘rovi allaqachon yuborilgan. Admin javobini kuting.",

@@ -18,7 +18,7 @@ from app.core import middleware as app_middleware
 from app.core.config import settings
 from app.core.database import dispose_engine
 from app.core.errors import APIError, MESSAGES, translate
-from app.routers import admin, ai, auth, chat, listings, meta, seo
+from app.routers import admin, ai, auth, chat, listings, meta, seo, uploads
 
 
 def configure_logging() -> None:
@@ -176,6 +176,7 @@ def create_app() -> FastAPI:
     app.include_router(meta.router, prefix=prefix)
     app.include_router(auth.router, prefix=prefix)
     app.include_router(listings.router, prefix=prefix)
+    app.include_router(uploads.router, prefix=prefix)
     app.include_router(chat.router, prefix=prefix)
     app.include_router(ai.router, prefix=prefix)
     app.include_router(admin.router, prefix=prefix)

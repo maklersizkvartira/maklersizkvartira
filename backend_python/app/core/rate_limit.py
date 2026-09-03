@@ -197,6 +197,12 @@ def _rules() -> dict[str, RateLimitRule]:
             "listing_create", settings.RATE_LIMIT_LISTING_CREATE_PER_HOUR, 3600
         ),
         "listing_write": RateLimitRule("listing_write", 60, 3600),
+        # Charged one token per file signed, not per request, because the
+        # request is free and the files are not: every signed URL is standing
+        # permission to write an object we then pay to store. Sized for real
+        # use — a full twelve-photo listing, re-edited several times over an
+        # hour — and nowhere near a loop minting URLs it never uploads to.
+        "upload_sign": RateLimitRule("upload_sign", 120, 3600),
         "ai_chat": RateLimitRule("ai_chat", 30, 3600),
         # Admin recovery. Three attempts an hour is plenty for a real
         # recovery and useless for guessing at the token.

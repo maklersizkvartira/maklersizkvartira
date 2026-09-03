@@ -152,6 +152,45 @@ class Settings(BaseSettings):
     MAX_REQUEST_BYTES: int = 6 * 1024 * 1024
     MAX_IMAGES_PER_LISTING: int = 12
 
+    # -- Object storage (Cloudflare R2) --------------------------------------
+    # Images used to travel as base64 inside the listing JSON, which put every
+    # photo through this process twice — once on the way in, once in every
+    # listings response — and made a two-listing page 904KB, 79% of it pixels.
+    # They are uploaded straight from the browser now; see app/core/r2.py.
+    R2_ACCOUNT_ID: str = ""
+    R2_ACCESS_KEY_ID: str = ""
+    R2_SECRET_ACCESS_KEY: str = ""
+    #: Served publicly from R2_PUBLIC_BASE_URL. Listing photos and avatars.
+    R2_PUBLIC_BUCKET: str = "uyiz-public"
+    #: Never given a public domain. Verification documents are passport scans:
+    #: they are read back through a short-lived signed GET, never by URL alone.
+    R2_PRIVATE_BUCKET: str = "uyiz-private"
+    #: The CDN host in front of R2_PUBLIC_BUCKET. Stored image URLs must begin
+    #: with this, so a client cannot smuggle a third-party address into the
+    #: `images` column and have the site render it as its own content.
+    R2_PUBLIC_BASE_URL: str = "https://img.uyiz.uz"
+    #: How long a signed upload URL stays usable. Long enough for a slow phone
+    #: on a bad connection to finish, short enough that a leaked URL is stale
+    #: before it is useful.
+    R2_UPLOAD_EXPIRY_SECONDS: int = 600
+    #: Per image, enforced in the signature itself rather than after the fact.
+    MAX_IMAGE_BYTES: int = 5 * 1024 * 1024
+
+    @property
+    def r2_configured(self) -> bool:
+        """Whether uploads can be signed at all.
+
+        Kept as a property rather than a required setting so the API still
+        boots without R2 — local development and the test suite have no
+        credentials, and the upload route answering 503 is a far better
+        failure than the whole process refusing to start.
+        """
+        return bool(
+            self.R2_ACCOUNT_ID
+            and self.R2_ACCESS_KEY_ID
+            and self.R2_SECRET_ACCESS_KEY
+        )
+
     # -- External services ---------------------------------------------------
     DEVSMS_API_TOKEN: str = ""
     DEVSMS_API_URL: str = "https://devsms.uz/api"
