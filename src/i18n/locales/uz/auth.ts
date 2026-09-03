@@ -99,7 +99,6 @@ export const auth = {
     signInInstead: 'Kirish',
     terms:
       'Ro‘yxatdan o‘tish orqali siz Foydalanish shartlari va Maxfiylik siyosatiga rozilik bildirasiz.',
-    stepOf: '{current}-qadam / {total}',
     steps: {
       details: 'Ma’lumotlaringiz',
       verify: 'Tasdiqlash',
@@ -148,7 +147,6 @@ export const auth = {
     continue: 'Davom etish',
     checking: 'Kod tekshirilmoqda...',
     codeInvalid: 'Kod noto‘g‘ri yoki muddati tugagan. Yangi kod so‘rang.',
-    stepOf: '{current}-qadam / {total}',
   },
 
   changePassword: {

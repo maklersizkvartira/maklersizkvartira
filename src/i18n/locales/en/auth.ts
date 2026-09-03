@@ -95,7 +95,6 @@ export const auth = {
     signInInstead: 'Sign in',
     terms:
       'By signing up you agree to the Terms of Use and the Privacy Policy.',
-    stepOf: 'Step {current} of {total}',
     steps: {
       details: 'Your details',
       verify: 'Verification',
@@ -144,7 +143,6 @@ export const auth = {
     continue: 'Continue',
     checking: 'Checking the code...',
     codeInvalid: 'That code is wrong or has expired. Request a new one.',
-    stepOf: 'Step {current} of {total}',
   },
 
   changePassword: {

@@ -110,9 +110,6 @@ const ENTRY_STEP: Record<string, Step> = {
 
 const PHONE_PREFIX = '+998 ';
 
-/** Phone, code, password — the three screens `auth.reset.stepOf` counts. */
-const RESET_STEPS = 3;
-
 /**
  * The national part of whatever was typed or pasted, at most nine digits.
  *
@@ -810,12 +807,6 @@ export const AuthPage: React.FC = () => {
   );
 
   /** "Step 2 of 3", so the reset never feels like an open-ended interrogation. */
-  const resetProgress = (current: number) => (
-    <p className="text-center text-[11px] font-black uppercase tracking-wider text-subtle">
-      {t('auth.reset.stepOf', { current, total: RESET_STEPS })}
-    </p>
-  );
-
   const codeTile = (Icon: React.ComponentType<{ className?: string }>) => (
     <div className="flex justify-center">
       <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-soft text-brand-text">
@@ -1246,7 +1237,6 @@ export const AuthPage: React.FC = () => {
           <form onSubmit={handleForgot} className="space-y-4" noValidate>
             {stepBack(goToMode('LOGIN', true))}
             {header(t('auth.forgot.title'), t('auth.forgot.subtitle'))}
-            {resetProgress(1)}
             {codeTile(KeyRound)}
             {phoneField}
             {banner}
@@ -1271,7 +1261,6 @@ export const AuthPage: React.FC = () => {
               t('auth.reset.codeTitle'),
               t('auth.reset.codeSubtitle', { phone: maskedPhone }),
             )}
-            {resetProgress(2)}
             {codeTile(ShieldCheck)}
 
             {/* No `onComplete`: the six digits go to the server on a
@@ -1302,7 +1291,6 @@ export const AuthPage: React.FC = () => {
           <form onSubmit={handleResetPassword} className="space-y-4" noValidate>
             {stepBack(backTo('RESET_CODE'))}
             {header(t('auth.reset.passwordTitle'), t('auth.reset.passwordSubtitle'))}
-            {resetProgress(3)}
 
             {/* Hidden, and load-bearing. A password manager will not offer to
                 update the entry it filled on /login twenty seconds ago unless

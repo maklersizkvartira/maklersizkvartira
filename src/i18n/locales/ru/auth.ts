@@ -95,7 +95,6 @@ export const auth = {
     signInInstead: 'Войти',
     terms:
       'Регистрируясь, вы соглашаетесь с Условиями использования и Политикой конфиденциальности.',
-    stepOf: 'Шаг {current} / {total}',
     steps: {
       details: 'Ваши данные',
       verify: 'Подтверждение',
@@ -144,7 +143,6 @@ export const auth = {
     continue: 'Продолжить',
     checking: 'Проверяем код...',
     codeInvalid: 'Код неверный или истёк. Запросите новый код.',
-    stepOf: 'Шаг {current} из {total}',
   },
 
   changePassword: {
