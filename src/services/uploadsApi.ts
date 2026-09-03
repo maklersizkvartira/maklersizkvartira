@@ -142,10 +142,33 @@ async function put(url: string, blob: Blob): Promise<void> {
       body: blob,
       headers: { 'Content-Type': UPLOAD_TYPE },
     });
-  } catch {
+  } catch (caught) {
+    // A rejected fetch here is almost always CORS, not the network: the
+    // browser refuses to send a cross-origin PUT to a bucket that publishes
+    // no CORS policy, and reports it as an opaque TypeError with no status.
+    // It is logged rather than swallowed because the three ways this can fail
+    // — blocked, refused, unreachable — produce the same message on screen and
+    // are fixed in three completely different places.
+    console.error(
+      '[upload] the PUT never completed. If the console also shows a CORS ' +
+        'error, the R2 bucket has no CORS policy allowing PUT from this ' +
+        'origin — that is a bucket setting, not a code change.',
+      caught,
+    );
     throw new UploadError('failed');
   }
-  if (!response.ok) throw new UploadError('failed');
+  if (!response.ok) {
+    // R2 answers with an XML <Code> that says exactly which check failed —
+    // SignatureDoesNotMatch, AccessDenied, EntityTooLarge — and none of that
+    // is worth showing a visitor, but all of it is worth having when one
+    // person reports "it will not upload".
+    const detail = await response.text().catch(() => '');
+    console.error(
+      `[upload] R2 refused the upload: ${response.status}`,
+      detail.slice(0, 400),
+    );
+    throw new UploadError('failed');
+  }
 }
 
 /**
@@ -175,10 +198,20 @@ export async function uploadImages(
     blobs.push(blob);
   }
 
-  const signed = await http.post<SignResponse>('/uploads/sign', {
-    purpose,
-    files: blobs.map((blob) => ({ contentType: UPLOAD_TYPE, size: blob.size })),
-  });
+  // Told apart from the upload itself. Both end in the same message on screen,
+  // but this one failing means the API said no — storage not configured, the
+  // rate limit, an expired session — and none of those are fixed by retrying
+  // the photo.
+  let signed: SignResponse;
+  try {
+    signed = await http.post<SignResponse>('/uploads/sign', {
+      purpose,
+      files: blobs.map((blob) => ({ contentType: UPLOAD_TYPE, size: blob.size })),
+    });
+  } catch (caught) {
+    console.error('[upload] the API would not sign the upload', caught);
+    throw new UploadError('failed');
+  }
 
   let done = 0;
   onProgress?.(0, blobs.length);
