@@ -169,7 +169,6 @@ export const owner = {
       emptyHint: 'Kamida 1 ta rasm shart. Yuqoridagi maydonni bosib rasm tanlang.',
       limitNotice: 'Ko‘pi bilan {max} ta rasm yuklash mumkin.',
       limitReached: 'Rasmlar chegarasi to‘ldi: {max} ta.',
-      sizeNotice: 'Yuklangan hajm: {size} MB / {max} MB.',
       readFailed: 'Ba’zi fayllarni o‘qib bo‘lmadi. Boshqa rasm tanlang.',
       // Uchta alohida sabab, uchta alohida yechim: boshqa fayl tanlash,
       // kichikroq tanlash, yoki shunchaki qayta urinish.
@@ -177,7 +176,7 @@ export const owner = {
       uploadFailed: 'Rasmni yuklab bo‘lmadi. Aloqani tekshirib, qayta urining.',
       uploading: 'Yuklanmoqda… {done}/{total}',
       // Said once, before the upload, instead of only as an error afterwards.
-      countAndSizeHint: '{min}–{max} ta rasm, jami {size} MB gacha.',
+      countHint: '{min}–{max} ta rasm yuklang.',
       remainingHint: 'Yana {count} ta rasm qo‘shishingiz mumkin.',
     },
 
@@ -235,8 +234,6 @@ export const owner = {
     draft: {
       restored: 'Saqlangan qoralama tiklandi.',
       restoredAt: '{time} da saqlangan qoralama tiklandi.',
-      photosDropped:
-        'Qoralama saqlanganda rasmlar sig‘madi — ularni qaytadan yuklashingiz kerak.',
       discard: 'Qoralamani o‘chirish',
       discarded: 'Qoralama o‘chirildi.',
       saved: 'Qoralama saqlandi',
@@ -275,8 +272,6 @@ export const owner = {
       area: 'Maydonni to‘g‘ri kiriting.',
       floor: 'Qavat 1 dan jami qavatgacha bo‘lishi kerak.',
       images: 'Kamida 1 ta haqiqiy rasm yuklang.',
-      imagesTooLarge:
-        'Rasmlar hajmi {size} MB — chegaradan ({max} MB) oshdi. Kamroq yoki kichikroq rasm yuklang.',
       phone: 'Profilingizga ishlaydigan telefon raqamini qo‘shing.',
       telegram: 'Telegram username noto‘g‘ri. Masalan: @dilshod_karimov',
       limitReached: 'Faol e’lonlar chegarasiga yetdingiz ({max} ta). Avval eskisini o‘chiring.',

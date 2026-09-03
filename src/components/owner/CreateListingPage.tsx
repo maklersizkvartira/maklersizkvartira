@@ -129,7 +129,6 @@ const MAX_IMAGES = 12;
  */
 const MIN_IMAGES = 1;
 /** The JSON body carries the photos, so the whole request must stay small. */
-const MAX_PAYLOAD_MB = 6;
 const TOTAL_STEPS = 3;
 
 /**
@@ -292,23 +291,6 @@ interface Draft {
   topRequested: boolean;
   topDays: number;
   topNote: string;
-  /** True when this copy was stored without its photos — see `writeDraft`. */
-  photosDropped?: boolean;
-}
-
-/**
- * Approximate byte size of a base64 data URL, without decoding it.
- *
- * Photos are uploaded to storage now and the form holds URLs, which measure
- * as nothing — so the payload total below is effectively zero and its warning
- * never fires. Kept because a draft saved by an older bundle still holds
- * base64, and that draft has to be measured correctly for as long as one can
- * be restored.
- */
-function dataUrlBytes(dataUrl: string): number {
-  const commaIndex = dataUrl.indexOf(',');
-  const payload = commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : dataUrl;
-  return Math.round(payload.length * 0.75);
 }
 
 function draftKeyFor(userId: string): string {
@@ -386,40 +368,25 @@ function readDraft(
   }
 }
 
-type DraftWrite = 'saved' | 'photosDropped' | 'failed';
+type DraftWrite = 'saved' | 'failed';
 
 /**
- * Persist the draft, dropping the photos if that is what it takes.
+ * Persist the draft.
  *
- * Twelve downscaled photos are past the ~5MB localStorage quota — the form's
- * own 6MB budget is measured in decoded bytes and storage counts base64
- * characters, so the wall arrives around a "3.6 / 6 MB" reading — and a quota
- * error thrown here would otherwise lose the text too, which is the part that
- * took the owner ten minutes to write.
- *
- * The drop is reported rather than swallowed. It is destructive: the write
- * that fails replaces a draft that *did* hold four photos with one that holds
- * none, so adding a fifth photo is what deletes the first four. The caller
- * records it on the draft so the restore banner can say the photos are gone
- * before the owner discovers it by their absence.
+ * This used to drop the photos and say so, because twelve base64 photos went
+ * past the ~5MB localStorage quota and a quota error would otherwise have
+ * lost the text too — the part that took ten minutes to write. Photos are
+ * URLs now, so a full draft is a few kilobytes and there is nothing left to
+ * sacrifice.
  */
 function writeDraft(key: string | null, draft: Draft): DraftWrite {
   if (!key) return 'failed';
   try {
-    localStorage.setItem(key, JSON.stringify({ ...draft, photosDropped: false }));
+    localStorage.setItem(key, JSON.stringify(draft));
     return 'saved';
   } catch {
-    const dropped = draft.images.length > 0;
-    try {
-      localStorage.setItem(
-        key,
-        JSON.stringify({ ...draft, images: [], photosDropped: dropped }),
-      );
-      return dropped ? 'photosDropped' : 'saved';
-    } catch {
-      /* storage is unavailable entirely (private mode, blocked) */
-      return 'failed';
-    }
+    /* storage is unavailable entirely (private mode, blocked) */
+    return 'failed';
   }
 }
 
@@ -609,7 +576,6 @@ export const CreateListingPage: React.FC = () => {
     initialDraft?.savedAt ?? null,
   );
   /** The stored draft is holding no photos, whatever the grid is showing. */
-  const [photosDropped, setPhotosDropped] = useState(initialDraft?.photosDropped ?? false);
   const [confirmLeave, setConfirmLeave] = useState(false);
 
   /** Field name -> translation key, so errors survive a language switch. */
@@ -666,13 +632,6 @@ export const CreateListingPage: React.FC = () => {
       setSellerType('OWNER');
     }
   }, [canActAsAgent, currentUser?.role, sellerType]);
-
-  const payloadBytes = useMemo(
-    () => images.reduce((sum, image) => sum + dataUrlBytes(image), 0),
-    [images],
-  );
-  const payloadMb = payloadBytes / (1024 * 1024);
-  const payloadTooLarge = payloadMb > MAX_PAYLOAD_MB;
 
   /**
    * A step change is not a route change, so the app's own scroll reset — which
@@ -800,7 +759,7 @@ export const CreateListingPage: React.FC = () => {
   useEffect(() => {
     if (!hasContent) return;
     const timer = setTimeout(() => {
-      setPhotosDropped(writeDraft(draftKey, draft) === 'photosDropped');
+      writeDraft(draftKey, draft);
     }, DRAFT_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [draft, draftKey, hasContent]);
@@ -907,7 +866,6 @@ export const CreateListingPage: React.FC = () => {
       if (uploaded.length > 0) {
         setImages((current) => [...current, ...uploaded]);
         clearError('images');
-        clearError('payload');
         haptics.success();
       }
     } catch (caught) {
@@ -1063,7 +1021,6 @@ export const CreateListingPage: React.FC = () => {
     // the gateway will still accept.
     if (target === 3) {
       if (images.length < MIN_IMAGES) errors.images = 'owner.create.validation.images';
-      if (payloadTooLarge) errors.payload = 'owner.create.validation.imagesTooLarge';
       if ((currentUser.phone ?? '').replace(/\D/g, '').length < 9) {
         errors.phone = 'owner.create.validation.phone';
       }
@@ -1310,7 +1267,6 @@ export const CreateListingPage: React.FC = () => {
   const discardDraft = () => {
     clearDraft(draftKey);
     setDraftRestoredAt(null);
-    setPhotosDropped(false);
     setStep(1);
     // The steps go back with it: nothing has been earned on a form that is
     // empty, so leaving 2 and 3 unlocked would offer a shortcut into a step
@@ -1494,15 +1450,6 @@ export const CreateListingPage: React.FC = () => {
                 })}
               </span>
             </p>
-            {/* The photos did not fit in storage, so the restored draft has
-                none — said here rather than left to be discovered by an empty
-                grid on step 3. */}
-            {photosDropped && (
-              <p className="flex items-start gap-2 text-xs font-semibold text-warning">
-                <AlertTriangle className="mt-px h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{t('owner.create.draft.photosDropped')}</span>
-              </p>
-            )}
           </div>
           <div className="flex shrink-0 gap-2">
             <button
@@ -1652,9 +1599,7 @@ export const CreateListingPage: React.FC = () => {
               </p>
               <ul className="mt-2 list-inside list-disc space-y-1 text-xs font-semibold">
                 {errorKeys.map((key) => (
-                  <li key={key}>
-                    {tRaw(key, { max: MAX_PAYLOAD_MB, size: payloadMb.toFixed(1) })}
-                  </li>
+                  <li key={key}>{tRaw(key)}</li>
                 ))}
               </ul>
             </div>
@@ -2586,30 +2531,18 @@ export const CreateListingPage: React.FC = () => {
                 </span>
               </button>
 
-              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold">
-                <span className="text-subtle">
-                  {t('owner.create.photos.countAndSizeHint', {
-                    min: MIN_IMAGES,
-                    max: MAX_IMAGES,
-                    size: MAX_PAYLOAD_MB,
-                  })}
-                </span>
-                <span className={payloadTooLarge ? 'text-danger' : 'text-subtle'}>
-                  {t('owner.create.photos.sizeNotice', {
-                    size: payloadMb.toFixed(1),
-                    max: MAX_PAYLOAD_MB,
-                  })}
-                </span>
-              </div>
-
-              {payloadTooLarge && (
-                <FormError
-                  message={t('owner.create.validation.imagesTooLarge', {
-                    size: payloadMb.toFixed(1),
-                    max: MAX_PAYLOAD_MB,
-                  })}
-                />
-              )}
+              {/* A count, and nothing about bytes.
+                  The photos go straight to storage now, so the form carries
+                  no weight at all — the meter beside this line read "0.0 MB /
+                  6 MB" on every listing, which is a number that can never
+                  move and a limit that can never be reached. Both were left
+                  over from the days of base64 in the request body. */}
+              <p className="text-[11px] font-semibold text-subtle">
+                {t('owner.create.photos.countHint', {
+                  min: MIN_IMAGES,
+                  max: MAX_IMAGES,
+                })}
+              </p>
 
               {images.length > 0 ? (
                 <div className="space-y-2">
@@ -3013,7 +2946,6 @@ export const CreateListingPage: React.FC = () => {
                 type="submit"
                 className="press w-2/3"
                 loading={submitting}
-                disabled={payloadTooLarge}
               >
                 <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
                 <span>

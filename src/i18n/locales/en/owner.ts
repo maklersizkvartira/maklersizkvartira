@@ -161,13 +161,12 @@ export const owner = {
       emptyHint: 'At least 1 photo is required. Click the area above to pick some.',
       limitNotice: 'You can upload up to {max} photos.',
       limitReached: 'Photo limit reached: {max}.',
-      sizeNotice: 'Uploaded size: {size} MB of {max} MB.',
       readFailed: 'Some files could not be read. Please choose different photos.',
       tooLarge: 'That image is too large. Choose a smaller one.',
       uploadFailed: 'The photo could not be uploaded. Check your connection and try again.',
       uploading: 'Uploading… {done}/{total}',
       // Said once, before the upload, instead of only as an error afterwards.
-      countAndSizeHint: '{min}–{max} photos, up to {size} MB in total.',
+      countHint: 'Upload between {min} and {max} photos.',
       remainingHint: 'You can add {count} more photos.',
     },
 
@@ -225,8 +224,6 @@ export const owner = {
     draft: {
       restored: 'Your saved draft was restored.',
       restoredAt: 'Restored the draft saved at {time}.',
-      photosDropped:
-        'The photos did not fit when the draft was saved — you need to upload them again.',
       discard: 'Discard the draft',
       discarded: 'The draft was discarded.',
       saved: 'Draft saved',
@@ -265,8 +262,6 @@ export const owner = {
       area: 'Enter a valid area.',
       floor: 'The floor must be between 1 and the total number of floors.',
       images: 'Upload at least 1 real photo.',
-      imagesTooLarge:
-        'Photos add up to {size} MB, over the {max} MB limit. Upload fewer or smaller photos.',
       phone: 'Add a working phone number to your profile.',
       telegram: 'That Telegram username is not valid. For example: @dilshod_karimov',
       limitReached: 'You have reached the limit of {max} active listings. Delete an old one first.',
