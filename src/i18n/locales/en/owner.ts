@@ -277,6 +277,7 @@ export const owner = {
   },
 
   my: {
+    emptyCategory: 'No listings in this category.',
     title: 'My listings and stats',
     subtitle: 'Track how many people viewed, saved and contacted you about your listings.',
     createCta: 'Post a new listing',
@@ -309,7 +310,7 @@ export const owner = {
     },
 
     empty: {
-      title: 'You have not posted a listing yet',
+      title: 'Overall figures',
       body: 'Post your apartment completely free of charge.',
       cta: 'Post a listing',
     },
@@ -361,8 +362,8 @@ export const owner = {
    * row: these count every listing the owner has, moderation states included.
    */
   stats: {
-    title: 'My listings and statistics',
-    subtitle: 'Combined figures across every listing you have.',
+    title: 'Overall figures',
+    subtitle: 'Totals across all your listings.',
     totalListings: 'Total listings',
     approved: 'Approved',
     pending: 'Under review',

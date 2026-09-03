@@ -279,6 +279,7 @@ export const owner = {
   },
 
   my: {
+    emptyCategory: 'В этой категории нет объявлений.',
     title: 'Мои объявления и статистика',
     subtitle:
       'Следите за тем, сколько человек посмотрели, сохранили объявление и связались с вами.',
@@ -312,7 +313,7 @@ export const owner = {
     },
 
     empty: {
-      title: 'Вы ещё не размещали объявлений',
+      title: 'Общие показатели',
       body: 'Разместите свою квартиру совершенно бесплатно.',
       cta: 'Разместить объявление',
     },
@@ -364,8 +365,8 @@ export const owner = {
    * row: these count every listing the owner has, moderation states included.
    */
   stats: {
-    title: 'Мои объявления и статистика',
-    subtitle: 'Сводные показатели по всем вашим объявлениям.',
+    title: 'Общие показатели',
+    subtitle: 'Итоги по всем вашим объявлениям.',
     totalListings: 'Всего объявлений',
     approved: 'Одобрено',
     pending: 'На проверке',

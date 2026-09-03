@@ -53,29 +53,63 @@ export type ViewState =
  */
 export const VIEW_PATHS: Partial<Record<ViewState, string>> = {
   HOME: '/',
-  // English, unlike every other path here, and deliberately: these are the
-  // three addresses people type from memory and paste to each other, and
-  // `/login` is the one every visitor already knows. `/forget-password` is
-  // spelled the way the owner asked for it.
+
+  // -- Signed-in and account screens: English -------------------------------
+  //
+  // Every one of these is in PRIVATE_VIEWS, which means noindex and out of the
+  // sitemap — so no search engine ever reads these words and their language
+  // carries no ranking signal at all. They are addresses the owner types,
+  // pastes and reads in a support chat, and English is what was asked for.
   LOGIN: '/login',
   REGISTER: '/register',
   FORGOT_PASSWORD: '/forget-password',
+  FAVORITES: '/favorites',
+  PROFILE: '/profile',
+  MY_LISTINGS: '/my-listings',
+  CREATE_LISTING: '/post-listing',
+  VERIFICATION: '/verification',
+  REFERRAL: '/invite',
+  CHAT: '/messages',
+
+  // -- Public pages: Uzbek, and deliberately so -----------------------------
+  //
+  // These ARE indexed, and the words in them are the ones people type into
+  // Google. `/elonlar` and `/kvartira-ijaraga` match Uzbek queries in a way
+  // `/listings` never will, they are already submitted to Search Console, and
+  // renaming them would need a 301 for every landing page on the site. The
+  // split is the point: language follows whether a crawler reads the page.
   LISTINGS: '/elonlar',
   MAP: '/xarita',
-  FAVORITES: '/saqlanganlar',
-  PROFILE: '/profil',
-  MY_LISTINGS: '/mening-elonlarim',
-  CREATE_LISTING: '/elon-berish',
-  VERIFICATION: '/tasdiqlash',
-  REFERRAL: '/dostni-taklif-qilish',
   STUDENT_PROGRAM: '/talabalar-dasturi',
   ECOSYSTEM_PREVIEW: '/ekotizim',
-  CHAT: '/xabarlar',
 };
 
-export const PATH_TO_VIEW: ReadonlyMap<string, ViewState> = new Map(
-  Object.entries(VIEW_PATHS).map(([view, path]) => [path, view as ViewState]),
-);
+/**
+ * The Uzbek addresses the account screens used to live at.
+ *
+ * Kept resolvable rather than dropped. Somebody has these in a bookmark, in a
+ * Telegram message or open in a tab right now, and a renamed URL that answers
+ * 404 is indistinguishable from a deleted account page. They resolve to the
+ * same view; because VIEW_PATHS now holds the English address, every link the
+ * app builds afterwards is the new one, so a visitor who arrives on an old
+ * path leaves on the new one without being told anything.
+ */
+const RETIRED_PATHS: Record<string, ViewState> = {
+  '/saqlanganlar': 'FAVORITES',
+  '/profil': 'PROFILE',
+  '/mening-elonlarim': 'MY_LISTINGS',
+  '/elon-berish': 'CREATE_LISTING',
+  '/tasdiqlash': 'VERIFICATION',
+  '/dostni-taklif-qilish': 'REFERRAL',
+  '/xabarlar': 'CHAT',
+};
+
+export const PATH_TO_VIEW: ReadonlyMap<string, ViewState> = new Map([
+  ...Object.entries(VIEW_PATHS).map(
+    ([view, path]) => [path, view as ViewState] as const,
+  ),
+  ...Object.entries(RETIRED_PATHS),
+]);
 
 /**
  * Views behind a sign-in, or otherwise useless to a search engine.

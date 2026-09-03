@@ -287,6 +287,7 @@ export const owner = {
   },
 
   my: {
+    emptyCategory: 'Bu toifada e’lon yo‘q.',
     title: 'Mening e’lonlarim va statistika',
     subtitle: 'E’lonlaringizni necha kishi ko‘rgani, saqlagani va bog‘langanini kuzatib boring.',
     createCta: 'Yangi e’lon joylash',
@@ -319,7 +320,7 @@ export const owner = {
     },
 
     empty: {
-      title: 'Siz hali e’lon joylashtirmadingiz',
+      title: 'Umumiy ko‘rsatkichlar',
       body: 'Kvartirangizni mutlaqo bepul e’lon qiling.',
       cta: 'E’lon joylash',
     },
@@ -371,8 +372,8 @@ export const owner = {
    * row: these count every listing the owner has, moderation states included.
    */
   stats: {
-    title: 'Mening e’lonlarim va statistika',
-    subtitle: 'Barcha e’lonlaringiz bo‘yicha umumiy ko‘rsatkichlar.',
+    title: 'Umumiy ko‘rsatkichlar',
+    subtitle: 'Barcha e’lonlaringiz bo‘yicha jami.',
     totalListings: 'Jami e’lonlar',
     approved: 'Tasdiqlangan',
     pending: 'Ko‘rib chiqilmoqda',

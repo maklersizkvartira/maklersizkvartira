@@ -439,69 +439,6 @@ export const MyListingsPage: React.FC = () => {
         />
       ) : (
         <>
-          <SectionCard
-            title={t('owner.stats.title')}
-            description={t('owner.stats.subtitle')}
-            icon={BarChart3}
-            padding="none"
-            radius="3xl"
-            className="p-4 sm:p-6"
-          >
-            <Card tone="nested" padding="none" className="p-4">
-              <p className="text-[11px] font-extrabold uppercase tracking-wider text-muted">
-                {t('owner.stats.totalListings')}
-              </p>
-              <p className="text-3xl font-black text-content">
-                {formatNumber(totals.listings)}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <SplitPill
-                  label={t('owner.stats.approved')}
-                  value={formatNumber(totals.approved)}
-                  className="bg-success-soft text-success"
-                />
-                <SplitPill
-                  label={t('owner.stats.pending')}
-                  value={formatNumber(totals.pending)}
-                  className="bg-warning-soft text-warning"
-                />
-                <SplitPill
-                  label={t('owner.stats.rejected')}
-                  value={formatNumber(totals.rejected)}
-                  className="bg-danger-soft text-danger"
-                />
-              </div>
-            </Card>
-
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-              <StatTile
-                label={t('owner.stats.views')}
-                value={formatNumber(totals.views)}
-                icon={Eye}
-                iconClassName="text-info"
-              />
-              <StatTile
-                label={t('owner.stats.favorites')}
-                value={formatNumber(totals.favorites)}
-                icon={Heart}
-                iconClassName="text-danger"
-              />
-              <StatTile
-                label={t('owner.stats.contacts')}
-                value={formatNumber(totals.contacts)}
-                icon={Phone}
-                iconClassName="text-brand"
-              />
-              <StatTile
-                label={t('owner.stats.avgTrust')}
-                // A mean of integers is rarely one, and rounding it to a whole
-                // number turns 79.5 into the same figure as 80.
-                value={formatNumber(totals.avgTrust, { maximumFractionDigits: 1 })}
-                icon={ShieldCheck}
-                iconClassName="text-warning"
-              />
-            </div>
-          </SectionCard>
 
           {/* -- The listings themselves ----------------------------------- */}
           <div className="space-y-4">
@@ -511,65 +448,70 @@ export const MyListingsPage: React.FC = () => {
               </h2>
 
               {/* Category Filter Tabs */}
-              <div className="flex flex-wrap items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setFilter('ALL')}
-                  className={cn(
-                    'press rounded-xl px-3 py-1.5 text-xs font-black transition-all',
-                    filter === 'ALL'
-                      ? 'bg-content text-surface shadow-sm'
-                      : 'border border-line bg-surface text-muted hover:bg-surface-2 hover:text-content',
-                  )}
-                >
-                  Barchasi ({counts.all})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilter('OWNER')}
-                  className={cn(
-                    'press flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black transition-all',
-                    filter === 'OWNER'
-                      ? 'bg-brand text-on-brand shadow-brand'
-                      : 'border border-line bg-surface text-muted hover:bg-surface-2 hover:text-content',
-                  )}
-                >
-                  <Home className="h-3.5 w-3.5" />
-                  <span>Mulk egasi ({counts.owner})</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilter('AGENT')}
-                  className={cn(
-                    'press flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black transition-all',
-                    filter === 'AGENT'
-                      ? 'bg-amber-500 text-white shadow-card'
-                      : 'border border-line bg-surface text-muted hover:bg-surface-2 hover:text-content',
-                  )}
-                >
-                  <Briefcase className="h-3.5 w-3.5" />
-                  <span>Rieltor ({counts.agent})</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilter('ROOMMATE')}
-                  className={cn(
-                    'press flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black transition-all',
-                    filter === 'ROOMMATE'
-                      ? 'bg-info text-white shadow-card'
-                      : 'border border-line bg-surface text-muted hover:bg-surface-2 hover:text-content',
-                  )}
-                >
-                  <Users className="h-3.5 w-3.5" />
-                  <span>Sheriklik ({counts.roommate})</span>
-                </button>
-              </div>
+              {/* Nothing to filter with one listing: the four tabs read
+                  "All (1) / Owner (1) / Realtor (0) / Roommate (0)", which is
+                  three ways to see nothing and one that changes nothing. */}
+              {myListings.length > 1 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setFilter('ALL')}
+                    className={cn(
+                      'press rounded-xl px-3 py-1.5 text-xs font-black transition-all',
+                      filter === 'ALL'
+                        ? 'bg-content text-surface shadow-sm'
+                        : 'border border-line bg-surface text-muted hover:bg-surface-2 hover:text-content',
+                    )}
+                  >
+                    Barchasi ({counts.all})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilter('OWNER')}
+                    className={cn(
+                      'press flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black transition-all',
+                      filter === 'OWNER'
+                        ? 'bg-brand text-on-brand shadow-brand'
+                        : 'border border-line bg-surface text-muted hover:bg-surface-2 hover:text-content',
+                    )}
+                  >
+                    <Home className="h-3.5 w-3.5" />
+                    <span>Mulk egasi ({counts.owner})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilter('AGENT')}
+                    className={cn(
+                      'press flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black transition-all',
+                      filter === 'AGENT'
+                        ? 'bg-amber-500 text-white shadow-card'
+                        : 'border border-line bg-surface text-muted hover:bg-surface-2 hover:text-content',
+                    )}
+                  >
+                    <Briefcase className="h-3.5 w-3.5" />
+                    <span>Rieltor ({counts.agent})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilter('ROOMMATE')}
+                    className={cn(
+                      'press flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black transition-all',
+                      filter === 'ROOMMATE'
+                        ? 'bg-info text-white shadow-card'
+                        : 'border border-line bg-surface text-muted hover:bg-surface-2 hover:text-content',
+                    )}
+                  >
+                    <Users className="h-3.5 w-3.5" />
+                    <span>Sheriklik ({counts.roommate})</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {filteredListings.length === 0 ? (
               <div className="rounded-2xl border border-line bg-surface-2 p-8 text-center">
                 <p className="text-sm font-bold text-muted">
-                  Ushbu toifada e’lonlar mavjud emas
+                  {t('owner.my.emptyCategory')}
                 </p>
               </div>
             ) : (
@@ -772,13 +714,19 @@ export const MyListingsPage: React.FC = () => {
                       />
                     </div>
 
-                    <div className="flex flex-col items-start justify-between gap-2 rounded-2xl bg-surface-2 p-3 text-xs sm:flex-row sm:items-center">
-                      <span className="inline-flex items-center gap-2 font-bold text-content">
-                        <TrendingUp className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
-                        {t('owner.my.metrics.conversion', { rate: conversion })}
-                      </span>
-                      <span className="text-subtle">{t('owner.my.metrics.conversionHint')}</span>
-                    </div>
+                    {/* A ratio of nothing to nothing. Until somebody has
+                        opened the listing, "Konversiya: 0.0%" is not a
+                        measurement — it is a zero the owner is invited to read
+                        as their own failure. */}
+                    {views > 0 && (
+                      <div className="flex flex-col items-start justify-between gap-2 rounded-2xl bg-surface-2 p-3 text-xs sm:flex-row sm:items-center">
+                        <span className="inline-flex items-center gap-2 font-bold text-content">
+                          <TrendingUp className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+                          {t('owner.my.metrics.conversion', { rate: conversion })}
+                        </span>
+                        <span className="text-subtle">{t('owner.my.metrics.conversionHint')}</span>
+                      </div>
+                    )}
 
                     <Card tone="nested" padding="none" className="flex flex-col gap-1.5 p-3">
                       <p className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-muted">
@@ -806,6 +754,80 @@ export const MyListingsPage: React.FC = () => {
             </div>
           )}
         </div>
+
+          {/* The totals, under the listings and only when there is more
+              than one of them.
+
+              With a single listing this panel restates that listing: the
+              same views, the same saves, the same contact count, one card
+              higher up — so a new owner met a wall of zeros before reaching
+              the thing they had just published. Totals are worth reading
+              when they total something. */}
+          {myListings.length > 1 && (
+            <SectionCard
+              title={t('owner.stats.title')}
+              description={t('owner.stats.subtitle')}
+              icon={BarChart3}
+              padding="none"
+              radius="3xl"
+              className="p-4 sm:p-6"
+            >
+              <Card tone="nested" padding="none" className="p-4">
+                <p className="text-[11px] font-extrabold uppercase tracking-wider text-muted">
+                  {t('owner.stats.totalListings')}
+                </p>
+                <p className="text-3xl font-black text-content">
+                  {formatNumber(totals.listings)}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <SplitPill
+                    label={t('owner.stats.approved')}
+                    value={formatNumber(totals.approved)}
+                    className="bg-success-soft text-success"
+                  />
+                  <SplitPill
+                    label={t('owner.stats.pending')}
+                    value={formatNumber(totals.pending)}
+                    className="bg-warning-soft text-warning"
+                  />
+                  <SplitPill
+                    label={t('owner.stats.rejected')}
+                    value={formatNumber(totals.rejected)}
+                    className="bg-danger-soft text-danger"
+                  />
+                </div>
+              </Card>
+
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                <StatTile
+                  label={t('owner.stats.views')}
+                  value={formatNumber(totals.views)}
+                  icon={Eye}
+                  iconClassName="text-info"
+                />
+                <StatTile
+                  label={t('owner.stats.favorites')}
+                  value={formatNumber(totals.favorites)}
+                  icon={Heart}
+                  iconClassName="text-danger"
+                />
+                <StatTile
+                  label={t('owner.stats.contacts')}
+                  value={formatNumber(totals.contacts)}
+                  icon={Phone}
+                  iconClassName="text-brand"
+                />
+                <StatTile
+                  label={t('owner.stats.avgTrust')}
+                  // A mean of integers is rarely one, and rounding it to a whole
+                  // number turns 79.5 into the same figure as 80.
+                  value={formatNumber(totals.avgTrust, { maximumFractionDigits: 1 })}
+                  icon={ShieldCheck}
+                  iconClassName="text-warning"
+                />
+              </div>
+            </SectionCard>
+          )}
       </>
       )}
 
