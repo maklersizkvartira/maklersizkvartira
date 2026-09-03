@@ -65,11 +65,22 @@ const readers = {
 
 const stripTags = (value) => (value ?? '').replace(/<[^>]*>/g, '').trim();
 
-/** Readable text only: script bodies are not prose and skew every ratio. */
+/**
+ * Readable text only: script and style bodies are not prose and skew every
+ * ratio built on them.
+ *
+ * `<style>` was missed here until an inline keyframe block moved into the
+ * body, at which point every head-only page — the noindex account screens,
+ * which have no prose by design — reported its CSS as its text and failed the
+ * Cyrillic check for declaring Russian while being 0% Cyrillic. The rule is
+ * the same one the line above states: markup that browsers execute is not
+ * language.
+ */
 const bodyText = (html) =>
   html
     .slice(html.indexOf('<body'))
     .replace(/<script[\s\S]*?<\/script>/g, ' ')
+    .replace(/<style[\s\S]*?<\/style>/g, ' ')
     .replace(/<[^>]*>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
