@@ -318,7 +318,9 @@ export const ListingCard: React.FC<ListingCardProps> = ({
         onKeyDown={(event) => event.stopPropagation()}
         aria-label={isFavorite ? t('common.action.unfavorite') : t('common.action.favorite')}
         aria-pressed={isFavorite}
-        className="press absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-surface/90 shadow-sm backdrop-blur transition-all hover:scale-110"
+        /* 44px under `sm`, where the pointer is a finger, and the original
+           36 above it, where it is a cursor that does not miss. */
+        className="press absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-full bg-surface/90 shadow-sm backdrop-blur transition-all hover:scale-110 sm:h-9 sm:w-9"
       >
         <Heart
           className={cn(
@@ -351,7 +353,14 @@ export const ListingCard: React.FC<ListingCardProps> = ({
               onKeyDown={(event) => event.stopPropagation()}
               aria-label={t('listings.card.photoDot', { index: index + 1 })}
               aria-current={index === activeSlide}
-              className="press flex h-6 w-6 items-center justify-center"
+              /* The dot stays 6px; the button around it is a thumb.
+                 At 24px square these sat close enough together that hitting
+                 the wrong photo was easier than hitting the right one, and
+                 this is the control that appears most on the busiest screen.
+                 The negative margin gives the row back the height the taller
+                 button takes, so nothing moves — the extra area simply
+                 overlaps the photo above and below. */
+              className="press -my-2.5 flex h-11 w-7 items-center justify-center"
             >
               <span
                 className={cn(
