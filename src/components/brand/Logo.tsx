@@ -148,24 +148,32 @@ export const Logo: React.FC<LogoProps> = ({
   return (
     // `inline-flex` last so a caller-supplied display utility is not silently
     // overridden by class order; callers should wrap instead of passing one.
-    <span className={`${className} inline-flex items-center ${s.gap}`}>
-      <LogoMark size={size} />
-      <span className="inline-flex flex-col leading-none">
+    //
+    // The tagline sits UNDER the lockup, not inside it. Nested beside the
+    // wordmark it made the text column taller than the mark, and
+    // `items-center` then centred the mark against that whole column — so
+    // adding a tagline pushed the word up off the mark's centre line and the
+    // two halves of the lockup no longer lined up with each other. The mark
+    // and the word are one row now, aligned to each other and to nothing
+    // else, and the tagline is a second row beneath both.
+    <span className={`${className} inline-flex flex-col leading-none`}>
+      <span className={`inline-flex items-center ${s.gap}`}>
+        <LogoMark size={size} />
         <LogoWordmark
           size={size}
           inverted={inverted}
           className={inverted ? 'text-white' : 'text-content'}
         />
-        {tagline && (
-          <span
-            className={`mt-1 font-semibold uppercase tracking-wide ${s.tagline} ${
-              inverted ? 'text-white/70' : 'text-subtle'
-            }`}
-          >
-            {tagline}
-          </span>
-        )}
       </span>
+      {tagline && (
+        <span
+          className={`mt-1.5 font-semibold uppercase tracking-wide ${s.tagline} ${
+            inverted ? 'text-white/70' : 'text-subtle'
+          }`}
+        >
+          {tagline}
+        </span>
+      )}
     </span>
   );
 };

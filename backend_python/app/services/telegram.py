@@ -32,6 +32,17 @@ def _esc(value: Any) -> str:
 
 async def send_message(db, text: str, *, context: str = "notification") -> bool:
     if not settings.TELEGRAM_BOT_TOKEN or not settings.TELEGRAM_GROUP_ID:
+        # Said out loud, once per attempt. This returned a bare False, so a
+        # deployment missing either variable looked exactly like one where
+        # Telegram was working: the assistant closed, the summary was written
+        # to the database, and nothing was ever delivered to the group — with
+        # no error anywhere to explain why.
+        log.warning(
+            "telegram.not_configured",
+            context=context,
+            has_token=bool(settings.TELEGRAM_BOT_TOKEN),
+            has_group=bool(settings.TELEGRAM_GROUP_ID),
+        )
         return False
     url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN.strip()}/sendMessage"
     try:

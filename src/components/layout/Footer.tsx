@@ -275,8 +275,21 @@ export const Footer: React.FC = () => {
           else.
         */}
 
-        <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-line pt-6 sm:flex-row">
-          <p className="hidden sm:block text-[11px] text-subtle">
+        <div className="mt-8 flex flex-col items-center gap-5 border-t border-line pt-6 sm:flex-row sm:justify-between sm:gap-4">
+          {/*
+            Shown on a phone too.
+
+            This was `hidden sm:block`, so the narrowest screen — the one most
+            people arrive on — ended with a row of icons and two switchers and
+            nothing saying whose site it was. The line is short, it costs one
+            row, and a footer whose last word is a theme toggle reads unfinished.
+
+            It is ordered last on mobile and first on desktop: on a phone the
+            controls are what a thumb is reaching for and the copyright is the
+            full stop underneath them, while on a wide screen the eye starts at
+            the left, which is where the sentence belongs.
+          */}
+          <p className="order-last text-center text-[11px] text-subtle sm:order-first sm:text-left">
             {t('layout.footer.rights', { year: new Date().getFullYear() })}
           </p>
           {/*

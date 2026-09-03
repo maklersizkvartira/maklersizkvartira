@@ -276,6 +276,24 @@ export const AiMascot: React.FC = () => {
     }
   };
 
+  /**
+   * Ask before ending, but only when there is something to end.
+   *
+   * Both buttons opened the dialog unconditionally, so opening the assistant
+   * and closing it again — reading the greeting and deciding not to ask
+   * anything, which is most of the times it is opened — put "Suhbatni
+   * yakunlaysizmi?" in front of somebody who had not started one. The dialog
+   * exists because closing sends a summary to the team and clears the
+   * history; with no messages there is no summary and nothing to clear.
+   */
+  const requestClose = () => {
+    if (log.some((message) => message.from === 'me')) {
+      setShowCloseConfirm(true);
+      return;
+    }
+    void endConversation();
+  };
+
   const endConversation = async () => {
     setShowCloseConfirm(false);
     setOpen(false);
@@ -410,7 +428,7 @@ export const AiMascot: React.FC = () => {
             <div className="flex shrink-0 items-center gap-1.5">
               <button
                 type="button"
-                onClick={() => setShowCloseConfirm(true)}
+                onClick={requestClose}
                 aria-label={t('assistant.chat.reset')}
                 title={t('assistant.chat.reset')}
                 className="rounded-xl p-2 text-subtle transition-colors hover:bg-surface-2 hover:text-content"
@@ -419,7 +437,7 @@ export const AiMascot: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setShowCloseConfirm(true)}
+                onClick={requestClose}
                 aria-label={t('assistant.chat.close')}
                 title={t('assistant.chat.close')}
                 className="rounded-xl p-2 text-subtle transition-colors hover:bg-surface-2 hover:text-content"
