@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   Briefcase,
   Camera,
+  ChevronRight,
   Globe,
   GraduationCap,
   Home,
@@ -48,6 +49,7 @@ import { LanguageSwitcher } from '../layout/LanguageSwitcher';
 import { ThemeToggle } from '../layout/ThemeToggle';
 import { Card, CardEmpty, SectionCard } from '../ui/Card';
 import { Button, Field, FormError, PasswordInput, TextInput } from '../ui/Field';
+import { Sheet } from '../ui/Sheet';
 import { canPublishListings, isSwitchableRole, roleLabelKey } from '../../types/roles';
 
 const MAX_AVATAR_MB = 5;
@@ -250,6 +252,61 @@ const SessionRow: React.FC<{
     </li>
   );
 };
+
+// ---------------------------------------------------------------------------
+const MenuRow: React.FC<{
+  icon: React.ComponentType<{ className?: string }>;
+  iconColor?: string;
+  iconBg?: string;
+  title: string;
+  subtitle?: string;
+  badge?: React.ReactNode;
+  isDanger?: boolean;
+  onClick: () => void;
+}> = ({
+  icon: Icon,
+  iconColor = 'text-content',
+  iconBg = 'bg-surface-2',
+  title,
+  subtitle,
+  badge,
+  isDanger = false,
+  onClick,
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="press flex w-full items-center justify-between gap-3 p-3.5 sm:p-4 text-left transition-colors hover:bg-surface-2"
+  >
+    <div className="flex items-center gap-3.5 min-w-0">
+      <span
+        className={cn(
+          'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line/40',
+          iconBg,
+        )}
+      >
+        <Icon className={cn('h-5 w-5', iconColor)} aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <div
+          className={cn(
+            'text-sm font-bold truncate',
+            isDanger ? 'text-danger' : 'text-content',
+          )}
+        >
+          {title}
+        </div>
+        {subtitle && (
+          <div className="truncate text-xs text-muted mt-0.5">{subtitle}</div>
+        )}
+      </div>
+    </div>
+    <div className="flex items-center gap-2 shrink-0">
+      {badge}
+      <ChevronRight className="h-4 w-4 text-muted/60" aria-hidden="true" />
+    </div>
+  </button>
+);
 
 // ---------------------------------------------------------------------------
 export const ProfilePage: React.FC = () => {
@@ -558,16 +615,839 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
+  type MobileProfileSection =
+    | 'profile'
+    | 'verification'
+    | 'role'
+    | 'preferences'
+    | 'security'
+    | 'sessions'
+    | 'signOut'
+    | null;
+
+  const [activeMobileSection, setActiveMobileSection] = useState<MobileProfileSection>(null);
+
+  // -- Shared Section Content Renderers -------------------------------------
+  const renderProfileContent = () => (
+    <div className="space-y-4">
+      <form onSubmit={handleSaveName} className="space-y-3" noValidate>
+        <Field label={t('auth.fields.name')} error={nameError ?? undefined} required>
+          {({ id, describedBy, invalid }) => (
+            <TextInput
+              id={id}
+              aria-describedby={describedBy}
+              invalid={invalid}
+              value={name}
+              autoComplete="name"
+              placeholder={t('auth.fields.namePlaceholder')}
+              onChange={(event) => setName(event.target.value)}
+            />
+          )}
+        </Field>
+        <Button
+          type="submit"
+          variant="secondary"
+          loading={savingName}
+          disabled={!nameChanged}
+          fullWidth
+          className="press"
+        >
+          {savingName ? t('common.action.saving') : t('common.action.save')}
+        </Button>
+      </form>
+
+      <div className="space-y-3 text-sm">
+        <DataRow
+          label={t('account.profile.phone')}
+          value={currentUser.phone}
+          hint={t('account.profile.phoneLocked')}
+        />
+        <DataRow
+          label={t('account.profile.memberSince')}
+          value={formatDate(currentUser.createdAt)}
+        />
+      </div>
+    </div>
+  );
+
+  const renderRoleContent = () => (
+    <div className="space-y-4">
+      {!isSwitchableRole(currentUser.role) ? (
+        <div className="rounded-xl border border-brand/30 bg-brand-soft p-3">
+          <p className="flex items-center gap-2 text-xs font-black text-brand-text">
+            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+            {t('account.role.granted.title')}
+          </p>
+          <p className="mt-1 text-[11px] font-medium text-muted">
+            {t('account.role.granted.description', {
+              role: t(roleLabelKey(currentUser.role)),
+            })}
+          </p>
+        </div>
+      ) : (
+        <div
+          role="radiogroup"
+          aria-label={t('account.role.title')}
+          className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+        >
+          {(
+            [
+              { value: 'OWNER', icon: Home, titleKey: 'account.role.owner.title', descriptionKey: 'account.role.owner.description' },
+              { value: 'AGENT', icon: Briefcase, titleKey: 'account.role.agent.title', descriptionKey: 'account.role.agent.description' },
+              { value: 'STUDENT', icon: GraduationCap, titleKey: 'account.role.student.title', descriptionKey: 'account.role.student.description' },
+            ] as const
+          ).map((option) => {
+            const active = currentUser.role === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                disabled={roleBusy !== null}
+                onClick={() => void handleSwitchRole(option.value)}
+                className={cn(
+                  'press min-h-11 rounded-xl border p-3 text-left transition-all',
+                  'disabled:cursor-not-allowed disabled:opacity-60',
+                  active
+                    ? 'border-brand bg-brand-soft text-brand-text shadow-card'
+                    : 'border-line bg-surface-2 text-muted hover:bg-surface-3 hover:text-content',
+                )}
+              >
+                <span className="flex items-center gap-2 text-xs font-black">
+                  <option.icon className="h-4 w-4" aria-hidden="true" />
+                  {t(option.titleKey)}
+                </span>
+                <span className="mt-0.5 block text-[10px] font-medium opacity-80">
+                  {roleBusy === option.value
+                    ? t('account.role.switching')
+                    : t(option.descriptionKey)}
+                </span>
+                {active && (
+                  <span className="mt-1.5 block text-[10px] font-bold uppercase tracking-wide">
+                    {t('account.role.active')}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {currentUser.role === 'AGENT' && (
+        <div className="space-y-2 rounded-xl border border-line bg-surface-2 p-3">
+          <div>
+            <p className="text-xs font-black text-content">
+              {t('account.role.agencyTitle')}
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted">
+              {t('account.role.agencySubtitle')}
+            </p>
+          </div>
+          <Field label={t('account.role.agencyLabel')} hint={t('account.role.agencyHint')}>
+            {({ id, describedBy }) => (
+              <TextInput
+                id={id}
+                aria-describedby={describedBy}
+                autoComplete="organization"
+                value={agency}
+                onChange={(event) => setAgency(event.target.value)}
+                placeholder={t('account.role.agencyPlaceholder')}
+                icon={<Briefcase className="h-4 w-4" />}
+              />
+            )}
+          </Field>
+          <Button
+            variant="secondary"
+            fullWidth
+            loading={agencyBusy}
+            disabled={agency.trim() === (currentUser.agencyName ?? '').trim()}
+            onClick={() => void handleSaveAgency()}
+            className="px-4 py-2.5 text-xs"
+          >
+            {t('common.action.save')}
+          </Button>
+        </div>
+      )}
+
+      {isOwner && (
+        <Button
+          fullWidth
+          className="press"
+          onClick={() => {
+            setActiveMobileSection(null);
+            setCurrentView('CREATE_LISTING');
+          }}
+        >
+          {t('account.role.createListing')}
+        </Button>
+      )}
+    </div>
+  );
+
+  const renderPreferencesContent = () => (
+    <div className="space-y-4">
+      <div className="flex min-h-11 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 text-sm font-bold text-content">
+            <Globe className="h-4 w-4 text-muted" aria-hidden="true" />
+            {t('common.language.label')}
+          </div>
+          <p className="mt-0.5 text-xs text-muted">
+            {t('account.preferences.languageHint')}
+          </p>
+        </div>
+        <LanguageSwitcher />
+      </div>
+
+      <div className="space-y-2 border-t border-line pt-4">
+        <div className="flex items-center gap-1.5 text-sm font-bold text-content">
+          <Palette className="h-4 w-4 text-muted" aria-hidden="true" />
+          {t('common.theme.label')}
+        </div>
+        <ThemeToggle compact={false} />
+        <p className="text-xs text-muted">{t('account.preferences.themeHint')}</p>
+      </div>
+    </div>
+  );
+
+  const renderSecurityContent = () => (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <div className="text-sm font-bold text-content">
+          {t('account.security.passwordTitle')}
+        </div>
+        <p className="text-xs text-muted">{t('account.security.passwordDescription')}</p>
+        <p className="text-xs text-subtle">{t('account.security.passwordNeverShown')}</p>
+      </div>
+
+      <p className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-soft px-3 py-2.5 text-xs font-semibold text-warning">
+        <AlertTriangle className="mt-px h-4 w-4 shrink-0" aria-hidden="true" />
+        <span>{t('auth.changePassword.warning')}</span>
+      </p>
+
+      {!passwordOpen ? (
+        <Button
+          variant="secondary"
+          fullWidth
+          className="press"
+          onClick={() => setPasswordOpen(true)}
+        >
+          {t('auth.changePassword.title')}
+        </Button>
+      ) : (
+        <form onSubmit={handleChangePassword} className="space-y-3" noValidate>
+          <FormError message={passwordError} />
+
+          <Field label={t('auth.fields.currentPassword')} required>
+            {({ id, describedBy, invalid }) => (
+              <PasswordInput
+                id={id}
+                aria-describedby={describedBy}
+                invalid={invalid}
+                value={currentPassword}
+                autoComplete="current-password"
+                onChange={(event) => setCurrentPassword(event.target.value)}
+              />
+            )}
+          </Field>
+
+          <Field
+            label={t('auth.fields.newPassword')}
+            hint={t('auth.fields.passwordPlaceholder')}
+            required
+          >
+            {({ id, describedBy, invalid }) => (
+              <PasswordInput
+                id={id}
+                aria-describedby={describedBy}
+                invalid={invalid}
+                value={newPassword}
+                autoComplete="new-password"
+                onChange={(event) => setNewPassword(event.target.value)}
+              />
+            )}
+          </Field>
+
+          <Field label={t('auth.fields.confirmPassword')} required>
+            {({ id, describedBy, invalid }) => (
+              <PasswordInput
+                id={id}
+                aria-describedby={describedBy}
+                invalid={invalid}
+                value={confirmPassword}
+                autoComplete="new-password"
+                onChange={(event) => setConfirmPassword(event.target.value)}
+              />
+            )}
+          </Field>
+
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              className="press flex-1"
+              onClick={() => {
+                setPasswordOpen(false);
+                setPasswordError(null);
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmPassword('');
+              }}
+            >
+              {t('common.action.cancel')}
+            </Button>
+            <Button type="submit" className="press flex-1" loading={passwordBusy}>
+              {t('auth.changePassword.submit')}
+            </Button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+
+  const renderSessionsContent = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold text-subtle">
+          {sessions.length > 0
+            ? t('account.sessions.count', { count: sessions.length })
+            : t('account.sessions.subtitle')}
+        </p>
+        <button
+          type="button"
+          onClick={() => void loadSessions()}
+          disabled={sessionsLoading}
+          aria-label={t('account.sessions.reload')}
+          title={t('account.sessions.reload')}
+          className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-muted transition-colors hover:border-brand hover:text-content disabled:opacity-60"
+        >
+          <RefreshCw
+            className={cn('h-3.5 w-3.5', sessionsLoading && 'animate-spin')}
+            aria-hidden="true"
+          />
+        </button>
+      </div>
+
+      {sessionsLoading ? (
+        <div
+          className="space-y-2"
+          aria-busy="true"
+          aria-label={t('common.a11y.loading')}
+        >
+          {[0, 1, 2].map((row) => (
+            <div key={row} className="h-28 animate-shimmer rounded-xl" aria-hidden="true" />
+          ))}
+        </div>
+      ) : sessionsError ? (
+        <div className="space-y-3">
+          <FormError message={t('account.sessions.loadError')} />
+          <p className="text-xs text-subtle">{sessionsError}</p>
+          <Button
+            variant="secondary"
+            fullWidth
+            className="press"
+            onClick={() => void loadSessions()}
+          >
+            {t('common.action.retry')}
+          </Button>
+        </div>
+      ) : sessions.length === 0 ? (
+        <CardEmpty
+          icon={Monitor}
+          title={t('account.sessions.empty')}
+          className="border-line bg-surface-2 px-4 py-8 shadow-none"
+        />
+      ) : (
+        <ul className="space-y-2">
+          {sessions.map((session) => (
+            <SessionRow
+              key={session.id}
+              session={session}
+              confirming={confirmRevokeId === session.id}
+              onAskRevoke={() => {
+                haptics.tap();
+                setConfirmRevokeId(session.id);
+              }}
+              onCancelRevoke={() => setConfirmRevokeId(null)}
+              onRevoke={() => void handleRevokeSession(session)}
+            />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
+  const renderSignOutContent = () => (
+    <div className="space-y-4">
+      <Button
+        variant="secondary"
+        fullWidth
+        className="press"
+        loading={signOutBusy && !confirmSignOutAll}
+        onClick={() => void handleSignOut(false)}
+      >
+        <LogOut className="h-4 w-4" aria-hidden="true" />
+        {t('account.signOut.thisDevice')}
+      </Button>
+
+      <div className="space-y-2 border-t border-line pt-4">
+        <p className="text-xs text-muted">{t('account.signOut.allDevicesHint')}</p>
+        {confirmSignOutAll ? (
+          <div className="space-y-2 rounded-xl border border-danger/30 bg-danger-soft p-3">
+            <p className="text-xs font-bold text-danger">
+              {t('account.signOut.confirmAll')}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                className="press flex-1"
+                onClick={() => setConfirmSignOutAll(false)}
+              >
+                {t('common.action.cancel')}
+              </Button>
+              <Button
+                variant="danger"
+                className="press flex-1"
+                loading={signOutBusy}
+                onClick={() => void handleSignOut(true)}
+              >
+                {t('common.action.confirm')}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            variant="ghost"
+            fullWidth
+            className="press text-danger hover:bg-danger-soft/50"
+            onClick={() => setConfirmSignOutAll(true)}
+          >
+            {t('account.signOut.allDevices')}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderVerificationContent = () => (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span
+          className={cn(
+            'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold',
+            currentUser.isVerified
+              ? 'bg-success-soft text-success'
+              : 'bg-warning-soft text-warning',
+          )}
+        >
+          <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+          {currentUser.isVerified
+            ? t('account.profile.verified')
+            : t('account.profile.notVerified')}
+        </span>
+      </div>
+
+      <div className="space-y-3 text-sm">
+        <div className="grid grid-cols-2 gap-3">
+          <DataRow
+            label={t('account.profile.trustScore')}
+            value={formatNumber(currentUser.trustScore)}
+          />
+          <DataRow
+            label={t('account.profile.verificationLevel')}
+            value={t('common.badge.verificationLevel', {
+              level: currentUser.verificationLevel,
+            })}
+          />
+        </div>
+        <DataRow
+          label={t('account.profile.xpPoints')}
+          value={
+            <span className="inline-flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4 text-warning" aria-hidden="true" />
+              {formatNumber(currentUser.xpPoints)}
+            </span>
+          }
+        />
+      </div>
+
+      {!currentUser.isVerified && (
+        <Button
+          variant="secondary"
+          fullWidth
+          className="press"
+          onClick={() => {
+            setActiveMobileSection(null);
+            setCurrentView('VERIFICATION');
+          }}
+        >
+          {t('account.profile.verify')}
+        </Button>
+      )}
+    </div>
+  );
+
+  const renderAvatarCardContent = () => (
+    <>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={avatarBusy}
+          aria-label={t('account.profile.avatarChange')}
+          aria-busy={avatarBusy || undefined}
+          className="press relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-2 border-brand/30 bg-surface-2 transition-opacity disabled:opacity-60"
+        >
+          {currentUser.avatar ? (
+            <img
+              src={currentUser.avatar}
+              alt={t('account.profile.avatarAlt', { name: currentUser.name })}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <span
+              className={cn(
+                'flex h-full w-full items-center justify-center',
+                isOwner ? 'bg-brand text-on-brand' : 'bg-info text-white',
+              )}
+            >
+              {isOwner ? (
+                <Home className="h-8 w-8" aria-hidden="true" />
+              ) : (
+                <GraduationCap className="h-8 w-8" aria-hidden="true" />
+              )}
+            </span>
+          )}
+          <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/60 py-1 text-[10px] font-bold text-white">
+            <Camera className="h-3 w-3" aria-hidden="true" />
+            {t('account.profile.avatarBadge')}
+          </span>
+        </button>
+
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="truncate text-base font-black text-content">{currentUser.name}</p>
+          <span className="inline-flex items-center gap-1 rounded-full border border-brand/30 bg-brand-soft px-2.5 py-0.5 text-xs font-bold text-brand-text">
+            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+            {isOwner
+              ? t('account.profile.badgeOwner')
+              : t('account.profile.badgeStudent')}
+          </span>
+          <p className="text-xs text-subtle">
+            {isOwner
+              ? t('account.profile.captionOwner')
+              : t('account.profile.captionStudent')}
+          </p>
+        </div>
+      </div>
+
+      <p className="text-xs text-subtle">
+        {t('account.profile.avatarHint', { size: MAX_AVATAR_MB })}
+      </p>
+
+      <FormError message={avatarError} />
+    </>
+  );
+
   // -- Render ---------------------------------------------------------------
   return (
     // The bottom pad clears the fixed bottom nav, which only exists below lg.
     <div className="gutter-safe mx-auto w-full max-w-6xl py-6 pb-28 lg:pb-12">
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handlePickAvatar}
+      />
+
       <header className="mb-6 space-y-1">
         <h1 className="text-2xl font-black text-content">{t('account.page.title')}</h1>
         <p className="text-sm text-muted">{t('account.page.subtitle')}</p>
       </header>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px] xl:gap-8">
+      {/* =================================================================== */}
+      {/* Mobile View (< lg): Native-like grouped menu & bottom sheets        */}
+      {/* =================================================================== */}
+      <div className="space-y-4 lg:hidden">
+        {/* -- Header Identity Card -- */}
+        <Card padding="none" className="p-4 space-y-3.5">
+          <div className="flex items-center gap-3.5">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={avatarBusy}
+              aria-label={t('account.profile.avatarChange')}
+              aria-busy={avatarBusy || undefined}
+              className="press relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border-2 border-brand/30 bg-surface-2 transition-opacity disabled:opacity-60"
+            >
+              {currentUser.avatar ? (
+                <img
+                  src={currentUser.avatar}
+                  alt={t('account.profile.avatarAlt', { name: currentUser.name })}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span
+                  className={cn(
+                    'flex h-full w-full items-center justify-center',
+                    isOwner ? 'bg-brand text-on-brand' : 'bg-info text-white',
+                  )}
+                >
+                  {isOwner ? (
+                    <Home className="h-7 w-7" aria-hidden="true" />
+                  ) : (
+                    <GraduationCap className="h-7 w-7" aria-hidden="true" />
+                  )}
+                </span>
+              )}
+              <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/60 py-0.5 text-[9px] font-bold text-white">
+                <Camera className="h-2.5 w-2.5" aria-hidden="true" />
+                {t('account.profile.avatarBadge')}
+              </span>
+            </button>
+
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="truncate text-lg font-black text-content">{currentUser.name}</p>
+              <p className="text-xs font-semibold text-muted">{currentUser.phone}</p>
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <span className="inline-flex items-center gap-1 rounded-full border border-brand/30 bg-brand-soft px-2 py-0.5 text-[11px] font-bold text-brand-text">
+                  <ShieldCheck className="h-3 w-3" aria-hidden="true" />
+                  {isOwner
+                    ? t('account.profile.badgeOwner')
+                    : t('account.profile.badgeStudent')}
+                </span>
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold',
+                    currentUser.isVerified
+                      ? 'bg-success-soft text-success'
+                      : 'bg-warning-soft text-warning',
+                  )}
+                >
+                  <ShieldCheck className="h-3 w-3" aria-hidden="true" />
+                  {currentUser.isVerified
+                    ? t('account.profile.verified')
+                    : t('account.profile.notVerified')}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Stats Pill Row */}
+          <div className="grid grid-cols-3 gap-2 rounded-xl border border-line bg-surface-2 p-2.5 text-center">
+            <div className="min-w-0">
+              <div className="text-[10px] font-semibold text-subtle">{t('account.profile.trustScore')}</div>
+              <div className="text-xs font-black text-content">{formatNumber(currentUser.trustScore)}</div>
+            </div>
+            <div className="min-w-0 border-x border-line">
+              <div className="text-[10px] font-semibold text-subtle">{t('account.profile.xpPoints')}</div>
+              <div className="flex items-center justify-center gap-1 text-xs font-black text-warning">
+                <Sparkles className="h-3 w-3" aria-hidden="true" />
+                <span>{formatNumber(currentUser.xpPoints)}</span>
+              </div>
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-semibold text-subtle">{t('account.profile.verificationLevel')}</div>
+              <div className="text-xs font-black text-content">
+                {t('common.badge.verificationLevel', { level: currentUser.verificationLevel })}
+              </div>
+            </div>
+          </div>
+
+          <FormError message={avatarError} />
+        </Card>
+
+        {/* Quick listing create action */}
+        {isOwner && (
+          <Button
+            fullWidth
+            className="press shadow-sm"
+            onClick={() => setCurrentView('CREATE_LISTING')}
+          >
+            {t('account.role.createListing')}
+          </Button>
+        )}
+
+        {/* Group 1: Profil va Shaxsiyat */}
+        <Card padding="none" className="overflow-hidden divide-y divide-line">
+          <MenuRow
+            icon={UserCog}
+            iconColor="text-brand-text"
+            iconBg="bg-brand-soft"
+            title={t('account.profile.title')}
+            subtitle={`${currentUser.name} • ${currentUser.phone}`}
+            onClick={() => {
+              haptics.tap();
+              setActiveMobileSection('profile');
+            }}
+          />
+          <MenuRow
+            icon={ShieldCheck}
+            iconColor="text-success"
+            iconBg="bg-success-soft"
+            title={t('account.profile.verificationLevel')}
+            subtitle={`${t('account.profile.trustScore')}: ${formatNumber(currentUser.trustScore)}`}
+            badge={
+              <span
+                className={cn(
+                  'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black',
+                  currentUser.isVerified
+                    ? 'bg-success-soft text-success'
+                    : 'bg-warning-soft text-warning',
+                )}
+              >
+                {currentUser.isVerified ? t('account.profile.verified') : t('account.profile.notVerified')}
+              </span>
+            }
+            onClick={() => {
+              haptics.tap();
+              setActiveMobileSection('verification');
+            }}
+          />
+          <MenuRow
+            icon={currentUser.role === 'OWNER' ? Home : currentUser.role === 'AGENT' ? Briefcase : GraduationCap}
+            iconColor="text-info"
+            iconBg="bg-info-soft"
+            title={t('account.role.title')}
+            subtitle={
+              currentUser.agencyName
+                ? `${t(roleLabelKey(currentUser.role))} • ${currentUser.agencyName}`
+                : t(roleLabelKey(currentUser.role))
+            }
+            onClick={() => {
+              haptics.tap();
+              setActiveMobileSection('role');
+            }}
+          />
+        </Card>
+
+        {/* Group 2: Sozlamalar va Xavfsizlik */}
+        <Card padding="none" className="overflow-hidden divide-y divide-line">
+          <MenuRow
+            icon={Palette}
+            iconColor="text-purple-500"
+            iconBg="bg-purple-500/10"
+            title={t('account.preferences.title')}
+            subtitle={`${t('common.language.label')}, ${t('common.theme.label')}`}
+            onClick={() => {
+              haptics.tap();
+              setActiveMobileSection('preferences');
+            }}
+          />
+          <MenuRow
+            icon={KeyRound}
+            iconColor="text-amber-500"
+            iconBg="bg-amber-500/10"
+            title={t('account.security.title')}
+            subtitle={t('account.security.passwordTitle')}
+            onClick={() => {
+              haptics.tap();
+              setActiveMobileSection('security');
+            }}
+          />
+          <MenuRow
+            icon={Monitor}
+            iconColor="text-cyan-500"
+            iconBg="bg-cyan-500/10"
+            title={t('account.sessions.title')}
+            subtitle={t('account.sessions.subtitle')}
+            badge={
+              sessions.length > 0 ? (
+                <span className="inline-flex items-center rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-bold text-muted">
+                  {sessions.length}
+                </span>
+              ) : undefined
+            }
+            onClick={() => {
+              haptics.tap();
+              setActiveMobileSection('sessions');
+            }}
+          />
+        </Card>
+
+        {/* Group 3: Chiqish */}
+        <Card padding="none" className="overflow-hidden">
+          <MenuRow
+            icon={LogOut}
+            iconColor="text-danger"
+            iconBg="bg-danger-soft"
+            title={t('account.signOut.title')}
+            subtitle={t('account.signOut.allDevicesHint')}
+            isDanger
+            onClick={() => {
+              haptics.tap();
+              setActiveMobileSection('signOut');
+            }}
+          />
+        </Card>
+      </div>
+
+      {/* Mobile Bottom Sheets */}
+      <Sheet
+        open={activeMobileSection === 'profile'}
+        onClose={() => setActiveMobileSection(null)}
+        title={t('account.profile.title')}
+        description={t('account.page.subtitle')}
+      >
+        <div className="p-4 sm:p-6">{renderProfileContent()}</div>
+      </Sheet>
+
+      <Sheet
+        open={activeMobileSection === 'verification'}
+        onClose={() => setActiveMobileSection(null)}
+        title={t('account.profile.verificationLevel')}
+      >
+        <div className="p-4 sm:p-6">{renderVerificationContent()}</div>
+      </Sheet>
+
+      <Sheet
+        open={activeMobileSection === 'role'}
+        onClose={() => setActiveMobileSection(null)}
+        title={t('account.role.title')}
+        description={t('account.role.subtitle')}
+      >
+        <div className="p-4 sm:p-6">{renderRoleContent()}</div>
+      </Sheet>
+
+      <Sheet
+        open={activeMobileSection === 'preferences'}
+        onClose={() => setActiveMobileSection(null)}
+        title={t('account.preferences.title')}
+      >
+        <div className="p-4 sm:p-6">{renderPreferencesContent()}</div>
+      </Sheet>
+
+      <Sheet
+        open={activeMobileSection === 'security'}
+        onClose={() => setActiveMobileSection(null)}
+        title={t('account.security.title')}
+        description={t('account.security.passwordDescription')}
+      >
+        <div className="p-4 sm:p-6">{renderSecurityContent()}</div>
+      </Sheet>
+
+      <Sheet
+        open={activeMobileSection === 'sessions'}
+        onClose={() => setActiveMobileSection(null)}
+        title={t('account.sessions.title')}
+        description={t('account.sessions.subtitle')}
+      >
+        <div className="p-4 sm:p-6">{renderSessionsContent()}</div>
+      </Sheet>
+
+      <Sheet
+        open={activeMobileSection === 'signOut'}
+        onClose={() => setActiveMobileSection(null)}
+        title={t('account.signOut.title')}
+      >
+        <div className="p-4 sm:p-6">{renderSignOutContent()}</div>
+      </Sheet>
+
+      {/* =================================================================== */}
+      {/* Desktop View (lg:grid): Two-column layout                           */}
+      {/* =================================================================== */}
+      <div className="hidden lg:grid lg:grid-cols-[minmax(0,1fr)_320px] xl:gap-8 gap-6">
         {/* -- Main column: everything that can be edited ------------------ */}
         <div className="order-2 space-y-6 lg:order-1">
           {/* -- Profile fields ------------------------------------------- */}
@@ -577,43 +1457,7 @@ export const ProfilePage: React.FC = () => {
             padding="none"
             className={CARD_PADDING}
           >
-            <form onSubmit={handleSaveName} className="space-y-3" noValidate>
-              <Field label={t('auth.fields.name')} error={nameError ?? undefined} required>
-                {({ id, describedBy, invalid }) => (
-                  <TextInput
-                    id={id}
-                    aria-describedby={describedBy}
-                    invalid={invalid}
-                    value={name}
-                    autoComplete="name"
-                    placeholder={t('auth.fields.namePlaceholder')}
-                    onChange={(event) => setName(event.target.value)}
-                  />
-                )}
-              </Field>
-              <Button
-                type="submit"
-                variant="secondary"
-                loading={savingName}
-                disabled={!nameChanged}
-                fullWidth
-                className="press"
-              >
-                {savingName ? t('common.action.saving') : t('common.action.save')}
-              </Button>
-            </form>
-
-            <div className="space-y-3 text-sm">
-              <DataRow
-                label={t('account.profile.phone')}
-                value={currentUser.phone}
-                hint={t('account.profile.phoneLocked')}
-              />
-              <DataRow
-                label={t('account.profile.memberSince')}
-                value={formatDate(currentUser.createdAt)}
-              />
-            </div>
+            {renderProfileContent()}
           </SectionCard>
 
           {/* -- Role ------------------------------------------------------ */}
@@ -624,122 +1468,7 @@ export const ProfilePage: React.FC = () => {
             padding="none"
             className={CARD_PADDING}
           >
-            {!isSwitchableRole(currentUser.role) ? (
-              // A granted role is not a preference. Showing two radio buttons
-              // with neither selected reads as "your role did not save", and
-              // pressing one used to silently give the granted role away.
-              <div className="rounded-xl border border-brand/30 bg-brand-soft p-3">
-                <p className="flex items-center gap-2 text-xs font-black text-brand-text">
-                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                  {t('account.role.granted.title')}
-                </p>
-                <p className="mt-1 text-[11px] font-medium text-muted">
-                  {t('account.role.granted.description', {
-                    role: t(roleLabelKey(currentUser.role)),
-                  })}
-                </p>
-              </div>
-            ) : (
-              <div
-                role="radiogroup"
-                aria-label={t('account.role.title')}
-                className="grid grid-cols-1 gap-2 sm:grid-cols-2"
-              >
-                {(
-                  [
-                    { value: 'OWNER', icon: Home, titleKey: 'account.role.owner.title', descriptionKey: 'account.role.owner.description' },
-                    // A realtor used to have to call themselves a homeowner
-                    // here, which is both untrue and the thing people
-                    // complained about not being able to say.
-                    { value: 'AGENT', icon: Briefcase, titleKey: 'account.role.agent.title', descriptionKey: 'account.role.agent.description' },
-                    { value: 'STUDENT', icon: GraduationCap, titleKey: 'account.role.student.title', descriptionKey: 'account.role.student.description' },
-                  ] as const
-                ).map((option) => {
-                  const active = currentUser.role === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      disabled={roleBusy !== null}
-                      onClick={() => void handleSwitchRole(option.value)}
-                      className={cn(
-                        'press min-h-11 rounded-xl border p-3 text-left transition-all',
-                        'disabled:cursor-not-allowed disabled:opacity-60',
-                        active
-                          ? 'border-brand bg-brand-soft text-brand-text shadow-card'
-                          : 'border-line bg-surface-2 text-muted hover:bg-surface-3 hover:text-content',
-                      )}
-                    >
-                      <span className="flex items-center gap-2 text-xs font-black">
-                        <option.icon className="h-4 w-4" aria-hidden="true" />
-                        {t(option.titleKey)}
-                      </span>
-                      <span className="mt-0.5 block text-[10px] font-medium opacity-80">
-                        {roleBusy === option.value
-                          ? t('account.role.switching')
-                          : t(option.descriptionKey)}
-                      </span>
-                      {active && (
-                        <span className="mt-1.5 block text-[10px] font-bold uppercase tracking-wide">
-                          {t('account.role.active')}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Only an agent has an agency, and the name is what a caller
-                sees beside every listing they publish — so it belongs beside
-                the role that produces it, not on a settings page of its own. */}
-            {currentUser.role === 'AGENT' && (
-              <div className="space-y-2 rounded-xl border border-line bg-surface-2 p-3">
-                <div>
-                  <p className="text-xs font-black text-content">
-                    {t('account.role.agencyTitle')}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-muted">
-                    {t('account.role.agencySubtitle')}
-                  </p>
-                </div>
-                <Field label={t('account.role.agencyLabel')} hint={t('account.role.agencyHint')}>
-                  {({ id, describedBy }) => (
-                    <TextInput
-                      id={id}
-                      aria-describedby={describedBy}
-                      autoComplete="organization"
-                      value={agency}
-                      onChange={(event) => setAgency(event.target.value)}
-                      placeholder={t('account.role.agencyPlaceholder')}
-                      icon={<Briefcase className="h-4 w-4" />}
-                    />
-                  )}
-                </Field>
-                <Button
-                  variant="secondary"
-                  fullWidth
-                  loading={agencyBusy}
-                  disabled={agency.trim() === (currentUser.agencyName ?? '').trim()}
-                  onClick={() => void handleSaveAgency()}
-                  className="px-4 py-2.5 text-xs"
-                >
-                  {t('common.action.save')}
-                </Button>
-              </div>
-            )}
-
-            {isOwner && (
-              <Button
-                fullWidth
-                className="press"
-                onClick={() => setCurrentView('CREATE_LISTING')}
-              >
-                {t('account.role.createListing')}
-              </Button>
-            )}
+            {renderRoleContent()}
           </SectionCard>
 
           {/* -- Preferences ----------------------------------------------- */}
@@ -749,27 +1478,7 @@ export const ProfilePage: React.FC = () => {
             padding="none"
             className={CARD_PADDING}
           >
-            <div className="flex min-h-11 items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 text-sm font-bold text-content">
-                  <Globe className="h-4 w-4 text-muted" aria-hidden="true" />
-                  {t('common.language.label')}
-                </div>
-                <p className="mt-0.5 text-xs text-muted">
-                  {t('account.preferences.languageHint')}
-                </p>
-              </div>
-              <LanguageSwitcher />
-            </div>
-
-            <div className="space-y-2 border-t border-line pt-4">
-              <div className="flex items-center gap-1.5 text-sm font-bold text-content">
-                <Palette className="h-4 w-4 text-muted" aria-hidden="true" />
-                {t('common.theme.label')}
-              </div>
-              <ThemeToggle compact={false} />
-              <p className="text-xs text-muted">{t('account.preferences.themeHint')}</p>
-            </div>
+            {renderPreferencesContent()}
           </SectionCard>
 
           {/* -- Security --------------------------------------------------- */}
@@ -779,96 +1488,7 @@ export const ProfilePage: React.FC = () => {
             padding="none"
             className={CARD_PADDING}
           >
-            <div className="space-y-1">
-              <div className="text-sm font-bold text-content">
-                {t('account.security.passwordTitle')}
-              </div>
-              <p className="text-xs text-muted">{t('account.security.passwordDescription')}</p>
-              <p className="text-xs text-subtle">{t('account.security.passwordNeverShown')}</p>
-            </div>
-
-            <p className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-soft px-3 py-2.5 text-xs font-semibold text-warning">
-              <AlertTriangle className="mt-px h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>{t('auth.changePassword.warning')}</span>
-            </p>
-
-            {!passwordOpen ? (
-              <Button
-                variant="secondary"
-                fullWidth
-                className="press"
-                onClick={() => setPasswordOpen(true)}
-              >
-                {t('auth.changePassword.title')}
-              </Button>
-            ) : (
-              <form onSubmit={handleChangePassword} className="space-y-3" noValidate>
-                <FormError message={passwordError} />
-
-                <Field label={t('auth.fields.currentPassword')} required>
-                  {({ id, describedBy, invalid }) => (
-                    <PasswordInput
-                      id={id}
-                      aria-describedby={describedBy}
-                      invalid={invalid}
-                      value={currentPassword}
-                      autoComplete="current-password"
-                      onChange={(event) => setCurrentPassword(event.target.value)}
-                    />
-                  )}
-                </Field>
-
-                <Field
-                  label={t('auth.fields.newPassword')}
-                  hint={t('auth.fields.passwordPlaceholder')}
-                  required
-                >
-                  {({ id, describedBy, invalid }) => (
-                    <PasswordInput
-                      id={id}
-                      aria-describedby={describedBy}
-                      invalid={invalid}
-                      value={newPassword}
-                      autoComplete="new-password"
-                      onChange={(event) => setNewPassword(event.target.value)}
-                    />
-                  )}
-                </Field>
-
-                <Field label={t('auth.fields.confirmPassword')} required>
-                  {({ id, describedBy, invalid }) => (
-                    <PasswordInput
-                      id={id}
-                      aria-describedby={describedBy}
-                      invalid={invalid}
-                      value={confirmPassword}
-                      autoComplete="new-password"
-                      onChange={(event) => setConfirmPassword(event.target.value)}
-                    />
-                  )}
-                </Field>
-
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="press flex-1"
-                    onClick={() => {
-                      setPasswordOpen(false);
-                      setPasswordError(null);
-                      setCurrentPassword('');
-                      setNewPassword('');
-                      setConfirmPassword('');
-                    }}
-                  >
-                    {t('common.action.cancel')}
-                  </Button>
-                  <Button type="submit" className="press flex-1" loading={passwordBusy}>
-                    {t('auth.changePassword.submit')}
-                  </Button>
-                </div>
-              </form>
-            )}
+            {renderSecurityContent()}
           </SectionCard>
 
           {/* -- Sessions --------------------------------------------------- */}
@@ -894,59 +1514,7 @@ export const ProfilePage: React.FC = () => {
               </button>
             }
           >
-            {sessionsLoading ? (
-              <div
-                className="space-y-2"
-                aria-busy="true"
-                aria-label={t('common.a11y.loading')}
-              >
-                {[0, 1, 2].map((row) => (
-                  <div key={row} className="h-28 animate-shimmer rounded-xl" aria-hidden="true" />
-                ))}
-              </div>
-            ) : sessionsError ? (
-              // An outage and "no devices" used to render the same empty grey
-              // box, so a failed load looked like a reassuring answer.
-              <div className="space-y-3">
-                <FormError message={t('account.sessions.loadError')} />
-                <p className="text-xs text-subtle">{sessionsError}</p>
-                <Button
-                  variant="secondary"
-                  fullWidth
-                  className="press"
-                  onClick={() => void loadSessions()}
-                >
-                  {t('common.action.retry')}
-                </Button>
-              </div>
-            ) : sessions.length === 0 ? (
-              <CardEmpty
-                icon={Monitor}
-                title={t('account.sessions.empty')}
-                className="border-line bg-surface-2 px-4 py-8 shadow-none"
-              />
-            ) : (
-              <>
-                <p className="text-xs font-bold text-subtle">
-                  {t('account.sessions.count', { count: sessions.length })}
-                </p>
-                <ul className="space-y-2">
-                  {sessions.map((session) => (
-                    <SessionRow
-                      key={session.id}
-                      session={session}
-                      confirming={confirmRevokeId === session.id}
-                      onAskRevoke={() => {
-                        haptics.tap();
-                        setConfirmRevokeId(session.id);
-                      }}
-                      onCancelRevoke={() => setConfirmRevokeId(null)}
-                      onRevoke={() => void handleRevokeSession(session)}
-                    />
-                  ))}
-                </ul>
-              </>
-            )}
+            {renderSessionsContent()}
           </SectionCard>
 
           {/* -- Sign out --------------------------------------------------- */}
@@ -956,126 +1524,14 @@ export const ProfilePage: React.FC = () => {
             padding="none"
             className={CARD_PADDING}
           >
-            <Button
-              variant="secondary"
-              fullWidth
-              className="press"
-              loading={signOutBusy && !confirmSignOutAll}
-              onClick={() => void handleSignOut(false)}
-            >
-              <LogOut className="h-4 w-4" aria-hidden="true" />
-              {t('account.signOut.thisDevice')}
-            </Button>
-
-            <div className="space-y-2 border-t border-line pt-4">
-              <p className="text-xs text-muted">{t('account.signOut.allDevicesHint')}</p>
-              {confirmSignOutAll ? (
-                <div className="space-y-2 rounded-xl border border-danger/30 bg-danger-soft p-3">
-                  <p className="text-xs font-bold text-danger">
-                    {t('account.signOut.confirmAll')}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      className="press flex-1"
-                      onClick={() => setConfirmSignOutAll(false)}
-                    >
-                      {t('common.action.cancel')}
-                    </Button>
-                    <Button
-                      variant="danger"
-                      className="press flex-1"
-                      loading={signOutBusy}
-                      onClick={() => void handleSignOut(true)}
-                    >
-                      {t('common.action.confirm')}
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <Button
-                  variant="ghost"
-                  fullWidth
-                  className="press"
-                  onClick={() => setConfirmSignOutAll(true)}
-                >
-                  {t('account.signOut.allDevices')}
-                </Button>
-              )}
-            </div>
+            {renderSignOutContent()}
           </SectionCard>
         </div>
 
         {/* -- Rail: who you are, which does not change while you edit ------ */}
         <aside className="order-1 space-y-6 lg:order-2 lg:sticky lg:top-24 lg:self-start">
-          {/* Deliberately not a SectionCard: "Profile details" already names
-              the editable section in the main column, and two landmarks with
-              the same heading is worse for a screen reader than one identity
-              block the page title already introduces. */}
           <Card padding="none" className={cn(CARD_PADDING, 'space-y-4')}>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                disabled={avatarBusy}
-                aria-label={t('account.profile.avatarChange')}
-                aria-busy={avatarBusy || undefined}
-                className="press relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-2 border-brand/30 bg-surface-2 transition-opacity disabled:opacity-60"
-              >
-                {currentUser.avatar ? (
-                  <img
-                    src={currentUser.avatar}
-                    alt={t('account.profile.avatarAlt', { name: currentUser.name })}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span
-                    className={cn(
-                      'flex h-full w-full items-center justify-center',
-                      isOwner ? 'bg-brand text-on-brand' : 'bg-info text-white',
-                    )}
-                  >
-                    {isOwner ? (
-                      <Home className="h-8 w-8" aria-hidden="true" />
-                    ) : (
-                      <GraduationCap className="h-8 w-8" aria-hidden="true" />
-                    )}
-                  </span>
-                )}
-                <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/60 py-1 text-[10px] font-bold text-white">
-                  <Camera className="h-3 w-3" aria-hidden="true" />
-                  {t('account.profile.avatarBadge')}
-                </span>
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handlePickAvatar}
-              />
-
-              <div className="min-w-0 flex-1 space-y-1">
-                <p className="truncate text-base font-black text-content">{currentUser.name}</p>
-                <span className="inline-flex items-center gap-1 rounded-full border border-brand/30 bg-brand-soft px-2.5 py-0.5 text-xs font-bold text-brand-text">
-                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                  {isOwner
-                    ? t('account.profile.badgeOwner')
-                    : t('account.profile.badgeStudent')}
-                </span>
-                <p className="text-xs text-subtle">
-                  {isOwner
-                    ? t('account.profile.captionOwner')
-                    : t('account.profile.captionStudent')}
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs text-subtle">
-              {t('account.profile.avatarHint', { size: MAX_AVATAR_MB })}
-            </p>
-
-            <FormError message={avatarError} />
+            {renderAvatarCardContent()}
           </Card>
 
           <SectionCard
@@ -1084,56 +1540,7 @@ export const ProfilePage: React.FC = () => {
             padding="none"
             className={CARD_PADDING}
           >
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold',
-                  currentUser.isVerified
-                    ? 'bg-success-soft text-success'
-                    : 'bg-warning-soft text-warning',
-                )}
-              >
-                <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                {currentUser.isVerified
-                  ? t('account.profile.verified')
-                  : t('account.profile.notVerified')}
-              </span>
-            </div>
-
-            <div className="space-y-3 text-sm">
-              <div className="grid grid-cols-2 gap-3">
-                <DataRow
-                  label={t('account.profile.trustScore')}
-                  value={formatNumber(currentUser.trustScore)}
-                />
-                <DataRow
-                  label={t('account.profile.verificationLevel')}
-                  value={t('common.badge.verificationLevel', {
-                    level: currentUser.verificationLevel,
-                  })}
-                />
-              </div>
-              <DataRow
-                label={t('account.profile.xpPoints')}
-                value={
-                  <span className="inline-flex items-center gap-1.5">
-                    <Sparkles className="h-4 w-4 text-warning" aria-hidden="true" />
-                    {formatNumber(currentUser.xpPoints)}
-                  </span>
-                }
-              />
-            </div>
-
-            {!currentUser.isVerified && (
-              <Button
-                variant="secondary"
-                fullWidth
-                className="press"
-                onClick={() => setCurrentView('VERIFICATION')}
-              >
-                {t('account.profile.verify')}
-              </Button>
-            )}
+            {renderVerificationContent()}
           </SectionCard>
         </aside>
       </div>
