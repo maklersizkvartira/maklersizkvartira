@@ -15,6 +15,7 @@ import { useAppStore } from '../../stores/useAppStore';
 import { Button } from '../ui/Field';
 import { canPublishListings } from '../../types/roles';
 import { chatApi, Conversation, ConversationDetail, ChatMessage } from '../../services/chatApi';
+import { cn } from '../../lib/cn';
 
 const QUICK_QUESTION_KEYS = [
   'chat.composer.quick.viewing',
@@ -308,26 +309,62 @@ export const ChatPage: React.FC = () => {
         {loading ? (
           <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted" /></div>
         ) : (
-          detail?.messages.map(msg => {
-            const isMe = msg.sender_id === currentUser.id;
-            const msgSender = isMe ? mePerson : otherPerson;
+          detail?.messages.map((msg) => {
+            const isMe = Boolean(
+              (currentUser?.id && msg.sender_id && String(msg.sender_id).toLowerCase() === String(currentUser.id).toLowerCase()) ||
+              (currentUser?.id && (msg as any).senderId && String((msg as any).senderId).toLowerCase() === String(currentUser.id).toLowerCase()) ||
+              (msg as any).is_me ||
+              (msg as any).isMe
+            );
+            const msgSender = isMe ? (mePerson?.name ? mePerson : currentUser) : otherPerson;
+
             return (
-              <div key={msg.id} className={`flex gap-2 ${isMe ? 'justify-end flex-row-reverse' : 'justify-start flex-row'} items-end`}>
-                <div className="shrink-0">
-                  <img 
-                    src={msgSender?.avatar || getAvatarFallback(msgSender?.name)} 
-                    alt="avatar" 
-                    className="w-7 h-7 rounded-full object-cover bg-surface-2 border border-line"
-                  />
-                </div>
-                <div className={`max-w-[75%] rounded-2xl px-4 py-2 ${
-                  isMe ? 'bg-brand text-on-brand rounded-br-sm' : 'bg-surface border border-line text-content rounded-bl-sm'
-                }`}>
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.text}</p>
-                  <p className={`text-[10px] mt-1 ${isMe ? 'text-on-brand/70 text-right' : 'text-muted'}`}>
-                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              <div
+                key={msg.id}
+                className={cn(
+                  'flex w-full items-end gap-2',
+                  isMe ? 'justify-end' : 'justify-start',
+                )}
+              >
+                {!isMe && (
+                  <div className="shrink-0">
+                    <img
+                      src={msgSender?.avatar || getAvatarFallback(msgSender?.name)}
+                      alt="avatar"
+                      className="h-7 w-7 rounded-full border border-line bg-surface-2 object-cover"
+                    />
+                  </div>
+                )}
+                <div
+                  className={cn(
+                    'max-w-[78%] rounded-2xl px-4 py-2.5 shadow-sm text-sm',
+                    isMe
+                      ? 'rounded-br-xs bg-brand text-on-brand shadow-brand/20'
+                      : 'rounded-bl-xs border border-line bg-surface text-content shadow-sm',
+                  )}
+                >
+                  <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                  <p
+                    className={cn(
+                      'mt-1 text-[10px] font-medium',
+                      isMe ? 'text-right text-on-brand/80' : 'text-left text-muted',
+                    )}
+                  >
+                    {new Date(msg.created_at).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
                   </p>
                 </div>
+                {isMe && (
+                  <div className="shrink-0">
+                    <img
+                      src={currentUser?.avatar || getAvatarFallback(currentUser?.name)}
+                      alt="avatar"
+                      className="h-7 w-7 rounded-full border border-line bg-surface-2 object-cover"
+                    />
+                  </div>
+                )}
               </div>
             );
           })

@@ -26,7 +26,7 @@ import {
   GraduationCap,
   Home,
   KeyRound,
-  Laptop,
+  Laptop, 
   LogOut,
   Monitor,
   Palette,

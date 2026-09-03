@@ -22,10 +22,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   BarChart3,
+  Briefcase,
   Edit3,
   ExternalLink,
   Eye,
   Heart,
+  Home,
   Image as ImageIcon,
   Phone,
   PlusCircle,
@@ -212,6 +214,28 @@ export const MyListingsPage: React.FC = () => {
   const [topError, setTopError] = useState<string | null>(null);
   /** True once the request is with the admins; the sheet becomes the receipt. */
   const [topSent, setTopSent] = useState(false);
+
+  type MyListingFilter = 'ALL' | 'OWNER' | 'AGENT' | 'ROOMMATE';
+  const [filter, setFilter] = useState<MyListingFilter>('ALL');
+
+  const counts = useMemo(() => {
+    let owner = 0;
+    let agent = 0;
+    let roommate = 0;
+    for (const l of myListings) {
+      if (l.isRoommate) roommate++;
+      else if (l.sellerType === 'AGENT') agent++;
+      else owner++;
+    }
+    return { all: myListings.length, owner, agent, roommate };
+  }, [myListings]);
+
+  const filteredListings = useMemo(() => {
+    if (filter === 'ROOMMATE') return myListings.filter((l) => l.isRoommate);
+    if (filter === 'AGENT') return myListings.filter((l) => !l.isRoommate && l.sellerType === 'AGENT');
+    if (filter === 'OWNER') return myListings.filter((l) => !l.isRoommate && l.sellerType !== 'AGENT');
+    return myListings;
+  }, [myListings, filter]);
 
   const isOwner = canPublishListings(currentUser?.role);
 
@@ -481,12 +505,76 @@ export const MyListingsPage: React.FC = () => {
 
           {/* -- The listings themselves ----------------------------------- */}
           <div className="space-y-4">
-            <h2 className="text-base font-extrabold text-content">
-              {t('owner.my.listTitle', { count: myListings.length })}
-            </h2>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-base font-extrabold text-content">
+                {t('owner.my.listTitle', { count: myListings.length })}
+              </h2>
 
-            <div className="grid grid-cols-1 gap-4">
-              {myListings.map((listing) => {
+              {/* Category Filter Tabs */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setFilter('ALL')}
+                  className={cn(
+                    'press rounded-xl px-3 py-1.5 text-xs font-black transition-all',
+                    filter === 'ALL'
+                      ? 'bg-content text-surface shadow-sm'
+                      : 'border border-line bg-surface text-muted hover:bg-surface-2 hover:text-content',
+                  )}
+                >
+                  Barchasi ({counts.all})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilter('OWNER')}
+                  className={cn(
+                    'press flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black transition-all',
+                    filter === 'OWNER'
+                      ? 'bg-brand text-on-brand shadow-brand'
+                      : 'border border-line bg-surface text-muted hover:bg-surface-2 hover:text-content',
+                  )}
+                >
+                  <Home className="h-3.5 w-3.5" />
+                  <span>Mulk egasi ({counts.owner})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilter('AGENT')}
+                  className={cn(
+                    'press flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black transition-all',
+                    filter === 'AGENT'
+                      ? 'bg-amber-500 text-white shadow-card'
+                      : 'border border-line bg-surface text-muted hover:bg-surface-2 hover:text-content',
+                  )}
+                >
+                  <Briefcase className="h-3.5 w-3.5" />
+                  <span>Rieltor ({counts.agent})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilter('ROOMMATE')}
+                  className={cn(
+                    'press flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black transition-all',
+                    filter === 'ROOMMATE'
+                      ? 'bg-info text-white shadow-card'
+                      : 'border border-line bg-surface text-muted hover:bg-surface-2 hover:text-content',
+                  )}
+                >
+                  <Users className="h-3.5 w-3.5" />
+                  <span>Sheriklik ({counts.roommate})</span>
+                </button>
+              </div>
+            </div>
+
+            {filteredListings.length === 0 ? (
+              <div className="rounded-2xl border border-line bg-surface-2 p-8 text-center">
+                <p className="text-sm font-bold text-muted">
+                  Ushbu toifada e’lonlar mavjud emas
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {filteredListings.map((listing) => {
                 const views = listing.viewsCount ?? 0;
                 const favorites = listing.favoritesCount ?? 0;
                 const contacts = listing.contactCount ?? 0;
@@ -561,16 +649,30 @@ export const MyListingsPage: React.FC = () => {
                               <ShieldCheck className="h-3 w-3" aria-hidden="true" />
                               {tRaw(status.key)}
                             </span>
+
+                            {/* Category Badge */}
+                            {listing.isRoommate ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-info-soft px-2.5 py-0.5 text-[10px] font-black text-info">
+                                <Users className="h-3 w-3" />
+                                <span>Sheriklikka</span>
+                              </span>
+                            ) : listing.sellerType === 'AGENT' ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[10px] font-black text-amber-600 dark:text-amber-400">
+                                <Briefcase className="h-3 w-3" />
+                                <span>{listing.agencyName ? `Rieltor (${listing.agencyName})` : 'Rieltor'}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-0.5 text-[10px] font-black text-brand-text">
+                                <Home className="h-3 w-3" />
+                                <span>Mulk egasi</span>
+                              </span>
+                            )}
+
                             <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-black text-muted">
                               <ShieldCheck className="h-3 w-3" aria-hidden="true" />
                               {t('common.filters.trustScore')}{' '}
                               {formatNumber(listing.trustScore ?? 0)}
                             </span>
-                            {listing.isRoommate && (
-                              <span className="rounded-full bg-info-soft px-2 py-0.5 text-[10px] font-black text-info">
-                                {t('common.rentalType.roommate')}
-                              </span>
-                            )}
                             {topActive && (
                               <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-black text-warning">
                                 <Rocket className="h-3 w-3" aria-hidden="true" />
@@ -702,8 +804,9 @@ export const MyListingsPage: React.FC = () => {
                 );
               })}
             </div>
-          </div>
-        </>
+          )}
+        </div>
+      </>
       )}
 
       {/*

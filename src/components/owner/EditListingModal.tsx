@@ -26,7 +26,7 @@
  */
 
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { Edit3, Save, X } from 'lucide-react';
+import { Briefcase, Edit3, Home, Save, ShieldCheck, Users, X } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { UZBEKISTAN_REGIONS, TASHKENT_METRO_LINES } from '../../data/mockLocations';
@@ -35,7 +35,8 @@ import { ApiError } from '../../services/http';
 import { ListingsApi } from '../../services/listingsApi';
 import { useAppStore } from '../../stores/useAppStore';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
-import type { Listing, PropertyType } from '../../types';
+import { cn } from '../../lib/cn';
+import type { Listing, PropertyType, SellerType } from '../../types';
 import { Button, Field, FormError, SelectInput, TextInput } from '../ui/Field';
 
 /** Stored value for "no metro nearby"; the label is translated at render time. */
@@ -149,6 +150,11 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
   // three it left out — air conditioning, a washing machine, internet — could
   // be switched on while posting and never switched off again.
   const [amenities, setAmenities] = useState<AmenityState>(() => amenityStateFrom(listing));
+  const [isRoommate, setIsRoommate] = useState(Boolean(listing.isRoommate));
+  const [roommateGender, setRoommateGender] = useState<'BOYS' | 'GIRLS' | 'ANY'>(listing.roommateGender ?? 'ANY');
+  const [roommateSpots, setRoommateSpots] = useState<number>(listing.roommateSpotsAvailable ?? 1);
+  const [sellerType, setSellerType] = useState<SellerType>(listing.sellerType === 'AGENT' ? 'AGENT' : 'OWNER');
+  const [agencyName, setAgencyName] = useState(listing.agencyName ?? '');
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -292,6 +298,11 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
       // gone from the product, but a listing posted before that still has one
       // stored, and an update that names the field would wipe it on every save.
       ...amenities,
+      isRoommate,
+      roommateGender: isRoommate ? roommateGender : null,
+      roommateSpotsAvailable: isRoommate ? roommateSpots : null,
+      sellerType,
+      agencyName: !isRoommate && sellerType === 'AGENT' ? agencyName.trim() : null,
     };
 
     try {
@@ -381,6 +392,148 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
           {saveError && (
             <div ref={errorBannerRef} tabIndex={-1} className="outline-none">
               <FormError message={saveError} />
+            </div>
+          )}
+
+          <fieldset className="space-y-2">
+            <legend className="text-xs font-bold uppercase tracking-wider text-muted">
+              E’lon toifasi va muallifi
+            </legend>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRoommate(false);
+                  setSellerType('OWNER');
+                }}
+                className={cn(
+                  'press flex flex-col items-start p-3 rounded-xl border text-left transition-all',
+                  !isRoommate && sellerType === 'OWNER'
+                    ? 'border-brand bg-brand-soft ring-2 ring-brand'
+                    : 'border-line bg-surface-2 text-content hover:bg-surface-3',
+                )}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span
+                    className={cn(
+                      'flex h-7 w-7 items-center justify-center rounded-lg text-xs',
+                      !isRoommate && sellerType === 'OWNER'
+                        ? 'bg-brand text-on-brand'
+                        : 'bg-surface border border-line text-muted',
+                    )}
+                  >
+                    <Home className="h-4 w-4" />
+                  </span>
+                  <span className="font-bold text-xs">Mulk egasi</span>
+                </div>
+                <span className="text-[11px] text-muted">To‘liq ijara</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRoommate(false);
+                  setSellerType('AGENT');
+                }}
+                className={cn(
+                  'press flex flex-col items-start p-3 rounded-xl border text-left transition-all',
+                  !isRoommate && sellerType === 'AGENT'
+                    ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-500'
+                    : 'border-line bg-surface-2 text-content hover:bg-surface-3',
+                )}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span
+                    className={cn(
+                      'flex h-7 w-7 items-center justify-center rounded-lg text-xs',
+                      !isRoommate && sellerType === 'AGENT'
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-surface border border-line text-muted',
+                    )}
+                  >
+                    <Briefcase className="h-4 w-4" />
+                  </span>
+                  <span className="font-bold text-xs">Rieltor</span>
+                </div>
+                <span className="text-[11px] text-muted">Agentlik nomidan</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRoommate(true);
+                  setSellerType('OWNER');
+                }}
+                className={cn(
+                  'press flex flex-col items-start p-3 rounded-xl border text-left transition-all',
+                  isRoommate
+                    ? 'border-info bg-info-soft ring-2 ring-info'
+                    : 'border-line bg-surface-2 text-content hover:bg-surface-3',
+                )}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span
+                    className={cn(
+                      'flex h-7 w-7 items-center justify-center rounded-lg text-xs',
+                      isRoommate
+                        ? 'bg-info text-white'
+                        : 'bg-surface border border-line text-muted',
+                    )}
+                  >
+                    <Users className="h-4 w-4" />
+                  </span>
+                  <span className="font-bold text-xs">Sheriklikka</span>
+                </div>
+                <span className="text-[11px] text-muted">Sherik qidirish</span>
+              </button>
+            </div>
+          </fieldset>
+
+          {!isRoommate && sellerType === 'AGENT' && (
+            <Field label={t('owner.create.seller.agencyLabel')} hint={t('owner.create.seller.agencyHint')}>
+              {({ id, describedBy }) => (
+                <TextInput
+                  id={id}
+                  aria-describedby={describedBy}
+                  value={agencyName}
+                  maxLength={120}
+                  placeholder={t('owner.create.seller.agencyPlaceholder')}
+                  onChange={(e) => setAgencyName(e.target.value)}
+                />
+              )}
+            </Field>
+          )}
+
+          {isRoommate && (
+            <div className="grid grid-cols-2 gap-3 rounded-xl border border-info/40 bg-info-soft p-3">
+              <Field label={t('owner.create.details.roommateGenderLabel')}>
+                {({ id }) => (
+                  <SelectInput
+                    id={id}
+                    value={roommateGender}
+                    onChange={(e) => setRoommateGender(e.target.value as any)}
+                  >
+                    <option value="ANY">{t('owner.create.details.roommateGenderAny')}</option>
+                    <option value="BOYS">{t('owner.create.details.roommateGenderBoys')}</option>
+                    <option value="GIRLS">{t('owner.create.details.roommateGenderGirls')}</option>
+                  </SelectInput>
+                )}
+              </Field>
+              <Field label={t('owner.create.details.roommateSpotsLabel')}>
+                {({ id }) => (
+                  <SelectInput
+                    id={id}
+                    value={roommateSpots}
+                    onChange={(e) => setRoommateSpots(Number(e.target.value))}
+                  >
+                    {[1, 2, 3, 4, 5].map((cnt) => (
+                      <option key={cnt} value={cnt}>
+                        {t('owner.create.details.roommateSpotsOption', { count: cnt })}
+                      </option>
+                    ))}
+                  </SelectInput>
+                )}
+              </Field>
             </div>
           )}
 

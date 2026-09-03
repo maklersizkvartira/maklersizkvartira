@@ -73,7 +73,7 @@ import { Card } from '../ui/Card';
 import { Segmented } from '../ui/Segmented';
 import { Sheet } from '../ui/Sheet';
 import type { PropertyType, SellerType } from '../../types';
-import { canPublishAsAgent, canPublishListings } from '../../types/roles';
+import { canPublishAsAgent, canPublishListings, isSwitchableRole } from '../../types/roles';
 import {
   districtCentre,
   reverseGeocode,
@@ -683,8 +683,10 @@ export const CreateListingPage: React.FC = () => {
   // showing AGENT, disabled and selected at the same time, while the publish
   // quietly sends OWNER.
   useEffect(() => {
-    if (!canActAsAgent && sellerType === 'AGENT') setSellerType('OWNER');
-  }, [canActAsAgent, sellerType]);
+    if (!canActAsAgent && !isSwitchableRole(currentUser?.role) && sellerType === 'AGENT') {
+      setSellerType('OWNER');
+    }
+  }, [canActAsAgent, currentUser?.role, sellerType]);
 
   const payloadBytes = useMemo(
     () => images.reduce((sum, image) => sum + dataUrlBytes(image), 0),
@@ -1165,7 +1167,16 @@ export const CreateListingPage: React.FC = () => {
     // correcting it behind the owner's back. It stays written through the
     // capability because a publish that disagrees with the screen is the one
     // failure this must not have. The API normalises the same way.
-    const publishAsAgent = canActAsAgent && sellerType === 'AGENT';
+    // If posting as an agent but account hasn't switched role yet, switch automatically
+    if (sellerType === 'AGENT' && currentUser?.role !== 'AGENT' && isSwitchableRole(currentUser?.role)) {
+      try {
+        await switchRole('AGENT');
+      } catch {
+        // continue
+      }
+    }
+
+    const publishAsAgent = (canActAsAgent || currentUser?.role === 'AGENT') && sellerType === 'AGENT';
     // Only owner-editable fields: anything the server owns (status, scores,
     // counters, ownerId) makes the request fail validation with 422. Optional
     // numbers travel as null rather than 0 — `area` is validated `gt=0`, so a
@@ -1876,43 +1887,156 @@ export const CreateListingPage: React.FC = () => {
                 {stepBadge}
               </header>
 
-              <fieldset className="space-y-1.5">
+              <fieldset className="space-y-2">
                 <legend className="text-xs font-bold uppercase tracking-wider text-muted">
-                  {t('owner.create.details.rentalTypeLabel')}
+                  E’lon toifasi va muallifi
                 </legend>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {/* 1. Mulk egasi */}
                   <button
                     type="button"
-                    onClick={() => setIsRoommate(false)}
-                    aria-pressed={!isRoommate}
+                    onClick={() => {
+                      haptics.tap();
+                      setIsRoommate(false);
+                      setSellerType('OWNER');
+                    }}
                     className={cn(
-                      'press flex min-h-14 items-center justify-center gap-2 rounded-2xl border',
-                      'p-3.5 text-xs font-black transition-all',
-                      !isRoommate
-                        ? 'border-brand bg-brand text-on-brand shadow-brand'
-                        : 'border-line bg-surface-2 text-content hover:bg-surface-3',
+                      'press flex flex-col items-start p-4 rounded-2xl border text-left transition-all',
+                      !isRoommate && sellerType === 'OWNER'
+                        ? 'border-brand bg-brand-soft shadow-card ring-2 ring-brand'
+                        : 'border-line bg-surface-2 hover:bg-surface-3 text-content',
                     )}
                   >
-                    <Home className="h-4 w-4" aria-hidden="true" />
-                    <span>{t('owner.create.details.whole')}</span>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span
+                        className={cn(
+                          'flex h-9 w-9 items-center justify-center rounded-xl',
+                          !isRoommate && sellerType === 'OWNER'
+                            ? 'bg-brand text-on-brand'
+                            : 'bg-surface border border-line text-muted',
+                        )}
+                      >
+                        <Home className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                      <div>
+                        <span className="font-black text-sm block">Mulk egasi</span>
+                        <span className="text-[10px] font-bold text-success uppercase tracking-wide">
+                          Vositachisiz
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted leading-relaxed">
+                      Uy egasidan to‘g‘ridan-to‘g‘ri to‘liq ijara
+                    </p>
                   </button>
+
+                  {/* 2. Rieltor / Agent */}
                   <button
                     type="button"
-                    onClick={() => setIsRoommate(true)}
-                    aria-pressed={isRoommate}
+                    onClick={() => {
+                      haptics.tap();
+                      setIsRoommate(false);
+                      setSellerType('AGENT');
+                      if (currentUser?.role !== 'AGENT' && isSwitchableRole(currentUser?.role)) {
+                        void switchRole('AGENT');
+                      }
+                    }}
                     className={cn(
-                      'press flex min-h-14 items-center justify-center gap-2 rounded-2xl border',
-                      'p-3.5 text-xs font-black transition-all',
-                      isRoommate
-                        ? 'border-warning bg-warning text-white shadow-card'
-                        : 'border-line bg-surface-2 text-content hover:bg-surface-3',
+                      'press flex flex-col items-start p-4 rounded-2xl border text-left transition-all',
+                      !isRoommate && sellerType === 'AGENT'
+                        ? 'border-amber-500 bg-amber-500/10 shadow-card ring-2 ring-amber-500'
+                        : 'border-line bg-surface-2 hover:bg-surface-3 text-content',
                     )}
                   >
-                    <Users className="h-4 w-4" aria-hidden="true" />
-                    <span>{t('owner.create.details.roommate')}</span>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span
+                        className={cn(
+                          'flex h-9 w-9 items-center justify-center rounded-xl',
+                          !isRoommate && sellerType === 'AGENT'
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-surface border border-line text-muted',
+                        )}
+                      >
+                        <Briefcase className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                      <div>
+                        <span className="font-black text-sm block">Rieltor</span>
+                        <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide">
+                          Agentlik
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted leading-relaxed">
+                      Mulk egasi nomidan ko‘chmas mulk agenti
+                    </p>
+                  </button>
+
+                  {/* 3. Sheriklikka */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptics.tap();
+                      setIsRoommate(true);
+                      setSellerType('OWNER');
+                    }}
+                    className={cn(
+                      'press flex flex-col items-start p-4 rounded-2xl border text-left transition-all',
+                      isRoommate
+                        ? 'border-info bg-info-soft shadow-card ring-2 ring-info'
+                        : 'border-line bg-surface-2 hover:bg-surface-3 text-content',
+                    )}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <span
+                        className={cn(
+                          'flex h-9 w-9 items-center justify-center rounded-xl',
+                          isRoommate
+                            ? 'bg-info text-white'
+                            : 'bg-surface border border-line text-muted',
+                        )}
+                      >
+                        <Users className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                      <div>
+                        <span className="font-black text-sm block">Sheriklikka</span>
+                        <span className="text-[10px] font-bold text-info uppercase tracking-wide">
+                          Sherik qidirish
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted leading-relaxed">
+                      Kvartira yoki xonaga talaba/sherik olish
+                    </p>
                   </button>
                 </div>
               </fieldset>
+
+              {!isRoommate && sellerType === 'AGENT' && (
+                <div className="space-y-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+                  <div className="flex items-center gap-2 text-xs font-black text-amber-700 dark:text-amber-300">
+                    <Briefcase className="h-4 w-4" aria-hidden="true" />
+                    <span>Rieltor / Agentlik ma’lumotlari</span>
+                  </div>
+                  <Field
+                    label={t('owner.create.seller.agencyLabel')}
+                    hint={t('owner.create.seller.agencyHint')}
+                    error={formErrors.agency ? tRaw(formErrors.agency) : undefined}
+                  >
+                    {({ id, describedBy, invalid }) => (
+                      <TextInput
+                        id={id}
+                        aria-describedby={describedBy}
+                        invalid={invalid}
+                        value={agencyName}
+                        maxLength={MAX_AGENCY_NAME_LENGTH}
+                        autoComplete="organization"
+                        placeholder={t('owner.create.seller.agencyPlaceholder')}
+                        onChange={(event) => setAgencyName(event.target.value)}
+                      />
+                    )}
+                  </Field>
+                </div>
+              )}
 
               {isRoommate && (
                 <div className="space-y-3 rounded-2xl border border-warning/40 bg-warning-soft p-4">
@@ -2420,16 +2544,14 @@ export const CreateListingPage: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                {/* `size="sm"`, as on the listings bar: "Ko‘chmas mulk agenti"
-                    and its icon do not fit half of a 360px phone at the
-                    default padding, and this is a control whose two labels
-                    have to be read to be answered. The type argument is
-                    spelled out because inferring it from a `useState` setter
-                    widens the union to `string`, and the option values with
-                    it. */}
                 <Segmented<SellerType>
                   value={sellerType}
-                  onChange={setSellerType}
+                  onChange={(val) => {
+                    setSellerType(val);
+                    if (val === 'AGENT' && currentUser?.role !== 'AGENT' && isSwitchableRole(currentUser?.role)) {
+                      void switchRole('AGENT');
+                    }
+                  }}
                   label={t('owner.create.seller.heading')}
                   size="sm"
                   options={[
@@ -2442,7 +2564,6 @@ export const CreateListingPage: React.FC = () => {
                       value: 'AGENT',
                       label: t('owner.create.seller.agent'),
                       icon: Briefcase,
-                      disabled: !canActAsAgent,
                     },
                   ]}
                 />
@@ -2452,25 +2573,6 @@ export const CreateListingPage: React.FC = () => {
                     : t('owner.create.seller.ownerHint')}
                 </p>
               </div>
-
-              {/* The role is what unlocks the agent option and it is chosen on
-                  the profile, so the way there is a button rather than a
-                  sentence describing where to look. */}
-              {!canActAsAgent && (
-                <div className="flex flex-col gap-3 rounded-2xl border border-line bg-surface-2 p-3.5 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="min-w-0 text-xs font-medium leading-relaxed text-muted">
-                    {t('owner.create.seller.agentLocked')}
-                  </p>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="press shrink-0"
-                    onClick={() => setCurrentView('PROFILE')}
-                  >
-                    {t('owner.create.seller.agentLockedCta')}
-                  </Button>
-                </div>
-              )}
 
               {/* Optional even for an agency: an independent realtor has no
                   company name to give, and demanding one would be a second
