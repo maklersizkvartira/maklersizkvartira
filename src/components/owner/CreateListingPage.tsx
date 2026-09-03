@@ -2279,6 +2279,19 @@ export const CreateListingPage: React.FC = () => {
                 <Field
                   label={t('owner.create.details.depositLabel')}
                   error={formErrors.deposit ? tRaw(formErrors.deposit) : undefined}
+                  // The currency is the listing's, not the field's: one column
+                  // holds it, so a deposit is always in whatever the price is
+                  // in. Shown here because the toggle is two fields up and a
+                  // bare number box next to "500" invites so'm.
+                  action={
+                    <span className="text-xs font-bold text-subtle">
+                      {t(
+                        currency === 'USD'
+                          ? 'owner.create.details.currencyUsd'
+                          : 'owner.create.details.currencyUzs',
+                      )}
+                    </span>
+                  }
                 >
                   {({ id, describedBy, invalid }) => (
                     <TextInput
@@ -2288,10 +2301,14 @@ export const CreateListingPage: React.FC = () => {
                       type="number"
                       inputMode="numeric"
                       min={0}
-                      step={100000}
+                      step={currency === 'USD' ? 50 : 100000}
                       value={deposit === '' ? '' : deposit}
                       onChange={numberHandler(setDeposit, 'deposit')}
-                      placeholder={t('owner.create.details.depositPlaceholder')}
+                      placeholder={t(
+                        currency === 'USD'
+                          ? 'owner.create.details.depositPlaceholderUsd'
+                          : 'owner.create.details.depositPlaceholder',
+                      )}
                     />
                   )}
                 </Field>

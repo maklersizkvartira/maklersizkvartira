@@ -126,7 +126,6 @@ export const ListingDetailPage: React.FC = () => {
 
   const selectedListingId = useAppStore((state) => state.selectedListingId);
   const currentUser = useAppStore((state) => state.currentUser);
-  const currency = useAppStore((state) => state.currency);
   const fxRate = useAppStore((state) => state.fxRate);
   const favoriteIds = useAppStore((state) => state.favoriteIds);
   const toggleFavorite = useAppStore((state) => state.toggleFavorite);
@@ -278,10 +277,30 @@ export const ListingDetailPage: React.FC = () => {
       ? listing.depositPrice * fxRate
       : listing.depositPrice
     : 0;
-  const priceLabel =
-    currency === 'USD' ? formatPrice(priceUzs / fxRate, 'USD') : formatPrice(priceUzs);
+  /**
+   * The price in the currency it was actually set in, and the other one
+   * underneath it as an approximation.
+   *
+   * This used to render whichever currency the VIEWER had selected, which for
+   * a listing quoted in dollars meant showing a so'm figure — computed from
+   * today's rate, changing overnight, and presented as the price the owner is
+   * asking. The card already shows the owner's own number with an "≈" beside
+   * the conversion; this is the same rule, on the page where somebody decides
+   * whether to call.
+   */
+  const priceLabel = listing
+    ? formatPrice(listing.price, listing.currency)
+    : formatPrice(0);
   const depositLabel =
-    currency === 'USD' ? formatPrice(depositUzs / fxRate, 'USD') : formatPrice(depositUzs);
+    listing && listing.depositPrice
+      ? formatPrice(listing.depositPrice, listing.currency)
+      : formatPrice(0);
+  const priceApprox =
+    listing && fxRate > 0 && listing.price > 0
+      ? listing.currency === 'USD'
+        ? formatPrice(Math.round(priceUzs))
+        : formatPrice(Math.round(priceUzs / fxRate), 'USD')
+      : null;
 
   // -- Actions -------------------------------------------------------------
   const handleShare = useCallback(async () => {
@@ -907,6 +926,13 @@ export const ListingDetailPage: React.FC = () => {
                     : t('common.units.perMonth')}
                 </span>
               </p>
+              {/* The other currency, marked as the estimate it is. Most
+                  searchers here think in so'm and most agencies quote in
+                  dollars; whichever way round this listing is, the number the
+                  reader does not think in is the one they need. */}
+              {priceApprox && (
+                <p className="text-sm font-semibold text-subtle">≈ {priceApprox}</p>
+              )}
               <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
                 {/* The same badge the grid card carries, in the same two
                     tones, because this is the same promise: it stood here as
