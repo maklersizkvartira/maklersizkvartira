@@ -247,6 +247,37 @@ async def _count(db: AsyncSession, stmt: Select) -> int:
     return int((await db.execute(stmt)).scalar_one() or 0)
 
 
+async def ai_usage(db: AsyncSession) -> dict[str, Any]:
+    """How much the assistant has been used, from our own records.
+
+    Not a balance. OpenAI publishes no credit endpoint for an ordinary API
+    key — the old `credit_grants` route was withdrawn, and the cost API needs
+    an organisation admin key — so the honest thing to report is the traffic
+    we can actually count, and to say plainly that the money figure has to be
+    read in OpenAI's own dashboard.
+
+    Messages rather than sessions, because a session that was opened and
+    abandoned costs nothing while one with forty turns is the expensive kind,
+    and only the message count tells those apart.
+    """
+    today = _start_of_day()
+    month = today.replace(day=1)
+    return {
+        "messagesToday": await _count(
+            db, count_of(AIMessage, AIMessage.created_at >= today)
+        ),
+        "messagesThisMonth": await _count(
+            db, count_of(AIMessage, AIMessage.created_at >= month)
+        ),
+        "sessionsToday": await _count(
+            db, count_of(AISession, AISession.created_at >= today)
+        ),
+        # Said in the payload rather than assumed in the panel, so the reason
+        # the money is missing travels with the numbers that are present.
+        "costAvailable": False,
+    }
+
+
 async def dashboard_stats(db: AsyncSession) -> dict[str, Any]:
     today = _start_of_day()
     week_ago = _now() - timedelta(days=7)

@@ -98,6 +98,7 @@ from app.schemas.auth import AdminLoginRequest, AdminOut, RefreshRequest, TokenR
 from app.schemas.common import MessageResponse, PaginationParams, build_page_meta
 from app.schemas.listing import ListingFeatureRequest, ListingModerationRequest
 from app.services import admin as admin_service
+from app.services import sms as sms_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -773,6 +774,31 @@ async def bootstrap_reset_admin(
 @router.get("/stats", summary="Dashboard counters")
 async def stats(admin: RequireModerator, db: DbSession) -> dict:
     return _ok(await admin_service.dashboard_stats(db))
+
+
+@router.get("/balances", summary="What the paid services have left")
+async def balances(admin: RequireModerator, db: DbSession) -> dict:
+    """Credit at the SMS provider, and how much the assistant is being used.
+
+    Kept off /stats deliberately. That endpoint is database counters and
+    answers in milliseconds; this one calls the SMS provider over the network,
+    so a slow or unreachable provider would otherwise hold up the whole
+    dashboard. It is requested separately and its card can fail on its own.
+
+    SMS credit is the number that matters most here: running out stops
+    registration dead, and nothing in the product says why — a visitor simply
+    never receives a code.
+    """
+    sms = await sms_service.check_balance()
+    return _ok(
+        {
+            # `None` when the provider could not be reached or no token is
+            # configured. The panel shows that as unknown rather than as zero,
+            # because zero is a real and alarming value.
+            "sms": sms,
+            "ai": await admin_service.ai_usage(db),
+        }
+    )
 
 
 @router.post("/settings/toggle-monetization", summary="Toggle monetization")

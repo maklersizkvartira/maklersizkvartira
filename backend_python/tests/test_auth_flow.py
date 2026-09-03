@@ -573,3 +573,75 @@ async def test_admin_recovery_needs_the_right_token(client, monkeypatch):
     )
     assert right.status_code == 200, right.text
     assert right.json()["username"] == "recovered"
+
+
+# ---------------------------------------------------------------------------
+# Password reset: the code screen must judge the code
+# ---------------------------------------------------------------------------
+async def _start_reset(client, unique_phone):
+    """A verified account with a live password-reset code."""
+    phone = unique_phone()
+    await register_and_verify(client, phone)
+    started = await client.post("/api/v1/auth/forgot-password", json={"phone": phone})
+    assert started.status_code == 200, started.text
+    code = started.json()["debugCode"]
+    assert code
+    return phone, code
+
+
+async def test_check_code_rejects_a_wrong_reset_code(client, unique_phone):
+    """The wizard's second screen has to refuse a wrong code itself.
+
+    Before /auth/check-code existed the reset flow had nothing to ask here, so
+    the code screen accepted any six digits and the mistake surfaced on the
+    password screen — the one screen where there is nothing to correct. This
+    is the test that keeps that from coming back quietly.
+    """
+    phone, code = await _start_reset(client, unique_phone)
+    wrong = "000000" if code != "000000" else "111111"
+
+    response = await client.post(
+        "/api/v1/auth/check-code",
+        json={"phone": phone, "code": wrong, "purpose": "PASSWORD_RESET"},
+    )
+    assert response.status_code == 400, response.text
+
+
+async def test_check_code_accepts_the_real_one_without_spending_it(
+    client, unique_phone
+):
+    """A correct code passes, and is still usable by the call that spends it.
+
+    The point of judging separately is that the next screen still has a code
+    to reset with; if checking consumed it, the wizard would send people to
+    choose a password against a code that could no longer work.
+    """
+    phone, code = await _start_reset(client, unique_phone)
+
+    checked = await client.post(
+        "/api/v1/auth/check-code",
+        json={"phone": phone, "code": code, "purpose": "PASSWORD_RESET"},
+    )
+    assert checked.status_code == 200, checked.text
+
+    reset = await client.post(
+        "/api/v1/auth/reset-password",
+        json={"phone": phone, "code": code, "newPassword": "Qw7!zRt9mLx2"},
+    )
+    assert reset.status_code == 200, reset.text
+
+
+async def test_a_wrong_code_cannot_reset_the_password(client, unique_phone):
+    """The screen that spends the code refuses a wrong one too.
+
+    The check above is a convenience for the wizard; this is the one that
+    actually protects the account, and it must hold even if the frontend
+    stopped calling /auth/check-code entirely.
+    """
+    phone, _ = await _start_reset(client, unique_phone)
+
+    response = await client.post(
+        "/api/v1/auth/reset-password",
+        json={"phone": phone, "code": "000000", "newPassword": "Qw7!zRt9mLx2"},
+    )
+    assert response.status_code == 400, response.text
