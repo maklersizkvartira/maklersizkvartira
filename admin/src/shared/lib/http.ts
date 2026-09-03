@@ -84,9 +84,20 @@ let _accessToken: string | null = null;
 
 export function setAccessToken(token: string | null) {
   _accessToken = token;
+  if (typeof window !== 'undefined') {
+    try {
+      if (token) localStorage.setItem('uyiz_admin_access_token', token);
+      else localStorage.removeItem('uyiz_admin_access_token');
+    } catch {}
+  }
 }
 
 export function getAccessToken(): string | null {
+  if (!_accessToken && typeof window !== 'undefined') {
+    try {
+      _accessToken = localStorage.getItem('uyiz_admin_access_token');
+    } catch {}
+  }
   return _accessToken;
 }
 

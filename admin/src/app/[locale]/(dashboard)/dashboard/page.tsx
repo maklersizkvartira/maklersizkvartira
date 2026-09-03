@@ -254,7 +254,9 @@ export default function DashboardPage() {
                 {c('error')}
               </p>
               <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
-                {statsQuery.error instanceof Error ? statsQuery.error.message : e('network')}
+                {statsQuery.error instanceof Error && statsQuery.error.message !== 'Failed to fetch'
+                  ? statsQuery.error.message
+                  : "Ma'lumotlarni yuklab bo'lmadi. Aloqani tekshirib qayta urinib ko'ring yoki tizimga qayta kiring."}
               </p>
             </div>
             <Button variant="secondary" size="sm" className="max-sm:w-full" onClick={() => statsQuery.refetch()}>
