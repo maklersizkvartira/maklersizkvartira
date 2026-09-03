@@ -86,6 +86,11 @@ export const auth = {
   },
 
   register: {
+    consentPrefix: 'Men',
+    consentPrivacy: 'Shaxsiy ma’lumotlarni qayta ishlash siyosati',
+    consentAnd: 'va',
+    consentTerms: 'Foydalanish shartlari',
+    consentSuffix: ' bilan tanishdim va roziman.',
     title: 'Yangi hisob yarating',
     subtitle: 'Bir daqiqada ro‘yxatdan o‘ting — bepul',
     submit: 'Davom etish',

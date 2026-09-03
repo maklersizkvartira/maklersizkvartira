@@ -82,6 +82,11 @@ export const auth = {
   },
 
   register: {
+    consentPrefix: 'I have read and agree to the',
+    consentPrivacy: 'Personal Data Processing Policy',
+    consentAnd: 'and the',
+    consentTerms: 'Terms of Use',
+    consentSuffix: '.',
     title: 'Create a new account',
     subtitle: 'Sign up in a minute — it is free',
     submit: 'Continue',

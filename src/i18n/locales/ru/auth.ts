@@ -82,6 +82,11 @@ export const auth = {
   },
 
   register: {
+    consentPrefix: 'Я ознакомлен(а) с',
+    consentPrivacy: 'Политикой в отношении обработки персональных данных',
+    consentAnd: 'и',
+    consentTerms: 'Условиями использования',
+    consentSuffix: ' и согласен(на) с ними.',
     title: 'Создайте новый аккаунт',
     subtitle: 'Регистрация за минуту — бесплатно',
     submit: 'Продолжить',

@@ -52,6 +52,8 @@ import {
   preloadGoogleAuth,
 } from '../../config/firebase';
 import { useTranslation } from '../../i18n';
+import { AppLink } from '../../router/AppLink';
+import { helpPath } from '../../seo/routes';
 import { AuthApi, type ApiUser } from '../../services/authApi';
 import { ApiError } from '../../services/http';
 import { VIEW_PATHS } from '../../router/views';
@@ -740,7 +742,6 @@ export const AuthPage: React.FC = () => {
       label={t('auth.fields.phone')}
       hint={step === 'REGISTER' ? t('auth.fields.phoneHint') : undefined}
       error={fieldError === 'phone' ? error ?? undefined : undefined}
-      required
     >
       {({ id, describedBy, invalid }) => (
         <TextInput
@@ -880,6 +881,14 @@ export const AuthPage: React.FC = () => {
    * also the honest answer to "do I have to make an account to look around?",
    * which on a listings site is no.
    */
+  /**
+   * Whether the personal-data policy has been accepted.
+   *
+   * Not persisted and not prefilled: a consent that survives a reload is a
+   * consent nobody gave on this visit.
+   */
+  const [consented, setConsented] = useState(false);
+
   const guestExit = (
     <Button
       type="button"
@@ -909,7 +918,6 @@ export const AuthPage: React.FC = () => {
             <Field
               label={t('auth.fields.password')}
               error={fieldError === 'password' ? error ?? undefined : undefined}
-              required
             >
               {({ id, describedBy, invalid }) => (
                 <PasswordInput
@@ -969,7 +977,6 @@ export const AuthPage: React.FC = () => {
               </button>
             </p>
 
-            {guestExit}
             {terms}
           </form>
         );
@@ -1077,7 +1084,6 @@ export const AuthPage: React.FC = () => {
               label={t('auth.fields.name')}
               hint={t('auth.fields.nameHint')}
               error={fieldError === 'name' ? error ?? undefined : undefined}
-              required
             >
               {({ id, describedBy, invalid }) => (
                 <TextInput
@@ -1116,7 +1122,6 @@ export const AuthPage: React.FC = () => {
             <Field
               label={t('auth.fields.password')}
               error={fieldError === 'password' ? error ?? undefined : undefined}
-              required
             >
               {({ id, describedBy, invalid }) => (
                 <PasswordInput
@@ -1136,7 +1141,6 @@ export const AuthPage: React.FC = () => {
             <Field
               label={t('auth.fields.confirmPassword')}
               error={fieldError === 'confirmPassword' ? error ?? undefined : undefined}
-              required
             >
               {({ id, describedBy, invalid }) => (
                 <PasswordInput
@@ -1153,13 +1157,42 @@ export const AuthPage: React.FC = () => {
 
             {banner}
 
-            <Button type="submit" loading={busy} fullWidth>
+            {/* Consent is a decision, not a footnote.
+                This used to be a sentence under the button saying the account
+                had already agreed — true only in the sense that pressing the
+                button was the agreement. A personal-data policy the visitor
+                is asked to accept has to be something they can decline, and
+                something they can read first: both documents are links, and
+                the button below does not work until the box is ticked. */}
+            <label className="flex items-start gap-3 rounded-2xl border border-line bg-surface-2 p-3">
+              <input
+                type="checkbox"
+                checked={consented}
+                onChange={(event) => setConsented(event.target.checked)}
+                className="mt-0.5 h-5 w-5 shrink-0 accent-brand"
+              />
+              <span className="text-[11px] leading-relaxed text-subtle">
+                {t('auth.register.consentPrefix')}{' '}
+                <AppLink
+                  to={helpPath('maxfiylik-siyosati')}
+                  className="font-bold text-brand-text hover:underline"
+                >
+                  {t('auth.register.consentPrivacy')}
+                </AppLink>{' '}
+                {t('auth.register.consentAnd')}{' '}
+                <AppLink
+                  to={helpPath('foydalanish-shartlari')}
+                  className="font-bold text-brand-text hover:underline"
+                >
+                  {t('auth.register.consentTerms')}
+                </AppLink>
+                {t('auth.register.consentSuffix')}
+              </span>
+            </label>
+
+            <Button type="submit" loading={busy} fullWidth disabled={!consented}>
               {busy ? t('auth.register.submitting') : t('auth.register.submit')}
             </Button>
-
-            <p className="text-center text-[11px] leading-relaxed text-subtle">
-              {t('auth.register.terms')}
-            </p>
           </form>
         );
 
@@ -1285,7 +1318,6 @@ export const AuthPage: React.FC = () => {
               // The server's own password complaints come back as `password*`
               // codes, which `fieldFor` routes to this field.
               error={fieldError === 'password' ? error ?? undefined : undefined}
-              required
             >
               {({ id, describedBy, invalid }) => (
                 <PasswordInput
@@ -1305,7 +1337,6 @@ export const AuthPage: React.FC = () => {
             <Field
               label={t('auth.fields.confirmPassword')}
               error={fieldError === 'confirmPassword' ? error ?? undefined : undefined}
-              required
             >
               {({ id, describedBy, invalid }) => (
                 <PasswordInput
