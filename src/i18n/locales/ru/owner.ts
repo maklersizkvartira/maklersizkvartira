@@ -161,6 +161,9 @@ export const owner = {
       limitReached: 'Достигнут предел фотографий: {max}.',
       sizeNotice: 'Загруженный объём: {size} МБ из {max} МБ.',
       readFailed: 'Некоторые файлы не удалось прочитать. Выберите другие фото.',
+      tooLarge: 'Файл слишком большой. Выберите изображение поменьше.',
+      uploadFailed: 'Не удалось загрузить фото. Проверьте связь и повторите.',
+      uploading: 'Загрузка… {done}/{total}',
       // Said once, before the upload, instead of only as an error afterwards.
       countAndSizeHint: '{min}–{max} фотографий, суммарно до {size} МБ.',
       remainingHint: 'Можно добавить ещё {count} фото.',

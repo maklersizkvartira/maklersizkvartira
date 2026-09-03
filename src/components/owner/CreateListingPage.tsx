@@ -67,6 +67,7 @@ import {
   MAX_TOP_NOTE_LENGTH,
   TOP_DAYS_OPTIONS,
 } from '../../services/listingsApi';
+import { UploadError, uploadImages } from '../../services/uploadsApi';
 import { useAppStore } from '../../stores/useAppStore';
 import { useHaptics } from '../../hooks/useHaptics';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
@@ -294,86 +295,19 @@ interface Draft {
   photosDropped?: boolean;
 }
 
-/** Approximate byte size of a base64 data URL, without decoding it. */
+/**
+ * Approximate byte size of a base64 data URL, without decoding it.
+ *
+ * Photos are uploaded to storage now and the form holds URLs, which measure
+ * as nothing — so the payload total below is effectively zero and its warning
+ * never fires. Kept because a draft saved by an older bundle still holds
+ * base64, and that draft has to be measured correctly for as long as one can
+ * be restored.
+ */
 function dataUrlBytes(dataUrl: string): number {
   const commaIndex = dataUrl.indexOf(',');
   const payload = commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : dataUrl;
   return Math.round(payload.length * 0.75);
-}
-
-function readAsDataUrl(file: File): Promise<string | null> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
-    reader.onerror = () => resolve(null);
-    reader.readAsDataURL(file);
-  });
-}
-
-function decode(dataUrl: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('decode_failed'));
-    image.src = dataUrl;
-  });
-}
-
-/**
- * What came back from `prepareImage`: a picture, or a file that is not one.
- *
- * Unreadable and undecodable end in the same message rather than a
- * format-specific one, because "this file could not be read" is equally true
- * of a HEIC on Android, a truncated JPEG and a file whose extension lies.
- */
-type PreparedImage = { ok: true; dataUrl: string } | { ok: false };
-
-/**
- * Read a picked file and shrink it to something a JSON body can carry.
- *
- * A file the browser cannot decode is rejected rather than passed through.
- * Returning the original used to look like leniency and was the opposite: no
- * desktop or Android browser decodes HEIC, so an iPhone photo synced to a
- * laptop went through untouched at its full size, showed a broken-image icon
- * in the grid, counted three or four megabytes against the payload cap, and —
- * if the total happened to fit — published a listing whose photos are blank in
- * every browser, the moderation queue included.
- *
- * The canvas being unavailable is a different thing and still falls back to the
- * original: there the picture is fine, only the shrinking failed, and a photo
- * that is too big at least reaches the size warning.
- */
-async function prepareImage(file: File): Promise<PreparedImage> {
-  const original = await readAsDataUrl(file);
-  if (!original) return { ok: false };
-
-  let image: HTMLImageElement;
-  try {
-    image = await decode(original);
-  } catch {
-    return { ok: false };
-  }
-
-  try {
-    const longestEdge = Math.max(image.naturalWidth, image.naturalHeight);
-    const scale = longestEdge > 0 ? Math.min(1, MAX_IMAGE_EDGE / longestEdge) : 1;
-    if (scale === 1 && dataUrlBytes(original) <= REENCODE_ABOVE_BYTES) {
-      return { ok: true, dataUrl: original };
-    }
-
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-    const context = canvas.getContext('2d');
-    if (!context) return { ok: true, dataUrl: original };
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-    const encoded = canvas.toDataURL('image/jpeg', IMAGE_QUALITY);
-    const smaller = dataUrlBytes(encoded) < dataUrlBytes(original) ? encoded : original;
-    return { ok: true, dataUrl: smaller };
-  } catch {
-    return { ok: true, dataUrl: original };
-  }
 }
 
 function draftKeyFor(userId: string): string {
@@ -616,6 +550,8 @@ export const CreateListingPage: React.FC = () => {
 
   // -- Step 3: photos, contact, top, submit ----------------------------------
   const [images, setImages] = useState<string[]>(initialDraft?.images ?? []);
+  /** Finished-file count while a batch uploads, so the button can say so. */
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const [processingImages, setProcessingImages] = useState(false);
   const [dragOverDropzone, setDragOverDropzone] = useState(false);
   // Seeded from the role the account itself declared, not fixed at OWNER: an
@@ -934,32 +870,52 @@ export const CreateListingPage: React.FC = () => {
       return;
     }
 
+    // Deduplicated before anything is uploaded, not after. The same photo
+    // picked twice is never intentional, and once each copy has been through
+    // R2 they carry different keys — so two identical pictures would arrive as
+    // two URLs that nothing can tell apart, in a list the owner can reorder.
+    // Identity is the file itself, since the bytes are no longer in hand to
+    // compare.
+    const seen = new Set<string>();
+    const unique = pictures.filter((file) => {
+      const identity = `${file.name}:${file.size}:${file.lastModified}`;
+      if (seen.has(identity)) return false;
+      seen.add(identity);
+      return true;
+    });
+
     setProcessingImages(true);
     try {
-      const results = await Promise.all(pictures.map(prepareImage));
-      // Deduplicated against the batch as well as against what is already
-      // there: the same photo picked twice is never intentional, and two
-      // identical entries cannot be told apart once they are in a list the
-      // owner can reorder. Comparing only against `images` missed a duplicate
-      // dragged in alongside its own copy, because both were new.
-      const seen = new Set(images);
-      const accepted: string[] = [];
-      for (const result of results) {
-        if (!result.ok || seen.has(result.dataUrl)) continue;
-        seen.add(result.dataUrl);
-        accepted.push(result.dataUrl);
-      }
-      if (results.some((result) => !result.ok)) {
-        pushToast('owner.create.photos.readFailed', 'error');
-      }
-      if (accepted.length > 0) {
-        setImages((current) => [...current, ...accepted]);
+      // Straight to storage, not into the form. The listing carries URLs now,
+      // so a twelve-photo listing posts a few hundred bytes of JSON instead of
+      // several megabytes of base64 — and the photos themselves never pass
+      // through the API at all.
+      const uploaded = await uploadImages(unique, 'LISTING', (done, total) =>
+        setUploadProgress({ done, total }),
+      );
+      if (uploaded.length > 0) {
+        setImages((current) => [...current, ...uploaded]);
         clearError('images');
         clearError('payload');
         haptics.success();
       }
+    } catch (caught) {
+      // Three different failures, three different things to do about them:
+      // pick a different file, pick a smaller one, or try again in a moment.
+      // One message for all three sent people back to re-pick a photo that
+      // was never the problem.
+      const reason = caught instanceof UploadError ? caught.reason : 'failed';
+      pushToast(
+        reason === 'unreadable'
+          ? 'owner.create.photos.readFailed'
+          : reason === 'tooLarge'
+            ? 'owner.create.photos.tooLarge'
+            : 'owner.create.photos.uploadFailed',
+        'error',
+      );
     } finally {
       setProcessingImages(false);
+      setUploadProgress(null);
     }
   };
 
@@ -2565,7 +2521,12 @@ export const CreateListingPage: React.FC = () => {
                   )}
                 </span>
                 <span className="block text-sm font-extrabold text-content sm:text-base">
-                  {t('owner.create.photos.dropTitle')}
+                  {/* A count, not a spinner alone. Photos leave the phone one
+                      by one now, and on a slow connection twelve of them take
+                      long enough that a silent spinner reads as a hang. */}
+                  {uploadProgress
+                    ? t('owner.create.photos.uploading', uploadProgress)
+                    : t('owner.create.photos.dropTitle')}
                 </span>
                 <span className="mx-auto block max-w-sm text-xs font-medium text-muted">
                   {t('owner.create.photos.dropBody')}

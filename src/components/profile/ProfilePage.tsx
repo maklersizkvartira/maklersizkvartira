@@ -42,6 +42,7 @@ import {
 
 import { useTranslation } from '../../i18n';
 import { AuthApi, type AuthSession } from '../../services/authApi';
+import { UploadError, uploadImage } from '../../services/uploadsApi';
 import { useAppStore, type SignupRole } from '../../stores/useAppStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useHaptics } from '../../hooks/useHaptics';
@@ -460,22 +461,20 @@ export const ProfilePage: React.FC = () => {
     }
 
     setAvatarBusy(true);
-    const reader = new FileReader();
-    reader.onerror = () => {
-      setAvatarError(t('account.profile.avatarReadFailed'));
-      setAvatarBusy(false);
-    };
-    reader.onload = () => {
-      if (typeof reader.result !== 'string') {
-        setAvatarError(t('account.profile.avatarReadFailed'));
-        setAvatarBusy(false);
-        return;
-      }
-      void updateAvatar(reader.result)
-        .catch((caught: unknown) => setAvatarError(messageFor(caught)))
-        .finally(() => setAvatarBusy(false));
-    };
-    reader.readAsDataURL(file);
+    // Uploaded to storage, then the profile is updated with the URL. It used
+    // to be read as base64 and PATCHed into the profile itself, which put a
+    // multi-megabyte string in a text column and sent it back down with the
+    // user object on every single sign-in.
+    void uploadImage(file, 'AVATAR')
+      .then((url) => updateAvatar(url))
+      .catch((caught: unknown) =>
+        setAvatarError(
+          caught instanceof UploadError && caught.reason === 'unreadable'
+            ? t('account.profile.avatarReadFailed')
+            : messageFor(caught),
+        ),
+      )
+      .finally(() => setAvatarBusy(false));
   };
 
   const handleSaveAgency = async () => {

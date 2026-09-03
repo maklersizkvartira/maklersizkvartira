@@ -167,6 +167,11 @@ export const owner = {
       limitReached: 'Rasmlar chegarasi to‘ldi: {max} ta.',
       sizeNotice: 'Yuklangan hajm: {size} MB / {max} MB.',
       readFailed: 'Ba’zi fayllarni o‘qib bo‘lmadi. Boshqa rasm tanlang.',
+      // Uchta alohida sabab, uchta alohida yechim: boshqa fayl tanlash,
+      // kichikroq tanlash, yoki shunchaki qayta urinish.
+      tooLarge: 'Rasm hajmi juda katta. Kichikroq rasm tanlang.',
+      uploadFailed: 'Rasmni yuklab bo‘lmadi. Aloqani tekshirib, qayta urining.',
+      uploading: 'Yuklanmoqda… {done}/{total}',
       // Said once, before the upload, instead of only as an error afterwards.
       countAndSizeHint: '{min}–{max} ta rasm, jami {size} MB gacha.',
       remainingHint: 'Yana {count} ta rasm qo‘shishingiz mumkin.',

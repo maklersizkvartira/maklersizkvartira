@@ -159,6 +159,9 @@ export const owner = {
       limitReached: 'Photo limit reached: {max}.',
       sizeNotice: 'Uploaded size: {size} MB of {max} MB.',
       readFailed: 'Some files could not be read. Please choose different photos.',
+      tooLarge: 'That image is too large. Choose a smaller one.',
+      uploadFailed: 'The photo could not be uploaded. Check your connection and try again.',
+      uploading: 'Uploading… {done}/{total}',
       // Said once, before the upload, instead of only as an error afterwards.
       countAndSizeHint: '{min}–{max} photos, up to {size} MB in total.',
       remainingHint: 'You can add {count} more photos.',
