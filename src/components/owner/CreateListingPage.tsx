@@ -48,7 +48,9 @@ import {
   MessageSquare,
   Phone,
   Rocket,
+  RotateCcw,
   ShieldCheck,
+  Sparkles,
   Trash2,
   Upload,
   Users,
@@ -275,6 +277,7 @@ interface Draft {
   totalFloors: NumberField;
   amenities: AmenityState;
   isRoommate: boolean;
+  categoryChosen?: boolean;
   roommateGender: RoommateGender;
   roommateSpots: number;
   images: string[];
@@ -431,6 +434,9 @@ function readDraft(
       amenities: { ...NO_AMENITIES, ...parsed.amenities },
       propertyType: parsed.propertyType ?? 'APARTMENT',
       landArea: parsed.landArea ?? '',
+      categoryChosen:
+        parsed.categoryChosen ??
+        (parsed.step > 1 || Boolean(parsed.title) || parsed.price !== ''),
       sellerType: parsed.sellerType ?? sellerFallback,
       agencyName: parsed.agencyName ?? '',
       // The `maxStep` state's own initialiser already copes with this being
@@ -593,6 +599,15 @@ export const CreateListingPage: React.FC = () => {
     initialDraft?.amenities ?? NO_AMENITIES,
   );
   const [isRoommate, setIsRoommate] = useState(initialDraft?.isRoommate ?? false);
+  const [categoryChosen, setCategoryChosen] = useState<boolean>(() => {
+    if (initialDraft?.categoryChosen !== undefined) {
+      return initialDraft.categoryChosen;
+    }
+    if (initialDraft && (initialDraft.step > 1 || Boolean(initialDraft.title) || initialDraft.price !== '')) {
+      return true;
+    }
+    return false;
+  });
   const [roommateGender, setRoommateGender] = useState<RoommateGender>(
     initialDraft?.roommateGender ?? 'ANY',
   );
@@ -811,6 +826,7 @@ export const CreateListingPage: React.FC = () => {
       totalFloors,
       amenities,
       isRoommate,
+      categoryChosen,
       roommateGender,
       roommateSpots,
       images,
@@ -825,7 +841,7 @@ export const CreateListingPage: React.FC = () => {
     [
       step, maxStep, region, district, address, metro, metroMinutes, latitude,
       longitude, title, description, propertyType, price, deposit, rooms, area,
-      landArea, floor, totalFloors, amenities, isRoommate, roommateGender, roommateSpots,
+      landArea, floor, totalFloors, amenities, isRoommate, categoryChosen, roommateGender, roommateSpots,
       images, sellerType, agencyName, telegram, preferredTime, topRequested,
       topDays, topNote,
     ],
@@ -1314,6 +1330,7 @@ export const CreateListingPage: React.FC = () => {
   /** Enter anywhere in the form now does what the visible button does. */
   const onFormSubmit = (event: React.FormEvent) => {
     event.preventDefault();
+    if (step === 1 && !categoryChosen) return;
     if (step < TOTAL_STEPS) {
       goToStep(step + 1);
       return;
@@ -1353,6 +1370,7 @@ export const CreateListingPage: React.FC = () => {
     setTotalFloors('');
     setAmenities(NO_AMENITIES);
     setIsRoommate(false);
+    setCategoryChosen(false);
     setRoommateGender('ANY');
     setRoommateSpots(1);
     setImages([]);
@@ -1388,7 +1406,19 @@ export const CreateListingPage: React.FC = () => {
 
   // -- Render helpers --------------------------------------------------------
   const stepMeta = [
-    { num: 1, title: t('owner.create.steps.detailsTitle'), hint: t('owner.create.steps.detailsHint') },
+    {
+      num: 1,
+      title: !categoryChosen
+        ? 'Toifani tanlash'
+        : isRoommate
+          ? 'Sheriklik ma’lumotlari'
+          : sellerType === 'AGENT'
+            ? 'Rieltor ma’lumotlari'
+            : t('owner.create.steps.detailsTitle'),
+      hint: !categoryChosen
+        ? 'Mulk egasi, Rieltor yoki Sheriklikka'
+        : t('owner.create.steps.detailsHint'),
+    },
     { num: 2, title: t('owner.create.steps.locationTitle'), hint: t('owner.create.steps.locationHint') },
     { num: 3, title: t('owner.create.steps.photosTitle'), hint: t('owner.create.steps.photosHint') },
   ];
@@ -1892,138 +1922,182 @@ export const CreateListingPage: React.FC = () => {
           )}
 
           {/* ---------------------------------------------------- STEP 1: DETAILS --- */}
-          {step === 1 && (
-            <section className="space-y-5" aria-labelledby="owner-step-details">
+          {step === 1 && !categoryChosen && (
+            <section className="space-y-6" aria-labelledby="owner-step-category">
               <header className="flex items-start justify-between gap-3 border-b border-line pb-3">
                 <div className="min-w-0">
-                  <h2 id="owner-step-details" ref={headingRef} tabIndex={-1} className={headingClass}>
+                  <h2 id="owner-step-category" ref={headingRef} tabIndex={-1} className={headingClass}>
                     <Building2 className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
-                    {t('owner.create.details.heading')}
+                    E’lon toifasini tanlang
                   </h2>
                   <p className="mt-0.5 text-xs text-subtle">
-                    {t('owner.create.details.subheading')}
+                    Qanday e’lon bermoqchisiz? Davom etish uchun kerakli toifani bosing:
                   </p>
                 </div>
                 {stepBadge}
               </header>
 
-              <fieldset className="space-y-2">
-                <legend className="text-xs font-bold uppercase tracking-wider text-muted">
-                  E’lon toifasi
-                </legend>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  {/* 1. Mulk egasi */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      haptics.tap();
-                      setIsRoommate(false);
-                      setSellerType('OWNER');
-                      if (propertyType === 'ROOM' || propertyType === 'STUDIO' || propertyType === 'DORMITORY') {
-                        setPropertyType('APARTMENT');
-                      }
-                    }}
-                    className={cn(
-                      'press flex flex-col items-start p-4 rounded-2xl border text-left transition-all',
-                      !isRoommate && sellerType === 'OWNER'
-                        ? 'border-content bg-surface shadow-sm ring-1 ring-content/15'
-                        : 'border-line bg-surface-2 hover:bg-surface-3 text-content',
-                    )}
-                  >
-                    <div className="flex items-center gap-2.5 mb-1.5">
-                      <Home
-                        className={cn(
-                          'h-5 w-5 shrink-0 stroke-[2]',
-                          !isRoommate && sellerType === 'OWNER' ? 'text-brand' : 'text-content',
-                        )}
-                        aria-hidden="true"
-                      />
-                      <div>
-                        <span className="font-bold text-sm block text-content">Mulk egasi</span>
-                        <span className="text-[10px] font-medium text-muted">Vositachisiz ijara</span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted leading-relaxed">
-                      Uy egasidan to‘g‘ridan-to‘g‘ri to‘liq xonadon
-                    </p>
-                  </button>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {/* 1. Mulk egasi */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptics.tap();
+                    setIsRoommate(false);
+                    setSellerType('OWNER');
+                    if (propertyType === 'ROOM' || propertyType === 'STUDIO' || propertyType === 'DORMITORY') {
+                      setPropertyType('APARTMENT');
+                    }
+                    setCategoryChosen(true);
+                  }}
+                  className="press group relative flex flex-col items-start p-6 rounded-3xl border border-line bg-surface hover:border-brand/40 hover:bg-surface-2 transition-all text-left shadow-sm hover:shadow-md"
+                >
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-4 transition-transform group-hover:scale-110">
+                    <Home className="h-7 w-7 stroke-[2]" aria-hidden="true" />
+                  </div>
+                  <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 mb-2">
+                    Vositachisiz ijara
+                  </span>
+                  <h3 className="font-extrabold text-base text-content mb-1">
+                    Mulk egasi
+                  </h3>
+                  <p className="text-xs text-muted leading-relaxed mb-6 flex-1">
+                    O‘z uyingiz, xonadoningiz yoki hovlingizni vositachisiz to‘g‘ridan-to‘g‘ri ijaraga bering.
+                  </p>
+                  <div className="w-full flex items-center justify-between text-xs font-bold text-brand group-hover:translate-x-1 transition-transform">
+                    <span>Mulk egasi sifatida to‘ldirish</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </div>
+                </button>
 
-                  {/* 2. Rieltor / Agent */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      haptics.tap();
-                      setIsRoommate(false);
-                      setSellerType('AGENT');
-                      if (currentUser?.role !== 'AGENT' && isSwitchableRole(currentUser?.role)) {
-                        void switchRole('AGENT');
-                      }
-                      if (propertyType === 'ROOM' || propertyType === 'STUDIO' || propertyType === 'DORMITORY') {
-                        setPropertyType('APARTMENT');
-                      }
-                    }}
-                    className={cn(
-                      'press flex flex-col items-start p-4 rounded-2xl border text-left transition-all',
-                      !isRoommate && sellerType === 'AGENT'
-                        ? 'border-content bg-surface shadow-sm ring-1 ring-content/15'
-                        : 'border-line bg-surface-2 hover:bg-surface-3 text-content',
-                    )}
-                  >
-                    <div className="flex items-center gap-2.5 mb-1.5">
-                      <Briefcase
-                        className={cn(
-                          'h-5 w-5 shrink-0 stroke-[2]',
-                          !isRoommate && sellerType === 'AGENT' ? 'text-brand' : 'text-content',
-                        )}
-                        aria-hidden="true"
-                      />
-                      <div>
-                        <span className="font-bold text-sm block text-content">Rieltor</span>
-                        <span className="text-[10px] font-medium text-muted">Agentlik / Makler</span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted leading-relaxed">
-                      Mulk egasi nomidan ko‘chmas mulk agenti
-                    </p>
-                  </button>
+                {/* 2. Rieltor */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptics.tap();
+                    setIsRoommate(false);
+                    setSellerType('AGENT');
+                    if (currentUser?.role !== 'AGENT' && isSwitchableRole(currentUser?.role)) {
+                      void switchRole('AGENT');
+                    }
+                    if (propertyType === 'ROOM' || propertyType === 'STUDIO' || propertyType === 'DORMITORY') {
+                      setPropertyType('APARTMENT');
+                    }
+                    setCategoryChosen(true);
+                  }}
+                  className="press group relative flex flex-col items-start p-6 rounded-3xl border border-line bg-surface hover:border-brand/40 hover:bg-surface-2 transition-all text-left shadow-sm hover:shadow-md"
+                >
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 mb-4 transition-transform group-hover:scale-110">
+                    <Briefcase className="h-7 w-7 stroke-[2]" aria-hidden="true" />
+                  </div>
+                  <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 mb-2">
+                    Agentlik / Makler
+                  </span>
+                  <h3 className="font-extrabold text-base text-content mb-1">
+                    Rieltor (Agent)
+                  </h3>
+                  <p className="text-xs text-muted leading-relaxed mb-6 flex-1">
+                    Mulk egasi nomidan ko‘chmas mulk agenti yoki agentlik sifatida e’lon joylashtiring.
+                  </p>
+                  <div className="w-full flex items-center justify-between text-xs font-bold text-brand group-hover:translate-x-1 transition-transform">
+                    <span>Rieltor sifatida to‘ldirish</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </div>
+                </button>
 
-                  {/* 3. Sheriklikka */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      haptics.tap();
-                      setIsRoommate(true);
-                      setSellerType('OWNER');
-                      if (propertyType === 'LAND' || propertyType === 'COMMERCIAL') {
-                        setPropertyType('ROOM');
-                      }
-                    }}
-                    className={cn(
-                      'press flex flex-col items-start p-4 rounded-2xl border text-left transition-all',
-                      isRoommate
-                        ? 'border-content bg-surface shadow-sm ring-1 ring-content/15'
-                        : 'border-line bg-surface-2 hover:bg-surface-3 text-content',
-                    )}
-                  >
-                    <div className="flex items-center gap-2.5 mb-1.5">
-                      <Users
-                        className={cn(
-                          'h-5 w-5 shrink-0 stroke-[2]',
-                          isRoommate ? 'text-brand' : 'text-content',
-                        )}
-                        aria-hidden="true"
-                      />
-                      <div>
-                        <span className="font-bold text-sm block text-content">Sheriklikka</span>
-                        <span className="text-[10px] font-medium text-muted">Xonadosh qidirish</span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted leading-relaxed">
-                      Kvartira yoki xonaga sherik / talaba olish
-                    </p>
-                  </button>
+                {/* 3. Sheriklikka */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptics.tap();
+                    setIsRoommate(true);
+                    setSellerType('OWNER');
+                    if (propertyType === 'LAND' || propertyType === 'COMMERCIAL') {
+                      setPropertyType('ROOM');
+                    }
+                    setCategoryChosen(true);
+                  }}
+                  className="press group relative flex flex-col items-start p-6 rounded-3xl border border-line bg-surface hover:border-brand/40 hover:bg-surface-2 transition-all text-left shadow-sm hover:shadow-md"
+                >
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 mb-4 transition-transform group-hover:scale-110">
+                    <Users className="h-7 w-7 stroke-[2]" aria-hidden="true" />
+                  </div>
+                  <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/10 text-purple-700 dark:text-purple-300 mb-2">
+                    Xonadosh / Talaba
+                  </span>
+                  <h3 className="font-extrabold text-base text-content mb-1">
+                    Sheriklikka
+                  </h3>
+                  <p className="text-xs text-muted leading-relaxed mb-6 flex-1">
+                    Kvartira yoki hovliga birga yashash uchun sherik (xonadosh) yoki talabalarni qidirish.
+                  </p>
+                  <div className="w-full flex items-center justify-between text-xs font-bold text-brand group-hover:translate-x-1 transition-transform">
+                    <span>Sheriklik e’lonini to‘ldirish</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </div>
+                </button>
+              </div>
+            </section>
+          )}
+
+          {step === 1 && categoryChosen && (
+            <section className="space-y-5" aria-labelledby="owner-step-details">
+              <header className="flex items-start justify-between gap-3 border-b border-line pb-3">
+                <div className="min-w-0">
+                  <h2 id="owner-step-details" ref={headingRef} tabIndex={-1} className={headingClass}>
+                    <Building2 className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
+                    {isRoommate
+                      ? 'Sheriklik ma’lumotlari'
+                      : sellerType === 'AGENT'
+                        ? 'Rieltor va mulk ma’lumotlari'
+                        : t('owner.create.details.heading')}
+                  </h2>
+                  <p className="mt-0.5 text-xs text-subtle">
+                    {isRoommate
+                      ? 'Sheriklik shartlari, xona va to‘lov ma’lumotlarini kiriting'
+                      : sellerType === 'AGENT'
+                        ? 'Agentlik va ijara obyekti haqida ma’lumotlarni to‘ldiring'
+                        : t('owner.create.details.subheading')}
+                  </p>
                 </div>
-              </fieldset>
+                {stepBadge}
+              </header>
+
+              {/* Tanlangan toifa va o'zgartirish tugmasi */}
+              <div className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl border border-line bg-surface-2">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 text-brand">
+                    {isRoommate ? (
+                      <Users className="h-5 w-5" />
+                    ) : sellerType === 'AGENT' ? (
+                      <Briefcase className="h-5 w-5" />
+                    ) : (
+                      <Home className="h-5 w-5" />
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-medium text-muted block">Tanlangan toifa</span>
+                    <p className="text-sm font-black text-content">
+                      {isRoommate
+                        ? 'Sheriklikka (Xonadosh qidirish)'
+                        : sellerType === 'AGENT'
+                          ? 'Ko‘chmas mulk agenti (Rieltor)'
+                          : 'Mulk egasi (Vositachisiz)'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptics.tap();
+                    setCategoryChosen(false);
+                  }}
+                  className="press flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border border-line bg-surface hover:bg-surface-3 text-content shadow-sm transition-all"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 text-muted" />
+                  <span>Toifani o‘zgartirish</span>
+                </button>
+              </div>
 
               {!isRoommate && sellerType === 'AGENT' && (
                 <div className="space-y-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
@@ -2860,14 +2934,20 @@ export const CreateListingPage: React.FC = () => {
             )}
 
             {step < TOTAL_STEPS ? (
-              <Button type="submit" className={cn('press', step > 1 ? 'w-2/3' : 'w-full')}>
-                <span>
-                  {step === 1
-                    ? t('owner.create.next.toLocation')
-                    : t('owner.create.next.toPhotos')}
-                </span>
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Button>
+              step === 1 && !categoryChosen ? (
+                <div className="w-full py-3.5 px-4 rounded-2xl bg-surface-2 border border-line text-center text-xs font-bold text-muted">
+                  Davom etish uchun yuqoridagi 3 ta toifadan birini tanlang ☝️
+                </div>
+              ) : (
+                <Button type="submit" className={cn('press', step > 1 ? 'w-2/3' : 'w-full')}>
+                  <span>
+                    {step === 1
+                      ? t('owner.create.next.toLocation')
+                      : t('owner.create.next.toPhotos')}
+                  </span>
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              )
             ) : (
               // Only the payload cap can hold this button. Nothing about the
               // Top request may ever stop a listing being published.
