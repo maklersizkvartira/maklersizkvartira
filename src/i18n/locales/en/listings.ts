@@ -170,6 +170,8 @@ export const listings = {
     trustHasComplaints: 'A complaint about this listing has been confirmed.',
     /** Hover text for the score chip on the card and in the page heading. */
     trustTooltip: 'Reliability: {score}/100. It drops only on a confirmed complaint.',
+    landAreaLabel: 'Plot size',
+    landAreaValue: '{value} sotix',
     /**
      * The owner chip in the sidebar shows the USER's score, which still rises
      * on verification — a different rule from the listing figure above, so it

@@ -170,6 +170,8 @@ export const listings = {
     trustHasComplaints: 'По этому объявлению есть подтверждённые жалобы.',
     /** Hover text for the score chip on the card and in the page heading. */
     trustTooltip: 'Надёжность: {score}/100. Снижается только после подтверждённой жалобы.',
+    landAreaLabel: 'Площадь участка',
+    landAreaValue: '{value} соток',
     /**
      * The owner chip in the sidebar shows the USER's score, which still rises
      * on verification — a different rule from the listing figure above, so it

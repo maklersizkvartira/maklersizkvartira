@@ -46,6 +46,10 @@ class Listing(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     # -- Property ------------------------------------------------------------
     rooms: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     area: Mapped[float | None] = mapped_column(Float, nullable=True)
+    #: Plot size in sotix (1 sotix = 100 m²), for houses, land and commercial
+    #: property. Separate from `area`, which is the building: a cottage has
+    #: both, and a bare plot has only this one.
+    land_area: Mapped[float | None] = mapped_column(Float, nullable=True)
     floor: Mapped[int | None] = mapped_column(Integer, nullable=True)
     total_floors: Mapped[int | None] = mapped_column(Integer, nullable=True)
     property_type: Mapped[str] = mapped_column(

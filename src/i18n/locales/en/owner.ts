@@ -120,6 +120,8 @@ export const owner = {
       // These fields start empty now. A seeded number reads as an answer, and
       // people published it unchanged; a placeholder reads as an example.
       pricePlaceholder: 'For example: 4,000,000',
+      landAreaLabel: 'Plot size (sotix)',
+      landAreaHint: 'For example: 4 or 6 sotix',
       currencyLabel: 'Currency',
       currencyUzs: 'so‘m',
       currencyUsd: '$ dollar',

@@ -86,6 +86,10 @@ class ListingBase(CamelModel):
 
     rooms: int = Field(default=1, ge=0, le=30)
     area: float | None = Field(default=None, gt=0, le=10_000)
+    #: Sotix, not m². The cap is generous on purpose — this is a rental
+    #: platform, and a plot larger than a few hundred sotix is a typo rather
+    #: than an estate somebody is letting by the month.
+    land_area: float | None = Field(default=None, gt=0, le=1_000)
     floor: int | None = Field(default=None, ge=-3, le=200)
     total_floors: int | None = Field(default=None, ge=1, le=200)
     property_type: PropertyType = PropertyType.APARTMENT
@@ -186,6 +190,10 @@ class ListingUpdate(CamelModel):
     utilities_included: bool | None = None
     rooms: int | None = Field(default=None, ge=1, le=30)
     area: float | None = Field(default=None, gt=0, le=10_000)
+    #: Sotix, not m². The cap is generous on purpose — this is a rental
+    #: platform, and a plot larger than a few hundred sotix is a typo rather
+    #: than an estate somebody is letting by the month.
+    land_area: float | None = Field(default=None, gt=0, le=1_000)
     floor: int | None = Field(default=None, ge=-3, le=200)
     total_floors: int | None = Field(default=None, ge=1, le=200)
     property_type: PropertyType | None = None
@@ -247,6 +255,7 @@ class ListingOut(ORMCamelModel):
     utilities_included: bool
     rooms: int
     area: float | None = None
+    land_area: float | None = None
     floor: int | None = None
     total_floors: int | None = None
     property_type: str

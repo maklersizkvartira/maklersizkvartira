@@ -830,3 +830,27 @@ async def test_admin_lockout_engages(client, admin_account):
     )
     assert blocked.status_code == 403
     assert blocked.json()["code"] == "account_locked"
+
+
+async def test_a_plot_size_is_accepted_and_returned(client, unique_phone):
+    """`landArea` reaches the database instead of being rejected outright.
+
+    The create form has offered "Yer maydoni (sotix)" for houses, land and
+    commercial property since it shipped, and the detail page renders it — but
+    the column, the model field and the schema entry were all missing. Because
+    CamelModel forbids unknown keys, the API answered every such submission
+    with 422 on `landArea`, so those three property types could not be
+    published at all while every other type could.
+    """
+    tokens, _ = await _owner(client, unique_phone)
+    listing = await _create_listing(
+        client, tokens, propertyType="HOUSE", landArea=6
+    )
+    assert listing["landArea"] == 6
+
+
+async def test_a_listing_without_a_plot_size_still_publishes(client, unique_phone):
+    """Most listings are flats and have no plot at all."""
+    tokens, _ = await _owner(client, unique_phone)
+    listing = await _create_listing(client, tokens)
+    assert listing["landArea"] is None

@@ -739,10 +739,10 @@ export const ListingDetailPage: React.FC = () => {
               <div className="space-y-1 border-line sm:border-l">
                 <dt className="flex items-center justify-center gap-1 text-xs font-medium text-subtle">
                   <Maximize2 className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" />
-                  Yer maydoni
+                  {t('listings.detail.landAreaLabel')}
                 </dt>
                 <dd className="text-base font-extrabold text-content">
-                  {listing.landArea} sotix
+                  {t('listings.detail.landAreaValue', { value: listing.landArea })}
                 </dd>
               </div>
             ) : null}

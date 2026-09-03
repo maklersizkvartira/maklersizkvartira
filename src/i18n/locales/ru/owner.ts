@@ -122,6 +122,8 @@ export const owner = {
       // These fields start empty now. A seeded number reads as an answer, and
       // people published it unchanged; a placeholder reads as an example.
       pricePlaceholder: 'Например: 4 000 000',
+      landAreaLabel: 'Площадь участка (сотка)',
+      landAreaHint: 'Например: 4 или 6 соток',
       currencyLabel: 'Валюта',
       currencyUzs: 'сум',
       currencyUsd: '$ доллар',

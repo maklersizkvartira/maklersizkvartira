@@ -2351,8 +2351,8 @@ export const CreateListingPage: React.FC = () => {
                 {/* Yer maydoni (sotix) — Mulk egasi / Rieltor va Hovli, Kottej, Yer maydoni uchun */}
                 {(!isRoommate && (propertyType === 'HOUSE' || propertyType === 'LAND' || propertyType === 'COMMERCIAL')) && (
                   <Field
-                    label="Yer maydoni (sotix)"
-                    hint="Masalan: 4 yoki 6 sotix"
+                    label={t('owner.create.details.landAreaLabel')}
+                    hint={t('owner.create.details.landAreaHint')}
                     error={formErrors.landArea ? tRaw(formErrors.landArea) : undefined}
                   >
                     {({ id, describedBy, invalid }) => (
