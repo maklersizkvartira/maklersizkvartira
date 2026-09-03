@@ -25,6 +25,7 @@ from app.models.enums import (
     ListingStatus,
     ReportPriority,
     ReportStatus,
+    SmsStatus,
     TopRequestStatus,
     UserRole,
     UserStatus,
