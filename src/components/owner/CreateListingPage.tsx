@@ -92,9 +92,23 @@ const METRO_NONE = 'NONE';
  * filters on the type. The order is the one they are offered in, commonest
  * first.
  */
-const PROPERTY_TYPES: readonly { value: PropertyType; labelKey: string }[] = [
+const PROPERTY_TYPES_OWNER: readonly { value: PropertyType; labelKey: string }[] = [
   { value: 'APARTMENT', labelKey: 'listings.propertyType.apartment' },
   { value: 'HOUSE', labelKey: 'listings.propertyType.house' },
+  { value: 'LAND', labelKey: 'listings.propertyType.land' },
+  { value: 'COMMERCIAL', labelKey: 'listings.propertyType.commercial' },
+];
+
+const PROPERTY_TYPES_ROOMMATE: readonly { value: PropertyType; labelKey: string }[] = [
+  { value: 'ROOM', labelKey: 'listings.propertyType.room' },
+  { value: 'APARTMENT', labelKey: 'listings.propertyType.apartment' },
+  { value: 'DORMITORY', labelKey: 'listings.propertyType.dormitory' },
+  { value: 'HOUSE', labelKey: 'listings.propertyType.house' },
+  { value: 'STUDIO', labelKey: 'listings.propertyType.studio' },
+];
+
+const PROPERTY_TYPES: readonly { value: PropertyType; labelKey: string }[] = [
+  ...PROPERTY_TYPES_OWNER,
   { value: 'ROOM', labelKey: 'listings.propertyType.room' },
   { value: 'STUDIO', labelKey: 'listings.propertyType.studio' },
   { value: 'DORMITORY', labelKey: 'listings.propertyType.dormitory' },
@@ -256,6 +270,7 @@ interface Draft {
   deposit: NumberField;
   rooms: NumberField;
   area: NumberField;
+  landArea?: NumberField;
   floor: NumberField;
   totalFloors: NumberField;
   amenities: AmenityState;
@@ -415,6 +430,7 @@ function readDraft(
       ...parsed,
       amenities: { ...NO_AMENITIES, ...parsed.amenities },
       propertyType: parsed.propertyType ?? 'APARTMENT',
+      landArea: parsed.landArea ?? '',
       sellerType: parsed.sellerType ?? sellerFallback,
       agencyName: parsed.agencyName ?? '',
       // The `maxStep` state's own initialiser already copes with this being
@@ -570,6 +586,7 @@ export const CreateListingPage: React.FC = () => {
   const [deposit, setDeposit] = useState<NumberField>(initialDraft?.deposit ?? '');
   const [rooms, setRooms] = useState<NumberField>(initialDraft?.rooms ?? '');
   const [area, setArea] = useState<NumberField>(initialDraft?.area ?? '');
+  const [landArea, setLandArea] = useState<NumberField>(initialDraft?.landArea ?? '');
   const [floor, setFloor] = useState<NumberField>(initialDraft?.floor ?? '');
   const [totalFloors, setTotalFloors] = useState<NumberField>(initialDraft?.totalFloors ?? '');
   const [amenities, setAmenities] = useState<AmenityState>(
@@ -789,6 +806,7 @@ export const CreateListingPage: React.FC = () => {
       deposit,
       rooms,
       area,
+      landArea,
       floor,
       totalFloors,
       amenities,
@@ -807,7 +825,7 @@ export const CreateListingPage: React.FC = () => {
     [
       step, maxStep, region, district, address, metro, metroMinutes, latitude,
       longitude, title, description, propertyType, price, deposit, rooms, area,
-      floor, totalFloors, amenities, isRoommate, roommateGender, roommateSpots,
+      landArea, floor, totalFloors, amenities, isRoommate, roommateGender, roommateSpots,
       images, sellerType, agencyName, telegram, preferredTime, topRequested,
       topDays, topNote,
     ],
@@ -1030,14 +1048,19 @@ export const CreateListingPage: React.FC = () => {
       }
       if (price === '' || price <= 0) errors.price = 'owner.create.validation.price';
       if (deposit !== '' && deposit < 0) errors.deposit = 'owner.create.validation.deposit';
-      if (rooms === '' || rooms < 1) errors.rooms = 'common.state.required';
+      if (propertyType !== 'LAND') {
+        if (rooms === '' || rooms < 1) errors.rooms = 'common.state.required';
+      }
       if (area !== '' && area <= 0) errors.area = 'owner.create.validation.area';
-      if (
-        (floor !== '' && floor < 1) ||
-        (totalFloors !== '' && totalFloors < 1) ||
-        (floor !== '' && totalFloors !== '' && floor > totalFloors)
-      ) {
-        errors.floor = 'owner.create.validation.floor';
+      if (landArea !== '' && landArea <= 0) errors.landArea = 'common.error.validation';
+      if (propertyType !== 'LAND') {
+        if (
+          (floor !== '' && floor < 1) ||
+          (totalFloors !== '' && totalFloors < 1) ||
+          (floor !== '' && totalFloors !== '' && floor > totalFloors)
+        ) {
+          errors.floor = 'owner.create.validation.floor';
+        }
       }
     }
 
@@ -1183,10 +1206,11 @@ export const CreateListingPage: React.FC = () => {
       currency: 'UZS',
       depositPrice: deposit === '' ? null : deposit,
       utilitiesIncluded: amenities.utilitiesIncluded,
-      rooms: rooms === '' ? null : rooms,
+      rooms: propertyType === 'LAND' ? (rooms === '' ? 1 : rooms) : (rooms === '' ? null : rooms),
       area: area === '' ? null : area,
-      floor: floor === '' ? null : floor,
-      totalFloors: totalFloors === '' ? null : totalFloors,
+      landArea: landArea === '' ? null : landArea,
+      floor: propertyType === 'LAND' ? null : (floor === '' ? null : floor),
+      totalFloors: propertyType === 'LAND' ? null : (totalFloors === '' ? null : totalFloors),
       propertyType,
       region,
       district,
@@ -1324,6 +1348,7 @@ export const CreateListingPage: React.FC = () => {
     setDeposit('');
     setRooms('');
     setArea('');
+    setLandArea('');
     setFloor('');
     setTotalFloors('');
     setAmenities(NO_AMENITIES);
@@ -1894,6 +1919,9 @@ export const CreateListingPage: React.FC = () => {
                       haptics.tap();
                       setIsRoommate(false);
                       setSellerType('OWNER');
+                      if (propertyType === 'ROOM' || propertyType === 'STUDIO' || propertyType === 'DORMITORY') {
+                        setPropertyType('APARTMENT');
+                      }
                     }}
                     className={cn(
                       'press flex flex-col items-start p-4 rounded-2xl border text-left transition-all',
@@ -1930,6 +1958,9 @@ export const CreateListingPage: React.FC = () => {
                       if (currentUser?.role !== 'AGENT' && isSwitchableRole(currentUser?.role)) {
                         void switchRole('AGENT');
                       }
+                      if (propertyType === 'ROOM' || propertyType === 'STUDIO' || propertyType === 'DORMITORY') {
+                        setPropertyType('APARTMENT');
+                      }
                     }}
                     className={cn(
                       'press flex flex-col items-start p-4 rounded-2xl border text-left transition-all',
@@ -1963,6 +1994,9 @@ export const CreateListingPage: React.FC = () => {
                       haptics.tap();
                       setIsRoommate(true);
                       setSellerType('OWNER');
+                      if (propertyType === 'LAND' || propertyType === 'COMMERCIAL') {
+                        setPropertyType('ROOM');
+                      }
                     }}
                     className={cn(
                       'press flex flex-col items-start p-4 rounded-2xl border text-left transition-all',
@@ -2069,10 +2103,6 @@ export const CreateListingPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Asked at last. The payload used to carry a hardcoded
-                  APARTMENT, so a hovli uy, a room, a studio and a dormitory
-                  were all published as flats — mislabelled on the card and
-                  dropped by the search of anyone looking for exactly them. */}
               <Field
                 label={t('common.filters.propertyType')}
                 error={formErrors.propertyType ? tRaw(formErrors.propertyType) : undefined}
@@ -2084,11 +2114,15 @@ export const CreateListingPage: React.FC = () => {
                     invalid={invalid}
                     value={propertyType}
                     onChange={(event) => {
-                      setPropertyType(event.target.value as PropertyType);
+                      const nextType = event.target.value as PropertyType;
+                      setPropertyType(nextType);
                       clearError('propertyType');
+                      if (nextType === 'LAND' && rooms === '') {
+                        setRooms(1);
+                      }
                     }}
                   >
-                    {PROPERTY_TYPES.map((option) => (
+                    {(isRoommate ? PROPERTY_TYPES_ROOMMATE : PROPERTY_TYPES_OWNER).map((option) => (
                       <option key={option.value} value={option.value}>
                         {tRaw(option.labelKey)}
                       </option>
@@ -2145,8 +2179,6 @@ export const CreateListingPage: React.FC = () => {
                 <Field
                   label={t('owner.create.details.priceLabel')}
                   required
-                  // The dollar line is a reading of what was typed, so with an
-                  // empty box there is nothing to read and it says nothing.
                   hint={
                     usdPrice === null
                       ? undefined
@@ -2194,39 +2226,39 @@ export const CreateListingPage: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Field
-                  label={t('common.filters.rooms')}
-                  required
-                  error={formErrors.rooms ? tRaw(formErrors.rooms) : undefined}
-                >
-                  {({ id, describedBy, invalid }) => (
-                    <SelectInput
-                      id={id}
-                      aria-describedby={describedBy}
-                      invalid={invalid}
-                      value={rooms === '' ? '' : rooms}
-                      onChange={(event) => {
-                        setRooms(event.target.value === '' ? '' : Number(event.target.value));
-                        clearError('rooms');
-                      }}
-                    >
-                      {/* Disabled, so it can be shown as the unanswered state
-                          but never chosen back. */}
-                      <option value="" disabled>
-                        {t('owner.create.details.roomsPlaceholder')}
-                      </option>
-                      {[1, 2, 3].map((count) => (
-                        <option key={count} value={count}>
-                          {t('common.filters.roomsValue', { count })}
+                {propertyType !== 'LAND' && (
+                  <Field
+                    label={t('common.filters.rooms')}
+                    required
+                    error={formErrors.rooms ? tRaw(formErrors.rooms) : undefined}
+                  >
+                    {({ id, describedBy, invalid }) => (
+                      <SelectInput
+                        id={id}
+                        aria-describedby={describedBy}
+                        invalid={invalid}
+                        value={rooms === '' ? '' : rooms}
+                        onChange={(event) => {
+                          setRooms(event.target.value === '' ? '' : Number(event.target.value));
+                          clearError('rooms');
+                        }}
+                      >
+                        <option value="" disabled>
+                          {t('owner.create.details.roomsPlaceholder')}
                         </option>
-                      ))}
-                      <option value={4}>{t('common.filters.roomsPlus', { count: 4 })}</option>
-                    </SelectInput>
-                  )}
-                </Field>
+                        {[1, 2, 3].map((count) => (
+                          <option key={count} value={count}>
+                            {t('common.filters.roomsValue', { count })}
+                          </option>
+                        ))}
+                        <option value={4}>{t('common.filters.roomsPlus', { count: 4 })}</option>
+                      </SelectInput>
+                    )}
+                  </Field>
+                )}
 
                 <Field
-                  label={t('owner.create.details.areaLabel')}
+                  label={propertyType === 'LAND' ? 'Umumiy maydon (m²)' : t('owner.create.details.areaLabel')}
                   error={formErrors.area ? tRaw(formErrors.area) : undefined}
                 >
                   {({ id, describedBy, invalid }) => (
@@ -2244,38 +2276,71 @@ export const CreateListingPage: React.FC = () => {
                   )}
                 </Field>
 
-                <Field
-                  label={t('owner.create.details.floorLabel')}
-                  error={formErrors.floor ? tRaw(formErrors.floor) : undefined}
-                >
-                  {({ id, describedBy, invalid }) => (
-                    <TextInput
-                      id={id}
-                      aria-describedby={describedBy}
-                      invalid={invalid}
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      value={floor === '' ? '' : floor}
-                      onChange={numberHandler(setFloor, 'floor')}
-                      placeholder={t('owner.create.details.floorPlaceholder')}
-                    />
-                  )}
-                </Field>
+                {/* Yer maydoni (sotix) — Mulk egasi / Rieltor va Hovli, Kottej, Yer maydoni uchun */}
+                {(!isRoommate && (propertyType === 'HOUSE' || propertyType === 'LAND' || propertyType === 'COMMERCIAL')) && (
+                  <Field
+                    label="Yer maydoni (sotix)"
+                    hint="Masalan: 4 yoki 6 sotix"
+                    error={formErrors.landArea ? tRaw(formErrors.landArea) : undefined}
+                  >
+                    {({ id, describedBy, invalid }) => (
+                      <TextInput
+                        id={id}
+                        aria-describedby={describedBy}
+                        invalid={invalid}
+                        type="number"
+                        inputMode="decimal"
+                        min={0.1}
+                        step={0.5}
+                        value={landArea === '' ? '' : landArea}
+                        onChange={numberHandler(setLandArea, 'landArea')}
+                        placeholder="Masalan: 6"
+                      />
+                    )}
+                  </Field>
+                )}
 
-                <Field label={t('owner.create.details.totalFloorsLabel')}>
-                  {({ id }) => (
-                    <TextInput
-                      id={id}
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      value={totalFloors === '' ? '' : totalFloors}
-                      onChange={numberHandler(setTotalFloors, 'floor')}
-                      placeholder={t('owner.create.details.totalFloorsPlaceholder')}
-                    />
-                  )}
-                </Field>
+                {propertyType !== 'LAND' && (
+                  <>
+                    <Field
+                      label={t('owner.create.details.floorLabel')}
+                      error={formErrors.floor ? tRaw(formErrors.floor) : undefined}
+                    >
+                      {({ id, describedBy, invalid }) => (
+                        <TextInput
+                          id={id}
+                          aria-describedby={describedBy}
+                          invalid={invalid}
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          value={floor === '' ? '' : floor}
+                          onChange={numberHandler(setFloor, 'floor')}
+                          placeholder={t('owner.create.details.floorPlaceholder')}
+                        />
+                      )}
+                    </Field>
+
+                    <Field
+                      label={t('owner.create.details.totalFloorsLabel')}
+                      error={formErrors.totalFloors ? tRaw(formErrors.totalFloors) : undefined}
+                    >
+                      {({ id, describedBy, invalid }) => (
+                        <TextInput
+                          id={id}
+                          aria-describedby={describedBy}
+                          invalid={invalid}
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          value={totalFloors === '' ? '' : totalFloors}
+                          onChange={numberHandler(setTotalFloors, 'totalFloors')}
+                          placeholder={t('owner.create.details.totalFloorsPlaceholder')}
+                        />
+                      )}
+                    </Field>
+                  </>
+                )}
               </div>
 
               {/* Each amenity is a promise to a tenant, so each one is opted

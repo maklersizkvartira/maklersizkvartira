@@ -18,7 +18,14 @@
 import { TASHKENT_METRO_LINES, UZBEKISTAN_REGIONS } from '../data/mockLocations';
 import { districtSlug, regionSlug } from './slugs';
 
-export type PropertyTypeCode = 'APARTMENT' | 'HOUSE' | 'ROOM' | 'STUDIO' | 'DORMITORY';
+export type PropertyTypeCode =
+  | 'APARTMENT'
+  | 'HOUSE'
+  | 'ROOM'
+  | 'STUDIO'
+  | 'DORMITORY'
+  | 'LAND'
+  | 'COMMERCIAL';
 
 /** The subset of listing filters a URL is allowed to encode. */
 export interface FacetFilters {

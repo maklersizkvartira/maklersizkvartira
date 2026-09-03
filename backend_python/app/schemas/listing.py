@@ -84,7 +84,7 @@ class ListingBase(CamelModel):
     deposit_price: float | None = Field(default=None, ge=0, le=1_000_000_000)
     utilities_included: bool = False
 
-    rooms: int = Field(ge=1, le=30)
+    rooms: int = Field(default=1, ge=0, le=30)
     area: float | None = Field(default=None, gt=0, le=10_000)
     floor: int | None = Field(default=None, ge=-3, le=200)
     total_floors: int | None = Field(default=None, ge=1, le=200)

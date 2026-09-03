@@ -228,6 +228,8 @@ const TYPE_NOUNS: Record<PropertyTypeCode, string> = {
   ROOM: CATEGORIES.room.noun,
   STUDIO: CATEGORIES.studio.noun,
   DORMITORY: 'dormitory place',
+  LAND: 'land plot',
+  COMMERCIAL: 'commercial property',
 };
 
 /**

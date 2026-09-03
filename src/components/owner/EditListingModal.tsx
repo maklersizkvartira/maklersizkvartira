@@ -55,10 +55,11 @@ const MAX_TITLE_LENGTH = 160;
 const MAX_DESCRIPTION_LENGTH = 5000;
 const MAX_ADDRESS_LENGTH = 255;
 
-/** The five kinds of place the API knows about, in the wizard's order. */
 const PROPERTY_TYPES: readonly { value: PropertyType; labelKey: string }[] = [
   { value: 'APARTMENT', labelKey: 'listings.propertyType.apartment' },
   { value: 'HOUSE', labelKey: 'listings.propertyType.house' },
+  { value: 'LAND', labelKey: 'listings.propertyType.land' },
+  { value: 'COMMERCIAL', labelKey: 'listings.propertyType.commercial' },
   { value: 'ROOM', labelKey: 'listings.propertyType.room' },
   { value: 'STUDIO', labelKey: 'listings.propertyType.studio' },
   { value: 'DORMITORY', labelKey: 'listings.propertyType.dormitory' },

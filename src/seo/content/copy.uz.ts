@@ -208,6 +208,8 @@ const TYPE_NOUNS: Record<PropertyTypeCode, string> = {
   ROOM: CATEGORIES.room.noun,
   STUDIO: CATEGORIES.studio.noun,
   DORMITORY: 'yotoqxona',
+  LAND: 'yer maydoni',
+  COMMERCIAL: 'tijorat binosi',
 };
 
 /**

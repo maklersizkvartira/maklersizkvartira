@@ -89,6 +89,8 @@ class PropertyType(StrEnum):
     ROOM = "ROOM"
     STUDIO = "STUDIO"
     DORMITORY = "DORMITORY"
+    LAND = "LAND"
+    COMMERCIAL = "COMMERCIAL"
 
 
 class SellerType(StrEnum):

@@ -197,11 +197,13 @@ export const listings = {
   },
 
   propertyType: {
-    apartment: 'Flat',
-    house: 'House',
+    apartment: 'Apartment',
+    house: 'House / Cottage',
     room: 'Room',
     studio: 'Studio',
     dormitory: 'Dormitory',
+    land: 'Land plot',
+    commercial: 'Commercial property',
   },
 
   seller: {

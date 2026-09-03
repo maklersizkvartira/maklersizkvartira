@@ -92,6 +92,8 @@ const PROPERTY_TYPE_KEYS = {
   ROOM: 'listings.propertyType.room',
   STUDIO: 'listings.propertyType.studio',
   DORMITORY: 'listings.propertyType.dormitory',
+  LAND: 'listings.propertyType.land',
+  COMMERCIAL: 'listings.propertyType.commercial',
 } as const;
 
 const SAFETY_TIPS = ['tip1', 'tip2', 'tip3', 'tip4'] as const;
@@ -733,6 +735,17 @@ export const ListingDetailPage: React.FC = () => {
                 {propertyTypeKey ? t(propertyTypeKey) : '—'}
               </dd>
             </div>
+            {listing.landArea ? (
+              <div className="space-y-1 border-line sm:border-l">
+                <dt className="flex items-center justify-center gap-1 text-xs font-medium text-subtle">
+                  <Maximize2 className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" />
+                  Yer maydoni
+                </dt>
+                <dd className="text-base font-extrabold text-content">
+                  {listing.landArea} sotix
+                </dd>
+              </div>
+            ) : null}
           </dl>
 
           {/* Description */}

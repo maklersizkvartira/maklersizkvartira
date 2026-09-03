@@ -36,7 +36,14 @@ export type TrustLevel = 'RED' | 'YELLOW' | 'GREEN' | 'PREMIUM_GREEN';
 
 export type VerificationLevel = 1 | 2 | 3 | 4 | 5;
 
-export type PropertyType = 'APARTMENT' | 'HOUSE' | 'ROOM' | 'STUDIO' | 'DORMITORY';
+export type PropertyType =
+  | 'APARTMENT'
+  | 'HOUSE'
+  | 'ROOM'
+  | 'STUDIO'
+  | 'DORMITORY'
+  | 'LAND'
+  | 'COMMERCIAL';
 
 /**
  * Where a listing stands with the moderators.
@@ -107,6 +114,7 @@ export interface Listing {
   utilitiesIncluded: boolean;
   rooms: number;
   area: number; // sq. meters
+  landArea?: number | null; // sotix
   floor: number;
   totalFloors: number;
   propertyType: PropertyType;

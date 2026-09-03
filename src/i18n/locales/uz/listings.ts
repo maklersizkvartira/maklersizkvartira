@@ -197,11 +197,13 @@ export const listings = {
   },
 
   propertyType: {
-    apartment: 'Kvartira',
-    house: 'Hovli uy',
+    apartment: 'Kvartira (Dom)',
+    house: 'Hovli / Kottej',
     room: 'Xona',
     studio: 'Studiya',
     dormitory: 'Yotoqxona',
+    land: 'Yer maydoni (Uchastka)',
+    commercial: 'Tijorat binosi',
   },
 
   /**

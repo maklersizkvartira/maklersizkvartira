@@ -292,6 +292,8 @@ const TYPE_NOUNS: Record<PropertyTypeCode, string> = {
   ROOM: CATEGORIES.room.noun,
   STUDIO: CATEGORIES.studio.noun,
   DORMITORY: 'общежитие',
+  LAND: 'земельный участок',
+  COMMERCIAL: 'коммерческая недвижимость',
 };
 
 /**

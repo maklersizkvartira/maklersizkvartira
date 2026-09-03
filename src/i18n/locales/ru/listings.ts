@@ -198,10 +198,12 @@ export const listings = {
 
   propertyType: {
     apartment: 'Квартира',
-    house: 'Частный дом',
+    house: 'Дом / Коттедж',
     room: 'Комната',
     studio: 'Студия',
     dormitory: 'Общежитие',
+    land: 'Земельный участок',
+    commercial: 'Коммерческая недвижимость',
   },
 
   seller: {
