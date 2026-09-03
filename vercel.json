@@ -7,6 +7,18 @@
   "trailingSlash": false,
   "redirects": [
     {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "maklersizuy.uz" }],
+      "destination": "https://uyiz.uz/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.maklersizuy.uz" }],
+      "destination": "https://uyiz.uz/:path*",
+      "permanent": true
+    },
+    {
       "source": "/blog/maklersiz-uy-topish",
       "destination": "/blog/uy-ijaraga-olish-qollanma",
       "permanent": true
