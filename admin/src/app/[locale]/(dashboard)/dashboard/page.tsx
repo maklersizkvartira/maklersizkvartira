@@ -249,9 +249,14 @@ export default function DashboardPage() {
             error replaces this floor only and everything below still renders. */}
         {statsQuery.error ? (
           <div className="card card-cut-bl flex flex-wrap items-center gap-4 p-5">
-            <p className="flex-1 text-sm" style={{ color: 'var(--color-danger)' }}>
-              {c('error')}
-            </p>
+            <div className="flex-1">
+              <p className="text-sm font-semibold" style={{ color: 'var(--color-danger)' }}>
+                {c('error')}
+              </p>
+              <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                {statsQuery.error instanceof Error ? statsQuery.error.message : e('network')}
+              </p>
+            </div>
             <Button variant="secondary" size="sm" className="max-sm:w-full" onClick={() => statsQuery.refetch()}>
               {c('retry')}
             </Button>
