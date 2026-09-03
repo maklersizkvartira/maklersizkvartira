@@ -27,6 +27,7 @@ import {
   Home,
   KeyRound,
   Laptop, 
+  Lock,
   LogOut,
   Monitor,
   Palette,
@@ -35,6 +36,7 @@ import {
   Smartphone,
   Sparkles,
   Tablet,
+  User,
   UserCog,
 } from 'lucide-react';
 
@@ -256,19 +258,17 @@ const SessionRow: React.FC<{
 // ---------------------------------------------------------------------------
 const MenuRow: React.FC<{
   icon: React.ComponentType<{ className?: string }>;
-  iconColor?: string;
-  iconBg?: string;
   title: string;
   subtitle?: string;
+  value?: React.ReactNode;
   badge?: React.ReactNode;
   isDanger?: boolean;
   onClick: () => void;
 }> = ({
   icon: Icon,
-  iconColor = 'text-content',
-  iconBg = 'bg-surface-2',
   title,
   subtitle,
+  value,
   badge,
   isDanger = false,
   onClick,
@@ -276,34 +276,36 @@ const MenuRow: React.FC<{
   <button
     type="button"
     onClick={onClick}
-    className="press flex w-full items-center justify-between gap-3 p-3.5 sm:p-4 text-left transition-colors hover:bg-surface-2"
+    className="press flex w-full items-center justify-between gap-3 px-4 py-3.5 sm:py-4 text-left transition-colors hover:bg-surface-2 active:bg-surface-3"
   >
     <div className="flex items-center gap-3.5 min-w-0">
-      <span
+      <Icon
         className={cn(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line/40',
-          iconBg,
+          'h-5 w-5 shrink-0 stroke-[2]',
+          isDanger ? 'text-danger' : 'text-content',
         )}
-      >
-        <Icon className={cn('h-5 w-5', iconColor)} aria-hidden="true" />
-      </span>
+        aria-hidden="true"
+      />
       <div className="min-w-0">
-        <div
+        <span
           className={cn(
-            'text-sm font-bold truncate',
+            'text-sm font-semibold block truncate',
             isDanger ? 'text-danger' : 'text-content',
           )}
         >
           {title}
-        </div>
+        </span>
         {subtitle && (
-          <div className="truncate text-xs text-muted mt-0.5">{subtitle}</div>
+          <span className="text-xs text-muted block truncate mt-0.5">
+            {subtitle}
+          </span>
         )}
       </div>
     </div>
     <div className="flex items-center gap-2 shrink-0">
+      {value && <span className="text-xs text-muted font-medium">{value}</span>}
       {badge}
-      <ChevronRight className="h-4 w-4 text-muted/60" aria-hidden="true" />
+      <ChevronRight className="h-4 w-4 text-subtle" aria-hidden="true" />
     </div>
   </button>
 );
@@ -1272,9 +1274,7 @@ export const ProfilePage: React.FC = () => {
         {/* Group 1: Profil va Shaxsiyat */}
         <Card padding="none" className="overflow-hidden divide-y divide-line">
           <MenuRow
-            icon={UserCog}
-            iconColor="text-brand-text"
-            iconBg="bg-brand-soft"
+            icon={User}
             title={t('account.profile.title')}
             subtitle={`${currentUser.name} • ${currentUser.phone}`}
             onClick={() => {
@@ -1284,17 +1284,15 @@ export const ProfilePage: React.FC = () => {
           />
           <MenuRow
             icon={ShieldCheck}
-            iconColor="text-success"
-            iconBg="bg-success-soft"
             title={t('account.profile.verificationLevel')}
-            subtitle={`${t('account.profile.trustScore')}: ${formatNumber(currentUser.trustScore)}`}
+            value={`${formatNumber(currentUser.trustScore)} ball`}
             badge={
               <span
                 className={cn(
-                  'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black',
+                  'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold',
                   currentUser.isVerified
                     ? 'bg-success-soft text-success'
-                    : 'bg-warning-soft text-warning',
+                    : 'bg-surface-3 text-muted',
                 )}
               >
                 {currentUser.isVerified ? t('account.profile.verified') : t('account.profile.notVerified')}
@@ -1306,11 +1304,9 @@ export const ProfilePage: React.FC = () => {
             }}
           />
           <MenuRow
-            icon={currentUser.role === 'OWNER' ? Home : currentUser.role === 'AGENT' ? Briefcase : GraduationCap}
-            iconColor="text-info"
-            iconBg="bg-info-soft"
+            icon={currentUser.role === 'AGENT' ? Briefcase : currentUser.role === 'OWNER' ? Home : GraduationCap}
             title={t('account.role.title')}
-            subtitle={
+            value={
               currentUser.agencyName
                 ? `${t(roleLabelKey(currentUser.role))} • ${currentUser.agencyName}`
                 : t(roleLabelKey(currentUser.role))
@@ -1325,20 +1321,16 @@ export const ProfilePage: React.FC = () => {
         {/* Group 2: Sozlamalar va Xavfsizlik */}
         <Card padding="none" className="overflow-hidden divide-y divide-line">
           <MenuRow
-            icon={Palette}
-            iconColor="text-purple-500"
-            iconBg="bg-purple-500/10"
+            icon={Globe}
             title={t('account.preferences.title')}
-            subtitle={`${t('common.language.label')}, ${t('common.theme.label')}`}
+            value={currentUser.language === 'uz' ? "O'zbek" : currentUser.language === 'ru' ? "Русский" : "English"}
             onClick={() => {
               haptics.tap();
               setActiveMobileSection('preferences');
             }}
           />
           <MenuRow
-            icon={KeyRound}
-            iconColor="text-amber-500"
-            iconBg="bg-amber-500/10"
+            icon={Lock}
             title={t('account.security.title')}
             subtitle={t('account.security.passwordTitle')}
             onClick={() => {
@@ -1348,17 +1340,8 @@ export const ProfilePage: React.FC = () => {
           />
           <MenuRow
             icon={Monitor}
-            iconColor="text-cyan-500"
-            iconBg="bg-cyan-500/10"
             title={t('account.sessions.title')}
-            subtitle={t('account.sessions.subtitle')}
-            badge={
-              sessions.length > 0 ? (
-                <span className="inline-flex items-center rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-bold text-muted">
-                  {sessions.length}
-                </span>
-              ) : undefined
-            }
+            value={sessions.length > 0 ? `${sessions.length} ta seans` : undefined}
             onClick={() => {
               haptics.tap();
               setActiveMobileSection('sessions');
@@ -1370,8 +1353,6 @@ export const ProfilePage: React.FC = () => {
         <Card padding="none" className="overflow-hidden">
           <MenuRow
             icon={LogOut}
-            iconColor="text-danger"
-            iconBg="bg-danger-soft"
             title={t('account.signOut.title')}
             subtitle={t('account.signOut.allDevicesHint')}
             isDanger

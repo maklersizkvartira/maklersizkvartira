@@ -27,15 +27,16 @@ export const owner = {
     errorsTitle: 'Please fix the following fields:',
 
     steps: {
-      locationTitle: '1. Address',
+      detailsTitle: '1. Property details',
+      detailsHint: 'Category, rooms, area, price',
+      locationTitle: '2. Address',
       locationHint: 'Where is the property?',
-      detailsTitle: '2. Property details',
-      detailsHint: 'Rooms, area, price',
       photosTitle: '3. Photos and contact',
       photosHint: 'At least 1 photo and contact',
     },
 
     next: {
+      toLocation: 'Next: address and location',
       toDetails: 'Next: property details',
       toPhotos: 'Next: photos and contact',
     },

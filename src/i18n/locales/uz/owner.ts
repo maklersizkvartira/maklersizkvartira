@@ -29,15 +29,16 @@ export const owner = {
     errorsTitle: 'Iltimos, quyidagi maydonlarni to‘g‘rilang:',
 
     steps: {
-      locationTitle: '1. Manzil',
+      detailsTitle: '1. Uy ma’lumoti',
+      detailsHint: 'Toifa, xonalar, maydon, narx',
+      locationTitle: '2. Manzil',
       locationHint: 'Uy qayerda joylashgan?',
-      detailsTitle: '2. Uy ma’lumoti',
-      detailsHint: 'Xonalar, maydon, narx',
       photosTitle: '3. Rasmlar va aloqa',
       photosHint: 'Kamida 1 ta rasm va aloqa',
     },
 
     next: {
+      toLocation: 'Keyingi: manzil va joylashuv',
       toDetails: 'Keyingi: uy ma’lumoti',
       toPhotos: 'Keyingi: rasmlar va aloqa',
     },

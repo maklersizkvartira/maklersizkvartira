@@ -196,17 +196,17 @@ function clampStep(step: number): number {
  * written down rather than assumed to line up.
  */
 const SERVER_FIELDS: Record<string, { step: number; field: string }> = {
-  address: { step: 1, field: 'address' },
-  metroDistanceMinutes: { step: 1, field: 'metroMinutes' },
-  title: { step: 2, field: 'title' },
-  description: { step: 2, field: 'description' },
-  propertyType: { step: 2, field: 'propertyType' },
-  price: { step: 2, field: 'price' },
-  depositPrice: { step: 2, field: 'deposit' },
-  rooms: { step: 2, field: 'rooms' },
-  area: { step: 2, field: 'area' },
-  floor: { step: 2, field: 'floor' },
-  totalFloors: { step: 2, field: 'floor' },
+  title: { step: 1, field: 'title' },
+  description: { step: 1, field: 'description' },
+  propertyType: { step: 1, field: 'propertyType' },
+  price: { step: 1, field: 'price' },
+  depositPrice: { step: 1, field: 'deposit' },
+  rooms: { step: 1, field: 'rooms' },
+  area: { step: 1, field: 'area' },
+  floor: { step: 1, field: 'floor' },
+  totalFloors: { step: 1, field: 'floor' },
+  address: { step: 2, field: 'address' },
+  metroDistanceMinutes: { step: 2, field: 'metroMinutes' },
   images: { step: 3, field: 'images' },
   agencyName: { step: 3, field: 'agency' },
   contactTelegram: { step: 3, field: 'telegram' },
@@ -1022,19 +1022,6 @@ export const CreateListingPage: React.FC = () => {
     const errors: Record<string, string> = {};
 
     if (target === 1) {
-      if (!address.trim()) errors.address = 'owner.create.validation.address';
-      if (
-        metro !== METRO_NONE &&
-        (metroMinutes === '' || metroMinutes < 1 || metroMinutes > 60)
-      ) {
-        errors.metroMinutes = 'owner.create.validation.metroMinutes';
-      }
-    }
-
-    if (target === 2) {
-      // Both ends, not just the short one. `maxLength` on the input stops
-      // typing past the cap but not a paste and not a restored draft, and the
-      // server's answer to either is a 422 that takes the photos with it.
       if (title.trim().length < 8) errors.title = 'owner.create.validation.title';
       else if (title.trim().length > MAX_TITLE_LENGTH) errors.title = 'common.error.validation';
       if (description.trim().length < 20) errors.description = 'owner.create.validation.description';
@@ -1043,8 +1030,6 @@ export const CreateListingPage: React.FC = () => {
       }
       if (price === '' || price <= 0) errors.price = 'owner.create.validation.price';
       if (deposit !== '' && deposit < 0) errors.deposit = 'owner.create.validation.deposit';
-      // Rooms has no message of its own; the shared "required field" line says
-      // the only thing there is to say about an unanswered dropdown.
       if (rooms === '' || rooms < 1) errors.rooms = 'common.state.required';
       if (area !== '' && area <= 0) errors.area = 'owner.create.validation.area';
       if (
@@ -1053,6 +1038,16 @@ export const CreateListingPage: React.FC = () => {
         (floor !== '' && totalFloors !== '' && floor > totalFloors)
       ) {
         errors.floor = 'owner.create.validation.floor';
+      }
+    }
+
+    if (target === 2) {
+      if (!address.trim()) errors.address = 'owner.create.validation.address';
+      if (
+        metro !== METRO_NONE &&
+        (metroMinutes === '' || metroMinutes < 1 || metroMinutes > 60)
+      ) {
+        errors.metroMinutes = 'owner.create.validation.metroMinutes';
       }
     }
 
@@ -1368,8 +1363,8 @@ export const CreateListingPage: React.FC = () => {
 
   // -- Render helpers --------------------------------------------------------
   const stepMeta = [
-    { num: 1, title: t('owner.create.steps.locationTitle'), hint: t('owner.create.steps.locationHint') },
-    { num: 2, title: t('owner.create.steps.detailsTitle'), hint: t('owner.create.steps.detailsHint') },
+    { num: 1, title: t('owner.create.steps.detailsTitle'), hint: t('owner.create.steps.detailsHint') },
+    { num: 2, title: t('owner.create.steps.locationTitle'), hint: t('owner.create.steps.locationHint') },
     { num: 3, title: t('owner.create.steps.photosTitle'), hint: t('owner.create.steps.photosHint') },
   ];
 
@@ -1629,8 +1624,8 @@ export const CreateListingPage: React.FC = () => {
             </div>
           )}
 
-          {/* ---------------------------------------------------- STEP 1 --- */}
-          {step === 1 && (
+          {/* ---------------------------------------------------- STEP 2: LOCATION --- */}
+          {step === 2 && (
             <section className="space-y-5" aria-labelledby="owner-step-location">
               <header className="flex items-start justify-between gap-3 border-b border-line pb-3">
                 <div className="min-w-0">
@@ -1871,8 +1866,8 @@ export const CreateListingPage: React.FC = () => {
             </section>
           )}
 
-          {/* ---------------------------------------------------- STEP 2 --- */}
-          {step === 2 && (
+          {/* ---------------------------------------------------- STEP 1: DETAILS --- */}
+          {step === 1 && (
             <section className="space-y-5" aria-labelledby="owner-step-details">
               <header className="flex items-start justify-between gap-3 border-b border-line pb-3">
                 <div className="min-w-0">
@@ -1889,7 +1884,7 @@ export const CreateListingPage: React.FC = () => {
 
               <fieldset className="space-y-2">
                 <legend className="text-xs font-bold uppercase tracking-wider text-muted">
-                  E’lon toifasi va muallifi
+                  E’lon toifasi
                 </legend>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   {/* 1. Mulk egasi */}
@@ -1903,30 +1898,25 @@ export const CreateListingPage: React.FC = () => {
                     className={cn(
                       'press flex flex-col items-start p-4 rounded-2xl border text-left transition-all',
                       !isRoommate && sellerType === 'OWNER'
-                        ? 'border-brand bg-brand-soft shadow-card ring-2 ring-brand'
+                        ? 'border-content bg-surface shadow-sm ring-1 ring-content/15'
                         : 'border-line bg-surface-2 hover:bg-surface-3 text-content',
                     )}
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <span
+                    <div className="flex items-center gap-2.5 mb-1.5">
+                      <Home
                         className={cn(
-                          'flex h-9 w-9 items-center justify-center rounded-xl',
-                          !isRoommate && sellerType === 'OWNER'
-                            ? 'bg-brand text-on-brand'
-                            : 'bg-surface border border-line text-muted',
+                          'h-5 w-5 shrink-0 stroke-[2]',
+                          !isRoommate && sellerType === 'OWNER' ? 'text-brand' : 'text-content',
                         )}
-                      >
-                        <Home className="h-5 w-5" aria-hidden="true" />
-                      </span>
+                        aria-hidden="true"
+                      />
                       <div>
-                        <span className="font-black text-sm block">Mulk egasi</span>
-                        <span className="text-[10px] font-bold text-success uppercase tracking-wide">
-                          Vositachisiz
-                        </span>
+                        <span className="font-bold text-sm block text-content">Mulk egasi</span>
+                        <span className="text-[10px] font-medium text-muted">Vositachisiz ijara</span>
                       </div>
                     </div>
                     <p className="text-xs text-muted leading-relaxed">
-                      Uy egasidan to‘g‘ridan-to‘g‘ri to‘liq ijara
+                      Uy egasidan to‘g‘ridan-to‘g‘ri to‘liq xonadon
                     </p>
                   </button>
 
@@ -1944,26 +1934,21 @@ export const CreateListingPage: React.FC = () => {
                     className={cn(
                       'press flex flex-col items-start p-4 rounded-2xl border text-left transition-all',
                       !isRoommate && sellerType === 'AGENT'
-                        ? 'border-amber-500 bg-amber-500/10 shadow-card ring-2 ring-amber-500'
+                        ? 'border-content bg-surface shadow-sm ring-1 ring-content/15'
                         : 'border-line bg-surface-2 hover:bg-surface-3 text-content',
                     )}
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <span
+                    <div className="flex items-center gap-2.5 mb-1.5">
+                      <Briefcase
                         className={cn(
-                          'flex h-9 w-9 items-center justify-center rounded-xl',
-                          !isRoommate && sellerType === 'AGENT'
-                            ? 'bg-amber-500 text-white'
-                            : 'bg-surface border border-line text-muted',
+                          'h-5 w-5 shrink-0 stroke-[2]',
+                          !isRoommate && sellerType === 'AGENT' ? 'text-brand' : 'text-content',
                         )}
-                      >
-                        <Briefcase className="h-5 w-5" aria-hidden="true" />
-                      </span>
+                        aria-hidden="true"
+                      />
                       <div>
-                        <span className="font-black text-sm block">Rieltor</span>
-                        <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide">
-                          Agentlik
-                        </span>
+                        <span className="font-bold text-sm block text-content">Rieltor</span>
+                        <span className="text-[10px] font-medium text-muted">Agentlik / Makler</span>
                       </div>
                     </div>
                     <p className="text-xs text-muted leading-relaxed">
@@ -1982,30 +1967,25 @@ export const CreateListingPage: React.FC = () => {
                     className={cn(
                       'press flex flex-col items-start p-4 rounded-2xl border text-left transition-all',
                       isRoommate
-                        ? 'border-info bg-info-soft shadow-card ring-2 ring-info'
+                        ? 'border-content bg-surface shadow-sm ring-1 ring-content/15'
                         : 'border-line bg-surface-2 hover:bg-surface-3 text-content',
                     )}
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <span
+                    <div className="flex items-center gap-2.5 mb-1.5">
+                      <Users
                         className={cn(
-                          'flex h-9 w-9 items-center justify-center rounded-xl',
-                          isRoommate
-                            ? 'bg-info text-white'
-                            : 'bg-surface border border-line text-muted',
+                          'h-5 w-5 shrink-0 stroke-[2]',
+                          isRoommate ? 'text-brand' : 'text-content',
                         )}
-                      >
-                        <Users className="h-5 w-5" aria-hidden="true" />
-                      </span>
+                        aria-hidden="true"
+                      />
                       <div>
-                        <span className="font-black text-sm block">Sheriklikka</span>
-                        <span className="text-[10px] font-bold text-info uppercase tracking-wide">
-                          Sherik qidirish
-                        </span>
+                        <span className="font-bold text-sm block text-content">Sheriklikka</span>
+                        <span className="text-[10px] font-medium text-muted">Xonadosh qidirish</span>
                       </div>
                     </div>
                     <p className="text-xs text-muted leading-relaxed">
-                      Kvartira yoki xonaga talaba/sherik olish
+                      Kvartira yoki xonaga sherik / talaba olish
                     </p>
                   </button>
                 </div>
@@ -2818,7 +2798,7 @@ export const CreateListingPage: React.FC = () => {
               <Button type="submit" className={cn('press', step > 1 ? 'w-2/3' : 'w-full')}>
                 <span>
                   {step === 1
-                    ? t('owner.create.next.toDetails')
+                    ? t('owner.create.next.toLocation')
                     : t('owner.create.next.toPhotos')}
                 </span>
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />

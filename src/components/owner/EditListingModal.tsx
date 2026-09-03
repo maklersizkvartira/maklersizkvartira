@@ -397,7 +397,7 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
 
           <fieldset className="space-y-2">
             <legend className="text-xs font-bold uppercase tracking-wider text-muted">
-              E’lon toifasi va muallifi
+              E’lon toifasi
             </legend>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
               <button
@@ -409,22 +409,13 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
                 className={cn(
                   'press flex flex-col items-start p-3 rounded-xl border text-left transition-all',
                   !isRoommate && sellerType === 'OWNER'
-                    ? 'border-brand bg-brand-soft ring-2 ring-brand'
+                    ? 'border-content bg-surface shadow-sm ring-1 ring-content/15'
                     : 'border-line bg-surface-2 text-content hover:bg-surface-3',
                 )}
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className={cn(
-                      'flex h-7 w-7 items-center justify-center rounded-lg text-xs',
-                      !isRoommate && sellerType === 'OWNER'
-                        ? 'bg-brand text-on-brand'
-                        : 'bg-surface border border-line text-muted',
-                    )}
-                  >
-                    <Home className="h-4 w-4" />
-                  </span>
-                  <span className="font-bold text-xs">Mulk egasi</span>
+                  <Home className={cn('h-4 w-4 stroke-[2]', !isRoommate && sellerType === 'OWNER' ? 'text-brand' : 'text-content')} />
+                  <span className="font-bold text-xs text-content">Mulk egasi</span>
                 </div>
                 <span className="text-[11px] text-muted">To‘liq ijara</span>
               </button>
@@ -438,22 +429,13 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
                 className={cn(
                   'press flex flex-col items-start p-3 rounded-xl border text-left transition-all',
                   !isRoommate && sellerType === 'AGENT'
-                    ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-500'
+                    ? 'border-content bg-surface shadow-sm ring-1 ring-content/15'
                     : 'border-line bg-surface-2 text-content hover:bg-surface-3',
                 )}
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className={cn(
-                      'flex h-7 w-7 items-center justify-center rounded-lg text-xs',
-                      !isRoommate && sellerType === 'AGENT'
-                        ? 'bg-amber-500 text-white'
-                        : 'bg-surface border border-line text-muted',
-                    )}
-                  >
-                    <Briefcase className="h-4 w-4" />
-                  </span>
-                  <span className="font-bold text-xs">Rieltor</span>
+                  <Briefcase className={cn('h-4 w-4 stroke-[2]', !isRoommate && sellerType === 'AGENT' ? 'text-brand' : 'text-content')} />
+                  <span className="font-bold text-xs text-content">Rieltor</span>
                 </div>
                 <span className="text-[11px] text-muted">Agentlik nomidan</span>
               </button>
@@ -467,22 +449,13 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
                 className={cn(
                   'press flex flex-col items-start p-3 rounded-xl border text-left transition-all',
                   isRoommate
-                    ? 'border-info bg-info-soft ring-2 ring-info'
+                    ? 'border-content bg-surface shadow-sm ring-1 ring-content/15'
                     : 'border-line bg-surface-2 text-content hover:bg-surface-3',
                 )}
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className={cn(
-                      'flex h-7 w-7 items-center justify-center rounded-lg text-xs',
-                      isRoommate
-                        ? 'bg-info text-white'
-                        : 'bg-surface border border-line text-muted',
-                    )}
-                  >
-                    <Users className="h-4 w-4" />
-                  </span>
-                  <span className="font-bold text-xs">Sheriklikka</span>
+                  <Users className={cn('h-4 w-4 stroke-[2]', isRoommate ? 'text-brand' : 'text-content')} />
+                  <span className="font-bold text-xs text-content">Sheriklikka</span>
                 </div>
                 <span className="text-[11px] text-muted">Sherik qidirish</span>
               </button>

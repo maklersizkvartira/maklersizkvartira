@@ -29,15 +29,16 @@ export const owner = {
     errorsTitle: 'Пожалуйста, исправьте следующие поля:',
 
     steps: {
-      locationTitle: '1. Адрес',
+      detailsTitle: '1. О жилье',
+      detailsHint: 'Категория, комнаты, площадь, цена',
+      locationTitle: '2. Адрес',
       locationHint: 'Где находится жильё?',
-      detailsTitle: '2. О жилье',
-      detailsHint: 'Комнаты, площадь, цена',
       photosTitle: '3. Фото и контакты',
       photosHint: 'Минимум 1 фото и контакты',
     },
 
     next: {
+      toLocation: 'Далее: адрес и локация',
       toDetails: 'Далее: о жилье',
       toPhotos: 'Далее: фото и контакты',
     },
