@@ -41,6 +41,7 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
   Clock,
   Home,
   Navigation,
@@ -1923,22 +1924,22 @@ export const CreateListingPage: React.FC = () => {
 
           {/* ---------------------------------------------------- STEP 1: DETAILS --- */}
           {step === 1 && !categoryChosen && (
-            <section className="space-y-6" aria-labelledby="owner-step-category">
+            <section className="space-y-4" aria-labelledby="owner-step-category">
               <header className="flex items-start justify-between gap-3 border-b border-line pb-3">
                 <div className="min-w-0">
                   <h2 id="owner-step-category" ref={headingRef} tabIndex={-1} className={headingClass}>
-                    <Building2 className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
+                    <Sparkles className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
                     E’lon toifasini tanlang
                   </h2>
                   <p className="mt-0.5 text-xs text-subtle">
-                    Qanday e’lon bermoqchisiz? Davom etish uchun kerakli toifani bosing:
+                    Kim sifatida e’lon bermoqchisiz? Kerakli bo‘lim tugmasini bosing:
                   </p>
                 </div>
                 {stepBadge}
               </header>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                {/* 1. Mulk egasi */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {/* 1. Mulk egasi Button */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1950,27 +1951,28 @@ export const CreateListingPage: React.FC = () => {
                     }
                     setCategoryChosen(true);
                   }}
-                  className="press group relative flex flex-col items-start p-6 rounded-3xl border border-line bg-surface hover:border-brand/40 hover:bg-surface-2 transition-all text-left shadow-sm hover:shadow-md"
+                  className="press group relative flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl border-2 border-line bg-surface hover:border-emerald-500/60 hover:bg-emerald-500/5 transition-all text-left shadow-xs hover:shadow-sm"
                 >
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-4 transition-transform group-hover:scale-110">
-                    <Home className="h-7 w-7 stroke-[2]" aria-hidden="true" />
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
+                    <Home className="h-5 w-5 stroke-[2.2]" aria-hidden="true" />
                   </div>
-                  <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 mb-2">
-                    Vositachisiz ijara
-                  </span>
-                  <h3 className="font-extrabold text-base text-content mb-1">
-                    Mulk egasi
-                  </h3>
-                  <p className="text-xs text-muted leading-relaxed mb-6 flex-1">
-                    O‘z uyingiz, xonadoningiz yoki hovlingizni vositachisiz to‘g‘ridan-to‘g‘ri ijaraga bering.
-                  </p>
-                  <div className="w-full flex items-center justify-between text-xs font-bold text-brand group-hover:translate-x-1 transition-transform">
-                    <span>Mulk egasi sifatida to‘ldirish</span>
-                    <ArrowRight className="h-4 w-4" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-extrabold text-sm text-content group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                        Mulk egasi
+                      </span>
+                      <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                        0% komissiya
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted truncate mt-0.5">
+                      Vositachisiz to‘g‘ridan-to‘g‘ri ijara
+                    </p>
                   </div>
+                  <ChevronRight className="h-4 w-4 text-muted group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0" />
                 </button>
 
-                {/* 2. Rieltor */}
+                {/* 2. Rieltor Button */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1985,27 +1987,28 @@ export const CreateListingPage: React.FC = () => {
                     }
                     setCategoryChosen(true);
                   }}
-                  className="press group relative flex flex-col items-start p-6 rounded-3xl border border-line bg-surface hover:border-brand/40 hover:bg-surface-2 transition-all text-left shadow-sm hover:shadow-md"
+                  className="press group relative flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl border-2 border-line bg-surface hover:border-blue-500/60 hover:bg-blue-500/5 transition-all text-left shadow-xs hover:shadow-sm"
                 >
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 mb-4 transition-transform group-hover:scale-110">
-                    <Briefcase className="h-7 w-7 stroke-[2]" aria-hidden="true" />
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform">
+                    <Briefcase className="h-5 w-5 stroke-[2.2]" aria-hidden="true" />
                   </div>
-                  <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 mb-2">
-                    Agentlik / Makler
-                  </span>
-                  <h3 className="font-extrabold text-base text-content mb-1">
-                    Rieltor (Agent)
-                  </h3>
-                  <p className="text-xs text-muted leading-relaxed mb-6 flex-1">
-                    Mulk egasi nomidan ko‘chmas mulk agenti yoki agentlik sifatida e’lon joylashtiring.
-                  </p>
-                  <div className="w-full flex items-center justify-between text-xs font-bold text-brand group-hover:translate-x-1 transition-transform">
-                    <span>Rieltor sifatida to‘ldirish</span>
-                    <ArrowRight className="h-4 w-4" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-extrabold text-sm text-content group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        Rieltor (Agent)
+                      </span>
+                      <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                        Agentlik
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted truncate mt-0.5">
+                      Mulk agenti yoki agentlik nomidan
+                    </p>
                   </div>
+                  <ChevronRight className="h-4 w-4 text-muted group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all shrink-0" />
                 </button>
 
-                {/* 3. Sheriklikka */}
+                {/* 3. Sheriklikka Button */}
                 <button
                   type="button"
                   onClick={() => {
@@ -2017,24 +2020,25 @@ export const CreateListingPage: React.FC = () => {
                     }
                     setCategoryChosen(true);
                   }}
-                  className="press group relative flex flex-col items-start p-6 rounded-3xl border border-line bg-surface hover:border-brand/40 hover:bg-surface-2 transition-all text-left shadow-sm hover:shadow-md"
+                  className="press group relative flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl border-2 border-line bg-surface hover:border-purple-500/60 hover:bg-purple-500/5 transition-all text-left shadow-xs hover:shadow-sm"
                 >
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 mb-4 transition-transform group-hover:scale-110">
-                    <Users className="h-7 w-7 stroke-[2]" aria-hidden="true" />
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform">
+                    <Users className="h-5 w-5 stroke-[2.2]" aria-hidden="true" />
                   </div>
-                  <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/10 text-purple-700 dark:text-purple-300 mb-2">
-                    Xonadosh / Talaba
-                  </span>
-                  <h3 className="font-extrabold text-base text-content mb-1">
-                    Sheriklikka
-                  </h3>
-                  <p className="text-xs text-muted leading-relaxed mb-6 flex-1">
-                    Kvartira yoki hovliga birga yashash uchun sherik (xonadosh) yoki talabalarni qidirish.
-                  </p>
-                  <div className="w-full flex items-center justify-between text-xs font-bold text-brand group-hover:translate-x-1 transition-transform">
-                    <span>Sheriklik e’lonini to‘ldirish</span>
-                    <ArrowRight className="h-4 w-4" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-extrabold text-sm text-content group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                        Sheriklikka
+                      </span>
+                      <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-bold text-purple-600 dark:text-purple-400">
+                        Xonadosh
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted truncate mt-0.5">
+                      Birga turishga sherik yoki talabalar
+                    </p>
                   </div>
+                  <ChevronRight className="h-4 w-4 text-muted group-hover:text-purple-600 dark:group-hover:text-purple-400 group-hover:translate-x-0.5 transition-all shrink-0" />
                 </button>
               </div>
             </section>
@@ -2063,40 +2067,83 @@ export const CreateListingPage: React.FC = () => {
                 {stepBadge}
               </header>
 
-              {/* Tanlangan toifa va o'zgartirish tugmasi */}
-              <div className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl border border-line bg-surface-2">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 text-brand">
-                    {isRoommate ? (
-                      <Users className="h-5 w-5" />
-                    ) : sellerType === 'AGENT' ? (
-                      <Briefcase className="h-5 w-5" />
-                    ) : (
-                      <Home className="h-5 w-5" />
-                    )}
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-medium text-muted block">Tanlangan toifa</span>
-                    <p className="text-sm font-black text-content">
-                      {isRoommate
-                        ? 'Sheriklikka (Xonadosh qidirish)'
-                        : sellerType === 'AGENT'
-                          ? 'Ko‘chmas mulk agenti (Rieltor)'
-                          : 'Mulk egasi (Vositachisiz)'}
-                    </p>
-                  </div>
+              {/* Toifani almashtirish (Sleek Segmented Buttons) */}
+              <div className="p-2 rounded-2xl border border-line bg-surface-2 space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[11px] font-bold text-muted uppercase tracking-wider">
+                    E’lon toifasi
+                  </span>
+                  <span className="text-[11px] font-medium text-muted hidden sm:inline">
+                    Bir bosishda toifani almashtirishingiz mumkin
+                  </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptics.tap();
-                    setCategoryChosen(false);
-                  }}
-                  className="press flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border border-line bg-surface hover:bg-surface-3 text-content shadow-sm transition-all"
-                >
-                  <RotateCcw className="h-3.5 w-3.5 text-muted" />
-                  <span>Toifani o‘zgartirish</span>
-                </button>
+                <div className="grid grid-cols-3 gap-2">
+                  {/* Mulk egasi */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptics.tap();
+                      setIsRoommate(false);
+                      setSellerType('OWNER');
+                      if (propertyType === 'ROOM' || propertyType === 'STUDIO' || propertyType === 'DORMITORY') {
+                        setPropertyType('APARTMENT');
+                      }
+                    }}
+                    className={`press flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-black transition-all ${
+                      !isRoommate && sellerType === 'OWNER'
+                        ? 'bg-surface text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500/40 shadow-xs'
+                        : 'text-muted hover:text-content hover:bg-surface/50 border border-transparent'
+                    }`}
+                  >
+                    <Home className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Mulk egasi</span>
+                  </button>
+
+                  {/* Rieltor */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptics.tap();
+                      setIsRoommate(false);
+                      setSellerType('AGENT');
+                      if (currentUser?.role !== 'AGENT' && isSwitchableRole(currentUser?.role)) {
+                        void switchRole('AGENT');
+                      }
+                      if (propertyType === 'ROOM' || propertyType === 'STUDIO' || propertyType === 'DORMITORY') {
+                        setPropertyType('APARTMENT');
+                      }
+                    }}
+                    className={`press flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-black transition-all ${
+                      !isRoommate && sellerType === 'AGENT'
+                        ? 'bg-surface text-blue-600 dark:text-blue-400 border-2 border-blue-500/40 shadow-xs'
+                        : 'text-muted hover:text-content hover:bg-surface/50 border border-transparent'
+                    }`}
+                  >
+                    <Briefcase className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Rieltor</span>
+                  </button>
+
+                  {/* Sheriklikka */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptics.tap();
+                      setIsRoommate(true);
+                      setSellerType('OWNER');
+                      if (propertyType === 'LAND' || propertyType === 'COMMERCIAL') {
+                        setPropertyType('ROOM');
+                      }
+                    }}
+                    className={`press flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-black transition-all ${
+                      isRoommate
+                        ? 'bg-surface text-purple-600 dark:text-purple-400 border-2 border-purple-500/40 shadow-xs'
+                        : 'text-muted hover:text-content hover:bg-surface/50 border border-transparent'
+                    }`}
+                  >
+                    <Users className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Sheriklikka</span>
+                  </button>
+                </div>
               </div>
 
               {!isRoommate && sellerType === 'AGENT' && (
