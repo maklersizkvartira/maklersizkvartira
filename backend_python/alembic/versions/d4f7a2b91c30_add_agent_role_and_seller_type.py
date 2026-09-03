@@ -2,7 +2,7 @@
 
 Two columns and no data change. The AGENT role itself needs no migration —
 ``users.role`` is a VARCHAR precisely so that adding a value is a deploy and
-not a locking ALTER TYPE — but the account's agency and the listing55's
+not a locking ALTER TYPE — but the account's agency and the listing's
 "published by" flag are new storage.
 
 ``listings.seller_type`` is backfilled to OWNER for everything that already
