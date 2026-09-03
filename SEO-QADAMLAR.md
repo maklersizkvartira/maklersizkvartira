@@ -26,7 +26,8 @@ hosting qismi tugadi. Qolgani — Search Console, va u faqat sizning qo'lingizda
 | `admin.uyiz.uz` — admin loyihasiga ulangan | ❌ ochilmaydi |
 | Firebase Authorized Domains'da `uyiz.uz` | ❌ tekshirilmagan |
 | Yandex kaliti referrerlarida `uyiz.uz` | ❌ tekshirilmagan |
-| Google Search Console — `uyiz.uz` tasdiqlangan | ❌ |
+| Google Search Console — `uyiz.uz` tasdiqlangan | ✅ 2026-09-03, DNS TXT |
+| Search Console — `sitemap.xml` yuborilgan | ✅ 2026-09-03 |
 | Search Console — `maklersizuy.uz` DNS bilan tasdiqlangan | ❌ |
 | `maklersizuy.uz` → `uyiz.uz` 301 | ❌ **ataylab, hali erta** |
 | Change of Address | ❌ |
@@ -179,11 +180,20 @@ Manzil: **https://search.google.com/search-console**
 1. **Add property** → chapdagi **Domain** ni tanlang (URL prefix emas)
 2. `uyiz.uz` deb yozing → **Continue**
 3. Google sizga `google-site-verification=...` degan **TXT yozuv** beradi
-4. Domen sotib olgan joyingizga (yoki Cloudflare'ga) kiring → **DNS** →
-   yangi **TXT** yozuv qo'shing:
+4. **Eskiz.uz** paneliga kiring → `uyiz.uz` → **DNS** → yangi **TXT** yozuv:
    - Name/Host: `@`
-   - Value: Google bergan qator
+   - Value: Google bergan qator, **to'liq** — `google-site-verification=`
+     qismi bilan birga. Qo'shtirnoqni qo'lda qo'ymang, panel o'zi qo'shadi.
 5. 10–30 daqiqa kuting → Search Console'da **Verify**
+
+> **DNS Eskiz'da, Cloudflare'da emas.** Ikkala domen ham `ns1.eskiz.uz` /
+> `ns2.eskiz.uz` da — SMS provayder bilan bir joyda. Boshqa panelda qidirib
+> vaqt ketkazmang.
+
+> **Tarqalganini shu bilan tekshiring**, `Verify` ni ko'r-ko'rona bosmasdan:
+> `nslookup -type=TXT uyiz.uz 8.8.4.4`. Erta bosilgan `Verify` xato beradi va
+> Google keyingi urinishgacha kutishga majbur qiladi. Bitta public resolver
+> hali ko'rmasligi normal — avtoritativ server (`ns1.eskiz.uz`) ko'rsa yetadi.
 
 > **DNS'ga kira olmasangiz:** "Domain" o'rniga **URL prefix** ni tanlab
 > `https://uyiz.uz/` deb kiriting, **HTML tag** usulini tanlang, va
@@ -197,11 +207,17 @@ Manzil: **https://search.google.com/search-console**
 
 ### 3.2. Sitemap yuborish
 
-Chap menyu → **Sitemaps** → maydonchaga faqat shuni yozing:
+Chap menyu → **Sitemaps** → maydonchaga **to'liq manzilni** yozing:
 
 ```
-sitemap.xml
+https://uyiz.uz/sitemap.xml
 ```
+
+> **Nega to'liq?** `Domain` property `http` va `https` ni, apex va barcha
+> subdomenlarni bir vaqtda qamraydi, ya'ni Google qisqa yo'lni qaysi manzilga
+> qo'shishni bilmaydi — `sitemap.xml` deb yozilsa `Invalid sitemap address`
+> beradi. Qisqa yozuv faqat `URL prefix` property'da ishlaydi, u yerda
+> maydoncha oldindan `https://uyiz.uz/` bilan to'ldirilgan bo'ladi.
 
 **Submit** bosing. Faqat shu bittasini yuboring — ichidagi ikkitasini
 alohida yubormang, Google o'zi topadi.
@@ -218,10 +234,10 @@ kiriting va har birida **Request indexing** bosing:
 https://uyiz.uz/
 https://uyiz.uz/elonlar
 https://uyiz.uz/kvartira-ijaraga
-https://uyiz.uz/uy-ijaraga
 https://uyiz.uz/toshkent
 https://uyiz.uz/toshkent/kvartira-ijaraga
 https://uyiz.uz/toshkent/uchtepa/kvartira-ijaraga
+https://uyiz.uz/toshkent/olmazor/kvartira-ijaraga
 https://uyiz.uz/talabalar-uchun-ijara
 https://uyiz.uz/blog
 https://uyiz.uz/ru/toshkent/kvartira-ijaraga
@@ -229,6 +245,13 @@ https://uyiz.uz/ru/toshkent/kvartira-ijaraga
 
 > Kuniga ~10 tadan cheklov bor. Qolgan sahifalarni qo'lda kiritish
 > **shart emas** — Google sitemap va ichki linklar orqali o'zi topadi.
+
+> **Ro'yxatni ko'chirishdan oldin sitemapga solishtiring.** Bu ro'yxatda
+> avval `/uy-ijaraga` turardi — sahifa ochiladi va `index, follow` beradi,
+> lekin ortida bironta e'lon yo'qligi uchun sitemapga kirmaydi, ya'ni uni
+> indekslashga berish quyidagi qoidaning o'zini buzardi. O'rniga Olmazor
+> qo'yildi: unda e'lon bor. Sitemapdagi haqiqiy ro'yxat —
+> `curl -s https://uyiz.uz/sitemap-pages.xml | grep -o '<loc>[^<]*'`.
 
 > **Nega ba'zi tumanlar ro'yxatda yo'q?** Ularda hali e'lon yo'q, shuning uchun
 > sitemapga ham kirmagan. Bo'sh sahifani indekslashga berish — Google
@@ -239,9 +262,13 @@ https://uyiz.uz/ru/toshkent/kvartira-ijaraga
 
 Bitta sahifa uchun tekshiring:
 
-1. URL Inspection'ga `https://uyiz.uz/toshkent/chilonzor/kvartira-ijaraga`
+1. URL Inspection'ga `https://uyiz.uz/toshkent/uchtepa/kvartira-ijaraga`
 2. **Test live URL** bosing (10–20 soniya)
 3. **View tested page** → **Screenshot** yorlig'i
+
+Manzil ataylab e'loni **bor** tumandan olingan. Bo'sh tuman sahifasi ham
+prerenderni tekshiradi, lekin skrinshotda e'lon kartochkasi ko'rinsa, bir
+vaqtda ma'lumot oqimi ham tasdiqlanadi — ikkitasi o'rniga bitta tekshiruv.
 
 **Kutilgan:** sahifa matni bilan ko'rinadi.
 **Aylanayotgan yuklash belgisi ko'rinsa:** prerender ishlamagan — menga ayting.
