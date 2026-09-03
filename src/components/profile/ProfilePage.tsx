@@ -628,6 +628,7 @@ export const ProfilePage: React.FC = () => {
     | null;
 
   const [activeMobileSection, setActiveMobileSection] = useState<MobileProfileSection>(null);
+  const [desktopTab, setDesktopTab] = useState<'all' | 'profile' | 'role' | 'preferences' | 'security' | 'sessions'>('all');
 
   // -- Shared Section Content Renderers -------------------------------------
   const renderProfileContent = () => (
@@ -1426,87 +1427,137 @@ export const ProfilePage: React.FC = () => {
       </Sheet>
 
       {/* =================================================================== */}
-      {/* Desktop View (lg:grid): Two-column layout                           */}
+      {/* Desktop View (lg:grid): Two-column layout with category tabs        */}
       {/* =================================================================== */}
       <div className="hidden lg:grid lg:grid-cols-[minmax(0,1fr)_320px] xl:gap-8 gap-6">
         {/* -- Main column: everything that can be edited ------------------ */}
         <div className="order-2 space-y-6 lg:order-1">
+          {/* Desktop Filter Tabs */}
+          <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-line bg-surface-2 p-1.5 shadow-sm">
+            {[
+              { id: 'all', label: 'Barchasi', icon: null },
+              { id: 'profile', label: t('account.profile.title'), icon: User },
+              {
+                id: 'role',
+                label: t('account.role.title'),
+                icon: currentUser.role === 'AGENT' ? Briefcase : currentUser.role === 'OWNER' ? Home : GraduationCap,
+              },
+              { id: 'preferences', label: t('account.preferences.title'), icon: Globe },
+              { id: 'security', label: t('account.security.title'), icon: Lock },
+              { id: 'sessions', label: t('account.sessions.title'), icon: Monitor },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const active = desktopTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    haptics.tap();
+                    setDesktopTab(tab.id as typeof desktopTab);
+                  }}
+                  className={cn(
+                    'press flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all',
+                    active
+                      ? 'bg-surface text-content shadow-sm border border-line ring-1 ring-black/5 dark:ring-white/5'
+                      : 'text-muted hover:bg-surface/50 hover:text-content',
+                  )}
+                >
+                  {Icon && <Icon className="h-3.5 w-3.5 stroke-[2]" aria-hidden="true" />}
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
           {/* -- Profile fields ------------------------------------------- */}
-          <SectionCard
-            title={t('account.profile.title')}
-            icon={UserCog}
-            padding="none"
-            className={CARD_PADDING}
-          >
-            {renderProfileContent()}
-          </SectionCard>
+          {(desktopTab === 'all' || desktopTab === 'profile') && (
+            <SectionCard
+              title={t('account.profile.title')}
+              icon={User}
+              padding="none"
+              className={CARD_PADDING}
+            >
+              {renderProfileContent()}
+            </SectionCard>
+          )}
 
           {/* -- Role ------------------------------------------------------ */}
-          <SectionCard
-            title={t('account.role.title')}
-            description={t('account.role.subtitle')}
-            icon={UserCog}
-            padding="none"
-            className={CARD_PADDING}
-          >
-            {renderRoleContent()}
-          </SectionCard>
+          {(desktopTab === 'all' || desktopTab === 'role') && (
+            <SectionCard
+              title={t('account.role.title')}
+              description={t('account.role.subtitle')}
+              icon={currentUser.role === 'AGENT' ? Briefcase : currentUser.role === 'OWNER' ? Home : GraduationCap}
+              padding="none"
+              className={CARD_PADDING}
+            >
+              {renderRoleContent()}
+            </SectionCard>
+          )}
 
           {/* -- Preferences ----------------------------------------------- */}
-          <SectionCard
-            title={t('account.preferences.title')}
-            icon={Palette}
-            padding="none"
-            className={CARD_PADDING}
-          >
-            {renderPreferencesContent()}
-          </SectionCard>
+          {(desktopTab === 'all' || desktopTab === 'preferences') && (
+            <SectionCard
+              title={t('account.preferences.title')}
+              icon={Globe}
+              padding="none"
+              className={CARD_PADDING}
+            >
+              {renderPreferencesContent()}
+            </SectionCard>
+          )}
 
           {/* -- Security --------------------------------------------------- */}
-          <SectionCard
-            title={t('account.security.title')}
-            icon={KeyRound}
-            padding="none"
-            className={CARD_PADDING}
-          >
-            {renderSecurityContent()}
-          </SectionCard>
+          {(desktopTab === 'all' || desktopTab === 'security') && (
+            <SectionCard
+              title={t('account.security.title')}
+              icon={Lock}
+              padding="none"
+              className={CARD_PADDING}
+            >
+              {renderSecurityContent()}
+            </SectionCard>
+          )}
 
           {/* -- Sessions --------------------------------------------------- */}
-          <SectionCard
-            title={t('account.sessions.title')}
-            description={t('account.sessions.subtitle')}
-            icon={Monitor}
-            padding="none"
-            className={CARD_PADDING}
-            action={
-              <button
-                type="button"
-                onClick={() => void loadSessions()}
-                disabled={sessionsLoading}
-                aria-label={t('account.sessions.reload')}
-                title={t('account.sessions.reload')}
-                className="press flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-muted transition-colors hover:border-brand hover:text-content disabled:opacity-60"
-              >
-                <RefreshCw
-                  className={cn('h-4 w-4', sessionsLoading && 'animate-spin')}
-                  aria-hidden="true"
-                />
-              </button>
-            }
-          >
-            {renderSessionsContent()}
-          </SectionCard>
+          {(desktopTab === 'all' || desktopTab === 'sessions') && (
+            <SectionCard
+              title={t('account.sessions.title')}
+              description={t('account.sessions.subtitle')}
+              icon={Monitor}
+              padding="none"
+              className={CARD_PADDING}
+              action={
+                <button
+                  type="button"
+                  onClick={() => void loadSessions()}
+                  disabled={sessionsLoading}
+                  aria-label={t('account.sessions.reload')}
+                  title={t('account.sessions.reload')}
+                  className="press flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-muted transition-colors hover:border-brand hover:text-content disabled:opacity-60"
+                >
+                  <RefreshCw
+                    className={cn('h-4 w-4', sessionsLoading && 'animate-spin')}
+                    aria-hidden="true"
+                  />
+                </button>
+              }
+            >
+              {renderSessionsContent()}
+            </SectionCard>
+          )}
 
           {/* -- Sign out --------------------------------------------------- */}
-          <SectionCard
-            title={t('account.signOut.title')}
-            icon={LogOut}
-            padding="none"
-            className={CARD_PADDING}
-          >
-            {renderSignOutContent()}
-          </SectionCard>
+          {desktopTab === 'all' && (
+            <SectionCard
+              title={t('account.signOut.title')}
+              icon={LogOut}
+              padding="none"
+              className={CARD_PADDING}
+            >
+              {renderSignOutContent()}
+            </SectionCard>
+          )}
         </div>
 
         {/* -- Rail: who you are, which does not change while you edit ------ */}

@@ -406,7 +406,7 @@ export const ListingDetailPage: React.FC = () => {
   const activeImage = images[imageIndex] ?? images[0];
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-5 sm:px-6 sm:py-6">
+    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-5 sm:px-6 sm:py-6 pb-24 lg:pb-6">
       {/* The trail doubles as BreadcrumbList structured data, which is what
           Google shows under the result instead of a bare UUID URL. */}
       <Breadcrumbs
@@ -1211,6 +1211,72 @@ export const ListingDetailPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Mobile Sticky Bottom Contact Bar */}
+      <div className="fixed bottom-0 inset-x-0 z-40 lg:hidden border-t border-line bg-surface/95 backdrop-blur-md px-4 py-3 shadow-lg">
+        <div className="flex items-center justify-between gap-3 max-w-lg mx-auto">
+          <div className="min-w-0">
+            <span className="text-[10px] uppercase font-bold text-muted block">{t('listings.detail.priceTitle')}</span>
+            <p className="text-base font-black text-content truncate">
+              {priceLabel}
+              <span className="text-[11px] font-normal text-muted ml-1">
+                {listing.isRoommate ? t('common.units.perPerson') : t('common.units.perMonth')}
+              </span>
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {listing.contactTelegram && (
+              <a
+                href={`https://t.me/${listing.contactTelegram.replace(/^@/, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="press flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20"
+                title="Telegram"
+              >
+                <Send className="h-4 w-4" />
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={async () => {
+                if (!currentUser) {
+                  setShowAuth(true, 'LOGIN');
+                  return;
+                }
+                try {
+                  const { chatApi } = await import('../../services/chatApi');
+                  const conv = await chatApi.startOrGetConversation(listing.id);
+                  setCurrentView('CHAT', null, conv.id);
+                } catch {
+                  useAppStore.getState().pushToast('common.error.generic', 'error');
+                }
+              }}
+              className="press flex h-10 items-center gap-1.5 px-3 rounded-xl bg-surface-2 border border-line text-content text-xs font-bold"
+            >
+              <MessageSquare className="h-4 w-4 text-brand" />
+              <span>Chat</span>
+            </button>
+            {phoneVisible && ownerPhone ? (
+              <a
+                href={`tel:${ownerPhone.replace(/[^\d+]/g, '')}`}
+                className="press flex h-10 items-center gap-1.5 px-3.5 rounded-xl bg-brand text-on-brand text-xs font-extrabold shadow-brand"
+              >
+                <Phone className="h-4 w-4" />
+                <span>Qo‘ng‘iroq</span>
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={handleRevealPhone}
+                className="press flex h-10 items-center gap-1.5 px-3.5 rounded-xl bg-brand text-on-brand text-xs font-extrabold shadow-brand"
+              >
+                <Phone className="h-4 w-4" />
+                <span>{currentUser ? 'Telefon' : 'Raqam'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
