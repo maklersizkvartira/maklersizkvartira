@@ -42,6 +42,16 @@ interface FieldProps {
   hint?: string;
   error?: string;
   required?: boolean;
+  /**
+   * A control belonging to this field, on the label's own line.
+   *
+   * For the thing that is about the field rather than about the form — "forgot
+   * password?" next to a password box, a unit switch next to an amount. Given
+   * a row of its own under the input it reads as orphaned: a lone right-
+   * aligned link with nothing opposite it, separated from the only thing it
+   * refers to.
+   */
+  action?: React.ReactNode;
   children: (props: {
     id: string;
     describedBy: string | undefined;
@@ -49,7 +59,14 @@ interface FieldProps {
   }) => React.ReactNode;
 }
 
-export const Field: React.FC<FieldProps> = ({ label, hint, error, required, children }) => {
+export const Field: React.FC<FieldProps> = ({
+  label,
+  hint,
+  error,
+  required,
+  action,
+  children,
+}) => {
   const id = useId();
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
@@ -57,10 +74,13 @@ export const Field: React.FC<FieldProps> = ({ label, hint, error, required, chil
 
   return (
     <div className="space-y-1.5">
-      <label htmlFor={id} className="block text-xs font-bold text-muted">
-        {label}
-        {required && <span className="ml-0.5 text-danger">*</span>}
-      </label>
+      <div className="flex items-baseline justify-between gap-3">
+        <label htmlFor={id} className="block text-xs font-bold text-muted">
+          {label}
+          {required && <span className="ml-0.5 text-danger">*</span>}
+        </label>
+        {action}
+      </div>
 
       {children({ id, describedBy, invalid: Boolean(error) })}
 

@@ -918,6 +918,23 @@ export const AuthPage: React.FC = () => {
             <Field
               label={t('auth.fields.password')}
               error={fieldError === 'password' ? error ?? undefined : undefined}
+              // Beside the label, not on a row of its own below the box. It is
+              // about this field, and given its own line it read as an orphan:
+              // a lone right-aligned link with nothing opposite it, one row
+              // away from the only thing it refers to.
+              action={
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={goToMode('FORGOT_PASSWORD')}
+                  // The negative margin is what keeps a thumb-sized target
+                  // without a thumb-sized row: the padding grows the hit area
+                  // past the text, the margin pulls the layout back.
+                  className="-my-2 min-h-11 px-1 py-2 text-xs font-bold text-brand-text hover:underline disabled:opacity-60"
+                >
+                  {t('auth.login.forgotPassword')}
+                </button>
+              }
             >
               {({ id, describedBy, invalid }) => (
                 <PasswordInput
@@ -932,17 +949,6 @@ export const AuthPage: React.FC = () => {
                 />
               )}
             </Field>
-
-            <div className="flex justify-end">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={goToMode('FORGOT_PASSWORD')}
-                className="min-h-11 text-xs font-bold text-brand-text hover:underline disabled:opacity-60"
-              >
-                {t('auth.login.forgotPassword')}
-              </button>
-            </div>
 
             {banner}
 
