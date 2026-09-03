@@ -248,6 +248,37 @@ const textareaClass =
  */
 type NumberField = number | '';
 
+const fetchIpLocation = async (): Promise<{ lat: number; lng: number } | null> => {
+  try {
+    const res = await fetch('https://ipwho.is/');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+        return { lat: data.latitude, lng: data.longitude };
+      }
+    }
+  } catch {}
+
+  try {
+    const res = await fetch('https://get.geojs.io/v1/ip/geo.json');
+    if (res.ok) {
+      const data = await res.json();
+      const lat = parseFloat(data.latitude);
+      const lng = parseFloat(data.longitude);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        return { lat, lng };
+      }
+    }
+  } catch {}
+
+  return null;
+};
+
+const formatMoneyInput = (val: NumberField): string => {
+  if (val === '' || isNaN(val)) return '';
+  return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+};
+
 type RoommateGender = 'BOYS' | 'GIRLS' | 'ANY';
 
 type Notice = { key: string; params?: Record<string, string | number> };
@@ -818,6 +849,20 @@ export const CreateListingPage: React.FC = () => {
       clearError(field);
     };
 
+  const moneyInputHandler =
+    (set: (value: NumberField) => void, field: string) =>
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const raw = event.target.value;
+      const digits = raw.replace(/\D/g, '');
+      if (!digits) {
+        set('');
+      } else {
+        const num = parseInt(digits, 10);
+        set(isNaN(num) ? '' : num);
+      }
+      clearError(field);
+    };
+
   // -- Media handlers --------------------------------------------------------
   const addFiles = async (files: File[]) => {
     if (files.length === 0) return;
@@ -912,68 +957,86 @@ export const CreateListingPage: React.FC = () => {
     setGpsError(null);
     setGpsNotice(null);
 
-    if (!('geolocation' in navigator)) {
-      setGpsError({ key: 'owner.create.location.gpsUnsupported' });
-      return;
-    }
-
     haptics.tap();
     setGpsBusy(true);
     setGpsNotice({ key: 'owner.create.location.gpsSearching' });
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const nextLat = position.coords.latitude;
-        const nextLng = position.coords.longitude;
-        setLatitude(nextLat);
-        setLongitude(nextLng);
-        setGpsNotice({ key: 'owner.create.location.gpsSuccess' });
+    const handleSuccess = (nextLat: number, nextLng: number) => {
+      setLatitude(nextLat);
+      setLongitude(nextLng);
+      setGpsNotice({ key: 'owner.create.location.gpsSuccess' });
 
-        void reverseGeocode(nextLat, nextLng)
-          .then((match) => {
-            // `reverseGeocode` guarantees the district belongs to the region,
-            // so these two can be applied together without the dropdown
-            // falling back to its em-dash placeholder.
-            setRegion(match.region);
-            setDistrict(match.district);
-            if (match.street) {
-              setAddress(match.street);
-              clearError('address');
-              setGpsNotice({
-                key: 'owner.create.location.gpsFound',
-                params: {
-                  region: match.region,
-                  district: match.district,
-                  address: match.street,
-                },
-              });
-            } else {
-              // No street name came back: keep the field for the owner to fill
-              // rather than writing a placeholder sentence into their address.
-              setGpsNotice({
-                key: 'owner.create.location.gpsCoordinates',
-                params: { latitude: nextLat.toFixed(4), longitude: nextLng.toFixed(4) },
-              });
-            }
-            haptics.success();
-          })
-          .finally(() => setGpsBusy(false));
-      },
-      // The old callback took no parameter at all, so a timeout and a refusal
-      // both told the owner they had denied permission and sent them into the
-      // browser settings to fix something that was not broken.
-      (error: GeolocationPositionError) => {
+      void reverseGeocode(nextLat, nextLng)
+        .then((match) => {
+          setRegion(match.region);
+          setDistrict(match.district);
+          if (match.street) {
+            setAddress(match.street);
+            clearError('address');
+            setGpsNotice({
+              key: 'owner.create.location.gpsFound',
+              params: {
+                region: match.region,
+                district: match.district,
+                address: match.street,
+              },
+            });
+          } else {
+            setGpsNotice({
+              key: 'owner.create.location.gpsCoordinates',
+              params: { latitude: nextLat.toFixed(4), longitude: nextLng.toFixed(4) },
+            });
+          }
+          haptics.success();
+        })
+        .finally(() => setGpsBusy(false));
+    };
+
+    const tryIpFallback = async () => {
+      const ipLoc = await fetchIpLocation();
+      if (ipLoc) {
+        handleSuccess(ipLoc.lat, ipLoc.lng);
+      } else {
         setGpsBusy(false);
         setGpsNotice(null);
-        setGpsError({
-          key: GPS_ERROR_KEYS[error.code] ?? 'owner.create.location.gpsUnavailable',
-        });
+        setGpsError({ key: 'owner.create.location.gpsUnavailable' });
         haptics.warn();
+      }
+    };
+
+    if (!('geolocation' in navigator)) {
+      void tryIpFallback();
+      return;
+    }
+
+    // Step 1: Low accuracy (WiFi/cellular) - works without GPS satellite chip on laptops/PCs
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        handleSuccess(position.coords.latitude, position.coords.longitude);
       },
-      // `enableHighAccuracy` asks for the GPS chip instead of a coarse WiFi or
-      // IP fix, `maximumAge` accepts a fix from the last minute rather than
-      // forcing a cold one, and 15s is what a cold fix actually costs outdoors.
-      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 },
+      (error: GeolocationPositionError) => {
+        if (error.code === 1) {
+          // Explicit permission refusal
+          setGpsBusy(false);
+          setGpsNotice(null);
+          setGpsError({ key: 'owner.create.location.gpsDenied' });
+          haptics.warn();
+          return;
+        }
+
+        // Step 2: High accuracy GPS
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            handleSuccess(position.coords.latitude, position.coords.longitude);
+          },
+          () => {
+            // Step 3: IP Location fallback if hardware signals are unavailable
+            void tryIpFallback();
+          },
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 60_000 },
+        );
+      },
+      { enableHighAccuracy: false, timeout: 7000, maximumAge: 300_000 },
     );
   };
 
@@ -2258,14 +2321,10 @@ export const CreateListingPage: React.FC = () => {
                         id={id}
                         aria-describedby={describedBy}
                         invalid={invalid}
-                        type="number"
+                        type="text"
                         inputMode="numeric"
-                        min={0}
-                        // A dollar price is a three-figure number; stepping it
-                        // by 100 000 would be absurd.
-                        step={currency === 'USD' ? 50 : 100000}
-                        value={price === '' ? '' : price}
-                        onChange={numberHandler(setPrice, 'price')}
+                        value={formatMoneyInput(price)}
+                        onChange={moneyInputHandler(setPrice, 'price')}
                         placeholder={t(
                           currency === 'USD'
                             ? 'owner.create.details.pricePlaceholderUsd'
@@ -2298,12 +2357,10 @@ export const CreateListingPage: React.FC = () => {
                       id={id}
                       aria-describedby={describedBy}
                       invalid={invalid}
-                      type="number"
+                      type="text"
                       inputMode="numeric"
-                      min={0}
-                      step={currency === 'USD' ? 50 : 100000}
-                      value={deposit === '' ? '' : deposit}
-                      onChange={numberHandler(setDeposit, 'deposit')}
+                      value={formatMoneyInput(deposit)}
+                      onChange={moneyInputHandler(setDeposit, 'deposit')}
                       placeholder={t(
                         currency === 'USD'
                           ? 'owner.create.details.depositPlaceholderUsd'
