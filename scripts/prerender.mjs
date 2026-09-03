@@ -131,6 +131,9 @@ function templateSiteName(template) {
   return match ? match[1] : '';
 }
 
+/** The loading word, per language. Uzbek is already in index.html. */
+const BOOT_LABELS = { ru: 'Загрузка…', en: 'Loading…' };
+
 function replaceBetween(source, start, end, replacement) {
   const from = source.indexOf(start);
   const to = source.indexOf(end);
@@ -192,6 +195,15 @@ async function main() {
     // The served `lang` has to match the page, not the template's default:
     // a Russian page announcing `lang="uz"` is what makes hreflang inert.
     html = html.replace('<html lang="uz">', `<html lang="${page.language}">`);
+    // The boot screen's one word, in the page's own language. It cannot come
+    // from the i18n bundle: this element exists to be on screen before any
+    // bundle has loaded, so the string has to be in the HTML already.
+    if (BOOT_LABELS[page.language]) {
+      html = html.replace(
+        '>Yuklanmoqda…</p>',
+        `>${attr(BOOT_LABELS[page.language])}</p>`,
+      );
+    }
 
     const file = outputPath(page.path);
     await mkdir(path.dirname(file), { recursive: true });

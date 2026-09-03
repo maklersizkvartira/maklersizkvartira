@@ -100,6 +100,33 @@ declare global {
   }
 }
 
+/**
+ * Removes the entry overlay, from inside the resolved view.
+ *
+ * Tied to `authReady` this ran too early. The auth check finishing is not the
+ * page being ready: the route is code-split, so the overlay lifted and
+ * `<Suspense>` put its own spinner up in the same place while the chunk
+ * arrived. Two spinners, one after the other, which is what this screen was
+ * added to prevent.
+ *
+ * Mounted inside the Suspense boundary it cannot run until the chunk has
+ * resolved and the real view is rendering, so the overlay lifts onto the page
+ * and nothing else.
+ */
+const BootComplete: React.FC = () => {
+  useEffect(() => {
+    clearTimeout(window.__appBootTimer);
+    const boot = document.getElementById('app-boot');
+    if (!boot) return;
+    // Faded rather than cut, so the page arrives instead of appearing.
+    boot.style.transition = 'opacity 220ms ease';
+    boot.style.opacity = '0';
+    const done = setTimeout(() => boot.remove(), 240);
+    return () => clearTimeout(done);
+  }, []);
+  return null;
+};
+
 const Loading: React.FC = () => {
   const { t } = useTranslation();
   return (
@@ -191,25 +218,7 @@ export const App: React.FC = () => {
     void loadFxRate();
   }, [loadFxRate]);
 
-  /**
-   * Clear the entry overlay painted by index.html.
-   *
-   * Tied to `authReady` rather than to mount, because that is the moment this
-   * component stops rendering its own spinner and starts rendering the page —
-   * removing it earlier would put the overlay's exit exactly where the flash
-   * it exists to hide used to be.
-   */
-  useEffect(() => {
-    if (!authReady) return;
-    clearTimeout(window.__appBootTimer);
-    const boot = document.getElementById('app-boot');
-    if (!boot) return;
-    // Faded rather than cut, so the page arrives instead of appearing.
-    boot.style.transition = 'opacity 200ms ease';
-    boot.style.opacity = '0';
-    const done = setTimeout(() => boot.remove(), 220);
-    return () => clearTimeout(done);
-  }, [authReady]);
+
 
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval>;
@@ -415,7 +424,10 @@ export const App: React.FC = () => {
             screen to fade out.
           */
           <div key={viewKey} className={hasNavigated.current ? 'view-enter' : undefined}>
-            <Suspense fallback={<Loading />}>{renderView(currentView)}</Suspense>
+            <Suspense fallback={<Loading />}>
+              <BootComplete />
+              {renderView(currentView)}
+            </Suspense>
           </div>
         )}
       </main>
