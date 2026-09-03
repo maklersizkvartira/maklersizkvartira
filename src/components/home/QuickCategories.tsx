@@ -4,7 +4,7 @@
  * Clean white cards with pastel-tinted icon containers and concise 1-word titles.
  */
 
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { ChevronRight } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
@@ -107,19 +107,52 @@ export const QuickCategories: React.FC = () => {
   const setFilters = useAppStore((state) => state.setFilters);
   const setCurrentView = useAppStore((state) => state.setCurrentView);
   const scrollRef = useRef<HTMLUListElement>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const pauseTimeoutRef = useRef<number | null>(null);
+
+  const resumeAfterDelay = () => {
+    if (pauseTimeoutRef.current) {
+      window.clearTimeout(pauseTimeoutRef.current);
+    }
+    pauseTimeoutRef.current = window.setTimeout(() => {
+      setIsPaused(false);
+    }, 4000);
+  };
+
+  useEffect(() => {
+    if (isPaused) return;
+
+    const interval = window.setInterval(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+
+      const firstChild = el.querySelector('li') as HTMLElement | null;
+      const cardWidth = firstChild ? firstChild.offsetWidth : 92;
+      const gap = 12;
+      const scrollStep = (cardWidth + gap) * 2;
+
+      const maxScroll = el.scrollWidth - el.clientWidth;
+      if (maxScroll <= 0) return;
+
+      if (el.scrollLeft + scrollStep >= maxScroll - 8) {
+        el.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        el.scrollBy({ left: scrollStep, behavior: 'smooth' });
+      }
+    }, 3000);
+
+    return () => window.clearInterval(interval);
+  }, [isPaused]);
 
   const openCategory = (id: HomeCategory['id']) => {
     haptics.select();
-    // Every card, including Hovli, reads the store's one quick-filter map:
-    // the special case this replaces was a second definition of the same
-    // search, and the catalogue's chip rail could not light up for it.
     setFilters(quickFilterState(id));
     setCurrentView('LISTINGS');
   };
 
   const scrollRight = () => {
     if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: 180, behavior: 'smooth' });
+      scrollRef.current.scrollBy({ left: 200, behavior: 'smooth' });
     }
   };
 
@@ -127,21 +160,16 @@ export const QuickCategories: React.FC = () => {
 
   return (
     <div className="relative w-full">
-      {/*
-        `py-4 -my-3` is padding the cards' entrance needs, taken straight back
-        out again so the layout is unchanged. It nets to the 4px this had
-        before.
-
-        The reason it is here: `overflow-x: auto` forces the other axis to
-        compute to `auto` as well, so this is a scroll container vertically too.
-        The cards rise 16px into place, and without room to rise into, that
-        16px is overflow — a vertical scrollbar appearing and vanishing on
-        every load. The same room also stops the hover lift and the card
-        shadows being clipped, which they were.
-      */}
       <ul
         ref={scrollRef}
-        className="flex items-center gap-2.5 sm:gap-3 overflow-x-auto py-4 -my-3 hide-scrollbar snap-x snap-mandatory justify-start md:justify-center w-full px-1"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+        onTouchStart={() => {
+          setIsPaused(true);
+          if (pauseTimeoutRef.current) window.clearTimeout(pauseTimeoutRef.current);
+        }}
+        onTouchEnd={resumeAfterDelay}
+        className="flex items-center gap-2.5 sm:gap-3 overflow-x-auto py-4 -my-3 hide-scrollbar snap-x snap-mandatory justify-start lg:justify-center w-full px-1 scroll-smooth"
       >
         {CATEGORIES.map((category, index) => {
           const label = category.title[currentLang] || category.title.uz;

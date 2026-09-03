@@ -1,2 +1,2 @@
-export { FaceModal } from './FaceModal';
-export { FaceSettingsModal } from './FaceSettingsModal';
+// Auth components
+export {};

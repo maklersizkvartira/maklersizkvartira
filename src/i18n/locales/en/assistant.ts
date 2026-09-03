@@ -3,9 +3,9 @@ export const assistant = {
   mascot: {
     /** A product name: never translated. */
     name: 'Uyiz AI',
-    tagline: 'Smart home search assistant',
-    shortTagline: 'Smart assistant',
-    open: 'Open the Uyiz AI assistant',
+    tagline: 'AI assistant',
+    shortTagline: 'AI',
+    open: 'AI assistant',
     panelLabel: 'Chat with Uyiz AI',
   },
 

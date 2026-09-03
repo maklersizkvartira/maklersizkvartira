@@ -4,10 +4,8 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { useLogin } from '@/features/auth/hooks/useLogin';
-import { getFaceStatus, verifyCredentials, type FaceStatus } from '@/features/auth/api';
-import { FaceModal } from '@/features/auth/components/FaceModal';
 import { ApiError } from '@/shared/lib/http';
-import { Eye, EyeOff, Lock, User, ShieldCheck, ArrowRight, Sparkles, Camera } from 'lucide-react';
+import { Eye, EyeOff, Lock, User, ShieldCheck, ArrowRight, Sparkles } from 'lucide-react';
 
 /** mm:ss — a bare seconds count reads as an error code once it passes 90. */
 function formatCountdown(totalSeconds: number): string {
@@ -20,22 +18,11 @@ export default function LoginPage() {
   const t = useTranslations('auth');
   const te = useTranslations('auth.errors');
   const c = useTranslations('common');
-  const { isPending, error } = useLogin();
+  const { mutate: doLogin, isPending, error } = useLogin();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [remaining, setRemaining] = useState(0);
-  const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
-  const [faceModalMode, setFaceModalMode] = useState<'login' | 'register'>('login');
-  const [faceStatus, setFaceStatus] = useState<FaceStatus | null>(null);
-  const [isValidating, setIsValidating] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
-
-  useEffect(() => {
-    getFaceStatus()
-      .then(setFaceStatus)
-      .catch(() => {});
-  }, []);
 
   /* ── Backend error codes ──────────────────────────────────────────────────
      The API answers a refused login with a machine-readable code and, for the
@@ -68,8 +55,9 @@ export default function LoginPage() {
 
   const isThrottled = code === 'account_locked' || code === 'rate_limited';
 
+  const cleanUsername = username.trim();
+
   const errorMessage = (() => {
-    if (authError) return authError;
     if (!error) return null;
     if (!apiError || apiError.status === 0) return te('network');
     switch (code) {
@@ -86,54 +74,14 @@ export default function LoginPage() {
   })();
 
   const isCountingDown = isThrottled && remaining > 0;
-  const isFormValid = username.trim().length > 0 && password.trim().length > 0;
-  const isSubmitting = isPending || isValidating;
+  const isFormValid = cleanUsername.length > 0 && password.trim().length > 0;
+  const isSubmitting = isPending;
   const canSubmit = isFormValid && !isSubmitting && !isCountingDown;
 
-  const cleanUsername = username.trim();
-  const selectedAdmin = faceStatus?.admins?.find(
-    (a) =>
-      a.username.toLowerCase() === cleanUsername.toLowerCase() ||
-      a.username.toLowerCase() === cleanUsername.toLowerCase().replace(/^@/, '')
-  );
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
-
-    setAuthError(null);
-    setIsValidating(true);
-
-    try {
-      // 1. Validate login and password directly in database first!
-      const check = await verifyCredentials({
-        username: cleanUsername,
-        password,
-      });
-
-      // 2. Only if credentials match database, open Face ID scanner!
-      if (check.hasFace) {
-        setFaceModalMode('login');
-      } else {
-        setFaceModalMode('register');
-      }
-      setIsFaceModalOpen(true);
-    } catch (err: unknown) {
-      console.error('Credential verification error:', err);
-      const errObj = err as { code?: string; message?: string };
-      const rawCode = errObj.code || errObj.message || '';
-      if (rawCode.includes('invalid_credentials')) {
-        setAuthError('Login yoki parol noto\'g\'ri kiritildi.');
-      } else if (rawCode.includes('account_locked')) {
-        setAuthError('Ushbu hisob vaqtincha bloklangan.');
-      } else if (rawCode.includes('network') || rawCode.includes('Failed to fetch')) {
-        setAuthError('Serverga ulanib bo\'lmadi. Qaytadan urinib ko\'ring.');
-      } else {
-        setAuthError('Login yoki parol noto\'g\'ri kiritildi.');
-      }
-    } finally {
-      setIsValidating(false);
-    }
+    doLogin({ username: cleanUsername, password });
   };
 
   return (
@@ -253,11 +201,6 @@ export default function LoginPage() {
                 >
                   {t('username')}
                 </label>
-                {selectedAdmin?.hasFace && (
-                  <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-                    <Sparkles size={10} /> Face ID mavjud
-                  </span>
-                )}
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
@@ -353,23 +296,11 @@ export default function LoginPage() {
                   <span className="leading-normal tabular-nums">{formatCountdown(remaining)}</span>
                 ) : (
                   <>
-                    <Camera size={16} />
-                    <span className="leading-normal">
-                      {selectedAdmin?.hasFace
-                        ? 'Yuzni Tasdiqlash & Kirish'
-                        : 'Face ID O\'rnatish & Kirish'}
-                    </span>
+                    <span className="leading-normal">Tizimga kirish</span>
                     <ArrowRight size={15} />
                   </>
                 )}
               </button>
-
-              <div className="flex items-center justify-center pt-1.5">
-                <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Face ID biometrik tasdiqlash majburiy</span>
-                </span>
-              </div>
             </div>
           </form>
         </div>
@@ -382,18 +313,6 @@ export default function LoginPage() {
       >
         © {new Date().getFullYear()} · {c('appName')}
       </p>
-
-      {/* Biometric Face ID Verification Modal */}
-      <FaceModal
-        isOpen={isFaceModalOpen}
-        onClose={() => {
-          setIsFaceModalOpen(false);
-          getFaceStatus().then(setFaceStatus).catch(() => {});
-        }}
-        initialMode={faceModalMode}
-        initialAdminUsername={cleanUsername || undefined}
-        initialPassword={password || undefined}
-      />
     </div>
   );
 }

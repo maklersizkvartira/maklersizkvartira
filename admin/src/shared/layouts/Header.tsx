@@ -12,7 +12,6 @@ import { atLeast, ROUTE_MIN_ROLE } from '@/shared/lib/permissions';
 import { useLogout } from '@/features/auth/hooks';
 import { Avatar } from '@/shared/ui/Avatar';
 import { useTheme, useLocale } from '@/providers';
-import { FaceSettingsModal } from '@/features/auth/components/FaceSettingsModal';
 import { NAV_GROUPS } from './Sidebar';
 
 const ThemePalette = dynamic(
@@ -48,7 +47,6 @@ export function Header({ paletteOpen, onTogglePalette, onClosePalette }: HeaderP
   const logout = useLogout();
 
   const [userDropOpen, setUserDropOpen] = useState(false);
-  const [faceSettingsOpen, setFaceSettingsOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [query, setQuery] = useState('');
   const [highlight, setHighlight] = useState(0);
@@ -243,17 +241,6 @@ export function Header({ paletteOpen, onTogglePalette, onClosePalette }: HeaderP
 
         {/* Right side controls */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Face ID Biometrics Modal Trigger */}
-          <button
-            onClick={() => setFaceSettingsOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-semibold text-xs transition"
-            title="Face ID Boshqaruvi"
-            aria-label="Face ID Boshqaruvi"
-          >
-            <Smile size={15} />
-            <span className="hidden lg:inline text-[11px]">Face ID</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          </button>
 
           {/* Appearance / Theme Palette */}
           <button
@@ -337,17 +324,6 @@ export function Header({ paletteOpen, onTogglePalette, onClosePalette }: HeaderP
                   <User size={15} /> {navT('profile')}
                 </Link>
 
-                {/* Face ID Settings in dropdown */}
-                <button
-                  onClick={() => {
-                    setUserDropOpen(false);
-                    setFaceSettingsOpen(true);
-                  }}
-                  className="menu-item gap-2.5 w-full text-left"
-                >
-                  <Smile size={15} /> <span>Face ID Sozlamalari</span>
-                </button>
-
                 {/* Language */}
                 <div style={{ borderTop: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)', padding: '6px 0', margin: '4px 0' }}>
                   <p className="px-4 py-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
@@ -378,12 +354,6 @@ export function Header({ paletteOpen, onTogglePalette, onClosePalette }: HeaderP
       </header>
 
       {paletteOpen && <ThemePalette onClose={onClosePalette} />}
-
-      {/* Face ID Settings Modal */}
-      <FaceSettingsModal
-        isOpen={faceSettingsOpen}
-        onClose={() => setFaceSettingsOpen(false)}
-      />
     </>
   );
 }

@@ -7,9 +7,9 @@ export const assistant = {
   mascot: {
     /** A product name: never translated. */
     name: 'Uyiz AI',
-    tagline: 'Aqlli uy qidiruv yordamchisi',
-    shortTagline: 'Aqlli yordamchi',
-    open: 'Uyiz AI yordamchisini ochish',
+    tagline: 'AI yordamchi',
+    shortTagline: 'AI',
+    open: 'AI yordamchisi',
     panelLabel: 'Uyiz AI bilan suhbat',
   },
 
