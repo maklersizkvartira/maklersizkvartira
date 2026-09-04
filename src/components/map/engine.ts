@@ -143,6 +143,17 @@ function loadStyle(id: string, href: string, integrity?: string): void {
   document.head.appendChild(link);
 }
 
+/**
+ * The hit area of a price bubble, in pixels.
+ *
+ * Generous on purpose and fixed rather than measured: the bubble is as wide as
+ * the price inside it, the layout is rendered by Yandex after this box is
+ * declared, and a target slightly larger than its label is the right error on
+ * a touchscreen anyway.
+ */
+const MARKER_WIDTH = 92;
+const MARKER_HEIGHT = 34;
+
 function bubble(html: string, label: string, onClick: () => void): HTMLElement {
   const element = document.createElement('div');
   element.className = 'listing-marker';
@@ -305,11 +316,25 @@ async function createYandex(
         const layout = ymaps.templateLayoutFactory.createClass(
           `<div class="listing-marker" role="button" tabindex="0" aria-label="${entry.label.replace(/"/g, '&quot;')}">${entry.html}</div>`,
         );
-        const placemark = new ymaps.Placemark(
-          entry.position,
-          {},
-          { iconLayout: layout, iconShape: null, iconOffset: [0, 0] },
-        );
+        const placemark = new ymaps.Placemark(entry.position, {}, {
+          iconLayout: layout,
+          // Without a shape a custom-layout placemark has no hit area at all:
+          // it draws, and every click passes straight through it, so the
+          // `click` handler below never runs. That is why tapping a price on
+          // the map did nothing — the marker was a picture, not a control.
+          //
+          // A rectangle roughly the size of the bubble, anchored so the tip
+          // sits on the coordinate: the box runs from half a width left and a
+          // full height up, to half a width right and the point itself.
+          iconShape: {
+            type: 'Rectangle',
+            coordinates: [
+              [-MARKER_WIDTH / 2, -MARKER_HEIGHT],
+              [MARKER_WIDTH / 2, 0],
+            ],
+          },
+          iconOffset: [-MARKER_WIDTH / 2, -MARKER_HEIGHT],
+        });
         placemark.events.add('click', () => onSelect(entry.id));
         map.geoObjects.add(placemark);
         return placemark;

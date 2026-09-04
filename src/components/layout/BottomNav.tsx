@@ -14,6 +14,7 @@ import {
 
 import { useTranslation, type TranslationKey } from '../../i18n';
 import { useAppStore, type ViewState } from '../../stores/useAppStore';
+import { prefetchView } from '../../router/prefetch';
 import { AppLink } from '../../router/AppLink';
 import { REQUIRES_AUTH, authTabForView } from '../../router/views';
 import { useIsAuthenticated, useRequireAuth } from '../../hooks/useRequireAuth';
@@ -104,6 +105,11 @@ export const BottomNav: React.FC = () => {
           // label that used to sit under each one no longer fits a narrow
           // phone. `aria-label` is what keeps the tab named for a screen
           // reader once the visible text is gone.
+          // Start the view's chunk as the finger lands, not when it lifts.
+          // A tap is around 100ms of contact and the chunk is a round trip;
+          // beginning it on `pointerdown` is most of that round trip spent
+          // before the navigation is even requested.
+          const prefetch = { onPointerEnter: () => prefetchView(tab.view), onPointerDown: () => prefetchView(tab.view) };
           const className = `press relative flex h-full min-h-12 w-full touch-manipulation items-center justify-center py-3 transition-colors ${
             active ? 'text-brand-text' : 'text-subtle hover:text-content'
           }`;
@@ -137,6 +143,7 @@ export const BottomNav: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => open(tab)}
+                  {...prefetch}
                   aria-current={active ? 'page' : undefined}
                   aria-label={t(tab.labelKey)}
                   className={className}
@@ -146,6 +153,7 @@ export const BottomNav: React.FC = () => {
               ) : (
                 <AppLink
                   view={tab.view}
+                  {...prefetch}
                   aria-current={active ? 'page' : undefined}
                   aria-label={t(tab.labelKey)}
                   className={className}

@@ -21,7 +21,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { createMapEngine } from './engine';
 import type { LatLng, MapEngine } from './engine';
-import { List, MapPin, Search, X } from 'lucide-react';
+import { List, LocateFixed, MapPin, Search, X } from 'lucide-react';
 
 import { UZBEKISTAN_REGIONS } from '../../data/mockLocations';
 import { useTranslation } from '../../i18n';
@@ -102,6 +102,24 @@ function escapeHtml(value: string): string {
  * Tailwind might not emit for a string literal. Colours are read straight from
  * the theme variables instead, which also means markers re-theme with the page.
  */
+/** The id the visitor's own pin carries, so a click on it can be ignored. */
+const ME_MARKER_ID = '__me__';
+
+/**
+ * The visitor's own position: a dot, not a price bubble.
+ *
+ * Deliberately a different shape from every listing pin. It answers a
+ * different question — "where am I" rather than "what is here" — and a second
+ * bubble among the prices would read as another flat.
+ */
+function meMarkerHtml(): string {
+  return `
+    <span style="display:block;width:16px;height:16px;border-radius:9999px;
+                 background:var(--color-brand);border:3px solid var(--color-surface);
+                 box-shadow:0 0 0 4px rgb(20 71 230 / 0.25);"></span>
+  `;
+}
+
 function markerHtml(priceText: string): string {
   // No selected state any more: a pin is tapped and the page changes, so
   // there is never a moment where one pin is "the open one".
@@ -154,6 +172,9 @@ export const MapView: React.FC = () => {
   const [searchDraft, setSearchDraft] = useState(filters.search);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  /** Where the visitor is, once they ask. Never requested on load. */
+  const [me, setMe] = useState<[number, number] | null>(null);
+  const [meBusy, setMeBusy] = useState(false);
   const engineRef = useRef<MapEngine | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requested = useRef(false);
@@ -283,16 +304,29 @@ export const MapView: React.FC = () => {
     const engine = engineRef.current;
     if (!engine) return;
 
+    // The visitor's own pin goes in the same call as the listings. `setMarkers`
+    // replaces everything it is given, so a separate call for one of them
+    // would simply erase the other.
+    const pins = mapped.map(({ listing, position }) => {
+      const price = badgePrice(listing);
+      return {
+        id: listing.id,
+        position,
+        html: markerHtml(price),
+        label: t('map.marker.label', { title: listing.title, price }),
+      };
+    });
+    if (me) {
+      pins.push({
+        id: ME_MARKER_ID,
+        position: me,
+        html: meMarkerHtml(),
+        label: t('map.me.label'),
+      });
+    }
+
     engine.setMarkers(
-      mapped.map(({ listing, position }) => {
-        const price = badgePrice(listing);
-        return {
-          id: listing.id,
-          position,
-          html: markerHtml(price),
-          label: t('map.marker.label', { title: listing.title, price }),
-        };
-      }),
+      pins,
       // A pin is a link. Tapping the price opens that listing, with nothing
       // in between — which is the whole job of a price on a map.
       //
@@ -300,9 +334,13 @@ export const MapView: React.FC = () => {
       // then press a button to actually go. Two taps and a small target for
       // something a visitor had already decided on by the time they aimed at
       // the pin. The summary is the listing page, one tap earlier.
-      (id) => setCurrentView('LISTING_DETAIL', id),
+      (id) => {
+        // The visitor's own pin is not a listing and opens nothing.
+        if (id === ME_MARKER_ID) return;
+        setCurrentView('LISTING_DETAIL', id);
+      },
     );
-  }, [mapStatus, mapped, badgePrice, t]);
+  }, [mapStatus, mapped, badgePrice, me, t]);
 
   // Frame the results when the result set itself changes — not when the user
   // merely selects a pin, which would yank the viewport away from them.
@@ -353,6 +391,34 @@ export const MapView: React.FC = () => {
     },
     [],
   );
+
+  /**
+   * Put the visitor on the map, and move the map to them.
+   *
+   * Asked for, never automatic. A permission prompt on arrival is the fastest
+   * way to lose somebody who has not yet decided to trust the page, and the
+   * map is perfectly useful without knowing where anyone is.
+   *
+   * A refusal is not an error worth a banner — the visitor said no on purpose
+   * — so the button simply stops spinning.
+   */
+  const locateMe = useCallback(() => {
+    if (!('geolocation' in navigator)) return;
+    setMeBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const here: [number, number] = [
+          position.coords.latitude,
+          position.coords.longitude,
+        ];
+        setMe(here);
+        setMeBusy(false);
+        engineRef.current?.flyTo(here, 14);
+      },
+      () => setMeBusy(false),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  }, []);
 
   const districtLabel = useCallback(
     (name: string) => {
@@ -558,6 +624,28 @@ export const MapView: React.FC = () => {
               aria-label={t('map.a11y.map')}
               className="z-10 h-full w-full bg-surface-2"
             />
+
+            {/* Bottom-left, clear of Yandex's zoom controls on the right and
+                of the filter bar above. */}
+            {'geolocation' in navigator && (
+              <button
+                type="button"
+                onClick={locateMe}
+                disabled={meBusy}
+                aria-label={t('map.me.cta')}
+                title={t('map.me.cta')}
+                className="press absolute bottom-6 left-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface text-brand shadow-raised transition-colors hover:bg-surface-2 disabled:opacity-60 sm:left-6"
+              >
+                {meBusy ? (
+                  <span
+                    className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <LocateFixed className="h-5 w-5" aria-hidden="true" />
+                )}
+              </button>
+            )}
 
             {/* Keyboard and screen-reader equivalent of clicking a pin. */}
             <h2 className="sr-only">{t('map.a11y.resultList')}</h2>

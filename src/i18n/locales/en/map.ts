@@ -40,6 +40,14 @@ export const map = {
     yangihayot: 'Yangihayot',
   },
 
+  me: {
+
+    label: 'You are here',
+
+    cta: 'Show my location',
+
+  },
+
   marker: {
     priceMillion: '{value}M',
     label: '{title} — {price}',
