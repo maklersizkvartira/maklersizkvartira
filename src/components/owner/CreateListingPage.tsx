@@ -505,6 +505,17 @@ export const CreateListingPage: React.FC = () => {
         .districts[0],
   );
   const [address, setAddress] = useState(initialDraft?.address ?? '');
+  /**
+   * Whether the address currently in the field was written by a lookup.
+   *
+   * The difference matters when a second lookup finds no street: one that a
+   * lookup wrote is stale and has to go, one the owner typed is theirs and
+   * stays. A ref rather than state — nothing renders from it, and it must be
+   * readable inside the promise that is about to overwrite the field.
+   *
+   * A restored draft starts false: whatever is in it was last seen by a person.
+   */
+  const addressFromLookup = useRef(false);
   // METRO_NONE, not a station: an untouched form used to claim a five-minute
   // walk to Yunusobod from anywhere in the country.
   const [metro, setMetro] = useState(initialDraft?.metro ?? METRO_NONE);
@@ -978,6 +989,48 @@ export const CreateListingPage: React.FC = () => {
     setLongitude(nextLng);
     setGpsNotice({ key: 'owner.create.location.gpsSuccess' });
 
+    // The address has to follow the coordinate, including when the lookup
+    // comes back without a street.
+    //
+    // This used to be `if (match.street) setAddress(...)` with no `else`, in
+    // two copies. Pick a point on the map, then press GPS: the second lookup
+    // found no street, nothing overwrote the first one, and the form was left
+    // describing the map pick at the GPS coordinates — two different places in
+    // one listing, with nothing on screen to say so.
+    //
+    // A value the owner typed is never cleared. Only a value a previous
+    // lookup wrote is, which is the difference `addressFromLookup` tracks.
+    void reverseGeocode(nextLat, nextLng)
+      .then((match) => {
+        setRegion(match.region);
+        setDistrict(match.district);
+        if (match.street) {
+          setAddress(match.street);
+          addressFromLookup.current = true;
+          clearError('address');
+          setGpsNotice({
+            key: 'owner.create.location.gpsFound',
+            params: {
+              region: match.region,
+              district: match.district,
+              address: match.street,
+            },
+          });
+        } else {
+          if (addressFromLookup.current) {
+            setAddress('');
+            addressFromLookup.current = false;
+          }
+          setGpsNotice({
+            key: 'owner.create.location.gpsCoordinates',
+            params: { latitude: nextLat.toFixed(4), longitude: nextLng.toFixed(4) },
+          });
+        }
+        haptics.success();
+      })
+      .catch(() => undefined)
+      .finally(() => setGpsBusy(false));
+
     // Filled in, not asked for. The station is a fact about the address, so
     // once the address is known the form can answer it — and typing it was one
     // of the two fields people abandoned this step on.
@@ -1004,31 +1057,6 @@ export const CreateListingPage: React.FC = () => {
 
     const handleSuccess = (nextLat: number, nextLng: number) => {
       applyCoordinates(nextLat, nextLng);
-
-      void reverseGeocode(nextLat, nextLng)
-        .then((match) => {
-          setRegion(match.region);
-          setDistrict(match.district);
-          if (match.street) {
-            setAddress(match.street);
-            clearError('address');
-            setGpsNotice({
-              key: 'owner.create.location.gpsFound',
-              params: {
-                region: match.region,
-                district: match.district,
-                address: match.street,
-              },
-            });
-          } else {
-            setGpsNotice({
-              key: 'owner.create.location.gpsCoordinates',
-              params: { latitude: nextLat.toFixed(4), longitude: nextLng.toFixed(4) },
-            });
-          }
-          haptics.success();
-        })
-        .finally(() => setGpsBusy(false));
     };
 
     const tryIpFallback = async () => {
@@ -1838,6 +1866,9 @@ export const CreateListingPage: React.FC = () => {
                     value={address}
                     onChange={(event) => {
                       setAddress(event.target.value);
+                      // Typed by hand from here on, so no later lookup may
+                      // quietly clear it.
+                      addressFromLookup.current = false;
                       if (event.target.value.trim()) clearError('address');
                     }}
                     placeholder={t('owner.create.location.addressPlaceholder')}
@@ -3257,23 +3288,11 @@ export const CreateListingPage: React.FC = () => {
         value={latitude !== null && longitude !== null ? [latitude, longitude] : null}
         district={district}
         onConfirm={([lat, lng]) => {
+          // Coordinates, address, district and metro all follow from here —
+          // the map and the GPS button leave the form in the same state
+          // because they now run the same code.
           applyCoordinates(lat, lng);
           setPickerOpen(false);
-          // The same lookup the GPS button runs. A point on a map is a
-          // coordinate and nothing else; the region, district and street still
-          // have to be read back out of it or the form keeps whatever was
-          // there before.
-          void reverseGeocode(lat, lng)
-            .then((match) => {
-              setRegion(match.region);
-              setDistrict(match.district);
-              if (match.street) {
-                setAddress(match.street);
-                clearError('address');
-              }
-            })
-            .catch(() => undefined);
-          haptics.success();
         }}
       />
 
