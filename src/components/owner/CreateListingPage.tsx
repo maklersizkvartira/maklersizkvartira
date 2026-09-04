@@ -378,8 +378,13 @@ function readDraft(
     // answered on the owner's behalf by doing so: a new wizard shows APARTMENT
     // and the role's own seller before anybody has touched it, so a restored
     // draft that shows them is saying no more than an empty one does.
+    const validImages = (parsed.images ?? []).filter(
+      (img) => typeof img === 'string' && !img.includes('img.uyiz.uz'),
+    );
+
     return {
       ...parsed,
+      images: validImages,
       amenities: { ...NO_AMENITIES, ...parsed.amenities },
       propertyType: parsed.propertyType ?? 'APARTMENT',
       landArea: parsed.landArea ?? '',
@@ -909,7 +914,10 @@ export const CreateListingPage: React.FC = () => {
         setUploadProgress({ done, total }),
       );
       if (uploaded.length > 0) {
-        setImages((current) => [...current, ...uploaded]);
+        setImages((current) => [
+          ...current.filter((img) => !img.includes('img.uyiz.uz')),
+          ...uploaded,
+        ]);
         clearError('images');
         haptics.success();
       }

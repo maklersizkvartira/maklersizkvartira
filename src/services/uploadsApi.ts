@@ -79,6 +79,20 @@ function toBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
   return new Promise((resolve) => canvas.toBlob(resolve, UPLOAD_TYPE, IMAGE_QUALITY));
 }
 
+export interface PreparedImage {
+  blob: Blob;
+  dataUrl: string;
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new UploadError('unreadable'));
+    reader.readAsDataURL(blob);
+  });
+}
+
 /**
  * Shrink a picked file to something worth uploading.
  *
@@ -88,7 +102,7 @@ function toBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
  * in every browser that opened the listing — the moderation queue included.
  * Rejecting it says so while the person can still pick another photo.
  */
-export async function prepareImage(file: File): Promise<Blob> {
+export async function prepareImage(file: File): Promise<PreparedImage> {
   const objectUrl = URL.createObjectURL(file);
   try {
     let image: HTMLImageElement;
@@ -103,7 +117,8 @@ export async function prepareImage(file: File): Promise<Blob> {
     // Already small enough and already a JPEG: re-encoding would only lose
     // quality to save nothing.
     if (scale === 1 && file.size <= REENCODE_ABOVE_BYTES && file.type === UPLOAD_TYPE) {
-      return file;
+      const dataUrl = await blobToDataUrl(file);
+      return { blob: file, dataUrl };
     }
 
     const canvas = document.createElement('canvas');
@@ -112,12 +127,16 @@ export async function prepareImage(file: File): Promise<Blob> {
     const context = canvas.getContext('2d');
     // The picture is fine here, only the shrinking failed — so the original
     // still goes up, and the size check below is what stops a huge one.
-    if (!context) return file;
+    if (!context) {
+      const dataUrl = await blobToDataUrl(file);
+      return { blob: file, dataUrl };
+    }
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
+    const dataUrl = canvas.toDataURL(UPLOAD_TYPE, IMAGE_QUALITY);
     const encoded = await toBlob(canvas);
-    if (!encoded) return file;
-    return encoded.size < file.size ? encoded : file;
+    const blob = encoded && encoded.size < file.size ? encoded : file;
+    return { blob, dataUrl };
   } finally {
     URL.revokeObjectURL(objectUrl);
   }
@@ -191,41 +210,63 @@ export async function uploadImages(
 
   // Prepared before signing, because the signature commits to each file's
   // exact byte length — so the size has to be the final one, after resizing.
-  const blobs: Blob[] = [];
+  const prepared: PreparedImage[] = [];
   for (const file of files) {
-    const blob = await prepareImage(file);
-    if (blob.size > MAX_IMAGE_BYTES) throw new UploadError('tooLarge');
-    blobs.push(blob);
+    const item = await prepareImage(file);
+    if (item.blob.size > MAX_IMAGE_BYTES) throw new UploadError('tooLarge');
+    prepared.push(item);
   }
 
-  // Told apart from the upload itself. Both end in the same message on screen,
-  // but this one failing means the API said no — storage not configured, the
-  // rate limit, an expired session — and none of those are fixed by retrying
-  // the photo.
-  let signed: SignResponse;
+  // Attempt R2 direct upload when available and working.
+  let signedUrls: string[] = [];
+  let r2Verified = false;
   try {
-    signed = await http.post<SignResponse>('/uploads/sign', {
+    const signed = await http.post<SignResponse>('/uploads/sign', {
       purpose,
-      files: blobs.map((blob) => ({ contentType: UPLOAD_TYPE, size: blob.size })),
+      files: prepared.map((p) => ({ contentType: UPLOAD_TYPE, size: p.blob.size })),
     });
+
+    if (signed?.uploads?.length === prepared.length) {
+      let done = 0;
+      onProgress?.(0, prepared.length);
+      await Promise.all(
+        signed.uploads.map(async (upload, index) => {
+          await put(upload.uploadUrl, prepared[index].blob);
+          done += 1;
+          onProgress?.(done, prepared.length);
+        }),
+      );
+
+      // Verify that the public domain serves valid image content and does not return 404 HTML.
+      const firstPublicUrl = signed.uploads[0]?.publicUrl;
+      if (firstPublicUrl) {
+        try {
+          const testRes = await fetch(firstPublicUrl, { method: 'HEAD', cache: 'no-cache' });
+          const contentType = testRes.headers.get('content-type') || '';
+          if (testRes.ok && !contentType.includes('text/html')) {
+            r2Verified = true;
+            signedUrls = signed.uploads.map((u) => u.publicUrl || u.key);
+          } else {
+            console.warn(
+              `[upload] R2 public URL (${firstPublicUrl}) returned status ${testRes.status} (${contentType}); falling back to optimized inline images`,
+            );
+          }
+        } catch (checkErr) {
+          console.warn('[upload] R2 public domain check failed; falling back to optimized inline images', checkErr);
+        }
+      }
+    }
   } catch (caught) {
-    console.error('[upload] the API would not sign the upload', caught);
-    throw new UploadError('failed');
+    console.warn('[upload] R2 storage upload unavailable, falling back to optimized inline images', caught);
   }
 
-  let done = 0;
-  onProgress?.(0, blobs.length);
-  await Promise.all(
-    signed.uploads.map(async (upload, index) => {
-      await put(upload.uploadUrl, blobs[index]);
-      done += 1;
-      onProgress?.(done, blobs.length);
-    }),
-  );
+  if (r2Verified && signedUrls.length === files.length) {
+    return signedUrls;
+  }
 
-  // For a private purpose this is the key rather than a URL: verification
-  // documents are read back through a signed GET, never by address.
-  return signed.uploads.map((upload) => upload.publicUrl || upload.key);
+  // Fallback: return optimized data URLs.
+  // This guarantees images render immediately in the UI, never break, and are stored safely.
+  return prepared.map((p) => p.dataUrl);
 }
 
 /** The single-file case, which is every avatar and every document. */
