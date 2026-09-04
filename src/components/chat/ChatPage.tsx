@@ -332,7 +332,7 @@ export const ChatPage: React.FC = () => {
                         <span className="truncate font-semibold">{conv.listing.title}</span>
                         {conv.listing.price != null && (
                           <span className="shrink-0 text-muted">
-                            · {formatPrice(conv.listing.price)}
+                            · {formatPrice(conv.listing.price, (conv.listing.currency as any) || 'UZS')}
                           </span>
                         )}
                       </span>

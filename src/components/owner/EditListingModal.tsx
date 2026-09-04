@@ -129,6 +129,7 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
     listing.propertyType ?? 'APARTMENT',
   );
   const [price, setPrice] = useState<NumberField>(listing.price ?? '');
+  const [currency, setCurrency] = useState<'UZS' | 'USD'>(listing.currency ?? 'UZS');
   // `?? ''`, not `?? 0`: a listing with no deposit asks for no deposit, and
   // showing a zero in the box turned that into "the deposit is nothing" on
   // the next save.
@@ -284,6 +285,7 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
       description: description.trim(),
       propertyType,
       price: price === '' ? null : price,
+      currency,
       depositPrice: deposit === '' ? null : deposit,
       rooms,
       area: area === '' ? null : area,
@@ -532,7 +534,7 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
             )}
           </Field>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Field
               label={t('owner.create.details.priceLabel')}
               required
@@ -553,6 +555,19 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
                   onChange={numberHandler(setPrice, 'price')}
                   required
                 />
+              )}
+            </Field>
+
+            <Field label={t('owner.create.details.currencyLabel')}>
+              {({ id }) => (
+                <SelectInput
+                  id={id}
+                  value={currency}
+                  onChange={(event) => setCurrency(event.target.value as 'UZS' | 'USD')}
+                >
+                  <option value="UZS">{t('owner.create.details.currencyUzs')}</option>
+                  <option value="USD">{t('owner.create.details.currencyUsd')}</option>
+                </SelectInput>
               )}
             </Field>
 

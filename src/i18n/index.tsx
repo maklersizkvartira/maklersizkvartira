@@ -153,15 +153,13 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
       tRaw: (key, params) => translate(language, key, params),
       formatNumber,
       formatPrice: (input, currency = 'UZS') => {
-        if (currency === 'USD') {
-          return new Intl.NumberFormat(locale, {
-            style: 'currency',
-            currency: 'USD',
-            maximumFractionDigits: 0,
-          }).format(input);
+        const norm = String(currency || 'UZS').toUpperCase().trim();
+        const val = Math.round(Number(input) || 0);
+        if (norm === 'USD' || norm === '$') {
+          return `$${formatNumber(val)}`;
         }
         // UZS has no widely-recognised symbol; the localised word reads better.
-        return `${formatNumber(Math.round(input))} ${translate(language, 'common.units.som')}`;
+        return `${formatNumber(val)} ${translate(language, 'common.units.som')}`;
       },
       formatDate: (input, options) =>
         new Intl.DateTimeFormat(locale, options ?? { dateStyle: 'medium' }).format(

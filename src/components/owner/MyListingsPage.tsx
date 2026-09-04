@@ -645,7 +645,7 @@ export const MyListingsPage: React.FC = () => {
                           ) : null}
 
                           <p className="mt-0.5 text-xs font-extrabold text-brand-text">
-                            {formatPrice(listing.price)}
+                            {formatPrice(listing.price, listing.currency)}
                             <span className="font-semibold text-subtle">
                               {listing.isRoommate
                                 ? t('common.units.perPerson')
