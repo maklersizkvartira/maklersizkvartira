@@ -74,6 +74,32 @@ const QUICK_REPLIES = [
   'Muammo muvaffaqiyatli bartaraf etildi. Platformamizdan foydalanganingiz uchun rahmat!',
 ];
 
+const playSupportNotificationSound = () => {
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(580, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+
+    gainNode.gain.setValueAtTime(0.12, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.12);
+    osc.onended = () => { void ctx.close(); };
+  } catch {
+    // Ignore audio errors
+  }
+};
+
 export default function SupportPage() {
   const t = useTranslations('support');
   const [conversations, setConversations] = useState<AdminSupportConversation[]>([]);
@@ -138,6 +164,55 @@ export default function SupportPage() {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [detail?.messages?.length]);
+
+  // Real-time automatic background polling for active conversation
+  useEffect(() => {
+    if (!selectedUserId) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const res = await http.get<AdminSupportDetail>(api.support.messages(selectedUserId));
+        if (!res) return;
+        setDetail((prev) => {
+          if (!prev) return res;
+          if (res.messages.length > prev.messages.length) {
+            const lastMsg = res.messages[res.messages.length - 1];
+            if (lastMsg.sender_type === 'USER') {
+              playSupportNotificationSound();
+            }
+            return res;
+          }
+          if (res.status !== prev.status) {
+            return { ...prev, status: res.status };
+          }
+          return prev;
+        });
+      } catch {
+        // Silently ignore background polling errors
+      }
+    }, 2500);
+
+    return () => clearInterval(intervalId);
+  }, [selectedUserId]);
+
+  // Real-time automatic background polling for conversations list
+  useEffect(() => {
+    const intervalId = setInterval(async () => {
+      try {
+        const activeStatus = statusFilter === 'ALL' ? undefined : statusFilter;
+        const res = await http.get<AdminSupportConversation[]>(
+          api.support.conversations({ status: activeStatus })
+        );
+        if (res) {
+          setConversations(res);
+        }
+      } catch {
+        // Silently ignore background polling errors
+      }
+    }, 4000);
+
+    return () => clearInterval(intervalId);
+  }, [statusFilter]);
 
   // Send admin reply
   const handleSendReply = async () => {

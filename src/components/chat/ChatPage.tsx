@@ -142,6 +142,56 @@ export const ChatPage: React.FC = () => {
     }
   }, [detail?.messages.length, supportConv?.messages.length, activeConversationId]);
 
+  // Real-time automatic background polling (new messages appear automatically without page refresh)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        if (activeConversationId === 'support') {
+          const freshSupport = await chatApi.getSupportConversation();
+          if (!freshSupport) return;
+          setSupportConv((prev) => {
+            if (!prev) return freshSupport;
+            if (freshSupport.messages.length > prev.messages.length) {
+              const lastFresh = freshSupport.messages[freshSupport.messages.length - 1];
+              if (lastFresh.sender_type === 'ADMIN') {
+                playNotificationSound();
+              }
+              return freshSupport;
+            }
+            return prev;
+          });
+        } else if (activeConversationId) {
+          const freshDetail = await chatApi.getMessages(activeConversationId);
+          if (!freshDetail) return;
+          setDetail((prev) => {
+            if (!prev) return freshDetail;
+            if (freshDetail.messages.length > prev.messages.length) {
+              const lastFresh = freshDetail.messages[freshDetail.messages.length - 1];
+              if (lastFresh.sender_id !== currentUser.id) {
+                playNotificationSound();
+              }
+              return freshDetail;
+            }
+            return prev;
+          });
+        } else {
+          const [convs, supp] = await Promise.all([
+            chatApi.listConversations().catch(() => null),
+            chatApi.getSupportConversation().catch(() => null),
+          ]);
+          if (convs) setConversations(convs);
+          if (supp) setSupportConv(supp);
+        }
+      } catch {
+        // Silently ignore background polling errors
+      }
+    }, 2500);
+
+    return () => clearInterval(intervalId);
+  }, [activeConversationId, currentUser]);
+
   const handleCreateListing = () => {
     if (!currentUser) {
       setShowAuth(true, 'REGISTER');
