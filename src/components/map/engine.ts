@@ -200,19 +200,25 @@ interface YandexMap21 {
 }
 
 /**
- * The dark treatment for Yandex tiles.
+ * Yandex's own cartography, left alone.
  *
- * 2.1 has no dark scheme of its own — that arrived in v3 — so the tiles are
- * filtered, the same trick and very nearly the same numbers the Leaflet path
- * uses. Applied to the ground pane alone, so controls, markers and the
- * copyright strip keep their real colours.
+ * There was a CSS filter here — invert, hue-rotate, the same stack the
+ * Leaflet path uses to force OpenStreetMap into a dark palette. On Yandex it
+ * was the wrong tool: OSM tiles are generic and a filter is the only way to
+ * theme them, while Yandex ships a designed map, and running it through
+ * `invert()` produced something that looked like a broken screenshot of one.
+ * Recoloured roads, inverted water, labels in colours no cartographer chose.
+ *
+ * So the tiles render as Yandex draws them, in both themes. The map is lighter
+ * than the page around it in dark mode, and that is the honest trade: this is
+ * the map people recognise from every other Uzbek site, which is most of its
+ * value here.
+ *
+ * The background token stays, purely so the container is not a white rectangle
+ * in the moment before the first tile arrives.
  */
 const YANDEX_THEME_CSS = `
 .uyiz-ymap { background: var(--color-surface-2); font: inherit; }
-.uyiz-ymap.dark-theme [class*="-ground-pane"],
-[data-theme="dark"] .uyiz-ymap [class*="-ground-pane"] {
-  filter: brightness(0.58) invert(1) contrast(2.4) hue-rotate(200deg) saturate(0.3) brightness(0.8);
-}
 `;
 
 function injectYandexTheme(): void {
@@ -265,10 +271,10 @@ async function createYandex(
 
   map.controls.add('zoomControl', { position: { right: 12, bottom: 44 } });
 
-  const applyTheme = (dark: boolean) => {
-    element.classList.toggle('dark-theme', dark);
-  };
-  applyTheme(options.dark);
+  // Nothing to switch: Yandex's tiles carry their own design and this engine
+  // no longer repaints them. Kept because `MapEngine` requires it and the
+  // Leaflet path, which does theme its tiles, still needs the call.
+  const applyTheme = (_dark: boolean) => undefined;
 
   let markers: unknown[] = [];
   let clickHandler: ((position: LatLng) => void) | null = null;
@@ -333,7 +339,7 @@ async function createYandex(
 
     destroy() {
       markers = [];
-      element.classList.remove('uyiz-ymap', 'dark-theme');
+      element.classList.remove('uyiz-ymap');
       map.destroy();
     },
   };
