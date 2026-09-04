@@ -1138,10 +1138,12 @@ export const CreateListingPage: React.FC = () => {
 
     if (target === 2) {
       if (!address.trim()) errors.address = 'owner.create.validation.address';
-      if (
-        metro !== METRO_NONE &&
-        (metroMinutes === '' || metroMinutes < 1 || metroMinutes > 60)
-      ) {
+      // Optional, even once a station is chosen. Naming the nearest metro is
+      // useful on its own; how long the walk takes is something plenty of
+      // owners have never timed, and demanding a number they do not have gets
+      // a guess rather than an answer. A number that IS typed still has to be
+      // a believable walk.
+      if (metroMinutes !== '' && (metroMinutes < 1 || metroMinutes > 60)) {
         errors.metroMinutes = 'owner.create.validation.metroMinutes';
       }
     }
