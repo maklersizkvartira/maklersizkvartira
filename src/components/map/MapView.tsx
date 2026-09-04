@@ -21,7 +21,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { createMapEngine } from './engine';
 import type { LatLng, MapEngine } from './engine';
-import { Image as ImageIcon, List, MapPin, Search, ShieldCheck, X } from 'lucide-react';
+import { List, MapPin, Search, X } from 'lucide-react';
 
 import { UZBEKISTAN_REGIONS } from '../../data/mockLocations';
 import { useTranslation } from '../../i18n';
@@ -102,7 +102,10 @@ function escapeHtml(value: string): string {
  * Tailwind might not emit for a string literal. Colours are read straight from
  * the theme variables instead, which also means markers re-theme with the page.
  */
-function markerHtml(priceText: string, selected: boolean): string {
+function markerHtml(priceText: string): string {
+  // No selected state any more: a pin is tapped and the page changes, so
+  // there is never a moment where one pin is "the open one".
+  const selected = false;
   const bubble = selected
     ? 'background: var(--color-brand); color: var(--color-on-brand); border-color: var(--color-brand);'
     : 'background: var(--color-surface); color: var(--color-brand-text); border-color: var(--color-brand);';
@@ -148,18 +151,6 @@ export const MapView: React.FC = () => {
   // the old attempt down and builds a fresh one rather than layering a second
   // map onto the same element.
   const [retryToken, setRetryToken] = useState(0);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  /**
-   * The same value, readable from inside the marker callback.
-   *
-   * The callback is handed to the engine once per marker rebuild; reading
-   * `selectedId` from the closure there would compare against whatever was
-   * selected when the markers were last drawn, not what is selected now.
-   */
-  const selectedIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    selectedIdRef.current = selectedId;
-  }, [selectedId]);
   const [searchDraft, setSearchDraft] = useState(filters.search);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -200,10 +191,6 @@ export const MapView: React.FC = () => {
   );
 
   const missingCoordinates = listings.length - mapped.length;
-  const selected = useMemo(
-    () => listings.find((listing) => listing.id === selectedId) ?? null,
-    [listings, selectedId],
-  );
 
   // Listing prices are stored in so'm; the USD view is a presentation choice.
   /**
@@ -302,26 +289,20 @@ export const MapView: React.FC = () => {
         return {
           id: listing.id,
           position,
-          html: markerHtml(price, listing.id === selectedId),
+          html: markerHtml(price),
           label: t('map.marker.label', { title: listing.title, price }),
         };
       }),
-      (id) => {
-        // Tapping the pin that is already open takes you into the listing.
-        // The first tap has to stay a preview — on a map with a dozen pins,
-        // opening a page on every touch makes comparing two of them a matter
-        // of navigating back and forth, and a mis-tap costs a page load.
-        // The second tap on the same pin is unambiguous.
-        if (id === selectedIdRef.current) {
-          setCurrentView('LISTING_DETAIL', id);
-          return;
-        }
-        setSelectedId(id);
-        const hit = mapped.find((entry) => entry.listing.id === id);
-        if (hit) engine.panTo(hit.position);
-      },
+      // A pin is a link. Tapping the price opens that listing, with nothing
+      // in between — which is the whole job of a price on a map.
+      //
+      // There used to be a preview card here first: tap a pin, read a summary,
+      // then press a button to actually go. Two taps and a small target for
+      // something a visitor had already decided on by the time they aimed at
+      // the pin. The summary is the listing page, one tap earlier.
+      (id) => setCurrentView('LISTING_DETAIL', id),
     );
-  }, [mapStatus, mapped, badgePrice, selectedId, t]);
+  }, [mapStatus, mapped, badgePrice, t]);
 
   // Frame the results when the result set itself changes — not when the user
   // merely selects a pin, which would yank the viewport away from them.
@@ -372,16 +353,6 @@ export const MapView: React.FC = () => {
     },
     [],
   );
-
-  // Escape closes the detail card, matching every other overlay in the app.
-  useEffect(() => {
-    if (!selected) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setSelectedId(null);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selected]);
 
   const districtLabel = useCallback(
     (name: string) => {
@@ -595,10 +566,10 @@ export const MapView: React.FC = () => {
                 <li key={listing.id}>
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedId(listing.id);
-                      engineRef.current?.panTo(position);
-                    }}
+                    // The same thing the pin does, for a keyboard or a screen
+                    // reader. It has to stay in step: this list exists to be
+                    // the equivalent of clicking a pin, not a second behaviour.
+                    onClick={() => setCurrentView('LISTING_DETAIL', listing.id)}
                   >
                     {t('map.marker.label', {
                       title: listing.title,
@@ -679,108 +650,6 @@ export const MapView: React.FC = () => {
                       {t('map.page.listCta')}
                     </Button>
                   )}
-                </div>
-              </div>
-            )}
-
-            {/* ------------------------------------------------------------ */}
-            {/* Selected listing                                              */}
-            {/* ------------------------------------------------------------ */}
-            {selected && (
-              <div
-                role="dialog"
-                aria-label={selected.title}
-                className="rise-in absolute bottom-6 left-4 right-4 z-30 rounded-2xl border border-line bg-surface p-4 shadow-raised sm:left-6 sm:right-auto sm:max-w-md"
-              >
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(null)}
-                  aria-label={t('map.panel.close')}
-                  className="absolute right-2.5 top-2.5 rounded-full p-1.5 text-subtle transition-colors hover:bg-surface-3 hover:text-content"
-                >
-                  <X className="h-4 w-4" aria-hidden="true" />
-                </button>
-
-                {/* The whole card opens the listing, not just the small
-                    button below it. This panel is what a visitor is already
-                    looking at and already reaching for; making them find a
-                    72px target in its corner was the longest part of getting
-                    from a pin to a page. The button stays, because a card that
-                    is silently a link gives no sign that it is one. */}
-                <button
-                  type="button"
-                  onClick={() => setCurrentView('LISTING_DETAIL', selected.id)}
-                  className="press w-full text-left"
-                >
-                <div className="flex items-start gap-4">
-                  <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-line bg-surface-2">
-                    {selected.images?.[0] ? (
-                      <img
-                        src={selected.images[0]}
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-subtle">
-                        <ImageIcon className="h-6 w-6" aria-hidden="true" />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <p className="flex items-center gap-1.5 text-xs font-bold text-brand-text">
-                      <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                      <span className="truncate">
-                        {selected.address ||
-                          [districtLabel(selected.district), selected.region]
-                            .filter(Boolean)
-                            .join(', ')}
-                      </span>
-                    </p>
-
-                    <h3 className="line-clamp-1 text-sm font-black text-content">
-                      {selected.title}
-                    </h3>
-
-                    <p className="text-xs text-muted">
-                      {t('listings.card.roomsAndArea', {
-                        rooms: selected.rooms,
-                        area: selected.area,
-                      })}
-                    </p>
-
-                    {selected.metroStation && (
-                      <p className="truncate text-xs font-semibold text-muted">
-                        {t('map.panel.metro', { station: selected.metroStation })}
-                      </p>
-                    )}
-
-                    <p className="pt-1 text-base font-black text-content">
-                      {fullPrice(selected)}
-                      <span className="ml-1 text-xs font-semibold text-subtle">
-                        {t('listings.card.perMonth')}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-                </button>
-
-                <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3">
-                  <span className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-muted">
-                    <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-brand" aria-hidden="true" />
-                    <span className="truncate">
-                      {selected.owner?.name || t('common.role.owner')}
-                    </span>
-                  </span>
-
-                  <Button
-                    className="shrink-0 px-4 py-2 text-xs"
-                    onClick={() => setCurrentView('LISTING_DETAIL', selected.id)}
-                  >
-                    {t('common.action.details')}
-                  </Button>
                 </div>
               </div>
             )}
