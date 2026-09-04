@@ -68,6 +68,7 @@ import {
   TOP_DAYS_OPTIONS,
 } from '../../services/listingsApi';
 import { UploadError, uploadImages } from '../../services/uploadsApi';
+import { LocationPicker } from './LocationPicker';
 import { useAppStore } from '../../stores/useAppStore';
 import { useHaptics } from '../../hooks/useHaptics';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
@@ -80,6 +81,7 @@ import type { PropertyType, SellerType } from '../../types';
 import { canPublishAsAgent, canPublishListings, isSwitchableRole } from '../../types/roles';
 import {
   districtCentre,
+  nearestMetro,
   reverseGeocode,
   TASHKENT_CITY,
 } from '../../services/geocoding';
@@ -517,6 +519,8 @@ export const CreateListingPage: React.FC = () => {
   const [latitude, setLatitude] = useState<number | null>(initialDraft?.latitude ?? null);
   const [longitude, setLongitude] = useState<number | null>(initialDraft?.longitude ?? null);
   const [gpsBusy, setGpsBusy] = useState(false);
+  /** The map sheet. Nothing is written to the form until it confirms. */
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [gpsNotice, setGpsNotice] = useState<Notice | null>(null);
   const [gpsError, setGpsError] = useState<Notice | null>(null);
   const [gpsPermission, setGpsPermission] = useState<PermissionState | null>(null);
@@ -961,6 +965,35 @@ export const CreateListingPage: React.FC = () => {
   // GPS has answered and the coordinates are on the form.
   const located = latitude !== null && longitude !== null;
 
+  /**
+   * Everything that follows from knowing where the property is.
+   *
+   * Written once because there are two ways to arrive at a coordinate now —
+   * the GPS button and the map picker — and they have to leave the form in
+   * the same state. When this lived inside the GPS handler, a point chosen on
+   * the map set latitude and longitude and nothing else.
+   */
+  const applyCoordinates = (nextLat: number, nextLng: number) => {
+    setLatitude(nextLat);
+    setLongitude(nextLng);
+    setGpsNotice({ key: 'owner.create.location.gpsSuccess' });
+
+    // Filled in, not asked for. The station is a fact about the address, so
+    // once the address is known the form can answer it — and typing it was one
+    // of the two fields people abandoned this step on.
+    //
+    // Only when the field is still untouched: somebody who picked a station
+    // themselves has said something about this listing that a lookup should
+    // not overwrite.
+    void nearestMetro(nextLat, nextLng)
+      .then((station) => {
+        if (station) {
+          setMetro((current) => (current === METRO_NONE ? station : current));
+        }
+      })
+      .catch(() => undefined);
+  };
+
   const detectLocation = () => {
     setGpsError(null);
     setGpsNotice(null);
@@ -970,9 +1003,7 @@ export const CreateListingPage: React.FC = () => {
     setGpsNotice({ key: 'owner.create.location.gpsSearching' });
 
     const handleSuccess = (nextLat: number, nextLng: number) => {
-      setLatitude(nextLat);
-      setLongitude(nextLng);
-      setGpsNotice({ key: 'owner.create.location.gpsSuccess' });
+      applyCoordinates(nextLat, nextLng);
 
       void reverseGeocode(nextLat, nextLng)
         .then((match) => {
@@ -1721,6 +1752,21 @@ export const CreateListingPage: React.FC = () => {
                     : located
                       ? t('owner.create.location.gpsDetected')
                       : t('owner.create.location.gpsDetect')}
+                </Button>
+
+                {/* The other way in, and for most people the only usable one.
+                    GPS answers "where am I", which is the right question only
+                    while standing outside the property — and an owner writing
+                    a listing is almost never there. */}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  fullWidth
+                  className="press"
+                  onClick={() => setPickerOpen(true)}
+                >
+                  <MapPin className="h-4 w-4" aria-hidden="true" />
+                  {t('owner.create.location.pickCta')}
                 </Button>
 
                 <p className="text-center text-[11px] font-medium text-subtle">
@@ -3205,6 +3251,32 @@ export const CreateListingPage: React.FC = () => {
           </span>
         </p>
       </Sheet>
+      <LocationPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        value={latitude !== null && longitude !== null ? [latitude, longitude] : null}
+        district={district}
+        onConfirm={([lat, lng]) => {
+          applyCoordinates(lat, lng);
+          setPickerOpen(false);
+          // The same lookup the GPS button runs. A point on a map is a
+          // coordinate and nothing else; the region, district and street still
+          // have to be read back out of it or the form keeps whatever was
+          // there before.
+          void reverseGeocode(lat, lng)
+            .then((match) => {
+              setRegion(match.region);
+              setDistrict(match.district);
+              if (match.street) {
+                setAddress(match.street);
+                clearError('address');
+              }
+            })
+            .catch(() => undefined);
+          haptics.success();
+        }}
+      />
+
     </div>
   );
 };

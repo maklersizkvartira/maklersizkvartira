@@ -47,6 +47,14 @@ export interface MapEngine {
   fitTo(positions: LatLng[]): void;
   flyTo(position: LatLng, zoom: number): void;
   panTo(position: LatLng): void;
+  /**
+   * Report where the map was tapped, or stop reporting when given `null`.
+   *
+   * Added for the listing form's location picker. Everything else this engine
+   * does is read-only — it shows points somebody else chose — and picking a
+   * point is the one case where the map is an input.
+   */
+  onClick(handler: ((position: LatLng) => void) | null): void;
   destroy(): void;
 }
 
@@ -164,6 +172,8 @@ interface YandexGlobal {
   YMapMarker: new (config: unknown, element: HTMLElement) => unknown;
   YMapControls: new (config: unknown) => { addChild(child: unknown): unknown };
   YMapZoomControl: new (config: unknown) => unknown;
+  /** Map-level events. Used for the listing form's location picker. */
+  YMapListener: new (config: unknown) => unknown;
 }
 
 interface YandexMapInstance {
@@ -218,9 +228,28 @@ async function createYandex(
   map.addChild(controls);
 
   let markers: unknown[] = [];
+  let clickHandler: ((position: LatLng) => void) | null = null;
+
+  // Registered once, for the life of the map. `onClick` swaps the callback
+  // rather than adding and removing listeners, so a component that re-renders
+  // cannot leave a second listener behind and fire the handler twice.
+  map.addChild(
+    new ymaps.YMapListener({
+      layer: 'any',
+      onClick: (_object: unknown, event: { coordinates?: [number, number] }) => {
+        // Yandex speaks [lng, lat]; everything in this file speaks [lat, lng].
+        const c = event?.coordinates;
+        if (clickHandler && Array.isArray(c)) clickHandler([c[1], c[0]]);
+      },
+    }),
+  );
 
   return {
     provider: 'yandex',
+
+    onClick(handler) {
+      clickHandler = handler;
+    },
 
     setTheme(dark) {
       map.removeChild(scheme);
@@ -363,10 +392,20 @@ async function createLeaflet(
     .addTo(map);
 
   let markers: any[] = [];
+  let clickHandler: ((position: LatLng) => void) | null = null;
+
+  // One listener, swapped callback — same reasoning as the Yandex path.
+  map.on('click', (event: { latlng: { lat: number; lng: number } }) => {
+    if (clickHandler) clickHandler([event.latlng.lat, event.latlng.lng]);
+  });
 
   return {
     provider: 'leaflet',
     setTheme: applyTiles,
+
+    onClick(handler) {
+      clickHandler = handler;
+    },
 
     setMarkers(next, onSelect) {
       markers.forEach((marker) => marker.remove());

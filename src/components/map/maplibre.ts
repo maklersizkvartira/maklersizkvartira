@@ -70,8 +70,18 @@ export async function createMapLibre(
     }
   });
 
+  let clickHandler: ((position: [number, number]) => void) | null = null;
+  // One listener for the life of the map; `onClick` swaps the callback, so a
+  // re-rendering component cannot leave a second one behind.
+  map.on('click', (event: { lngLat: { lat: number; lng: number } }) => {
+    if (clickHandler) clickHandler([event.lngLat.lat, event.lngLat.lng]);
+  });
+
   return {
     provider: 'leaflet', // Return 'leaflet' so we don't break types if it only accepts yandex|leaflet
+    onClick(handler) {
+      clickHandler = handler;
+    },
     setTheme(dark) {
       map.setStyle(dark ? STYLE_URL_DARK : STYLE_URL_LIGHT);
     },

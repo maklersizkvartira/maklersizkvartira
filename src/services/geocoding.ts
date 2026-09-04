@@ -29,7 +29,7 @@
  * dropdown's em-dash placeholder and submits a mismatch.
  */
 
-import { UZBEKISTAN_REGIONS } from '../data/mockLocations';
+import { ALL_TASHKENT_METROS, UZBEKISTAN_REGIONS } from '../data/mockLocations';
 
 export interface GeoMatch {
   region: string;
@@ -547,4 +547,62 @@ export function reverseGeocode(latitude: number, longitude: number): Promise<Geo
 export function districtCentre(district: string): [number, number] | null {
   const place = foldPlace(district);
   return CENTRES_BY_PLACE.get(placeKey(place)) ?? CENTRES_BY_CORE.get(place.core) ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Nearest metro
+// ---------------------------------------------------------------------------
+/**
+ * The metro station closest to a point, as Yandex names it.
+ *
+ * `kind=metro` is a reverse-geocode that answers with stations rather than
+ * addresses, which is why this needs no coordinate table of its own: the app
+ * carries metro stations as names only, so there is nothing here to measure a
+ * distance against.
+ *
+ * The answer is matched against `ALL_TASHKENT_METROS` before it is returned.
+ * Yandex writes "Chilonzor metro bekati" where the form's dropdown holds
+ * "Chilonzor", and a value the select cannot hold is worse than none: the
+ * field silently keeps whatever it had. An unmatched station therefore
+ * resolves to `null` and the owner picks it themselves, which is the same
+ * outcome as before this existed.
+ */
+export async function nearestMetro(
+  latitude: number,
+  longitude: number,
+): Promise<string | null> {
+  if (!YANDEX_GEOCODER_KEY) return null;
+
+  const url =
+    'https://geocode-maps.yandex.ru/1.x/' +
+    `?apikey=${encodeURIComponent(YANDEX_GEOCODER_KEY)}` +
+    `&geocode=${longitude},${latitude}` +
+    '&kind=metro&format=json&lang=uz_UZ&results=1';
+
+  const payload = (await fetchJson(url)) as {
+    response?: {
+      GeoObjectCollection?: { featureMember?: Array<{ GeoObject?: { name?: string } }> };
+    };
+  } | null;
+
+  const raw = payload?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject?.name;
+  if (!raw) return null;
+
+  // Compared on letters and digits alone. The two spellings differ by
+  // apostrophes, the word "metro", and the odd hyphen — none of which change
+  // which station is meant.
+  const normalise = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/metro|bekati|stansiyasi|станция|метро/g, '')
+      .replace(/[^a-z0-9\u0400-\u04FF]/g, '');
+
+  const target = normalise(raw);
+  if (!target) return null;
+  return (
+    ALL_TASHKENT_METROS.find((station) => {
+      const known = normalise(station);
+      return known === target || target.includes(known) || known.includes(target);
+    }) ?? null
+  );
 }
