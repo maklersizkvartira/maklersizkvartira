@@ -17,8 +17,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, Query, Request
+from pydantic import BaseModel
 from sqlalchemy import String, and_, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core import audit as audit_log
 from app.core.config import settings
@@ -2128,13 +2130,13 @@ async def toggle_staff(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/support/conversations", response_model=list[SupportConversationOut])
+@router.get("/support/conversations")
 async def admin_list_support_conversations(
     db: DbSession,
     admin: RequireModerator,
     status: str | None = None,
     search: str | None = None,
-) -> list[SupportConversationOut]:
+) -> dict:
     """List customer support threads for the admin panel."""
     stmt = (
         select(SupportConversation)
@@ -2169,18 +2171,15 @@ async def admin_list_support_conversations(
             item.last_message_at = last.created_at
             item.last_message_sender = last.sender_type
         out.append(item)
-    return out
+    return _ok([item.model_dump(mode="json") for item in out])
 
 
-@router.get(
-    "/support/conversations/{user_id}/messages",
-    response_model=SupportConversationDetailOut,
-)
+@router.get("/support/conversations/{user_id}/messages")
 async def admin_get_support_messages(
     user_id: uuid.UUID,
     db: DbSession,
     admin: RequireModerator,
-) -> SupportConversationDetailOut:
+) -> dict:
     """Get the support conversation thread and mark user messages as read."""
     stmt = (
         select(SupportConversation)
@@ -2210,19 +2209,16 @@ async def admin_get_support_messages(
         out.last_message_at = last.created_at
         out.last_message_sender = last.sender_type
     out.unread_count = 0
-    return out
+    return _ok(out.model_dump(mode="json"))
 
 
-@router.post(
-    "/support/conversations/{user_id}/messages",
-    response_model=SupportMessageOut,
-)
+@router.post("/support/conversations/{user_id}/messages")
 async def admin_send_support_reply(
     user_id: uuid.UUID,
     payload: SupportMessageCreate,
     db: DbSession,
     admin: RequireModerator,
-) -> SupportMessageOut:
+) -> dict:
     """Send an admin reply to a customer."""
     stmt = select(SupportConversation).where(SupportConversation.user_id == user_id)
     conv = (await db.execute(stmt)).scalar_one_or_none()
@@ -2243,23 +2239,21 @@ async def admin_send_support_reply(
     conv.updated_at = msg.created_at
     await db.commit()
     await db.refresh(msg)
-    return msg
+    return _ok(SupportMessageOut.model_validate(msg).model_dump(mode="json"))
 
 
 class SupportStatusUpdate(BaseModel):
-    status: str
+    status: str | None = None
 
 
-@router.patch(
-    "/support/conversations/{user_id}/status",
-    response_model=SupportConversationOut,
-)
+@router.patch("/support/conversations/{user_id}/status")
 async def admin_update_support_status(
     user_id: uuid.UUID,
-    payload: SupportStatusUpdate,
     db: DbSession,
     admin: RequireModerator,
-) -> SupportConversationOut:
+    payload: SupportStatusUpdate | None = None,
+    status: str | None = Query(default=None),
+) -> dict:
     """Update support conversation status (OPEN or RESOLVED)."""
     stmt = (
         select(SupportConversation)
@@ -2273,11 +2267,20 @@ async def admin_update_support_status(
     if not conv:
         raise NotFound("conversation_not_found")
 
-    new_status = payload.status.upper()
-    if new_status in ("OPEN", "RESOLVED"):
-        conv.status = new_status
-        await db.commit()
+    req_status = None
+    if payload and payload.status:
+        req_status = payload.status.upper()
+    elif status:
+        req_status = status.upper()
+
+    if req_status in ("OPEN", "RESOLVED"):
+        conv.status = req_status
+    else:
+        conv.status = "RESOLVED" if conv.status == "OPEN" else "OPEN"
+
+    await db.commit()
+    await db.refresh(conv)
 
     out = SupportConversationOut.model_validate(conv)
-    return out
+    return _ok(out.model_dump(mode="json"))
 

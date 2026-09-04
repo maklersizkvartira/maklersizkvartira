@@ -88,6 +88,16 @@ class SupportMessageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class SupportUserOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    phone: str
+    avatar: str | None = None
+    role: str = "STUDENT"
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class SupportConversationOut(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
@@ -95,7 +105,7 @@ class SupportConversationOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    user: UserOut | None = None
+    user: SupportUserOut | None = None
     last_message: str | None = None
     last_message_at: datetime | None = None
     last_message_sender: str | None = None

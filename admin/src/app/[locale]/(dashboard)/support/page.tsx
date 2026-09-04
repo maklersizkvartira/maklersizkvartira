@@ -183,7 +183,7 @@ export default function SupportPage() {
     if (!selectedUserId || !detail) return;
     const nextStatus = detail.status === 'OPEN' ? 'RESOLVED' : 'OPEN';
     try {
-      await http.patch(api.support.updateStatus(selectedUserId), undefined);
+      await http.patch(api.support.updateStatus(selectedUserId), { status: nextStatus });
       setDetail((prev) => (prev ? { ...prev, status: nextStatus } : prev));
       setConversations((prev) =>
         prev.map((c) => (c.user_id === selectedUserId ? { ...c, status: nextStatus } : c))

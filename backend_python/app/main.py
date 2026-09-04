@@ -71,6 +71,35 @@ async def lifespan(app: FastAPI):
             await db.execute(text("ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS face_image TEXT;"))
             await db.execute(text("ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS face_encoding TEXT;"))
 
+            # Ensure support chat tables exist
+            try:
+                await db.execute(text("""
+                    CREATE TABLE IF NOT EXISTS support_conversations (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+                        status VARCHAR(20) NOT NULL DEFAULT 'OPEN',
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_support_conversations_user_id ON support_conversations(user_id);
+                    CREATE INDEX IF NOT EXISTS ix_support_conversations_status ON support_conversations(status);
+
+                    CREATE TABLE IF NOT EXISTS support_messages (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        conversation_id UUID NOT NULL REFERENCES support_conversations(id) ON DELETE CASCADE,
+                        sender_type VARCHAR(10) NOT NULL,
+                        sender_id UUID NOT NULL,
+                        text TEXT NOT NULL,
+                        read_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_support_messages_conversation_id ON support_messages(conversation_id);
+                    CREATE INDEX IF NOT EXISTS ix_support_messages_sender_id ON support_messages(sender_id);
+                """))
+            except Exception as tbl_err:
+                log.warning("support_tables_autoheal_note", error=str(tbl_err))
+
             # Keep only the two designated staff accounts
             allowed_usernames = ["admin", "maklersizuy@admin.dev"]
             await db.execute(
