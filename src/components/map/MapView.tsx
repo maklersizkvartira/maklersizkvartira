@@ -149,6 +149,17 @@ export const MapView: React.FC = () => {
   // map onto the same element.
   const [retryToken, setRetryToken] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  /**
+   * The same value, readable from inside the marker callback.
+   *
+   * The callback is handed to the engine once per marker rebuild; reading
+   * `selectedId` from the closure there would compare against whatever was
+   * selected when the markers were last drawn, not what is selected now.
+   */
+  const selectedIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
   const [searchDraft, setSearchDraft] = useState(filters.search);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -195,23 +206,41 @@ export const MapView: React.FC = () => {
   );
 
   // Listing prices are stored in so'm; the USD view is a presentation choice.
+  /**
+   * A listing's price in whichever currency the viewer picked.
+   *
+   * Takes the listing, not a number, and that is the fix: `listings.price` is
+   * stored in the currency the owner quoted, so a bare number cannot be
+   * converted without knowing which. Treating every price as so'm — which is
+   * what this did — printed a $500 flat as "0.0 mln" on its marker, or as
+   * "$0.04" for a viewer reading in dollars. Both from the same missing
+   * question.
+   *
+   * Normalised to so'm first, then out to the display currency, so the two
+   * kinds of listing rank and read alike on one map.
+   */
   const inSelectedCurrency = useCallback(
-    (price: number) => (currency === 'USD' ? price / fxRate : price),
+    (listing: Listing) => {
+      const uzs = listing.currency === 'USD' ? listing.price * fxRate : listing.price;
+      return currency === 'USD' ? uzs / fxRate : uzs;
+    },
     [currency, fxRate],
   );
 
   const fullPrice = useCallback(
-    (price: number) => formatPrice(inSelectedCurrency(price), currency),
+    (listing: Listing) => formatPrice(inSelectedCurrency(listing), currency),
     [currency, formatPrice, inSelectedCurrency],
   );
 
   /** Markers only have room for a short price, so so'm is shown in millions. */
   const badgePrice = useCallback(
-    (price: number) =>
+    (listing: Listing) =>
       currency === 'USD'
-        ? formatPrice(inSelectedCurrency(price), 'USD')
+        ? formatPrice(inSelectedCurrency(listing), 'USD')
         : t('map.marker.priceMillion', {
-            value: formatNumber(price / 1_000_000, { maximumFractionDigits: 1 }),
+            value: formatNumber(inSelectedCurrency(listing) / 1_000_000, {
+              maximumFractionDigits: 1,
+            }),
           }),
     [currency, formatNumber, formatPrice, inSelectedCurrency, t],
   );
@@ -269,7 +298,7 @@ export const MapView: React.FC = () => {
 
     engine.setMarkers(
       mapped.map(({ listing, position }) => {
-        const price = badgePrice(listing.price);
+        const price = badgePrice(listing);
         return {
           id: listing.id,
           position,
@@ -278,6 +307,15 @@ export const MapView: React.FC = () => {
         };
       }),
       (id) => {
+        // Tapping the pin that is already open takes you into the listing.
+        // The first tap has to stay a preview — on a map with a dozen pins,
+        // opening a page on every touch makes comparing two of them a matter
+        // of navigating back and forth, and a mis-tap costs a page load.
+        // The second tap on the same pin is unambiguous.
+        if (id === selectedIdRef.current) {
+          setCurrentView('LISTING_DETAIL', id);
+          return;
+        }
         setSelectedId(id);
         const hit = mapped.find((entry) => entry.listing.id === id);
         if (hit) engine.panTo(hit.position);
@@ -564,7 +602,7 @@ export const MapView: React.FC = () => {
                   >
                     {t('map.marker.label', {
                       title: listing.title,
-                      price: fullPrice(listing.price),
+                      price: fullPrice(listing),
                     })}
                   </button>
                 </li>
@@ -663,6 +701,17 @@ export const MapView: React.FC = () => {
                   <X className="h-4 w-4" aria-hidden="true" />
                 </button>
 
+                {/* The whole card opens the listing, not just the small
+                    button below it. This panel is what a visitor is already
+                    looking at and already reaching for; making them find a
+                    72px target in its corner was the longest part of getting
+                    from a pin to a page. The button stays, because a card that
+                    is silently a link gives no sign that it is one. */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('LISTING_DETAIL', selected.id)}
+                  className="press w-full text-left"
+                >
                 <div className="flex items-start gap-4">
                   <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-line bg-surface-2">
                     {selected.images?.[0] ? (
@@ -709,13 +758,14 @@ export const MapView: React.FC = () => {
                     )}
 
                     <p className="pt-1 text-base font-black text-content">
-                      {fullPrice(selected.price)}
+                      {fullPrice(selected)}
                       <span className="ml-1 text-xs font-semibold text-subtle">
                         {t('listings.card.perMonth')}
                       </span>
                     </p>
                   </div>
                 </div>
+                </button>
 
                 <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3">
                   <span className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-muted">
