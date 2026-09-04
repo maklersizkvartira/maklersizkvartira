@@ -70,26 +70,25 @@ export interface EngineOptions {
 /**
  * The Yandex JS API keys to try, in order.
  *
- * A list rather than one value, and the reason is worth keeping. The key was
- * originally read from `VITE_YANDEX_MAPS_API_KEY` with a literal fallback, and
- * the deployment had that variable set to `57fdc2ff-…` — a key Yandex answers
- * `403 Invalid api key`. The environment quite correctly won over the literal,
- * so production loaded a dead key, fell through to Leaflet, and served
- * OpenStreetMap tiles while the code looked entirely correct. Nothing surfaced
- * it: the fallback works, so the map was there, just less detailed.
+ * A list rather than one value: the environment wins when it holds a key that
+ * works, and a stale one costs one failed request instead of silently
+ * downgrading every visitor's map.
  *
- * Trying them in turn fixes that class of failure rather than that instance of
- * it. The environment still wins when it holds a key that works, and a stale or
- * revoked one costs one failed request instead of silently downgrading every
- * visitor's map. Clear the variable once it is wrong — this is a safety net,
- * not a place to leave a dead key.
+ * A correction to what this comment used to say. It blamed `57fdc2ff-…` for
+ * being "a key Yandex answers 403 Invalid api key", and that was wrong — the
+ * request was. Both keys here return 200 and 35KB of JavaScript on the 2.1
+ * endpoint this file now loads; both were refused by v3, which it used to
+ * load, because a key issued for 2.1 is simply not a v3 key. Every hour spent
+ * hunting a dead key was spent on the wrong half of the URL.
+ *
+ * The lesson worth keeping: when a provider says the credential is invalid,
+ * check what was asked for before concluding anything about the credential.
  *
  * These are not secrets. A JS API key ships inside the bundle to every visitor
  * by definition; Yandex secures it by HTTP-Referer instead, so the allowed
  * hosts in the Yandex Cabinet are the only thing stopping another site from
- * spending this quota. That list currently holds maklersizuy.uz — uyiz.uz has
- * to be added to it before the domain moves, or the map quietly drops to
- * OpenStreetMap there.
+ * spending this quota, so uyiz.uz has to be on the allowed list in the Yandex
+ * Cabinet or the map drops to OpenStreetMap there.
  */
 const YANDEX_KEYS: string[] = [
   import.meta.env.VITE_YANDEX_MAPS_API_KEY,
@@ -164,85 +163,123 @@ function bubble(html: string, label: string, onClick: () => void): HTMLElement {
 // ---------------------------------------------------------------------------
 // Yandex Maps JS API v3
 // ---------------------------------------------------------------------------
-interface YandexGlobal {
-  ready: Promise<void>;
-  YMap: new (element: HTMLElement, config: unknown) => YandexMapInstance;
-  YMapDefaultSchemeLayer: new (config: unknown) => unknown;
-  YMapDefaultFeaturesLayer: new (config: unknown) => unknown;
-  YMapMarker: new (config: unknown, element: HTMLElement) => unknown;
-  YMapControls: new (config: unknown) => { addChild(child: unknown): unknown };
-  YMapZoomControl: new (config: unknown) => unknown;
-  /** Map-level events. Used for the listing form's location picker. */
-  YMapListener: new (config: unknown) => unknown;
+/**
+ * The slice of the 2.1 global this file touches.
+ *
+ * Deliberately narrow. `ymaps` is a very large namespace and typing it fully
+ * would be typing somebody else's library; these are the eight things the
+ * engine below calls, and anything else is a compile error rather than a
+ * silent `any`.
+ */
+interface YandexMaps21 {
+  ready(callback: () => void): void;
+  Map: new (
+    element: HTMLElement,
+    state: { center: LatLng; zoom: number; controls: string[] },
+    options?: Record<string, unknown>,
+  ) => YandexMap21;
+  Placemark: new (
+    position: LatLng,
+    properties: Record<string, unknown>,
+    options: Record<string, unknown>,
+  ) => YandexPlacemark21;
+  templateLayoutFactory: { createClass(template: string): unknown };
 }
 
-interface YandexMapInstance {
-  addChild(child: unknown): unknown;
-  removeChild(child: unknown): unknown;
-  update(config: unknown): void;
-  setLocation(config: unknown): void;
+interface YandexPlacemark21 {
+  events: { add(name: string, handler: () => void): void };
+}
+
+interface YandexMap21 {
+  controls: { add(name: string, options?: Record<string, unknown>): void };
+  geoObjects: { add(object: unknown): void; removeAll(): void };
+  events: { add(name: string, handler: (event: { get(key: string): unknown }) => void): void };
+  setBounds(bounds: [LatLng, LatLng], options?: Record<string, unknown>): void;
+  setCenter(center: LatLng, zoom?: number, options?: Record<string, unknown>): void;
   destroy(): void;
 }
 
-declare global {
-  interface Window {
-    ymaps3?: YandexGlobal;
-  }
+/**
+ * The dark treatment for Yandex tiles.
+ *
+ * 2.1 has no dark scheme of its own — that arrived in v3 — so the tiles are
+ * filtered, the same trick and very nearly the same numbers the Leaflet path
+ * uses. Applied to the ground pane alone, so controls, markers and the
+ * copyright strip keep their real colours.
+ */
+const YANDEX_THEME_CSS = `
+.uyiz-ymap { background: var(--color-surface-2); font: inherit; }
+.uyiz-ymap.dark-theme [class*="-ground-pane"],
+[data-theme="dark"] .uyiz-ymap [class*="-ground-pane"] {
+  filter: brightness(0.58) invert(1) contrast(2.4) hue-rotate(200deg) saturate(0.3) brightness(0.8);
+}
+`;
+
+function injectYandexTheme(): void {
+  if (document.getElementById('yandex-theme-css')) return;
+  const style = document.createElement('style');
+  style.id = 'yandex-theme-css';
+  style.textContent = YANDEX_THEME_CSS;
+  document.head.appendChild(style);
 }
 
+/**
+ * Yandex Maps, JS API 2.1.
+ *
+ * Written against 2.1 and not v3, which is what this used to load, because a
+ * key issued for one is not a key for the other: v3 answered every request
+ * with `403 Invalid api key` for a key that returns 200 and 35KB of
+ * JavaScript on 2.1. The map fell through to OpenStreetMap the whole time and
+ * said so only in the console, so from the outside it looked like a dead key
+ * rather than a version mismatch.
+ */
 async function createYandex(
   element: HTMLElement,
   options: EngineOptions,
   apiKey: string,
 ): Promise<MapEngine> {
+  injectYandexTheme();
   await loadScript(
     'yandex-maps-js',
-    `https://api-maps.yandex.ru/v3/?apikey=${encodeURIComponent(apiKey)}` +
+    `https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(apiKey)}` +
       `&lang=${options.language === 'ru' ? 'ru_RU' : options.language === 'en' ? 'en_US' : 'uz_UZ'}`,
   );
 
-  const ymaps = window.ymaps3;
+  const ymaps = (window as unknown as { ymaps?: YandexMaps21 }).ymaps;
   if (!ymaps) throw new Error('yandex-missing');
-  await ymaps.ready;
+  // `ready` resolves once the modules the constructors live in are loaded.
+  // Touching `ymaps.Map` before it does throws, and that throw is what the
+  // caller reads as "this key did not work" — so a slow network would have
+  // looked like a bad key.
+  await new Promise<void>((resolve) => ymaps.ready(resolve));
 
-  const {
-    YMap,
-    YMapDefaultSchemeLayer,
-    YMapDefaultFeaturesLayer,
-    YMapMarker,
-    YMapControls,
-    YMapZoomControl,
-  } = ymaps;
+  element.classList.add('uyiz-ymap');
 
-  const map = new YMap(element, {
-    location: { center: [options.center[1], options.center[0]], zoom: options.zoom },
-    camera: { tilt: 45 * (Math.PI / 180), azimuth: 0, duration: 0 }
-  });
+  const map = new ymaps.Map(
+    element,
+    { center: options.center, zoom: options.zoom, controls: [] },
+    // The whole point of this map is the tiles; Yandex's own search box,
+    // traffic panel and ruler are chrome we neither asked for nor style.
+    { suppressMapOpenBlock: true },
+  );
 
-  let scheme = new YMapDefaultSchemeLayer({ theme: options.dark ? 'dark' : 'light' });
-  map.addChild(scheme);
-  map.addChild(new YMapDefaultFeaturesLayer({}));
+  map.controls.add('zoomControl', { position: { right: 12, bottom: 44 } });
 
-  const controls = new YMapControls({ position: 'bottom right' });
-  controls.addChild(new YMapZoomControl({}));
-  map.addChild(controls);
+  const applyTheme = (dark: boolean) => {
+    element.classList.toggle('dark-theme', dark);
+  };
+  applyTheme(options.dark);
 
   let markers: unknown[] = [];
   let clickHandler: ((position: LatLng) => void) | null = null;
 
-  // Registered once, for the life of the map. `onClick` swaps the callback
-  // rather than adding and removing listeners, so a component that re-renders
-  // cannot leave a second listener behind and fire the handler twice.
-  map.addChild(
-    new ymaps.YMapListener({
-      layer: 'any',
-      onClick: (_object: unknown, event: { coordinates?: [number, number] }) => {
-        // Yandex speaks [lng, lat]; everything in this file speaks [lat, lng].
-        const c = event?.coordinates;
-        if (clickHandler && Array.isArray(c)) clickHandler([c[1], c[0]]);
-      },
-    }),
-  );
+  // One listener for the life of the map; `onClick` swaps the callback, so a
+  // component that re-renders cannot leave a second listener behind and fire
+  // the handler twice.
+  map.events.add('click', (event: { get(name: string): unknown }) => {
+    const coords = event.get('coords') as LatLng | undefined;
+    if (clickHandler && Array.isArray(coords)) clickHandler([coords[0], coords[1]]);
+  });
 
   return {
     provider: 'yandex',
@@ -251,21 +288,25 @@ async function createYandex(
       clickHandler = handler;
     },
 
-    setTheme(dark) {
-      map.removeChild(scheme);
-      scheme = new YMapDefaultSchemeLayer({ theme: dark ? 'dark' : 'light' });
-      map.addChild(scheme);
-    },
+    setTheme: applyTheme,
 
     setMarkers(next, onSelect) {
-      markers.forEach((marker) => map.removeChild(marker));
+      map.geoObjects.removeAll();
       markers = next.map((entry) => {
-        const marker = new YMapMarker(
-          { coordinates: [entry.position[1], entry.position[0]] },
-          bubble(entry.html, entry.label, () => onSelect(entry.id)),
+        // `bubble` builds the same DOM the Leaflet path mounts, so a marker
+        // looks identical whichever engine drew it. 2.1 wants that element
+        // wrapped in a layout class rather than handed over directly.
+        const layout = ymaps.templateLayoutFactory.createClass(
+          `<div class="listing-marker" role="button" tabindex="0" aria-label="${entry.label.replace(/"/g, '&quot;')}">${entry.html}</div>`,
         );
-        map.addChild(marker);
-        return marker;
+        const placemark = new ymaps.Placemark(
+          entry.position,
+          {},
+          { iconLayout: layout, iconShape: null, iconOffset: [0, 0] },
+        );
+        placemark.events.add('click', () => onSelect(entry.id));
+        map.geoObjects.add(placemark);
+        return placemark;
       });
     },
 
@@ -273,25 +314,26 @@ async function createYandex(
       if (positions.length === 0) return;
       const lats = positions.map((p) => p[0]);
       const lngs = positions.map((p) => p[1]);
-      map.setLocation({
-        bounds: [
-          [Math.min(...lngs), Math.max(...lats)],
-          [Math.max(...lngs), Math.min(...lats)],
+      map.setBounds(
+        [
+          [Math.min(...lats), Math.min(...lngs)],
+          [Math.max(...lats), Math.max(...lngs)],
         ],
-        duration: 400,
-      });
+        { checkZoomRange: true, duration: 400 },
+      );
     },
 
     flyTo(position, zoom) {
-      map.setLocation({ center: [position[1], position[0]], zoom, duration: 800 });
+      map.setCenter(position, zoom, { duration: 800 });
     },
 
     panTo(position) {
-      map.setLocation({ center: [position[1], position[0]], duration: 400 });
+      map.setCenter(position, undefined, { duration: 400 });
     },
 
     destroy() {
       markers = [];
+      element.classList.remove('uyiz-ymap', 'dark-theme');
       map.destroy();
     },
   };
