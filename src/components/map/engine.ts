@@ -143,17 +143,6 @@ function loadStyle(id: string, href: string, integrity?: string): void {
   document.head.appendChild(link);
 }
 
-/**
- * The hit area of a price bubble, in pixels.
- *
- * Generous on purpose and fixed rather than measured: the bubble is as wide as
- * the price inside it, the layout is rendered by Yandex after this box is
- * declared, and a target slightly larger than its label is the right error on
- * a touchscreen anyway.
- */
-const MARKER_WIDTH = 92;
-const MARKER_HEIGHT = 34;
-
 function bubble(html: string, label: string, onClick: () => void): HTMLElement {
   const element = document.createElement('div');
   element.className = 'listing-marker';
@@ -189,22 +178,26 @@ interface YandexMaps21 {
     state: { center: LatLng; zoom: number; controls: string[] },
     options?: Record<string, unknown>,
   ) => YandexMap21;
-  Placemark: new (
-    position: LatLng,
-    properties: Record<string, unknown>,
-    options: Record<string, unknown>,
-  ) => YandexPlacemark21;
-  templateLayoutFactory: { createClass(template: string): unknown };
 }
 
-interface YandexPlacemark21 {
-  events: { add(name: string, handler: () => void): void };
+interface YandexProjection21 {
+  toGlobalPixels(position: LatLng, zoom: number): [number, number];
 }
 
 interface YandexMap21 {
   controls: { add(name: string, options?: Record<string, unknown>): void };
   geoObjects: { add(object: unknown): void; removeAll(): void };
-  events: { add(name: string, handler: (event: { get(key: string): unknown }) => void): void };
+  events: {
+    add(
+      name: string | string[],
+      handler: (event: { get(key: string): unknown }) => void,
+    ): void;
+  };
+  /** Used to place our own markers — see the overlay in `createYandex`. */
+  options: { get(name: 'projection'): YandexProjection21 };
+  converter: { globalToPage(global: [number, number]): [number, number] };
+  container: { getOffset(): [number, number] };
+  getZoom(): number;
   setBounds(bounds: [LatLng, LatLng], options?: Record<string, unknown>): void;
   setCenter(center: LatLng, zoom?: number, options?: Record<string, unknown>): void;
   destroy(): void;
@@ -287,7 +280,6 @@ async function createYandex(
   // Leaflet path, which does theme its tiles, still needs the call.
   const applyTheme = (_dark: boolean) => undefined;
 
-  let markers: unknown[] = [];
   let clickHandler: ((position: LatLng) => void) | null = null;
 
   // One listener for the life of the map; `onClick` swaps the callback, so a
@@ -297,6 +289,46 @@ async function createYandex(
     const coords = event.get('coords') as LatLng | undefined;
     if (clickHandler && Array.isArray(coords)) clickHandler([coords[0], coords[1]]);
   });
+
+  /**
+   * Markers are drawn by us, on top of Yandex's tiles.
+   *
+   * `ymaps.Placemark` renders nothing on this account. The map builds its
+   * ground, events, copyright and control panes and no places pane at all, so
+   * geo objects join a collection that never paints. Verified against Yandex's
+   * own documented example in a clean frame — plain map, one preset placemark,
+   * `load=package.full` — which drew tiles and no marker either. It is what
+   * the key is entitled to, not the code above it.
+   *
+   * The projection is there regardless, and it is all a marker needs: a
+   * coordinate becomes a pixel, an absolutely positioned element goes there,
+   * and the browser handles the click. The tiles stay Yandex's, which is the
+   * half of the map this account does serve.
+   */
+  const overlay = document.createElement('div');
+  overlay.style.cssText =
+    'position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden';
+  element.appendChild(overlay);
+
+  let pins: { element: HTMLElement; position: LatLng }[] = [];
+
+  const placePins = () => {
+    if (pins.length === 0) return;
+    const projection = map.options.get('projection');
+    const offset = map.container.getOffset();
+    const zoom = map.getZoom();
+    pins.forEach((pin) => {
+      const page = map.converter.globalToPage(
+        projection.toGlobalPixels(pin.position, zoom),
+      );
+      pin.element.style.left = `${page[0] - offset[0]}px`;
+      pin.element.style.top = `${page[1] - offset[1]}px`;
+    });
+  };
+
+  // Every way the viewport can move. `actiontick` is what keeps the pins with
+  // the tiles *during* a drag rather than snapping to place when it ends.
+  map.events.add(['boundschange', 'actionend', 'actiontick', 'sizechange'], placePins);
 
   return {
     provider: 'yandex',
@@ -308,37 +340,20 @@ async function createYandex(
     setTheme: applyTheme,
 
     setMarkers(next, onSelect) {
-      map.geoObjects.removeAll();
-      markers = next.map((entry) => {
-        // `bubble` builds the same DOM the Leaflet path mounts, so a marker
-        // looks identical whichever engine drew it. 2.1 wants that element
-        // wrapped in a layout class rather than handed over directly.
-        const layout = ymaps.templateLayoutFactory.createClass(
-          `<div class="listing-marker" role="button" tabindex="0" aria-label="${entry.label.replace(/"/g, '&quot;')}">${entry.html}</div>`,
-        );
-        const placemark = new ymaps.Placemark(entry.position, {}, {
-          iconLayout: layout,
-          // Without a shape a custom-layout placemark has no hit area at all:
-          // it draws, and every click passes straight through it, so the
-          // `click` handler below never runs. That is why tapping a price on
-          // the map did nothing — the marker was a picture, not a control.
-          //
-          // A rectangle roughly the size of the bubble, anchored so the tip
-          // sits on the coordinate: the box runs from half a width left and a
-          // full height up, to half a width right and the point itself.
-          iconShape: {
-            type: 'Rectangle',
-            coordinates: [
-              [-MARKER_WIDTH / 2, -MARKER_HEIGHT],
-              [MARKER_WIDTH / 2, 0],
-            ],
-          },
-          iconOffset: [-MARKER_WIDTH / 2, -MARKER_HEIGHT],
-        });
-        placemark.events.add('click', () => onSelect(entry.id));
-        map.geoObjects.add(placemark);
-        return placemark;
+      pins.forEach((pin) => pin.element.remove());
+      pins = next.map((entry) => {
+        // The same `bubble` the Leaflet path mounts, so a marker looks and
+        // behaves identically whichever engine is underneath.
+        const element = bubble(entry.html, entry.label, () => onSelect(entry.id));
+        element.style.position = 'absolute';
+        // The overlay ignores the pointer so the map can still be dragged
+        // through it; each marker takes it back for itself.
+        element.style.pointerEvents = 'auto';
+        element.style.transform = 'translate(-50%, -100%)';
+        overlay.appendChild(element);
+        return { element, position: entry.position };
       });
+      placePins();
     },
 
     fitTo(positions) {
@@ -363,7 +378,8 @@ async function createYandex(
     },
 
     destroy() {
-      markers = [];
+      pins = [];
+      overlay.remove();
       element.classList.remove('uyiz-ymap');
       map.destroy();
     },
