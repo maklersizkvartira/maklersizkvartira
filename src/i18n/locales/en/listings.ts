@@ -171,6 +171,8 @@ export const listings = {
     /** Hover text for the score chip on the card and in the page heading. */
     trustTooltip: 'Reliability: {score}/100. It drops only on a confirmed complaint.',
     landAreaLabel: 'Plot size',
+    convert: 'Convert to {currency}',
+    convertedNote: 'approximate, at today’s rate',
     landAreaValue: '{value} sotix',
     /**
      * The owner chip in the sidebar shows the USER's score, which still rises

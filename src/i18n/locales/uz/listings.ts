@@ -171,6 +171,8 @@ export const listings = {
     /** Hover text for the score chip on the card and in the page heading. */
     trustTooltip: 'Ishonchlilik: {score}/100. Faqat tasdiqlangan shikoyatdan keyin pasayadi.',
     landAreaLabel: 'Yer maydoni',
+    convert: '{currency} da hisoblash',
+    convertedNote: 'taxminiy, bugungi kurs bo‘yicha',
     landAreaValue: '{value} sotix',
     /**
      * The owner chip in the sidebar shows the USER's score, which still rises

@@ -265,6 +265,8 @@ export const ListingDetailPage: React.FC = () => {
   const ownerPhone = (listing?.owner?.phone ?? '').trim();
   const isOwnListing = Boolean(currentUser && listing && currentUser.id === listing.owner?.id);
   const isFavorite = listing ? favoriteIds.has(listing.id) : false;
+  /** Off until asked. See the price block below for why. */
+  const [showConverted, setShowConverted] = useState(false);
 
   // Everything is stored in UZS; a USD listing is normalised once, here.
   const priceUzs = listing
@@ -926,13 +928,31 @@ export const ListingDetailPage: React.FC = () => {
                     : t('common.units.perMonth')}
                 </span>
               </p>
-              {/* The other currency, marked as the estimate it is. Most
-                  searchers here think in so'm and most agencies quote in
-                  dollars; whichever way round this listing is, the number the
-                  reader does not think in is the one they need. */}
-              {priceApprox && (
-                <p className="text-sm font-semibold text-subtle">≈ {priceApprox}</p>
-              )}
+              {/* Asked for, not assumed.
+                  The conversion used to sit under every price, here and on
+                  every card in the grid — a second number beside the real one,
+                  on a rate that moves, for a question most readers never had.
+                  It is a button now: whoever needs the other currency presses
+                  once, and everyone else reads the price the owner set. */}
+              {priceApprox &&
+                (showConverted ? (
+                  <p className="text-sm font-semibold text-subtle">
+                    ≈ {priceApprox}
+                    <span className="ml-1.5 text-xs font-medium">
+                      {t('listings.detail.convertedNote')}
+                    </span>
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowConverted(true)}
+                    className="press -mx-1 min-h-11 rounded-lg px-1 text-sm font-bold text-brand-text hover:underline"
+                  >
+                    {t('listings.detail.convert', {
+                      currency: listing.currency === 'USD' ? 'so‘m' : 'USD',
+                    })}
+                  </button>
+                ))}
               <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
                 {/* The same badge the grid card carries, in the same two
                     tones, because this is the same promise: it stood here as
