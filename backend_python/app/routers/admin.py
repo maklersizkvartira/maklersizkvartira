@@ -61,10 +61,17 @@ from app.models.enums import (
     UserStatus,
     VerificationStatus,
 )
+from app.models.chat import SupportConversation, SupportMessage
 from app.models.listing import Favorite, Listing, TopRequest
 from app.models.moderation import Report, VerificationRequest
 from app.models.settings import SystemSetting
 from app.models.user import AdminUser, User
+from app.schemas.chat import (
+    SupportConversationDetailOut,
+    SupportConversationOut,
+    SupportMessageCreate,
+    SupportMessageOut,
+)
 from app.schemas.admin import (
     AdminAiSessionRow,
     AdminListingFilters,
@@ -2114,3 +2121,163 @@ async def toggle_staff(
         severity="WARNING",
     )
     return MessageResponse(message="Bajarildi.")
+
+
+# ---------------------------------------------------------------------------
+# Customer Support / Mijozlar bilan ishlash
+# ---------------------------------------------------------------------------
+
+
+@router.get("/support/conversations", response_model=list[SupportConversationOut])
+async def admin_list_support_conversations(
+    db: DbSession,
+    admin: RequireModerator,
+    status: str | None = None,
+    search: str | None = None,
+) -> list[SupportConversationOut]:
+    """List customer support threads for the admin panel."""
+    stmt = (
+        select(SupportConversation)
+        .options(
+            selectinload(SupportConversation.user),
+            selectinload(SupportConversation.messages),
+        )
+        .order_by(SupportConversation.updated_at.desc())
+    )
+    if status and status.upper() in ("OPEN", "RESOLVED"):
+        stmt = stmt.where(SupportConversation.status == status.upper())
+
+    results = list((await db.execute(stmt)).unique().scalars().all())
+
+    out: list[SupportConversationOut] = []
+    for conv in results:
+        if search:
+            q = search.lower().strip()
+            user_name = (conv.user.name if conv.user else "").lower()
+            user_phone = (conv.user.phone if conv.user else "").lower()
+            if q not in user_name and q not in user_phone:
+                continue
+
+        item = SupportConversationOut.model_validate(conv)
+        unread = sum(
+            1 for m in conv.messages if m.sender_type == "USER" and m.read_at is None
+        )
+        item.unread_count = unread
+        if conv.messages:
+            last = conv.messages[-1]
+            item.last_message = last.text[:160]
+            item.last_message_at = last.created_at
+            item.last_message_sender = last.sender_type
+        out.append(item)
+    return out
+
+
+@router.get(
+    "/support/conversations/{user_id}/messages",
+    response_model=SupportConversationDetailOut,
+)
+async def admin_get_support_messages(
+    user_id: uuid.UUID,
+    db: DbSession,
+    admin: RequireModerator,
+) -> SupportConversationDetailOut:
+    """Get the support conversation thread and mark user messages as read."""
+    stmt = (
+        select(SupportConversation)
+        .options(
+            selectinload(SupportConversation.user),
+            selectinload(SupportConversation.messages),
+        )
+        .where(SupportConversation.user_id == user_id)
+    )
+    conv = (await db.execute(stmt)).unique().scalar_one_or_none()
+    if not conv:
+        raise NotFound("conversation_not_found")
+
+    # Mark user messages as read
+    marked = False
+    for msg in conv.messages:
+        if msg.sender_type == "USER" and msg.read_at is None:
+            msg.read_at = msg.created_at
+            marked = True
+    if marked:
+        await db.commit()
+
+    out = SupportConversationDetailOut.model_validate(conv)
+    if conv.messages:
+        last = conv.messages[-1]
+        out.last_message = last.text[:160]
+        out.last_message_at = last.created_at
+        out.last_message_sender = last.sender_type
+    out.unread_count = 0
+    return out
+
+
+@router.post(
+    "/support/conversations/{user_id}/messages",
+    response_model=SupportMessageOut,
+)
+async def admin_send_support_reply(
+    user_id: uuid.UUID,
+    payload: SupportMessageCreate,
+    db: DbSession,
+    admin: RequireModerator,
+) -> SupportMessageOut:
+    """Send an admin reply to a customer."""
+    stmt = select(SupportConversation).where(SupportConversation.user_id == user_id)
+    conv = (await db.execute(stmt)).scalar_one_or_none()
+    if not conv:
+        conv = SupportConversation(user_id=user_id, status="OPEN")
+        db.add(conv)
+        await db.flush()
+
+    msg = SupportMessage(
+        conversation_id=conv.id,
+        sender_type="ADMIN",
+        sender_id=admin.id,
+        text=payload.text.strip(),
+    )
+    db.add(msg)
+    await db.flush()
+
+    conv.updated_at = msg.created_at
+    await db.commit()
+    await db.refresh(msg)
+    return msg
+
+
+class SupportStatusUpdate(BaseModel):
+    status: str
+
+
+@router.patch(
+    "/support/conversations/{user_id}/status",
+    response_model=SupportConversationOut,
+)
+async def admin_update_support_status(
+    user_id: uuid.UUID,
+    payload: SupportStatusUpdate,
+    db: DbSession,
+    admin: RequireModerator,
+) -> SupportConversationOut:
+    """Update support conversation status (OPEN or RESOLVED)."""
+    stmt = (
+        select(SupportConversation)
+        .options(
+            selectinload(SupportConversation.user),
+            selectinload(SupportConversation.messages),
+        )
+        .where(SupportConversation.user_id == user_id)
+    )
+    conv = (await db.execute(stmt)).unique().scalar_one_or_none()
+    if not conv:
+        raise NotFound("conversation_not_found")
+
+    new_status = payload.status.upper()
+    if new_status in ("OPEN", "RESOLVED"):
+        conv.status = new_status
+        await db.commit()
+
+    out = SupportConversationOut.model_validate(conv)
+    return out
+

@@ -72,6 +72,7 @@
     "moderation": "Moderatsiya",
     "listings": "Eʼlonlar",
     "reports": "Shikoyatlar",
+    "support": "Mijozlar bilan ishlash",
     "topRequests": "Top soʻrovlari",
     "verifications": "Tasdiqlashlar",
     "people": "Odamlar",
@@ -727,5 +728,27 @@
     "SECURITY_RATE_LIMITED": "Soʻrov cheklandi",
     "SECURITY_FORBIDDEN": "Ruxsat berilmadi",
     "SECURITY_SUSPICIOUS_INPUT": "Shubhali maʼlumot kiritildi"
+  },
+  "support": {
+    "title": "Mijozlar bilan ishlash",
+    "subtitle": "Mijozlar murojaatlarini qabul qilish va javob berish",
+    "all": "Barchasi",
+    "open": "Ochiq",
+    "resolved": "Hal qilingan",
+    "unread": "Oʻqilmagan",
+    "search": "Mijoz yoki xabar matni boʻyicha qidirish...",
+    "noConversations": "Murojaatlar mavjud emas",
+    "selectConversation": "Suhbatni koʻrish uchun chap tomondan mijozni tanlang",
+    "sendReply": "Javob yozish",
+    "replyPlaceholder": "Mijozga javobingizni yozing...",
+    "statusOpen": "Ochiq",
+    "statusResolved": "Hal qilingan",
+    "markResolved": "Hal qilindi deb belgilash",
+    "markOpen": "Qayta ochish",
+    "quickReplies": "Tezkor javoblar",
+    "userRole": "Rol",
+    "userPhone": "Telefon",
+    "statusChanged": "Murojaat holati oʻzgartirildi",
+    "replySent": "Javob mijozga yuborildi"
   }
 }

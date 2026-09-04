@@ -291,4 +291,15 @@ export const api = {
     setActive: (id: string, isActive: boolean) =>
       `/admin/staff/${id}/active${qs({ is_active: isActive })}`,
   },
+
+  support: {
+    conversations: (params?: { status?: string; search?: string }) =>
+      `/admin/support/conversations${qs({ ...params })}`,
+    messages: (userId: string) =>
+      `/admin/support/conversations/${userId}/messages`,
+    sendReply: (userId: string) =>
+      `/admin/support/conversations/${userId}/messages`,
+    updateStatus: (userId: string) =>
+      `/admin/support/conversations/${userId}/status`,
+  },
 } as const;

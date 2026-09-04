@@ -70,6 +70,7 @@ const ROUTE_TABLE = {
   '/dashboard': 'MODERATOR',
   '/listings': 'MODERATOR',
   '/reports': 'MODERATOR',
+  '/support': 'MODERATOR',
   '/top-requests': 'MODERATOR',
   '/verifications': 'MODERATOR',
   '/ai': 'MODERATOR',

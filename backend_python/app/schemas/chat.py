@@ -70,3 +70,40 @@ class ConversationOut(BaseModel):
 
 class ConversationDetailOut(ConversationOut):
     messages: list[ChatMessageOut] = []
+
+
+class SupportMessageCreate(BaseModel):
+    text: str
+
+
+class SupportMessageOut(BaseModel):
+    id: uuid.UUID
+    conversation_id: uuid.UUID
+    sender_type: str  # "USER" or "ADMIN"
+    sender_id: uuid.UUID
+    text: str
+    read_at: datetime | None = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SupportConversationOut(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    status: str = "OPEN"
+    created_at: datetime
+    updated_at: datetime
+
+    user: UserOut | None = None
+    last_message: str | None = None
+    last_message_at: datetime | None = None
+    last_message_sender: str | None = None
+    unread_count: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SupportConversationDetailOut(SupportConversationOut):
+    messages: list[SupportMessageOut] = []
+

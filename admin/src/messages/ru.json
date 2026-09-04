@@ -72,6 +72,7 @@
     "moderation": "Модерация",
     "listings": "Объявления",
     "reports": "Жалобы",
+    "support": "Работа с клиентами",
     "topRequests": "Заявки на Топ",
     "verifications": "Верификации",
     "people": "Люди",
@@ -726,6 +727,28 @@
     "TELEGRAM_NOTIFIED": "Отправлено в Telegram",
     "SECURITY_RATE_LIMITED": "Запрос ограничен",
     "SECURITY_FORBIDDEN": "Доступ запрещён",
-    "SECURITY_SUSPICIOUS_INPUT": "Обнаружен подозрительный ввод"
+    "SECURITY_SUSPICIOUS_INPUT": "Подозрительный ввод"
+  },
+  "support": {
+    "title": "Работа с клиентами",
+    "subtitle": "Прием обращений клиентов и оперативные ответы",
+    "all": "Все",
+    "open": "Открытые",
+    "resolved": "Решённые",
+    "unread": "Непрочитанные",
+    "search": "Поиск по клиенту или сообщению...",
+    "noConversations": "Нет обращений",
+    "selectConversation": "Выберите клиента из списка слева для просмотра чата",
+    "sendReply": "Ответить",
+    "replyPlaceholder": "Напишите ответ клиенту...",
+    "statusOpen": "Открыт",
+    "statusResolved": "Решён",
+    "markResolved": "Отметить как решённый",
+    "markOpen": "Открыть заново",
+    "quickReplies": "Быстрые ответы",
+    "userRole": "Роль",
+    "userPhone": "Телефон",
+    "statusChanged": "Статус обращения изменён",
+    "replySent": "Ответ отправлен клиенту"
   }
 }

@@ -56,6 +56,29 @@ export interface ConversationDetail extends Conversation {
   messages: ChatMessage[];
 }
 
+export interface SupportMessage {
+  id: string;
+  conversation_id: string;
+  sender_type: 'USER' | 'ADMIN';
+  sender_id: string;
+  text: string;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface SupportConversationDetail {
+  id: string;
+  user_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  last_message?: string | null;
+  last_message_at?: string | null;
+  last_message_sender?: string | null;
+  unread_count?: number;
+  messages: SupportMessage[];
+}
+
 export const chatApi = {
   listConversations: () =>
     http.get<Conversation[]>('/chat/conversations'),
@@ -71,4 +94,11 @@ export const chatApi = {
     
   getUnreadCount: () =>
     http.get<{ count: number }>('/chat/unread-count'),
+
+  getSupportConversation: () =>
+    http.get<SupportConversationDetail>('/chat/support'),
+
+  sendSupportMessage: (text: string) =>
+    http.post<SupportMessage>('/chat/support/messages', { text }),
 };
+

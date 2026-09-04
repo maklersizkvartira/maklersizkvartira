@@ -10,9 +10,17 @@ from sqlalchemy.orm import selectinload
 
 from app.core.deps import CurrentUser, DbSession
 from app.core.errors import BadRequest
-from app.models.chat import ChatMessage, Conversation
+from app.models.chat import ChatMessage, Conversation, SupportConversation, SupportMessage
 from app.models.listing import Listing
-from app.schemas.chat import ChatMessageCreate, ChatMessageOut, ConversationDetailOut, ConversationOut
+from app.schemas.chat import (
+    ChatMessageCreate,
+    ChatMessageOut,
+    ConversationDetailOut,
+    ConversationOut,
+    SupportConversationDetailOut,
+    SupportMessageCreate,
+    SupportMessageOut,
+)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -211,16 +219,117 @@ class UnreadCountOut(BaseModel):
 
 @router.get("/unread-count", response_model=UnreadCountOut)
 async def get_unread_count(db: DbSession, user: CurrentUser) -> UnreadCountOut:
-    """Get total unread messages count for the user."""
+    """Get total unread messages count for the user (listing chats + support)."""
     stmt = (
         select(func.count(ChatMessage.id))
         .join(Conversation, ChatMessage.conversation_id == Conversation.id)
         .where(
             or_(Conversation.user_id == user.id, Conversation.owner_id == user.id),
             ChatMessage.sender_id != user.id,
-            ChatMessage.read_at.is_(None)
+            ChatMessage.read_at.is_(None),
         )
     )
     result = await db.execute(stmt)
-    count = result.scalar_one()
+    count = int(result.scalar_one() or 0)
+
+    # Add unread support messages sent by ADMIN
+    support_stmt = (
+        select(func.count(SupportMessage.id))
+        .join(SupportConversation, SupportMessage.conversation_id == SupportConversation.id)
+        .where(
+            SupportConversation.user_id == user.id,
+            SupportMessage.sender_type == "ADMIN",
+            SupportMessage.read_at.is_(None),
+        )
+    )
+    support_result = await db.execute(support_stmt)
+    count += int(support_result.scalar_one() or 0)
+
     return UnreadCountOut(count=count)
+
+
+@router.get("/support", response_model=SupportConversationDetailOut)
+async def get_or_create_support_conversation(
+    db: DbSession, user: CurrentUser
+) -> SupportConversationDetailOut:
+    """Get the user's support conversation, creating one with a welcoming greeting if needed."""
+    stmt = (
+        select(SupportConversation)
+        .options(selectinload(SupportConversation.messages))
+        .where(SupportConversation.user_id == user.id)
+    )
+    conversation = (await db.execute(stmt)).unique().scalar_one_or_none()
+
+    if not conversation:
+        conversation = SupportConversation(user_id=user.id, status="OPEN")
+        db.add(conversation)
+        await db.flush()
+
+        # Seed initial friendly welcome message from support
+        welcome_msg = SupportMessage(
+            conversation_id=conversation.id,
+            sender_type="ADMIN",
+            sender_id=user.id,  # Valid user reference
+            text="Assalomu alaykum! Uyiz qo'llab-quvvatlash xizmatiga xush kelibsiz. Qanday yordam bera olamiz?",
+        )
+        db.add(welcome_msg)
+        await db.commit()
+        await db.refresh(conversation)
+
+        # Refetch with messages
+        conversation = (await db.execute(stmt)).unique().scalar_one()
+    else:
+        # Mark all ADMIN messages as read by the user
+        marked = False
+        for msg in conversation.messages:
+            if msg.sender_type == "ADMIN" and msg.read_at is None:
+                msg.read_at = msg.created_at
+                marked = True
+        if marked:
+            await db.commit()
+
+    # Calculate unread & last message
+    out = SupportConversationDetailOut.model_validate(conversation)
+    unread_count = 0
+    if conversation.messages:
+        last = conversation.messages[-1]
+        out.last_message = last.text[:160]
+        out.last_message_at = last.created_at
+        out.last_message_sender = last.sender_type
+        unread_count = sum(
+            1 for m in conversation.messages if m.sender_type == "ADMIN" and m.read_at is None
+        )
+    out.unread_count = unread_count
+    return out
+
+
+@router.post("/support/messages", response_model=SupportMessageOut)
+async def send_support_message(
+    payload: SupportMessageCreate,
+    db: DbSession,
+    user: CurrentUser,
+) -> SupportMessageOut:
+    """Send a message to support."""
+    stmt = select(SupportConversation).where(SupportConversation.user_id == user.id)
+    conversation = (await db.execute(stmt)).scalar_one_or_none()
+
+    if not conversation:
+        conversation = SupportConversation(user_id=user.id, status="OPEN")
+        db.add(conversation)
+        await db.flush()
+
+    msg = SupportMessage(
+        conversation_id=conversation.id,
+        sender_type="USER",
+        sender_id=user.id,
+        text=payload.text.strip(),
+    )
+    db.add(msg)
+    await db.flush()
+
+    conversation.updated_at = msg.created_at
+    conversation.status = "OPEN"
+
+    await db.commit()
+    await db.refresh(msg)
+    return msg

@@ -66,4 +66,16 @@ export const chat = {
     unavailable:
       'Xabar yuborish hali mavjud emas. Uy egasiga e’lon sahifasidan qo‘ng‘iroq qiling.',
   },
+
+  support: {
+    title: 'Qo‘llab-quvvatlash',
+    role: 'Rasmiy yordam · 24/7 onlayn',
+    pinned: 'Qadalgan',
+    welcome: 'Assalomu alaykum! Sizga qanday yordam bera olamiz?',
+    operator: 'Yordamchi',
+    quickListing: 'E’lon joylashtirish bo‘yicha',
+    quickPayment: 'To‘lov va xizmatlar',
+    quickAccount: 'Hisob yoki parol masalasi',
+    quickOther: 'Taklif yoki shikoyat',
+  },
 } as const;

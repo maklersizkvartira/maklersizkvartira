@@ -46,3 +46,36 @@ class ChatMessage(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     conversation = relationship("Conversation", back_populates="messages")
     sender = relationship("User", foreign_keys=[sender_id], lazy="selectin")
+
+
+class SupportConversation(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "support_conversations"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    status: Mapped[str] = mapped_column(String(20), default="OPEN", index=True)
+
+    user = relationship("User", foreign_keys=[user_id], lazy="selectin")
+    messages = relationship(
+        "SupportMessage",
+        back_populates="conversation",
+        order_by="SupportMessage.created_at",
+        cascade="all, delete-orphan",
+    )
+
+
+class SupportMessage(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "support_messages"
+
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("support_conversations.id", ondelete="CASCADE"), index=True
+    )
+    sender_type: Mapped[str] = mapped_column(String(10), nullable=False)  # "USER" or "ADMIN"
+    sender_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
+
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    conversation = relationship("SupportConversation", back_populates="messages")
+

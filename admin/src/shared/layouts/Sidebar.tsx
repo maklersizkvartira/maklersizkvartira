@@ -40,6 +40,12 @@ const Icons = {
       <path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 8 2a6 6 0 0 0 2.6-.6.5.5 0 0 1 .7.5v9.8a1 1 0 0 1-.4.8A6 6 0 0 1 16 15c-3 0-5-2-8-2a6 6 0 0 0-4 1.3" />
     </svg>
   ),
+  support: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+      <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+    </svg>
+  ),
   topRequests: (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z" />
@@ -186,6 +192,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: 'listings', href: '/listings', icon: Icons.listings },
       { key: 'reports', href: '/reports', icon: Icons.reports },
+      { key: 'support', href: '/support', icon: Icons.support },
       { key: 'topRequests', href: '/top-requests', icon: Icons.topRequests },
       { key: 'verifications', href: '/verifications', icon: Icons.verifications },
     ],

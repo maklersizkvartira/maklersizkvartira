@@ -58,8 +58,20 @@ export const chat = {
   },
 
   toast: {
-    ownerOnly: 'To post a listing, switch your profile role to "Owner".',
+    ownerOnly: 'Switch to the OWNER role in your profile to publish a listing.',
     unavailable:
-      'Sending messages is not available yet. Call the owner from the listing page.',
+      'Direct messaging is not available yet. Call the owner from the listing page.',
+  },
+
+  support: {
+    title: 'Customer Support',
+    role: 'Official Help · 24/7 online',
+    pinned: 'Pinned',
+    welcome: 'Hello! How can we help you today?',
+    operator: 'Support Agent',
+    quickListing: 'About publishing listings',
+    quickPayment: 'Payments & services',
+    quickAccount: 'Account & password help',
+    quickOther: 'Feedback or complaint',
   },
 } as const;
