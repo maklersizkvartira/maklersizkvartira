@@ -40,6 +40,7 @@ import {
   Briefcase,
   Home,
   KeyRound,
+  LogIn,
   Search,
   ShieldCheck,
   Smartphone,
@@ -1036,17 +1037,31 @@ export const AuthPage: React.FC = () => {
                 visitor had just done. */}
             {banner}
             <p className="pt-1 text-center text-xs text-subtle">{t('auth.role.hint')}</p>
-            <p className="text-center text-xs text-muted">
-              {t('auth.register.haveAccount')}{' '}
-              <button
+
+            <div className="space-y-2.5 pt-2">
+              <div className="relative py-1 text-center">
+                <span className="absolute inset-0 flex items-center" aria-hidden="true">
+                  <span className="w-full border-t border-line" />
+                </span>
+                <span className="relative bg-canvas px-3 text-xs font-semibold text-muted">
+                  {t('auth.register.haveAccount')}
+                </span>
+              </div>
+
+              <Button
                 type="button"
+                variant="secondary"
+                fullWidth
+                disabled={busy}
                 onClick={goToMode('LOGIN', true)}
-                className="inline-flex min-h-11 items-center rounded-lg px-1.5 align-middle font-bold text-brand-text hover:underline"
+                className="border-2 border-brand/40 bg-brand-soft font-bold text-brand-text hover:border-brand hover:bg-brand-soft-2 active:scale-[0.99]"
               >
-                {t('auth.register.signInInstead')}
-              </button>
-            </p>
-            {guestExit}
+                <LogIn className="h-4 w-4" aria-hidden="true" />
+                <span>{t('auth.register.signInInstead')}</span>
+              </Button>
+
+              {guestExit}
+            </div>
           </div>
         );
 
