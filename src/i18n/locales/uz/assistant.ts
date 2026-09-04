@@ -6,11 +6,11 @@
 export const assistant = {
   mascot: {
     /** A product name: never translated. */
-    name: 'Uyiz AI',
+    name: 'AI',
     tagline: 'AI yordamchi',
     shortTagline: 'AI',
-    open: 'AI yordamchisi',
-    panelLabel: 'Uyiz AI bilan suhbat',
+    open: 'AI',
+    panelLabel: 'AI bilan suhbat',
   },
 
   chat: {

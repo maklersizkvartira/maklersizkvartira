@@ -656,14 +656,9 @@ export const AiMascot: React.FC = () => {
           <span className="flex h-9 w-9 items-center justify-center rounded-full border border-brand/30 bg-brand text-on-brand font-black text-xs tracking-wider transition-transform group-hover:scale-110 sm:h-8 sm:w-8">
             AI
           </span>
-          <span className="hidden flex-col text-left sm:flex">
-            <span className="flex items-center gap-1 text-xs font-black text-content">
-              {t('assistant.mascot.name')}
-              <Sparkles className="h-3 w-3 text-brand-text" aria-hidden="true" />
-            </span>
-            <span className="text-[10px] font-bold text-muted">
-              {t('assistant.mascot.shortTagline')}
-            </span>
+          <span className="hidden items-center gap-1.5 text-xs font-black text-content sm:flex">
+            <span>AI</span>
+            <Sparkles className="h-3.5 w-3.5 text-brand-text" aria-hidden="true" />
           </span>
           <span className="ml-1 hidden h-7 w-7 items-center justify-center rounded-full bg-brand text-on-brand sm:flex">
             <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />

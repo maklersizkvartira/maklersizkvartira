@@ -82,7 +82,7 @@
     "audit": "All activity",
     "security": "Security",
     "sms": "SMS log",
-    "ai": "Uyiz AI",
+    "ai": "AI",
     "settings": "Settings",
     "overview": "Overview",
     "signOut": "Sign out",
@@ -581,8 +581,8 @@
     }
   },
   "ai": {
-    "title": "Uyiz AI conversations",
-    "subtitle": "Conversations with the Uyiz AI assistant on the public site",
+    "title": "AI conversations",
+    "subtitle": "Conversations with the AI assistant on the public site",
     "columns": {
       "session": "Session",
       "user": "Client",
@@ -595,7 +595,7 @@
     "messagesCapped": "Only the last {limit} messages are shown.",
     "noMessages": "No messages",
     "user": "Client",
-    "assistant": "Uyiz AI"
+    "assistant": "AI"
   },
   "settings": {
     "title": "Settings",

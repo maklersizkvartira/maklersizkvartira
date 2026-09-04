@@ -82,7 +82,7 @@
     "audit": "Все действия",
     "security": "Безопасность",
     "sms": "Журнал SMS",
-    "ai": "Uyiz AI",
+    "ai": "AI",
     "settings": "Настройки",
     "overview": "Обзор",
     "signOut": "Выйти",
@@ -581,8 +581,8 @@
     }
   },
   "ai": {
-    "title": "Диалоги Uyiz AI",
-    "subtitle": "Диалоги с помощником Uyiz AI на сайте",
+    "title": "Диалоги AI",
+    "subtitle": "Диалоги с помощником AI на сайте",
     "columns": {
       "session": "Сессия",
       "user": "Клиент",
@@ -595,7 +595,7 @@
     "messagesCapped": "Показаны только последние {limit} сообщений.",
     "noMessages": "Сообщений нет",
     "user": "Клиент",
-    "assistant": "Uyiz AI"
+    "assistant": "AI"
   },
   "settings": {
     "title": "Настройки",

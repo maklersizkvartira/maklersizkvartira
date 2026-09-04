@@ -82,7 +82,7 @@
     "audit": "Barcha harakatlar",
     "security": "Xavfsizlik",
     "sms": "SMS jurnali",
-    "ai": "Uyiz AI",
+    "ai": "AI",
     "settings": "Sozlamalar",
     "overview": "Umumiy",
     "signOut": "Chiqish",
@@ -581,8 +581,8 @@
     }
   },
   "ai": {
-    "title": "Uyiz AI suhbatlari",
-    "subtitle": "Saytdagi Uyiz AI yordamchisi bilan suhbatlar",
+    "title": "AI suhbatlari",
+    "subtitle": "Saytdagi AI bilan suhbatlar",
     "columns": {
       "session": "Sessiya",
       "user": "Mijoz",
@@ -595,7 +595,7 @@
     "messagesCapped": "Faqat oxirgi {limit} ta xabar koʻrsatilmoqda.",
     "noMessages": "Xabarlar yoʻq",
     "user": "Mijoz",
-    "assistant": "Uyiz AI"
+    "assistant": "AI"
   },
   "settings": {
     "title": "Sozlamalar",
