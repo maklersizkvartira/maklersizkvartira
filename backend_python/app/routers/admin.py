@@ -34,7 +34,14 @@ from app.core.deps import (
     RequireModerator,
     RequireSuperadmin,
 )
-from app.core.errors import BadRequest, Conflict, Forbidden, NotFound, Unauthorized
+from app.core.errors import (
+    APIError,
+    BadRequest,
+    Conflict,
+    Forbidden,
+    NotFound,
+    Unauthorized,
+)
 from app.core.phone import mask_phone
 from app.core.rate_limit import enforce
 from app.core.security import (
@@ -89,7 +96,6 @@ from app.schemas.admin import (
     AuditFilters,
     AuditLogRow,
     CreateAdminRequest,
-    FaceAdminItem,
     FaceDeleteRequest,
     FaceLoginRequest,
     FaceRegisterRequest,
@@ -307,42 +313,74 @@ async def admin_verify_credentials(
     )
 
 
-@router.get("/auth/face-status", response_model=FaceStatusResponse, summary="Check Face ID enrollment status")
-async def admin_face_status(db: DbSession) -> FaceStatusResponse:
-    all_admins = (
-        await db.execute(
-            select(AdminUser).where(AdminUser.is_active == True).order_by(AdminUser.created_at.asc())
-        )
-    ).scalars().all()
-    enrolled_admins = [a for a in all_admins if a.face_encoding]
-    first = enrolled_admins[0] if enrolled_admins else (all_admins[0] if all_admins else None)
+@router.get("/auth/face-status", response_model=FaceStatusResponse, summary="Whether YOUR Face ID is enrolled")
+async def admin_face_status(admin: CurrentAdmin) -> FaceStatusResponse:
+    """Does the signed-in administrator have a Face ID on file.
 
-    admin_items = [
-        FaceAdminItem(
-            id=a.id,
-            username=a.username,
-            full_name=a.full_name,
-            role=a.role,
-            has_face=bool(a.face_encoding),
-            face_image=a.face_image if a.face_image else None,
-        )
-        for a in all_admins
-    ]
+    This used to take no token and answer with the whole staff roster — every
+    active administrator's username, full name and role — and, for each of
+    them, ``face_image``: the base64 of the reference photo enrolment had
+    stored. ``POST /auth/face-login`` then accepted a photo and a username as
+    complete proof of identity. The two composed into an unauthenticated
+    takeover in two requests: ask who the administrators are and what they look
+    like, hand the second endpoint back the picture the first one just gave
+    you, and it matches itself and returns a SUPERADMIN token pair. No
+    guessing, nothing to rate-limit, and the password lockout next door was
+    irrelevant because that path never asks for a password.
 
+    A biometric template is worse to publish than a password hash. A hash has
+    to be cracked and the password behind it can be changed afterwards; nobody
+    gets a new face.
+
+    So: a token is required, and the answer is about the caller and nobody
+    else. No roster, no other accounts, and the stored image is never sent
+    anywhere — the only thing that needs it is the comparison, which happens
+    here on the server.
+    """
     return FaceStatusResponse(
-        enrolled=len(enrolled_admins) > 0,
-        count=len(enrolled_admins),
-        username=first.username if first else None,
-        full_name=first.full_name if first else None,
-        face_image=first.face_image if first and first.face_image else None,
-        admins=admin_items,
+        enrolled=bool(admin.face_encoding),
+        count=1 if admin.face_encoding else 0,
+        username=admin.username,
+        full_name=admin.full_name,
+        # Deliberately never populated. It is the credential on the face-login
+        # path; there is no caller that needs it back.
+        face_image=None,
+        admins=[],
     )
 
 
 @router.post("/auth/face-login", response_model=TokenResponse, summary="Biometric Face ID sign-in")
 async def admin_face_login(payload: FaceLoginRequest, db: DbSession, ctx: RequestCtx) -> TokenResponse:
+    """Sign in with a password AND a face. Never with a face alone.
+
+    It used to be the face alone, and that made it the softest way into the
+    panel by a wide margin: no password, no lockout, no rate limit, no record
+    of a failure, and a reference photo any anonymous caller could fetch from
+    ``/auth/face-status`` and replay straight back here for a perfect match.
+
+    Even without that leak it could not have carried a login on its own. The
+    comparison below is a gradient histogram over a blind centre-square crop
+    with no face detection and no liveness check, thresholded at a 0.45 cosine.
+    That is a convenience laid on top of an authenticator, not an
+    authenticator.
+
+    `verify_admin_credentials` is the authenticator, and going through it
+    brings the whole of the password path's protection with it: the per-IP
+    limiter, the lockout, the failed-attempt counter that feeds it, and the
+    audit line. The face is then checked as a second factor against that one
+    account — and a face that does not match still counts as a failed attempt,
+    because otherwise this door is free to hammer while the other one locks.
+    """
     if not payload.image:
         raise BadRequest("face_image_required")
+    if not payload.username:
+        raise BadRequest("username_required")
+
+    admin = await admin_service.verify_admin_credentials(
+        db, username=payload.username, password=payload.password
+    )
+    if not admin.face_encoding:
+        raise NotFound("face_not_enrolled")
 
     image_bytes = _image_bytes_from_data_url(payload.image)
     live_probes = _compute_multi_probe_encodings(image_bytes)
@@ -352,52 +390,54 @@ async def admin_face_login(payload: FaceLoginRequest, db: DbSession, ctx: Reques
             raise BadRequest("face_not_detected")
         live_probes = [single]
 
-    if not payload.username:
-        raise BadRequest("username_required")
-
-    # `func.lower(...) == ...`, never `ilike(...)`, on anything that decides who
-    # you are: ILIKE reads `%` and `_` in the submitted name as wildcards, so
-    # "%" used to match whatever staff account existed.
-    u = payload.username.strip()
-    candidates = {u.lower(), u.lstrip("@").lower()}
-    admins = (
-        await db.execute(
-            select(AdminUser).where(
-                func.lower(AdminUser.username).in_(candidates),
-                AdminUser.face_encoding.isnot(None),
-                AdminUser.is_active == True,
-            )
-        )
-    ).scalars().all()
-    if not admins:
-        raise NotFound("face_not_enrolled")
-
+    # One account, and it is the one whose password was just verified. There
+    # used to be a second lookup here, by username, searching for whichever
+    # enrolled admin scored highest — which is a different question from "is
+    # this that person", and the answer to it was being trusted on its own.
+    best_admin = admin
     best_sim = -1.0
-    best_admin = None
-    has_legacy_encoding = False
-    for adm in admins:
-        try:
-            stored = json.loads(adm.face_encoding)
-            if not isinstance(stored, list) or len(stored) != len(live_probes[0]):
-                has_legacy_encoding = True
-                continue
-            sim = _face_similarity(live_probes, stored)
-            if sim > best_sim:
-                best_sim = sim
-                best_admin = adm
-        except Exception:
-            continue
-
-    if has_legacy_encoding and best_admin is None:
+    try:
+        stored = json.loads(admin.face_encoding)
+        if isinstance(stored, list) and len(stored) == len(live_probes[0]):
+            best_sim = _face_similarity(live_probes, stored)
+        else:
+            raise Unauthorized("face_legacy_format")
+    except Unauthorized:
+        raise
+    except Exception:
         raise Unauthorized("face_legacy_format")
 
     SIMILARITY_THRESHOLD = 0.45
-    if best_admin is None or best_sim < SIMILARITY_THRESHOLD:
-        import logging
-        logging.getLogger(__name__).warning(
-            f"Face ID mismatch for @{u}: best similarity score was {best_sim:.4f}, required {SIMILARITY_THRESHOLD}"
+    if best_sim < SIMILARITY_THRESHOLD:
+        # Counted, and committed before the raise. A second factor that is free
+        # to retry is not a second factor: without this the password path locks
+        # after five misses while this one could be hammered forever, using a
+        # password the attacker already has.
+        admin.failed_login_count = (admin.failed_login_count or 0) + 1
+        if admin.failed_login_count >= settings.MAX_FAILED_LOGINS:
+            admin.locked_until = _now() + timedelta(minutes=settings.LOCKOUT_MINUTES)
+            admin.failed_login_count = 0
+        db.add(
+            LoginAttempt(
+                username=admin.username,
+                admin_id=admin.id,
+                successful=False,
+                failure_reason="face_mismatch",
+                is_admin_portal=True,
+                ip=ctx.ip,
+                user_agent=ctx.user_agent,
+            )
         )
-        raise Unauthorized("face_mismatch")
+        await audit_log.record(
+            db,
+            AuditAction.ADMIN_LOGIN_FAILED,
+            actor_type="ANONYMOUS",
+            entity_type="admin",
+            entity_id=admin.id,
+            entity_label=admin.username,
+            meta={"reason": "face_mismatch", "similarity": round(best_sim, 4)},
+        )
+        await commit_then_raise(db, Unauthorized("face_mismatch"))
 
     from app.core.tokens import issue_token_pair
     pair = await issue_token_pair(
@@ -464,13 +504,37 @@ async def admin_face_register(
                     )
                 ).scalar_one_or_none()
                 if caller_admin:
+                    # Your own account, and only ever your own. A token used to
+                    # let the caller name any `username` and enrol their face on
+                    # it, with no role check whatsoever — so the lowest
+                    # MODERATOR could put their face on the SUPERADMIN account
+                    # and, back when a face alone signed you in, walk straight
+                    # in as them. It is still not theirs to overwrite: a face is
+                    # personal, and replacing somebody else's locks them out of
+                    # their own biometric login.
+                    #
+                    # Enrolling on another account is still possible — it just
+                    # takes that account's password, through the branch below,
+                    # which is the same bar as signing in as them.
                     if clean_username:
-                        target_admin = await admin_service.find_admin_by_username(
+                        named = await admin_service.find_admin_by_username(
                             db, clean_username
                         )
-                    if target_admin is None:
-                        target_admin = caller_admin
+                        if named is not None and named.id != caller_admin.id:
+                            raise Forbidden("face_enrol_self_only")
+                    target_admin = caller_admin
+        except APIError:
+            # A deliberate refusal, not a malformed token. `except Exception:
+            # pass` swallowed this the first time it was written — the 403
+            # above became a fall-through into the password branch and came
+            # back as a 401, which is a different answer to a different
+            # question. Only a token that cannot be read should be ignored
+            # here; a decision made about a token that could be must stand.
+            raise
         except Exception:
+            # An unreadable, expired or forged token. Not an error in itself:
+            # the caller simply has not proved anything, and the branch below
+            # asks them for a password instead.
             pass
 
     # 2. If unauthenticated / no valid token

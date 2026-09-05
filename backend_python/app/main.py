@@ -65,7 +65,6 @@ async def lifespan(app: FastAPI):
         from app.models.user import AdminUser
         from app.core.security import hash_password
         from app.models.enums import AdminRole
-        from sqlalchemy import delete
 
         async with session_scope() as db:
             await db.execute(text("ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS face_image TEXT;"))
@@ -100,45 +99,52 @@ async def lifespan(app: FastAPI):
             except Exception as tbl_err:
                 log.warning("support_tables_autoheal_note", error=str(tbl_err))
 
-            # Keep only the two designated staff accounts
-            allowed_usernames = ["admin", "maklersizuy@admin.dev"]
-            await db.execute(
-                delete(AdminUser).where(AdminUser.username.not_in(allowed_usernames))
-            )
-
-            # 1. Ensure 'admin' exists
-            admin1 = (
-                await db.execute(select(AdminUser).where(AdminUser.username == "admin"))
-            ).scalar_one_or_none()
-            if not admin1:
-                bootstrap_pass = settings.BOOTSTRAP_ADMIN_PASSWORD or "admin123"
-                admin1 = AdminUser(
-                    username="admin",
-                    full_name="Bosh administrator",
-                    password_hash=hash_password(bootstrap_pass),
-                    role=AdminRole.SUPERADMIN.value,
-                    is_active=True,
-                    must_change_password=False,
-                )
-                db.add(admin1)
-                log.info("admin_created", username="admin")
-
-            # 2. Ensure 'maklersizuy@admin.dev' exists
-            admin2 = (
-                await db.execute(select(AdminUser).where(AdminUser.username == "maklersizuy@admin.dev"))
-            ).scalar_one_or_none()
-            if not admin2:
-                bootstrap_pass2 = "AdminDev2026!"
-                admin2 = AdminUser(
-                    username="maklersizuy@admin.dev",
-                    full_name="Maklersizuy Admin Dev",
-                    password_hash=hash_password(bootstrap_pass2),
-                    role=AdminRole.SUPERADMIN.value,
-                    is_active=True,
-                    must_change_password=False,
-                )
-                db.add(admin2)
-                log.info("admin_dev_created", username="maklersizuy@admin.dev")
+            # Nothing is deleted here. This block used to run
+            #
+            #     delete(AdminUser).where(username.not_in(["admin", "maklersizuy@admin.dev"]))
+            #
+            # on every single startup, so every staff account created through
+            # POST /admin/staff was hard-deleted by the next deploy or restart,
+            # silently and with no audit line. The panel offers to add
+            # colleagues; the server was removing them again behind its back.
+            #
+            # Nor is a password written here any more. There was one in the
+            # source — a SUPERADMIN account seeded with a literal string — in a
+            # repository that is public, so the credential was readable by
+            # anyone who opened this file, on an account that can do anything
+            # in the panel. The other account fell back to "admin123" whenever
+            # BOOTSTRAP_ADMIN_PASSWORD happened to be unset, and both were
+            # created with must_change_password=False, so neither was ever
+            # prompted to become something private.
+            #
+            # Removing it from the source does not remove it from the history,
+            # so that password has to be treated as burned and rotated, not
+            # merely deleted.
+            #
+            # The one account that may still be seeded is gated on the
+            # environment giving a password, and it is asked to change it on
+            # first use. `scripts/create_admin.py` remains the ordinary way to
+            # make staff accounts, and it needs none of this.
+            bootstrap_pass = (settings.BOOTSTRAP_ADMIN_PASSWORD or "").strip()
+            if bootstrap_pass:
+                username = settings.BOOTSTRAP_ADMIN_USERNAME or "admin"
+                existing = (
+                    await db.execute(
+                        select(AdminUser).where(AdminUser.username == username)
+                    )
+                ).scalar_one_or_none()
+                if not existing:
+                    db.add(
+                        AdminUser(
+                            username=username,
+                            full_name="Bosh administrator",
+                            password_hash=hash_password(bootstrap_pass),
+                            role=AdminRole.SUPERADMIN.value,
+                            is_active=True,
+                            must_change_password=True,
+                        )
+                    )
+                    log.info("admin_bootstrapped", username=username)
     except Exception as e:
         log.warning("schema_autoheal_failed", error=str(e))
 

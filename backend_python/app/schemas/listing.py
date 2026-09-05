@@ -81,6 +81,21 @@ def _validate_images(images: list[str], *, required: bool = False) -> list[str]:
     return cleaned
 
 
+#: The most a listing may ask, in so'm, by what is being offered.
+#:
+#: One number used to serve both, and it was the renting one: a billion so'm,
+#: which is a monthly rent nobody will ever charge and about $79,000 — under
+#: the price of an ordinary Tashkent flat. So the sale side shipped unable to
+#: publish most of the properties it exists for, rejected at the schema with a
+#: generic validation error.
+#:
+#: The renting cap stays where it was, because a rent above it is a typo, and
+#: catching that is the only thing the cap is for. The sale cap is set high
+#: enough not to be an opinion about the market — it is there to stop a
+#: fat-fingered extra digit, not to decide what a property is worth.
+MAX_RENT_UZS = 1_000_000_000
+MAX_SALE_UZS = 100_000_000_000
+
 class ListingBase(CamelModel):
     title: TitleStr
     description: DescriptionStr
@@ -88,10 +103,11 @@ class ListingBase(CamelModel):
     #: Let or sold. Defaulted rather than required so that a client written
     #: before selling existed keeps publishing rentals, which is what it meant.
     deal_type: DealType = DealType.RENT
-    #: A month's rent, or the whole price of the property — `deal_type` is what
-    #: says which, and the cap is the same either way because a billion so'm is
-    #: past both.
-    price: float = Field(gt=0, le=1_000_000_000)
+    #: A month's rent, or the whole price of the property — `deal_type` says
+    #: which, and `_cross_field` below applies the cap that goes with it. The
+    #: bound here is the looser of the two, because a field constraint cannot
+    #: see another field.
+    price: float = Field(gt=0, le=MAX_SALE_UZS)
     currency: Literal["UZS", "USD"] = "UZS"
     deposit_price: float | None = Field(default=None, ge=0, le=1_000_000_000)
     utilities_included: bool = False
@@ -178,6 +194,12 @@ class ListingBase(CamelModel):
 
     @model_validator(mode="after")
     def _cross_field(self) -> "ListingBase":
+        # The cap that matches what is being offered. Only in so'm: a price in
+        # dollars is three or four orders of magnitude smaller and any bound
+        # loose enough for one currency is meaningless for the other.
+        if self.currency == "UZS" and self.deal_type != DealType.SALE:
+            if self.price > MAX_RENT_UZS:
+                raise ValueError("price_too_high_for_rent")
         if self.total_floors and self.floor and self.floor > self.total_floors:
             raise ValueError("validation_error")
         if self.is_roommate and self.roommate_spots_available is None:
@@ -197,7 +219,7 @@ class ListingUpdate(CamelModel):
     title: TitleStr | None = None
     description: DescriptionStr | None = None
     deal_type: DealType | None = None
-    price: float | None = Field(default=None, gt=0, le=1_000_000_000)
+    price: float | None = Field(default=None, gt=0, le=MAX_SALE_UZS)
     currency: Literal["UZS", "USD"] | None = None
     deposit_price: float | None = Field(default=None, ge=0, le=1_000_000_000)
     utilities_included: bool | None = None

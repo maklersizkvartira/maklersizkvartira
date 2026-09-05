@@ -367,6 +367,14 @@ class FaceLoginRequest(CamelModel):
     #: Required. Face matching is a 1:1 check against this account, never a
     #: search for whoever happens to look closest.
     username: str
+    #: Required, and the whole point of this field. A face is not a secret: it
+    #: can be photographed, and this system was publishing the enrolled one
+    #: from an endpoint that needed no token at all. The match below is a
+    #: hand-rolled gradient histogram over a blind centre crop with no face
+    #: detection and no liveness check, so on its own it is not an
+    #: authenticator — it is a convenience laid on top of one. The password is
+    #: the authenticator; the face is the second factor.
+    password: str
 
 
 class FaceRegisterRequest(CamelModel):

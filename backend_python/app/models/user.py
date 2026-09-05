@@ -31,7 +31,15 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     # -- Identity ------------------------------------------------------------
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     #: Canonical E.164, always +998XXXXXXXXX. Unique across live accounts.
-    phone: Mapped[str] = mapped_column(String(20), nullable=False, unique=True, index=True)
+    #: A real phone number, or a synthetic stand-in for an account that has not
+    #: given one yet — Google sign-in writes ``google:{sub}`` here until the
+    #: person adds a number. 20 was sized for the first case and forgot the
+    #: second: a Google ``sub`` is a 21-digit string, so the placeholder is 28
+    #: characters and every first-ever Google sign-in died on
+    #: ``value too long for type character varying(20)`` before the account was
+    #: created. 64 holds the placeholder with room to spare and costs nothing —
+    #: ``varchar(n)`` in Postgres stores only what is written.
+    phone: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)
     google_uid: Mapped[str | None] = mapped_column(String(128), nullable=True, unique=True)
     avatar: Mapped[str | None] = mapped_column(Text, nullable=True)

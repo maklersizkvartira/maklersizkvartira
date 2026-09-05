@@ -9,7 +9,7 @@ from sqlalchemy import select, or_, func
 from sqlalchemy.orm import selectinload
 
 from app.core.deps import CurrentUser, DbSession
-from app.core.errors import BadRequest
+from app.core.errors import BadRequest, NotFound
 from app.models.chat import ChatMessage, Conversation, SupportConversation, SupportMessage
 from app.models.listing import Listing
 from app.schemas.chat import (
@@ -135,17 +135,28 @@ async def start_or_get_conversation(
     conversation = (await db.execute(stmt)).unique().scalar_one_or_none()
 
     if not conversation:
-        conversation = Conversation(
-            listing_id=listing_id,
-            user_id=user.id,
-            owner_id=listing.owner_id
+        db.add(
+            Conversation(
+                listing_id=listing_id,
+                user_id=user.id,
+                owner_id=listing.owner_id,
+            )
         )
-        db.add(conversation)
         await db.commit()
-        await db.refresh(conversation)
-        # For a new conversation, messages is implicitly empty, but SQLAlchemy might not know that
-        # unless we populate it or re-fetch it. Let's just set it to [] to prevent lazy load errors.
-        conversation.messages = []
+        # Re-read through the same eager-loading statement rather than
+        # refreshing the instance and assigning to its collections.
+        #
+        # `conversation.messages = []` was doing the opposite of what its
+        # comment claimed. Assigning to a relationship collection makes
+        # SQLAlchemy load the *existing* one first, so that it can work out
+        # what changed — and on a row that was just refreshed, that collection
+        # is unloaded, so the assignment is lazy IO. Under asyncio that is
+        # `greenlet_spawn has not been called`, a 500, on the first message
+        # anybody ever sends about a listing. The line written to prevent a
+        # lazy load was the lazy load.
+        conversation = (await db.execute(stmt)).unique().scalar_one_or_none()
+        if conversation is None:
+            raise NotFound("conversation_not_found")
 
     return conversation
 

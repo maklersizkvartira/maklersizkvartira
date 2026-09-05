@@ -48,6 +48,11 @@ MESSAGES: dict[str, dict[str, str]] = {
         "ru": "Размер отправленных данных слишком велик.",
         "en": "The submitted payload is too large.",
     },
+    "face_enrol_self_only": {
+        "uz": "Face ID’ni faqat o‘z hisobingizga qo‘sha olasiz.",
+        "ru": "Face ID можно добавить только к своей учётной записи.",
+        "en": "You can only enrol Face ID on your own account.",
+    },
     "forbidden": {
         "uz": "Bu amalni bajarishga ruxsatingiz yo‘q.",
         "ru": "У вас нет прав на это действие.",

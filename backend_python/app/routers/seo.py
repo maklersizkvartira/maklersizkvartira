@@ -26,6 +26,7 @@ from sqlalchemy import ColumnElement, and_, func, select, true
 
 from app.core.config import settings
 from app.core.deps import DbSession
+from app.models.enums import DealType
 from app.models.listing import Listing
 from app.schemas.listing import ListingFilters
 from app.services.listings import apply_filters, visible_clause
@@ -246,11 +247,19 @@ async def seo_facets(
         :MAX_BUDGET_CEILINGS
     ]
 
+    # Rentals only, in every count on this endpoint. Each landing page these
+    # numbers gate is a rental page — `_landing_clause` builds its predicate
+    # from `ListingFilters`, which defaults to RENT — so counting sales here
+    # keeps a page in the sitemap on the strength of listings that page will
+    # never show. It then renders empty and marks itself `noindex`, which is
+    # the one outcome the pruning exists to avoid.
+    rent_only = Listing.deal_type == DealType.RENT.value
+
     async def counts(column):
         rows = (
             await db.execute(
                 select(column, func.count())
-                .where(and_(visible_clause(), column.isnot(None)))
+                .where(and_(visible_clause(), rent_only, column.isnot(None)))
                 .group_by(column)
             )
         ).all()
@@ -268,7 +277,7 @@ async def seo_facets(
         rows = (
             await db.execute(
                 select(column, Listing.property_type, func.count())
-                .where(and_(visible_clause(), column.isnot(None)))
+                .where(and_(visible_clause(), rent_only, column.isnot(None)))
                 .group_by(column, Listing.property_type)
             )
         ).all()

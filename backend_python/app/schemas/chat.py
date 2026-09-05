@@ -3,7 +3,6 @@
 from datetime import datetime
 import uuid
 from pydantic import BaseModel, ConfigDict
-from app.schemas.auth import UserOut
 
 
 class ChatMessageCreate(BaseModel):
@@ -42,6 +41,29 @@ class ListingBriefOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ChatParticipantOut(BaseModel):
+    """The other person in a thread, as much of them as a thread needs.
+
+    This used to be ``UserOut``, which carries ``phone`` and ``email`` — so
+    ``GET /chat/conversations`` handed both parties each other's phone number
+    and email address, in the list, before a word had been said. The catalogue
+    is careful about exactly this: ``_serialise`` in the listings router strips
+    ``owner.phone`` for anybody who is not the owner or staff, on purpose and
+    with a docstring explaining why. Starting a conversation walked around it,
+    and symmetrically — the enquirer's number went to the owner too.
+
+    A thread needs a name, a face, and whether the account is verified. It has
+    never needed a phone number: the contact details live on the listing page,
+    behind the gate that exists to meter them.
+    """
+
+    id: uuid.UUID
+    name: str
+    avatar: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ConversationOut(BaseModel):
     id: uuid.UUID
     listing_id: uuid.UUID
@@ -51,8 +73,8 @@ class ConversationOut(BaseModel):
     updated_at: datetime
 
     # We can include user/owner objects for UI convenience
-    user: UserOut | None = None
-    owner: UserOut | None = None
+    user: ChatParticipantOut | None = None
+    owner: ChatParticipantOut | None = None
 
     #: Which listing the two of them are talking about. Without it the list is
     #: a row of names, and an owner with several listings cannot tell which
