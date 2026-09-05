@@ -59,7 +59,7 @@ import {
   activeQuickFilter,
   quickFilterState,
   useAppStore,
-  QUICK_FILTER_RAIL,
+  railFor,
   type Filters,
   type QuickFilterId,
 } from '../../stores/useAppStore';
@@ -120,7 +120,16 @@ const QUICK_META: Record<
  * looking like an outage. An inverted min/max pair needs no handling: the
  * schema swaps that itself.
  */
-const MAX_PRICE = 1_000_000_000;
+/**
+ * The top of the price boxes, in so'm, by which catalogue is showing.
+ *
+ * One number used to serve both, and it was the renting one — a billion so'm,
+ * which is about $79,000 and therefore under the price of an ordinary Tashkent
+ * flat. On the sale side that made the ceiling box refuse most of the range it
+ * was meant to cover. These match the caps the API enforces.
+ */
+const MAX_RENT_PRICE = 1_000_000_000;
+const MAX_SALE_PRICE = 100_000_000_000;
 const MAX_AREA = 10_000;
 /** `search` is `max_length=120` server-side. */
 const MAX_SEARCH_LENGTH = 120;
@@ -311,6 +320,7 @@ export const ListingsPage: React.FC = () => {
   const forSale = filters.dealType === 'SALE';
   /** Half a million is a nudge on a rent; on a purchase price it is noise. */
   const priceStep = forSale ? 10_000_000 : 500_000;
+  const maxPrice = forSale ? MAX_SALE_PRICE : MAX_RENT_PRICE;
   const activeQuick = activeQuickFilter(filters);
 
   /**
@@ -756,7 +766,10 @@ export const ListingsPage: React.FC = () => {
             label={t('listings.filters.quickLabel')}
             className="snap-x snap-mandatory sm:flex-wrap sm:overflow-x-visible"
           >
-            {QUICK_FILTER_RAIL.map((id) => {
+            {/* The rail for the side of the catalogue that is showing.
+                "Talabalar uchun", "Oilalar uchun" and "Qizlarga" are all about
+                who may move in, which a sale does not ask. */}
+            {railFor(filters.dealType).map((id) => {
               const meta = QUICK_META[id];
               return (
                 <Chip
@@ -923,7 +936,7 @@ export const ListingsPage: React.FC = () => {
                     : 'listings.filters.minPricePlaceholder',
                 )}
                 value={filters.minPrice}
-                max={MAX_PRICE}
+                max={maxPrice}
                 step={priceStep}
                 onCommit={(minPrice) => setFilters({ minPrice })}
               />
@@ -935,7 +948,7 @@ export const ListingsPage: React.FC = () => {
                     : 'listings.filters.maxPricePlaceholder',
                 )}
                 value={filters.maxPrice}
-                max={MAX_PRICE}
+                max={maxPrice}
                 step={priceStep}
                 onCommit={(maxPrice) => setFilters({ maxPrice })}
               />

@@ -381,8 +381,14 @@ function readDraft(
     // answered on the owner's behalf by doing so: a new wizard shows APARTMENT
     // and the role's own seller before anybody has touched it, so a restored
     // draft that shows them is saying no more than an empty one does.
+    // Strings only. This used to drop every URL on the CDN host as well,
+    // from a spell when the public domain was misconfigured and those links
+    // resolved to nothing — but the domain serves them now (a stored listing
+    // photo comes back 200 image/jpeg), so the filter had stopped skipping
+    // dead links and started deleting live ones: leave the form after
+    // uploading, come back, and the photos were gone from the draft.
     const validImages = (parsed.images ?? []).filter(
-      (img) => typeof img === 'string' && !img.includes('img.uyiz.uz'),
+      (img) => typeof img === 'string' && img.length > 0,
     );
 
     return {
@@ -945,10 +951,15 @@ export const CreateListingPage: React.FC = () => {
         setUploadProgress({ done, total }),
       );
       if (uploaded.length > 0) {
-        setImages((current) => [
-          ...current.filter((img) => !img.includes('img.uyiz.uz')),
-          ...uploaded,
-        ]);
+        // Append. This used to drop every existing URL on the CDN host first,
+        // which is the host a successful upload returns — so adding a second
+        // batch of photos silently deleted the first batch, and a third
+        // deleted the second. The filter belongs to the draft restore below,
+        // where it was skipping links saved while the public domain was
+        // misconfigured; here the URLs were created seconds ago and
+        // `uploadImages` has already fetched one back to prove the domain
+        // serves them.
+        setImages((current) => [...current, ...uploaded]);
         clearError('images');
         haptics.success();
       }

@@ -181,6 +181,10 @@ export const QUICK_FILTER_DELTAS: Record<QuickFilterId, Partial<Filters>> = {
   // any other spelling is dropped by the filter model before it reaches SQL.
   hovli: { propertyType: 'HOUSE' },
   // Matches the "up to 3 mln" promise in the shared category description.
+  // Rent-shaped, and corrected for the sale side below. Three million so'm is
+  // a modest monthly rent and matches no property for sale anywhere, so on the
+  // Sotuv tab this chip used to be a button whose only effect was to empty the
+  // catalogue.
   budget: { maxPrice: 3_000_000, sortBy: 'PRICE_LOW' },
   premium: { onlyVerified: true, minTrustScore: 80, sortBy: 'TRUST' },
 };
@@ -220,7 +224,38 @@ export function quickFilterState(
   search = '',
   dealType: Filters['dealType'] = DEFAULT_FILTERS.dealType,
 ): Filters {
-  return { ...DEFAULT_FILTERS, ...QUICK_FILTER_DELTAS[id], search, dealType };
+  const state: Filters = {
+    ...DEFAULT_FILTERS,
+    ...QUICK_FILTER_DELTAS[id],
+    search,
+    dealType,
+  };
+  // "Arzonroq" is a comparison, not a number, and the number it stands for is
+  // three orders of magnitude apart on the two sides. Carried through here so
+  // there is still exactly one definition of what each chip means.
+  if (dealType === 'SALE' && id === 'budget') {
+    state.maxPrice = BUDGET_CEILING_SALE;
+  }
+  return state;
+}
+
+/** What "cheaper" means when the whole property is being bought, in so'm. */
+const BUDGET_CEILING_SALE = 700_000_000;
+
+/**
+ * The chips that only make sense while renting.
+ *
+ * `student` and `family` are about who may move in, `qizlarga` about who a
+ * room is shared with — all questions a tenancy asks and a sale does not.
+ * They are dropped from the rail on the Sotuv side rather than left there to
+ * return nothing.
+ */
+const RENT_ONLY_CHIPS: readonly QuickFilterId[] = ['student', 'family', 'qizlarga', 'roommate'];
+
+/** The rail for one side of the catalogue. */
+export function railFor(dealType: Filters['dealType']): readonly QuickFilterId[] {
+  if (dealType !== 'SALE') return QUICK_FILTER_RAIL;
+  return QUICK_FILTER_RAIL.filter((id) => !RENT_ONLY_CHIPS.includes(id));
 }
 
 function sameAmenities(a: string[], b: string[]): boolean {
@@ -236,8 +271,14 @@ function sameAmenities(a: string[], b: string[]): boolean {
  */
 export function activeQuickFilter(filters: Filters): QuickFilterId | null {
   return (
-    QUICK_FILTER_RAIL.find((id) => {
-      const candidate = quickFilterState(id, filters.search);
+    railFor(filters.dealType).find((id) => {
+      // The deal type has to go in, because it is compared coming out. Without
+      // it the candidate is always RENT while the live filters may say SALE,
+      // the every() below fails on that one key for every chip, and the whole
+      // rail reports nothing selected — so on the Sotuv tab a chip could be
+      // tapped on and then never tapped off, since "is this one already
+      // active" was permanently false.
+      const candidate = quickFilterState(id, filters.search, filters.dealType);
       return (Object.keys(DEFAULT_FILTERS) as Array<keyof Filters>).every((key) => {
         if (key === 'search') return true;
         if (key === 'amenities') return sameAmenities(filters.amenities, candidate.amenities);
