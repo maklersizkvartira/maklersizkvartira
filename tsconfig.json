@@ -11,8 +11,14 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "strict": false,
-    "noImplicitAny": false,
+    // On, and it costs nothing: the codebase already satisfies it in full.
+    // It was off, which meant `strictNullChecks` was off with it, which meant
+    // TypeScript was not checking null or undefined anywhere — so "tsc is
+    // clean" said much less than it looked like it said. Turning it on
+    // surfaced five real holes, one of them a crash: the account page
+    // dereferenced `currentUser` in a hook, and pressing "Chiqish" on that
+    // page sets it to null, so signing out went to a white screen.
+    "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,

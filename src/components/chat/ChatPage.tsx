@@ -432,7 +432,7 @@ export const ChatPage: React.FC = () => {
 
   // SUPPORT CHAT DETAIL VIEW
   if (activeConversationId === 'support') {
-    const getAvatarFallback = (name?: string) => `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&background=random`;
+    const getAvatarFallback = (name?: string | null) => `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&background=random`;
 
     return (
       <div className="flex flex-col h-[calc(100vh-140px)] max-w-3xl mx-auto px-4 py-4">
@@ -595,7 +595,7 @@ export const ChatPage: React.FC = () => {
   const otherPerson = isOwner ? detail?.user : detail?.owner;
   const mePerson = isOwner ? detail?.owner : detail?.user;
   
-  const getAvatarFallback = (name?: string) => `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&background=random`;
+  const getAvatarFallback = (name?: string | null) => `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&background=random`;
   
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] max-w-3xl mx-auto px-4 py-4">

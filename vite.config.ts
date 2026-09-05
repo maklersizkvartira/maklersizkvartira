@@ -60,7 +60,6 @@ export default defineConfig(({ isSsrBuild }) => ({
               // ended up modulepreloaded on the home page — 259KB gzipped,
               // in front of the first paint, for a view most visitors never
               // open. Their own chunks stay lazy.
-              if (id.includes('maplibre-gl')) return 'maplibre';
               if (id.includes('framer-motion')) return 'motion';
               if (id.includes('canvas-confetti')) return 'confetti';
               if (id.includes('@phosphor-icons')) return 'phosphor';

@@ -340,11 +340,20 @@ export const ProfilePage: React.FC = () => {
   // Seeded from the account and re-seeded whenever the server's copy changes,
   // so switching to AGENT (which clears the field server-side) or saving does
   // not leave the input showing a value that is no longer stored.
-  const [agency, setAgency] = useState(currentUser.agencyName ?? '');
+  //
+  // Read through `?.`, like every other use of `currentUser` above and below.
+  // There is a guard for the signed-out case, but it is an early return sixty
+  // lines further down and hooks cannot sit behind one — so these three lines
+  // run first, with whatever the store currently holds. Pressing "Chiqish" on
+  // this very page sets `currentUser` to null and re-renders it, and the
+  // dependency array below is evaluated on every render: the account screen
+  // threw `Cannot read properties of null` and went white at the exact moment
+  // it should have shown the signed-out card.
+  const [agency, setAgency] = useState(currentUser?.agencyName ?? '');
   const [agencyBusy, setAgencyBusy] = useState(false);
   useEffect(() => {
-    setAgency(currentUser.agencyName ?? '');
-  }, [currentUser.agencyName]);
+    setAgency(currentUser?.agencyName ?? '');
+  }, [currentUser?.agencyName]);
 
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
