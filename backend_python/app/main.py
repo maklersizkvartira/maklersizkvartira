@@ -65,7 +65,7 @@ async def lifespan(app: FastAPI):
         from app.models.user import AdminUser
         from app.core.security import hash_password
         from app.models.enums import AdminRole
-        from sqlalchemy import select, delete, text
+        from sqlalchemy import delete
 
         async with session_scope() as db:
             await db.execute(text("ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS face_image TEXT;"))

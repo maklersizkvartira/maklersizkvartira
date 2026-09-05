@@ -14,7 +14,7 @@ import secrets
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Any
+from typing import Any
 
 from fastapi import APIRouter, Depends, Header, Query, Request
 from pydantic import BaseModel
@@ -58,7 +58,6 @@ from app.models.enums import (
     AdminRole,
     AuditAction,
     ListingStatus,
-    ReportStatus,
     TopRequestStatus,
     UserStatus,
     VerificationStatus,
@@ -66,7 +65,6 @@ from app.models.enums import (
 from app.models.chat import SupportConversation, SupportMessage
 from app.models.listing import Favorite, Listing, TopRequest
 from app.models.moderation import Report, VerificationRequest
-from app.models.settings import SystemSetting
 from app.models.user import AdminUser, User
 from app.schemas.chat import (
     SupportConversationDetailOut,
@@ -662,7 +660,6 @@ async def bootstrap_reset_admin(
         hash_password,
         validate_password,
     )
-    from app.models.enums import AdminRole
     from app.models.user import AdminUser
 
     expected = (settings.BOOTSTRAP_TOKEN or "").strip()

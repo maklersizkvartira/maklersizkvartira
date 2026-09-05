@@ -14,7 +14,6 @@ from typing import Any
 
 from sqlalchemy import Select, and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core import audit as audit_log
 from app.core.config import settings

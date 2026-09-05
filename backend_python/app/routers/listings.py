@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.core.deps import CurrentUser, DbSession, Lang, OptionalUser, RequestCtx
 from app.core.errors import BadRequest, TooManyRequests
 from app.core.rate_limit import enforce
-from app.models.enums import STAFF_ROLE_VALUES, UserRole
+from app.models.enums import STAFF_ROLE_VALUES
 from app.schemas.common import MessageResponse, PaginationParams, build_page_meta
 from app.schemas.listing import (
     ListingCreate,

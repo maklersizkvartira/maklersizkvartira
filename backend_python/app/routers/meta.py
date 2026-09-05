@@ -13,7 +13,6 @@ from app.core.config import settings
 from app.core.context import anonymise_ip
 from app.core.deps import DbSession, Lang, OptionalUser, RequestCtx
 from app.models.analytics import TrafficEvent
-from app.models.settings import SystemSetting
 from app.schemas.auth import SUPPORTED_LANGUAGE_LIST
 from app.services import fx as fx_service
 from app.schemas.common import CamelModel, MessageResponse

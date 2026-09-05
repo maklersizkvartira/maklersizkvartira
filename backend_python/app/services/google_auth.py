@@ -20,7 +20,6 @@ import jwt
 import structlog
 from jwt import PyJWKClient
 
-from app.core.config import settings
 from app.core.errors import Unauthorized
 
 log = structlog.get_logger(__name__)

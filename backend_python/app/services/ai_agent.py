@@ -499,7 +499,7 @@ async def run_turn(
             outcome.actions.append(name)
         except ToolError as exc:
             result = {"error": str(exc)}
-        except Exception as exc:  # a real bug, not a refusal
+        except Exception:  # a real bug, not a refusal
             log.exception("ai_agent.approved_tool_failed", tool=name)
             result = {"error": "That action could not be completed just now."}
         messages.append(

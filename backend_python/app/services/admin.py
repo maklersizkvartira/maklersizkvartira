@@ -299,6 +299,25 @@ async def _count(db: AsyncSession, stmt: Select) -> int:
     return int((await db.execute(stmt)).scalar_one() or 0)
 
 
+def count_of(model, *where) -> Select:
+    """A COUNT over one model, optionally filtered.
+
+    Module level, and that is the whole point of it living here. It used to be
+    a closure inside ``dashboard_stats``, and ``ai_usage`` — written later,
+    above it, in the same file — called it as though it were shared. Nothing
+    said otherwise: it reads exactly like a helper, and Python only objects
+    when the line actually runs. So ``GET /admin/balances`` raised
+    ``NameError: name 'count_of' is not defined`` on every single call, and the
+    SMS-and-assistant card it feeds has never once rendered a number.
+
+    The test suite did not catch it because no test called that endpoint. A
+    linter would have, in the second it takes to run: this is an F821, visible
+    without executing anything.
+    """
+    stmt = select(func.count()).select_from(model)
+    return stmt.where(*where) if where else stmt
+
+
 async def ai_usage(db: AsyncSession) -> dict[str, Any]:
     """How much the assistant has been used, from our own records.
 
@@ -333,10 +352,6 @@ async def ai_usage(db: AsyncSession) -> dict[str, Any]:
 async def dashboard_stats(db: AsyncSession) -> dict[str, Any]:
     today = _start_of_day()
     week_ago = _now() - timedelta(days=7)
-
-    def count_of(model, *where) -> Select:
-        stmt = select(func.count()).select_from(model)
-        return stmt.where(*where) if where else stmt
 
     total_users = await _count(db, count_of(User, User.deleted_at.is_(None)))
     active_users = await _count(

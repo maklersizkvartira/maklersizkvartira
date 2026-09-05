@@ -20,6 +20,8 @@ __all__ = [
     "AISession",
     "AdminUser",
     "AuditLog",
+    "ChatMessage",
+    "Conversation",
     "Base",
     "Favorite",
     "Listing",

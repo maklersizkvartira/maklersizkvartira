@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter
 from pydantic import Field as PField
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 
 from app.core import audit as audit_log
 from app.core.config import settings
