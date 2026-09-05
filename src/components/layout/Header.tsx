@@ -416,28 +416,44 @@ export const Header: React.FC = () => {
   /** False until the marker has a position, so the first placement cannot glide in from x=0. */
   const markerPlaced = useRef(false);
   /**
-   * False until the arrival has finished settling.
+   * False until the visitor has actually done something.
    *
    * `markerPlaced` alone was not enough to keep the load quiet. The store boots
    * at `HOME` and App adopts the URL from a mount effect, so a deep link —
    * every prerendered landing page, which is most arrivals from search —
    * renders `HOME` once and then the real view. Above `xl`, where the Bosh
-   * sahifa link has a box, that first render placed the marker for real and the
-   * second one was a `currentView` change with `markerPlaced` already true: the
-   * rule swept the width of the bar on page load, which is the one thing the
+   * sahifa link has a box, that first render places the marker for real and the
+   * second one is a `currentView` change with `markerPlaced` already true: the
+   * rule sweeps the width of the bar on page load, which is the one thing the
    * snap-on-everything-but-navigation rule below exists to prevent.
    *
-   * A frame is the right unit. The adoption lands in the same commit as mount,
-   * well inside the first rAF; a visitor pressing a link cannot be.
+   * This used to be a single `requestAnimationFrame` — "the adoption lands in
+   * the same commit as mount, well inside the first frame". That is true on a
+   * warm load and false on the one that matters: a cold arrival waits on a lazy
+   * page chunk behind a boot overlay, the adoption lands well after the frame,
+   * and the marker glides the width of the bar while the page is still
+   * assembling itself. On a slow phone that 300ms sweep is what somebody sees
+   * as the underline stuck between "Bosh sahifa" and "E'lonlar".
+   *
+   * An interaction is the honest signal, and unlike a frame it is not a race.
+   * The glide exists to acknowledge something the visitor did; a view change
+   * that happens before they have touched the page cannot be that, however long
+   * the boot took. `pointerdown` and `keydown` both land before the navigation
+   * they trigger, so a real press is always already recorded by the time the
+   * marker moves for it.
    */
-  const settled = useRef(false);
+  const interacted = useRef(false);
   useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      settled.current = true;
-    });
+    const mark = () => {
+      interacted.current = true;
+    };
+    const options = { capture: true, once: true, passive: true } as const;
+    window.addEventListener('pointerdown', mark, options);
+    window.addEventListener('keydown', mark, options);
     return () => {
-      settled.current = false;
-      cancelAnimationFrame(frame);
+      interacted.current = false;
+      window.removeEventListener('pointerdown', mark, true);
+      window.removeEventListener('keydown', mark, true);
     };
   }, []);
   /** When the current glide started, so a reflow landing inside one does not cut it short. */
@@ -470,7 +486,7 @@ export const Header: React.FC = () => {
       // navigation opened keeps gliding, to wherever the labels have got to.
       const glide =
         markerPlaced.current &&
-        settled.current &&
+        interacted.current &&
         !reducedMotion &&
         (navigated || performance.now() - glideStartedAt.current < MARKER_MS);
       if (navigated && glide) glideStartedAt.current = performance.now();
@@ -503,6 +519,30 @@ export const Header: React.FC = () => {
    * the web font landing after the first paint — a marker measured against the
    * fallback face sits short of the word it underlines until something forces
    * a re-read.
+   *
+   * Three things drive it, because the one-shot pair this used to be —
+   * `window.resize` and `document.fonts.ready` — only ever fires when
+   * something *moves* the labels, never when the labels first turn up. Both
+   * assume the row is already measurable, so a single call landing before it
+   * is leaves the rule at `width: 0` with nothing scheduled to try again.
+   *
+   * `snap()` on mount is the common case and stays exactly as it was. The two
+   * listeners stay too: they are what has been keeping a window drag and a
+   * late font swap honest, and replacing proven behaviour with an observer I
+   * could not exercise — a background tab suspends `ResizeObserver` along with
+   * `requestAnimationFrame`, which is where this was being tested — would have
+   * traded a real fix for an unverified one.
+   *
+   * The observer is the addition, and it covers what none of them do: geometry
+   * arriving late. It reports once when observation begins and again on every
+   * change, so the row going from `display: none` to visible at `lg`, or a
+   * label being measured before the bold face lands, both get a second look.
+   * `placeMarker` is idempotent — it measures and writes, it does not toggle —
+   * so the overlap between the three costs nothing.
+   *
+   * Snapping here cannot cut a glide short: `placeMarker` keeps animating for
+   * any reflow that lands inside `MARKER_MS` of a navigation, which is the
+   * rule written for the scrollbar case and does this job unchanged.
    */
   useEffect(() => {
     const snap = () => placeMarker(useAppStore.getState().currentView, false);
@@ -511,23 +551,34 @@ export const Header: React.FC = () => {
     // One rAF per burst, the same shape as the elevation listener below: a
     // drag-resize fires far more often than there are frames to draw.
     let frame = 0;
-    const onResize = () => {
+    const schedule = () => {
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
         snap();
       });
     };
-    window.addEventListener('resize', onResize);
+    window.addEventListener('resize', schedule);
 
     let live = true;
     void document.fonts?.ready.then(() => {
       if (live) snap();
     });
 
+    // The row for its width, and each label for its own: the row is `flex-1`,
+    // so a word growing inside it when the font swaps in changes nothing about
+    // the row's box and would go unseen.
+    let observer: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(schedule);
+      if (navRowRef.current) observer.observe(navRowRef.current);
+      for (const label of navLabelRefs.current.values()) observer.observe(label);
+    }
+
     return () => {
       live = false;
-      window.removeEventListener('resize', onResize);
+      observer?.disconnect();
+      window.removeEventListener('resize', schedule);
       if (frame) cancelAnimationFrame(frame);
     };
   }, [language, placeMarker]);
