@@ -93,6 +93,23 @@ class PropertyType(StrEnum):
     COMMERCIAL = "COMMERCIAL"
 
 
+class DealType(StrEnum):
+    """Whether this property is being let or sold.
+
+    The platform started as rentals only, and the whole shape of a listing
+    assumed it: the price was a monthly one, there was a deposit, there was a
+    question about whether utilities were included. Selling breaks all three —
+    a sale price is paid once, there is no deposit and no monthly bill — so
+    the two cannot share a screen without saying which they are.
+
+    RENT is the default everywhere, including on rows written before this
+    column existed, because every one of them was a rental.
+    """
+
+    RENT = "RENT"
+    SALE = "SALE"
+
+
 class SellerType(StrEnum):
     """Who is publishing *this* listing, as opposed to what the account is.
 

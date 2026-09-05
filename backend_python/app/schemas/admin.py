@@ -10,6 +10,7 @@ from pydantic import Field
 
 from app.models.enums import (
     AdminRole,
+    DealType,
     Language,
     ListingStatus,
     ReportStatus,
@@ -107,6 +108,10 @@ class AdminListingRow(ORMCamelModel):
     id: uuid.UUID
     title: str
     description: str
+    #: RENT or SALE. A moderator reading a price has to know which it is: 600
+    #: million is an ordinary flat to buy and an obvious fraud to rent, and the
+    #: two rows look identical without this.
+    deal_type: str = DealType.RENT.value
     price: float
     currency: str
     rooms: int

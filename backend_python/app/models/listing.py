@@ -23,7 +23,13 @@ from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin, UUIDPrimaryKeyMixin
-from app.models.enums import ListingStatus, PropertyType, SellerType, TopRequestStatus
+from app.models.enums import (
+    DealType,
+    ListingStatus,
+    PropertyType,
+    SellerType,
+    TopRequestStatus,
+)
 
 if TYPE_CHECKING:
     from app.models.moderation import Report
@@ -36,6 +42,15 @@ class Listing(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     # -- Content -------------------------------------------------------------
     title: Mapped[str] = mapped_column(String(160), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+    # -- Deal ----------------------------------------------------------------
+    #: Let or sold. Read it before reading `price`: the same number means a
+    #: month's rent on one row and the whole property on the next, and the
+    #: three fields below exist only on the renting side.
+    deal_type: Mapped[str] = mapped_column(
+        String(10), default=DealType.RENT.value, server_default=DealType.RENT.value,
+        nullable=False,
+    )
 
     # -- Pricing -------------------------------------------------------------
     price: Mapped[float] = mapped_column(Float, nullable=False)
@@ -197,6 +212,10 @@ class Listing(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         CheckConstraint("favorites_count >= 0", name="favorites_non_negative"),
         CheckConstraint("contact_count >= 0", name="contacts_non_negative"),
         Index("ix_listings_status_created", "status", "created_at"),
+        # The shape of every catalogue query: one deal type, approved only,
+        # newest first. Leading with deal_type is what keeps a search for
+        # flats to rent from reading the sale rows at all.
+        Index("ix_listings_deal_status_created", "deal_type", "status", "created_at"),
         Index("ix_listings_district_price", "district", "price"),
         Index("ix_listings_featured_weight", "is_featured", "promotion_weight"),
     )

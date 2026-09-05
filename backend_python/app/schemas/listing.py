@@ -15,7 +15,13 @@ from typing import Annotated, Any, Literal
 from pydantic import Field, computed_field, field_validator, model_validator
 
 from app.core.config import settings
-from app.models.enums import ListingStatus, PropertyType, RoommateGender, SellerType
+from app.models.enums import (
+    DealType,
+    ListingStatus,
+    PropertyType,
+    RoommateGender,
+    SellerType,
+)
 from app.schemas.common import CamelModel, ORMCamelModel
 
 TitleStr = Annotated[str, Field(min_length=8, max_length=160)]
@@ -79,6 +85,12 @@ class ListingBase(CamelModel):
     title: TitleStr
     description: DescriptionStr
 
+    #: Let or sold. Defaulted rather than required so that a client written
+    #: before selling existed keeps publishing rentals, which is what it meant.
+    deal_type: DealType = DealType.RENT
+    #: A month's rent, or the whole price of the property — `deal_type` is what
+    #: says which, and the cap is the same either way because a billion so'm is
+    #: past both.
     price: float = Field(gt=0, le=1_000_000_000)
     currency: Literal["UZS", "USD"] = "UZS"
     deposit_price: float | None = Field(default=None, ge=0, le=1_000_000_000)
@@ -184,6 +196,7 @@ class ListingUpdate(CamelModel):
 
     title: TitleStr | None = None
     description: DescriptionStr | None = None
+    deal_type: DealType | None = None
     price: float | None = Field(default=None, gt=0, le=1_000_000_000)
     currency: Literal["UZS", "USD"] | None = None
     deposit_price: float | None = Field(default=None, ge=0, le=1_000_000_000)
@@ -249,6 +262,7 @@ class ListingOut(ORMCamelModel):
     id: uuid.UUID
     title: str
     description: str
+    deal_type: str = DealType.RENT.value
     price: float
     currency: str
     deposit_price: float | None = None
@@ -344,6 +358,15 @@ class ListingFilters(CamelModel):
     max_price: float | None = Field(default=None, ge=0, le=1_000_000_000)
     min_area: float | None = Field(default=None, ge=0, le=10_000)
     property_type: PropertyType | None = None
+    #: Defaults to RENT, and that default is load-bearing. Rentals and sales
+    #: cannot share a result list — a monthly rent and a purchase price differ
+    #: by three orders of magnitude, so one of them is always either invisible
+    #: or the only thing visible under any price filter. Every page that
+    #: existed before selling did, every prerendered SEO page and every stale
+    #: bundle still in somebody's browser asks for rentals without saying so,
+    #: and this keeps all of them right. ALL exists for callers that genuinely
+    #: want both and know what that means.
+    deal_type: Literal["RENT", "SALE", "ALL"] = "RENT"
     rental_type: Literal["ALL", "FULL", "ROOMMATE"] = "ALL"
     # A listing that says "girls only" is useless to a woman searching if she
     # cannot ask for it. GIRLS also matches ANY, because a room open to

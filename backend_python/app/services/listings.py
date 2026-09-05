@@ -24,6 +24,7 @@ from app.models.enums import (
     PUBLISHER_ROLE_VALUES,
     STAFF_ROLE_VALUES,
     AuditAction,
+    DealType,
     ListingStatus,
     RoommateGender,
     SellerType,
@@ -124,6 +125,11 @@ def apply_filters(stmt: Select, filters: ListingFilters, rate: float) -> Select:
         stmt = stmt.where(Listing.area >= filters.min_area)
     if filters.property_type:
         stmt = stmt.where(Listing.property_type == filters.property_type.value)
+    # Before anything else that touches money: a price range is a range of
+    # monthly rents or a range of purchase prices, never both, and every filter
+    # below reads differently on the other side of this line.
+    if filters.deal_type != "ALL":
+        stmt = stmt.where(Listing.deal_type == filters.deal_type)
     if filters.rental_type == "ROOMMATE":
         stmt = stmt.where(Listing.is_roommate.is_(True))
     elif filters.rental_type == "FULL":
@@ -309,6 +315,47 @@ def _normalise_seller(
             payload["agency_name"] = None
 
 
+def _normalise_deal(payload: dict[str, Any], *, listing: Listing | None = None) -> None:
+    """Strip the renting-only fields off a listing that is being sold.
+
+    A deposit, a utilities-included flag and a roommate offer are all answers
+    to questions a sale never asks. The form hides them once "for sale" is
+    chosen, but a form is not a rule: a listing edited from rent to sale would
+    otherwise keep the deposit it had, and the detail page would render "sale
+    price 600,000,000 so'm, deposit 3,000,000 so'm" — which is not a thing.
+
+    Cleared here rather than rejected, because none of it is the person's
+    mistake. They switched the deal type; the leftovers are ours to tidy.
+
+    ``listing`` is the row being edited, if there is one. It supplies the deal
+    type an edit did not mention, and it is also what keeps this from writing
+    four fields on every unrelated edit to a sale listing: a field that is
+    already empty is left out of the payload entirely, so the audit log records
+    what somebody changed rather than what was checked.
+    """
+    requested = payload.get("deal_type")
+    requested = (
+        getattr(requested, "value", requested)
+        or (listing.deal_type if listing is not None else None)
+        or DealType.RENT.value
+    )
+    if "deal_type" in payload:
+        payload["deal_type"] = requested
+    if requested != DealType.SALE.value:
+        return
+
+    for field, empty in (
+        ("deposit_price", None),
+        ("utilities_included", False),
+        ("is_roommate", False),
+        ("roommate_gender", None),
+    ):
+        already_empty = listing is not None and getattr(listing, field) == empty
+        if already_empty and field not in payload:
+            continue
+        payload[field] = empty
+
+
 async def create_listing(
     db: AsyncSession, *, user: User, payload: dict[str, Any]
 ) -> Listing:
@@ -331,6 +378,8 @@ async def create_listing(
 
     _normalise_seller(payload, user)
     payload.setdefault("seller_type", SellerType.OWNER.value)
+    payload.setdefault("deal_type", DealType.RENT.value)
+    _normalise_deal(payload)
 
     listing = Listing(
         **payload,
@@ -380,6 +429,10 @@ async def update_listing(
     # fixing a typo must not turn an agent's listing into an owner's.
     if "seller_type" in changes or "agency_name" in changes:
         _normalise_seller(changes, listing.owner or user, current=listing.seller_type)
+    # Unconditional, unlike the seller rules above: an edit that only raises
+    # the deposit on a listing that is already for sale has to be cleaned too,
+    # and that edit never mentions the deal type.
+    _normalise_deal(changes, listing=listing)
 
     before = {key: getattr(listing, key) for key in changes}
     for key, value in changes.items():

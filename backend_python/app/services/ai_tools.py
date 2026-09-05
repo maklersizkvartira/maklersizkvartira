@@ -441,9 +441,18 @@ async def _listing_performance(ctx: ToolContext, args: dict[str, Any]) -> dict[s
 
     from app.schemas.listing import ListingFilters
 
+    # The listing's own deal type, not the default. The comparison below takes
+    # a median price, and without this a flat for sale is measured against the
+    # monthly rents of its neighbours — which would tell the seller of a
+    # 600-million-so'm property that the going rate is six million.
     peers, peer_total = await listing_service.list_public(
         ctx.db,
-        ListingFilters(district=row.district, rooms=row.rooms, sort_by="RECOMMENDED"),
+        ListingFilters(
+            district=row.district,
+            rooms=row.rooms,
+            deal_type=row.deal_type,
+            sort_by="RECOMMENDED",
+        ),
         offset=0,
         limit=20,
     )
