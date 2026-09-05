@@ -29,6 +29,7 @@ import {
   Maximize2,
   ShieldCheck,
   Sparkles,
+  Tag,
   Train,
   Users,
 } from 'lucide-react';
@@ -38,6 +39,7 @@ import { cn } from '../../lib/cn';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useAppStore } from '../../stores/useAppStore';
 import type { Listing } from '../../types';
+import { isForSale } from '../../types/deal';
 import { sellerTypeOf } from '../../types/roles';
 import { AppLink } from '../../router/AppLink';
 import { listingPath } from '../../seo/routes';
@@ -145,6 +147,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
   const isFavorite = favoriteIds.has(listing.id);
   const trust = trustTone(listing.trustScore ?? 0);
   const isAgentListing = sellerTypeOf(listing) === 'AGENT';
+  const forSale = isForSale(listing);
   const href = listingPath({ id: listing.id, slug: listingSlug(listing) });
   const rotates = autoRotate ?? images.length > 1;
 
@@ -294,6 +297,17 @@ export const ListingCard: React.FC<ListingCardProps> = ({
             {t('common.rentalType.roommate')}
           </span>
         )}
+        {/* The catalogue is split by tab, so a card there is already known to
+            be one or the other. Favourites and "my listings" are not split —
+            they show whatever the person saved or posted — and there the badge
+            is the only thing that says why one card reads 6 mln and the next
+            600 mln. */}
+        {forSale && (
+          <span className="inline-flex items-center gap-1 rounded-lg bg-success px-2 py-1 text-[10px] font-black text-white shadow-sm">
+            <Tag className="h-3 w-3" aria-hidden="true" />
+            {t('common.dealType.sale')}
+          </span>
+        )}
       </div>
 
       <button
@@ -372,9 +386,14 @@ export const ListingCard: React.FC<ListingCardProps> = ({
               rate would restate the owner's terms as something they never
               said, and would change on its own overnight. */}
           {formatPrice(listing.price, listing.currency)}
-          <span className="ml-1 text-[10px] sm:text-xs font-semibold text-subtle">
-            {t('listings.card.perMonth')}
-          </span>
+          {/* Only a rental is priced by the month. On a sale the same number
+              is the whole property, and "/oyiga" beside it would read as a
+              600-million-so'm monthly rent. */}
+          {!forSale && (
+            <span className="ml-1 text-[10px] sm:text-xs font-semibold text-subtle">
+              {t('listings.card.perMonth')}
+            </span>
+          )}
         </p>
         <span
           className={`inline-flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-0.5 sm:px-2 sm:py-1 text-[9px] sm:text-[10px] font-black ${trust.className}`}

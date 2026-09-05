@@ -132,6 +132,13 @@ export function ListingSheet({
   // `currency` is a free 3-char column, so it is appended rather than handed to
   // Intl as a currency code — an unknown code there throws a RangeError.
   const money = (value: number) => `${numberFormat.format(value)} ${row.currency}`;
+  /**
+   * Rentals are the default for a row that does not say — everything written
+   * before selling existed was one — and the price is labelled accordingly.
+   * Without it the two are the same number with the units left off, which is
+   * the difference between an ordinary flat for sale and a fraudulent rent.
+   */
+  const forSale = row.dealType === 'SALE';
 
   const featured = isFeaturedNow(row);
   const busy = moderating || featuring || removing;
@@ -163,7 +170,9 @@ export function ListingSheet({
         closeLabel={c('close')}
         size="xl"
         title={row.title}
-        subtitle={[row.district, money(row.price)].filter(Boolean).join(' · ')}
+        subtitle={[row.district, money(row.price), forSale ? t('dealType.sale') : null]
+          .filter(Boolean)
+          .join(' · ')}
         footer={
           canModerate ? (
             <>
@@ -348,7 +357,10 @@ export function ListingSheet({
               <Chip icon={<Ruler size={13} aria-hidden="true" />} value={`${row.area} m²`} />
             )}
           </div>
-          <KeyValue label={t('columns.price')} value={money(row.price)} />
+          <KeyValue
+            label={t(forSale ? 'columns.priceSale' : 'columns.price')}
+            value={money(row.price)}
+          />
           <KeyValue label={t('columns.district')} value={location || c('unknown')} />
           <KeyValue label={t('columns.created')} value={showDate(row.createdAt)} />
           <KeyValue

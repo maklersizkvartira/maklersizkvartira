@@ -36,7 +36,8 @@ import { ListingsApi } from '../../services/listingsApi';
 import { useAppStore } from '../../stores/useAppStore';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { cn } from '../../lib/cn';
-import type { Listing, PropertyType, SellerType } from '../../types';
+import type { DealType, Listing, PropertyType, SellerType } from '../../types';
+import { dealTypeOf } from '../../types/deal';
 import { Button, Field, FormError, SelectInput, TextInput } from '../ui/Field';
 
 /** Stored value for "no metro nearby"; the label is translated at render time. */
@@ -128,6 +129,13 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
   const [propertyType, setPropertyType] = useState<PropertyType>(
     listing.propertyType ?? 'APARTMENT',
   );
+  /**
+   * Letting or selling. Editable, because an owner who could not let a flat and
+   * has decided to sell it is the ordinary case, and the alternative is
+   * deleting the listing and typing all of it again.
+   */
+  const [dealType, setDealType] = useState<DealType>(dealTypeOf(listing));
+  const forSale = dealType === 'SALE';
   const [price, setPrice] = useState<NumberField>(listing.price ?? '');
   const [currency, setCurrency] = useState<'UZS' | 'USD'>(listing.currency ?? 'UZS');
   // `?? ''`, not `?? 0`: a listing with no deposit asks for no deposit, and
@@ -232,7 +240,11 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
     }
 
     if (price === '' || price <= 0) errors.price = 'owner.create.validation.price';
-    if (deposit !== '' && deposit < 0) errors.deposit = 'owner.create.validation.deposit';
+    // Skipped on a sale for the same reason the box is not drawn: an error
+    // against a field nobody can see blocks the save with nothing to fix.
+    if (!forSale && deposit !== '' && deposit < 0) {
+      errors.deposit = 'owner.create.validation.deposit';
+    }
     if (area !== '' && area <= 0) errors.area = 'owner.create.validation.area';
     if (
       (floor !== '' && floor < 1) ||
@@ -284,9 +296,16 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
       title: title.trim(),
       description: description.trim(),
       propertyType,
+      dealType,
       price: price === '' ? null : price,
       currency,
-      depositPrice: deposit === '' ? null : deposit,
+      // Cleared outright on a sale rather than left as it was. A listing that
+      // used to be let carries the deposit it was let for, and switching it to
+      // a sale without dropping that would publish a purchase price with a
+      // month's deposit under it. The server applies the same rule; sending it
+      // is what keeps this dialog's idea of the listing in step with the one
+      // that comes back.
+      depositPrice: forSale || deposit === '' ? null : deposit,
       rooms,
       area: area === '' ? null : area,
       floor: floor === '' ? null : floor,
@@ -535,8 +554,25 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
           </Field>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Field label={t('listings.filters.dealType')}>
+              {({ id }) => (
+                <SelectInput
+                  id={id}
+                  value={dealType}
+                  onChange={(event) => setDealType(event.target.value as DealType)}
+                >
+                  <option value="RENT">{t('common.dealType.rentAction')}</option>
+                  <option value="SALE">{t('common.dealType.saleAction')}</option>
+                </SelectInput>
+              )}
+            </Field>
+
             <Field
-              label={t('owner.create.details.priceLabel')}
+              label={t(
+                forSale
+                  ? 'owner.create.details.priceLabelSale'
+                  : 'owner.create.details.priceLabel',
+              )}
               required
               error={formErrors.price ? tRaw(formErrors.price) : undefined}
             >
@@ -571,24 +607,30 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
               )}
             </Field>
 
-            <Field
-              label={t('owner.create.details.depositLabel')}
-              error={formErrors.deposit ? tRaw(formErrors.deposit) : undefined}
-            >
-              {({ id, describedBy, invalid }) => (
-                <TextInput
-                  id={id}
-                  aria-describedby={describedBy}
-                  invalid={invalid}
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  step="any"
-                  value={deposit === '' ? '' : deposit}
-                  onChange={numberHandler(setDeposit, 'deposit')}
-                />
-              )}
-            </Field>
+            {/* Money held back against the end of a tenancy. A sale has no
+                end, so the question has no answer — and the row keeps its four
+                columns either way, because the deal picker took a slot as this
+                one gave one up. */}
+            {!forSale && (
+              <Field
+                label={t('owner.create.details.depositLabel')}
+                error={formErrors.deposit ? tRaw(formErrors.deposit) : undefined}
+              >
+                {({ id, describedBy, invalid }) => (
+                  <TextInput
+                    id={id}
+                    aria-describedby={describedBy}
+                    invalid={invalid}
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    step="any"
+                    value={deposit === '' ? '' : deposit}
+                    onChange={numberHandler(setDeposit, 'deposit')}
+                  />
+                )}
+              </Field>
+            )}
 
             {/* The `error` prop is what makes `SERVER_FIELDS.rooms` mean
                 anything. The 422 handler writes that key and this dialog has

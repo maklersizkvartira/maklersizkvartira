@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 
 import { VerificationBadge } from '../common/VerificationBadge';
+import { isForSale } from '../../types/deal';
 import { sellerTypeOf } from '../../types/roles';
 import { useTranslation } from '../../i18n';
 import { AMENITIES } from '../../data/amenities';
@@ -423,6 +424,10 @@ export const ListingDetailPage: React.FC = () => {
   // Through the shared helper rather than a second reading of the field, so a
   // listing cannot be an owner's in the grid and an agent's on this page.
   const isAgentListing = sellerTypeOf(listing) === 'AGENT';
+  // A sale has no monthly anything: no per-month suffix, no deposit and
+  // no question about who pays the utilities. The API clears the last two,
+  // so this is about not rendering rows that would all read "no".
+  const forSale = isForSale(listing);
   const joinedDate = listing.owner?.joinedDate;
   const joinedLabel =
     joinedDate && !Number.isNaN(new Date(joinedDate).getTime()) ? formatDate(joinedDate) : null;
@@ -922,11 +927,13 @@ export const ListingDetailPage: React.FC = () => {
               </h2>
               <p className="text-3xl font-black text-content">
                 {priceLabel}
-                <span className="ml-1 text-sm font-medium text-subtle">
-                  {listing.isRoommate
-                    ? t('common.units.perPerson')
-                    : t('common.units.perMonth')}
-                </span>
+                {!forSale && (
+                  <span className="ml-1 text-sm font-medium text-subtle">
+                    {listing.isRoommate
+                      ? t('common.units.perPerson')
+                      : t('common.units.perMonth')}
+                  </span>
+                )}
               </p>
               {/* Asked for, not assumed.
                   The conversion used to sit under every price, here and on
@@ -967,16 +974,26 @@ export const ListingDetailPage: React.FC = () => {
                 >
                   {t(isAgentListing ? 'listings.seller.agentBadge' : 'listings.seller.ownerBadge')}
                 </span>
-                <span className={listing.utilitiesIncluded ? 'text-brand-text' : 'text-subtle'}>
-                  {listing.utilitiesIncluded
-                    ? t('listings.card.utilitiesIncluded')
-                    : t('listings.detail.utilitiesExcluded')}
-                </span>
-                <span className="text-muted">
-                  {depositUzs > 0
-                    ? t('listings.card.deposit', { amount: depositLabel })
-                    : t('listings.card.noDeposit')}
-                </span>
+                {forSale ? (
+                  <span className="rounded-md bg-success-soft px-2 py-0.5 font-black text-success">
+                    {t('common.dealType.sale')}
+                  </span>
+                ) : (
+                  <>
+                    <span
+                      className={listing.utilitiesIncluded ? 'text-brand-text' : 'text-subtle'}
+                    >
+                      {listing.utilitiesIncluded
+                        ? t('listings.card.utilitiesIncluded')
+                        : t('listings.detail.utilitiesExcluded')}
+                    </span>
+                    <span className="text-muted">
+                      {depositUzs > 0
+                        ? t('listings.card.deposit', { amount: depositLabel })
+                        : t('listings.card.noDeposit')}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1278,9 +1295,13 @@ export const ListingDetailPage: React.FC = () => {
             <span className="text-[10px] uppercase font-bold text-muted block">{t('listings.detail.priceTitle')}</span>
             <p className="text-base font-black text-content truncate">
               {priceLabel}
-              <span className="text-[11px] font-normal text-muted ml-1">
-                {listing.isRoommate ? t('common.units.perPerson') : t('common.units.perMonth')}
-              </span>
+              {!forSale && (
+                <span className="text-[11px] font-normal text-muted ml-1">
+                  {listing.isRoommate
+                    ? t('common.units.perPerson')
+                    : t('common.units.perMonth')}
+                </span>
+              )}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">

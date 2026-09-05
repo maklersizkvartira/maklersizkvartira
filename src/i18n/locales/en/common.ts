@@ -106,6 +106,19 @@ export const common = {
     roomsPlus: '{count}+ rooms',
   },
 
+  /**
+   * Renting or buying. Two words that have to fit a phone tab, so they are the
+   * nouns rather than the verbs.
+   */
+  dealType: {
+    rent: 'Rent',
+    sale: 'Sale',
+    rentAction: 'To let',
+    saleAction: 'To sell',
+    rentHint: 'Let with a monthly payment',
+    saleHint: 'The property is sold outright',
+  },
+
   rentalType: {
     all: 'All',
     full: 'Whole flat',

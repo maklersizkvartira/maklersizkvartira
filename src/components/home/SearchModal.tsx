@@ -162,6 +162,25 @@ export const SearchModal: React.FC<SearchModalProps> = ({ open, onClose }) => {
    * every time — an empty result the visitor has no way to read as a
    * contradiction. So each one steps aside for the other.
    */
+  /**
+   * Switching between renting and buying, and clearing what the switch makes
+   * meaningless.
+   *
+   * `rentalType`, `roommateGender` and `audience` are all rental questions, and
+   * the price range is the important one: a ceiling set against monthly rents
+   * matches no sale in the country, so leaving it standing would answer the
+   * first tap on "Sotuv" with an empty catalogue and no visible reason.
+   */
+  const handleDealType = (value: Filters['dealType']) =>
+    update({
+      dealType: value,
+      rentalType: 'ALL',
+      roommateGender: 'ALL',
+      audience: 'ALL',
+      minPrice: null,
+      maxPrice: null,
+    });
+
   const handleRentalType = (value: Filters['rentalType']) =>
     update({
       rentalType: value,
@@ -185,7 +204,8 @@ export const SearchModal: React.FC<SearchModalProps> = ({ open, onClose }) => {
   // rule the catalogue chips and the home tiles follow, so "for women" never
   // arrives silently narrowed by whatever was left in the sheet from the last
   // search. The typed query survives: it is the visitor's own words.
-  const applyPreset = (id: QuickFilterId) => setDraft(quickFilterState(id, draft.search));
+  const applyPreset = (id: QuickFilterId) =>
+    setDraft(quickFilterState(id, draft.search, draft.dealType));
 
   /** Which preset the draft currently *is* — the store owns that comparison. */
   const activePreset = activeQuickFilter(draft);
@@ -228,6 +248,23 @@ export const SearchModal: React.FC<SearchModalProps> = ({ open, onClose }) => {
       }
     >
       <form id={formId} onSubmit={handleSubmit} className="space-y-5 pt-1">
+        {/* Above the chips and the search box, because it is the question they
+            are both answered inside: "arzon" means something different at 4
+            million a month and at 400 million once. It is also the only place
+            the home page offers the sale side at all. */}
+        <div className="space-y-1.5">
+          <span className={labelClass}>{t('listings.filters.dealType')}</span>
+          <Segmented
+            value={draft.dealType}
+            onChange={handleDealType}
+            label={t('listings.filters.dealType')}
+            options={[
+              { value: 'RENT', label: t('common.dealType.rent') },
+              { value: 'SALE', label: t('common.dealType.sale') },
+            ]}
+          />
+        </div>
+
         <ChipRow label={t('listings.filters.quickLabel')}>
           {PRESETS.map((preset) => (
             <Chip
@@ -353,35 +390,44 @@ export const SearchModal: React.FC<SearchModalProps> = ({ open, onClose }) => {
           </div>
         </fieldset>
 
-        <div className="space-y-1.5">
-          <span className={labelClass}>{t('home.search.rentalTypeLabel')}</span>
-          <Segmented
-            value={draft.rentalType}
-            onChange={handleRentalType}
-            label={t('home.search.rentalTypeLabel')}
-            size="sm"
-            options={[
-              { value: 'ALL', label: t('common.rentalType.all') },
-              { value: 'FULL', label: t('common.rentalType.full') },
-              { value: 'ROOMMATE', label: t('common.rentalType.roommate') },
-            ]}
-          />
-        </div>
+        {/* Both are questions about a tenancy. "Butun kvartira yoki sheriklikka"
+            has no answer when the flat is being sold, and "talabalar uchun" is
+            about who may move in, not who may buy. They are removed rather
+            than disabled: a control that cannot be used is still a control the
+            eye has to rule out. */}
+        {draft.dealType === 'RENT' && (
+          <>
+            <div className="space-y-1.5">
+              <span className={labelClass}>{t('home.search.rentalTypeLabel')}</span>
+              <Segmented
+                value={draft.rentalType}
+                onChange={handleRentalType}
+                label={t('home.search.rentalTypeLabel')}
+                size="sm"
+                options={[
+                  { value: 'ALL', label: t('common.rentalType.all') },
+                  { value: 'FULL', label: t('common.rentalType.full') },
+                  { value: 'ROOMMATE', label: t('common.rentalType.roommate') },
+                ]}
+              />
+            </div>
 
-        <div className="space-y-1.5">
-          <span className={labelClass}>{t('home.search.audienceLabel')}</span>
-          <Segmented
-            value={draft.audience}
-            onChange={handleAudience}
-            label={t('home.search.audienceLabel')}
-            size="sm"
-            options={[
-              { value: 'ALL', label: t('common.audience.all') },
-              { value: 'STUDENT', label: t('common.audience.student') },
-              { value: 'FAMILY', label: t('common.audience.family') },
-            ]}
-          />
-        </div>
+            <div className="space-y-1.5">
+              <span className={labelClass}>{t('home.search.audienceLabel')}</span>
+              <Segmented
+                value={draft.audience}
+                onChange={handleAudience}
+                label={t('home.search.audienceLabel')}
+                size="sm"
+                options={[
+                  { value: 'ALL', label: t('common.audience.all') },
+                  { value: 'STUDENT', label: t('common.audience.student') },
+                  { value: 'FAMILY', label: t('common.audience.family') },
+                ]}
+              />
+            </div>
+          </>
+        )}
 
         <div className="border-t border-line pt-4">
           <button

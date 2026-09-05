@@ -77,7 +77,7 @@ import { Button, Field, FormError, SelectInput, TextInput } from '../ui/Field';
 import { Card } from '../ui/Card';
 import { Segmented } from '../ui/Segmented';
 import { Sheet } from '../ui/Sheet';
-import type { PropertyType, SellerType } from '../../types';
+import type { DealType, PropertyType, SellerType } from '../../types';
 import { canPublishAsAgent, canPublishListings, isSwitchableRole } from '../../types/roles';
 import {
   districtCentre,
@@ -302,6 +302,7 @@ interface Draft {
   title: string;
   description: string;
   propertyType: PropertyType;
+  dealType?: DealType;
   price: NumberField;
   deposit: NumberField;
   rooms: NumberField;
@@ -389,6 +390,10 @@ function readDraft(
       images: validImages,
       amenities: { ...NO_AMENITIES, ...parsed.amenities },
       propertyType: parsed.propertyType ?? 'APARTMENT',
+      // A draft saved before selling existed is a rental. Narrowed rather than
+      // trusted, because this is `JSON.parse` of something a person can edit,
+      // and a value that is neither would reach the API as an unknown enum.
+      dealType: parsed.dealType === 'SALE' ? 'SALE' : 'RENT',
       landArea: parsed.landArea ?? '',
       categoryChosen:
         parsed.categoryChosen ??
@@ -542,6 +547,16 @@ export const CreateListingPage: React.FC = () => {
   const [propertyType, setPropertyType] = useState<PropertyType>(
     initialDraft?.propertyType ?? 'APARTMENT',
   );
+  /**
+   * Letting or selling — the first thing the form asks, because it decides
+   * what half the rest of it means.
+   *
+   * Optional in the stored draft rather than required: a draft saved before
+   * selling existed is a rental, and reading a missing field as one is the
+   * only answer that cannot be wrong.
+   */
+  const [dealType, setDealType] = useState<DealType>(initialDraft?.dealType ?? 'RENT');
+  const forSale = dealType === 'SALE';
   const [price, setPrice] = useState<NumberField>(initialDraft?.price ?? '');
   const [deposit, setDeposit] = useState<NumberField>(initialDraft?.deposit ?? '');
   const [rooms, setRooms] = useState<NumberField>(initialDraft?.rooms ?? '');
@@ -774,6 +789,7 @@ export const CreateListingPage: React.FC = () => {
       title,
       description,
       propertyType,
+      dealType,
       price,
       deposit,
       rooms,
@@ -798,7 +814,7 @@ export const CreateListingPage: React.FC = () => {
     }),
     [
       step, maxStep, region, district, address, metro, metroMinutes, latitude,
-      longitude, title, description, propertyType, price, deposit, rooms, area,
+      longitude, title, description, propertyType, dealType, price, deposit, rooms, area,
       landArea, floor, totalFloors, amenities, isRoommate, categoryChosen, roommateGender, roommateSpots,
       images, currency, sellerType, agencyName, telegram, preferredTime, topRequested,
       topDays, topNote,
@@ -1119,7 +1135,12 @@ export const CreateListingPage: React.FC = () => {
         errors.description = 'common.error.validation';
       }
       if (price === '' || price <= 0) errors.price = 'owner.create.validation.price';
-      if (deposit !== '' && deposit < 0) errors.deposit = 'owner.create.validation.deposit';
+      // Not on a sale: the field is not on screen, so an error against it
+      // would block the step with a message pointing at nothing. The
+      // leftover value is dropped from the payload rather than validated.
+      if (!forSale && deposit !== '' && deposit < 0) {
+        errors.deposit = 'owner.create.validation.deposit';
+      }
       if (propertyType !== 'LAND') {
         if (rooms === '' || rooms < 1) errors.rooms = 'common.state.required';
       }
@@ -1275,10 +1296,15 @@ export const CreateListingPage: React.FC = () => {
     const payload: Record<string, unknown> = {
       title: title.trim(),
       description: description.trim(),
+      dealType,
       price: price === '' ? null : price,
       currency,
-      depositPrice: deposit === '' ? null : deposit,
-      utilitiesIncluded: amenities.utilitiesIncluded,
+      // Both are rental terms, and the form stops asking for them once this is
+      // a sale. Sent as empty rather than omitted so that editing a listing
+      // from rent to sale clears what it was carrying — the server enforces the
+      // same rule, and this is what keeps the two from disagreeing.
+      depositPrice: forSale || deposit === '' ? null : deposit,
+      utilitiesIncluded: forSale ? false : amenities.utilitiesIncluded,
       rooms: propertyType === 'LAND' ? (rooms === '' ? 1 : rooms) : (rooms === '' ? null : rooms),
       area: area === '' ? null : area,
       landArea: landArea === '' ? null : landArea,
@@ -1417,6 +1443,7 @@ export const CreateListingPage: React.FC = () => {
     setTitle('');
     setDescription('');
     setPropertyType('APARTMENT');
+    setDealType('RENT');
     setPrice('');
     setDeposit('');
     setRooms('');
@@ -2007,13 +2034,54 @@ export const CreateListingPage: React.FC = () => {
                     E’lon toifasini tanlang
                   </h2>
                   <p className="mt-0.5 text-xs text-subtle">
-                    Kim sifatida e’lon bermoqchisiz? Kerakli bo‘lim tugmasini bosing:
+                    Uyni ijaraga bermoqchimisiz yoki sotmoqchimisiz? Keyin kim
+                    sifatida e’lon berayotganingizni tanlang:
                   </p>
                 </div>
                 {stepBadge}
               </header>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {/* Asked before anything else, because it decides what the rest
+                  of the form means: the price box becomes a monthly rent or a
+                  purchase price, and the deposit and utilities questions stop
+                  existing. Asking it here rather than beside the price is what
+                  keeps somebody from filling in a rental and discovering on the
+                  next screen that they were posting the wrong kind of listing. */}
+              <div className="space-y-2">
+                <Segmented
+                  label={t('listings.filters.dealType')}
+                  value={dealType}
+                  onChange={(next) => {
+                    haptics.tap();
+                    setDealType(next);
+                    // Nobody sells a room to a roommate. The card is about to
+                    // disappear from the row below, so a draft that had already
+                    // chosen it cannot be left holding it.
+                    if (next === 'SALE') {
+                      setIsRoommate(false);
+                      if (
+                        propertyType === 'ROOM' ||
+                        propertyType === 'DORMITORY'
+                      ) {
+                        setPropertyType('APARTMENT');
+                      }
+                    }
+                  }}
+                  options={[
+                    { value: 'RENT', label: t('common.dealType.rentAction') },
+                    { value: 'SALE', label: t('common.dealType.saleAction') },
+                  ]}
+                />
+                <p className="text-[11px] text-subtle">
+                  {t(forSale ? 'common.dealType.saleHint' : 'common.dealType.rentHint')}
+                </p>
+              </div>
+
+              <div
+                className={`grid grid-cols-1 gap-3 ${
+                  forSale ? 'sm:grid-cols-2' : 'sm:grid-cols-3'
+                }`}
+              >
                 {/* 1. Mulk egasi Button */}
                 <button
                   type="button"
@@ -2041,7 +2109,9 @@ export const CreateListingPage: React.FC = () => {
                       </span>
                     </div>
                     <p className="text-[11px] text-muted truncate mt-0.5">
-                      Vositachisiz to‘g‘ridan-to‘g‘ri ijara
+                      {forSale
+                        ? 'Vositachisiz to‘g‘ridan-to‘g‘ri sotuv'
+                        : 'Vositachisiz to‘g‘ridan-to‘g‘ri ijara'}
                     </p>
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0" />
@@ -2083,7 +2153,10 @@ export const CreateListingPage: React.FC = () => {
                   <ChevronRight className="h-4 w-4 text-muted group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all shrink-0" />
                 </button>
 
-                {/* 3. Sheriklikka Button */}
+                {/* 3. Sheriklikka Button — renting only. Sharing a flat is an
+                    arrangement between tenants; there is no such thing as
+                    selling somebody a roommate. */}
+                {!forSale && (
                 <button
                   type="button"
                   onClick={() => {
@@ -2115,6 +2188,7 @@ export const CreateListingPage: React.FC = () => {
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted group-hover:text-purple-600 dark:group-hover:text-purple-400 group-hover:translate-x-0.5 transition-all shrink-0" />
                 </button>
+                )}
               </div>
             </section>
           )}
@@ -2371,16 +2445,32 @@ export const CreateListingPage: React.FC = () => {
                 )}
               </Field>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* One column on a sale: the deposit box beside the price is
+                  gone, and a lone field stretched across half a row reads as a
+                  layout that lost something. */}
+              <div
+                className={`grid grid-cols-1 gap-4 ${forSale ? '' : 'sm:grid-cols-2'}`}
+              >
                 <Field
-                  label={t('owner.create.details.priceLabel')}
+                  // "Oylik narx" on a listing that is being sold would be
+                  // asking for the monthly rent of a flat nobody is letting.
+                  label={t(
+                    forSale
+                      ? 'owner.create.details.priceLabelSale'
+                      : 'owner.create.details.priceLabel',
+                  )}
                   required
                   hint={
                     approxPrice === null
                       ? undefined
-                      : t('owner.create.details.priceApprox', {
-                          amount: formatPrice(approxPrice.amount, approxPrice.currency),
-                        })
+                      : t(
+                          forSale
+                            ? 'owner.create.details.priceApproxSale'
+                            : 'owner.create.details.priceApprox',
+                          {
+                            amount: formatPrice(approxPrice.amount, approxPrice.currency),
+                          },
+                        )
                   }
                   error={formErrors.price ? tRaw(formErrors.price) : undefined}
                 >
@@ -2413,15 +2503,24 @@ export const CreateListingPage: React.FC = () => {
                         value={formatMoneyInput(price)}
                         onChange={moneyInputHandler(setPrice, 'price')}
                         placeholder={t(
-                          currency === 'USD'
-                            ? 'owner.create.details.pricePlaceholderUsd'
-                            : 'owner.create.details.pricePlaceholder',
+                          forSale
+                            ? currency === 'USD'
+                              ? 'owner.create.details.pricePlaceholderSaleUsd'
+                              : 'owner.create.details.pricePlaceholderSale'
+                            : currency === 'USD'
+                              ? 'owner.create.details.pricePlaceholderUsd'
+                              : 'owner.create.details.pricePlaceholder',
                         )}
                       />
                     </div>
                   )}
                 </Field>
 
+                {/* A deposit is money held back against the end of a tenancy.
+                    There is no end of a sale, so the question is not one the
+                    seller can answer — asking it anyway is how a form teaches
+                    people that half of it is noise. */}
+                {!forSale && (
                 <Field
                   label={t('owner.create.details.depositLabel')}
                   error={formErrors.deposit ? tRaw(formErrors.deposit) : undefined}
@@ -2456,6 +2555,7 @@ export const CreateListingPage: React.FC = () => {
                     />
                   )}
                 </Field>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -2584,7 +2684,14 @@ export const CreateListingPage: React.FC = () => {
                   {t('owner.create.details.amenitiesLabel')}
                 </legend>
                 <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                  {AMENITIES.map(({ key, labelKey, Icon }) => (
+                  {/* "Kommunal to'lovlar kiritilgan" is a rental term — it
+                      answers who pays the monthly bills, and after a sale that
+                      is the buyer, always. The rest of the list (furnished,
+                      parking, air conditioning) describes the property and is
+                      just as true of one being sold. */}
+                  {AMENITIES.filter(
+                    ({ key }) => !(forSale && key === 'utilitiesIncluded'),
+                  ).map(({ key, labelKey, Icon }) => (
                     <label
                       key={key}
                       className={cn(

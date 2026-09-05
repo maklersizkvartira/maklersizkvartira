@@ -110,6 +110,19 @@ export const common = {
     roomsPlus: '{count}+ xona',
   },
 
+  /**
+   * Renting or buying. Two words that have to fit a phone tab, so they are the
+   * nouns rather than the verbs: "Ijara", not "Ijaraga berish".
+   */
+  dealType: {
+    rent: 'Ijara',
+    sale: 'Sotuv',
+    rentAction: 'Ijaraga berish',
+    saleAction: 'Sotish',
+    rentHint: 'Oylik to‘lov bilan ijaraga beriladi',
+    saleHint: 'Mulk butunlay sotiladi',
+  },
+
   rentalType: {
     all: 'Barchasi',
     full: 'Butun kvartira',

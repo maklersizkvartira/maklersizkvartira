@@ -42,6 +42,7 @@ import {
 import { useTranslation } from '../../i18n';
 import { useAppStore } from '../../stores/useAppStore';
 import type { Listing, ListingStatus } from '../../types';
+import { isForSale } from '../../types/deal';
 import { ApiError } from '../../services/http';
 import {
   DEFAULT_TOP_DAYS,
@@ -646,10 +647,15 @@ export const MyListingsPage: React.FC = () => {
 
                           <p className="mt-0.5 text-xs font-extrabold text-brand-text">
                             {formatPrice(listing.price, listing.currency)}
+                            {/* This list mixes both kinds — it is everything
+                                one person posted — so the suffix is what tells
+                                a monthly rent from a purchase price. */}
                             <span className="font-semibold text-subtle">
-                              {listing.isRoommate
-                                ? t('common.units.perPerson')
-                                : t('common.units.perMonth')}
+                              {isForSale(listing)
+                                ? ` · ${t('common.dealType.sale')}`
+                                : listing.isRoommate
+                                  ? t('common.units.perPerson')
+                                  : t('common.units.perMonth')}
                             </span>
                             {listing.district ? (
                               <span className="ml-1 font-semibold text-subtle">

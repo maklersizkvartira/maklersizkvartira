@@ -22,6 +22,7 @@ import {
 } from './config';
 import type { FaqEntry } from './content/types';
 import type { Listing } from '../types';
+import { isForSale } from '../types/deal';
 
 export type JsonLd = Record<string, unknown>;
 
@@ -170,6 +171,7 @@ export function realEstateListing({
   description,
 }: ListingSchemaInput): JsonLd {
   const images = crawlableImages(listing.images);
+  const forSale = isForSale(listing);
   const hasGeo =
     typeof listing.latitude === 'number' && typeof listing.longitude === 'number';
 
@@ -223,18 +225,31 @@ export function realEstateListing({
       itemOffered: { '@id': `${url}#accommodation` },
       price: listing.price,
       priceCurrency: listing.currency || 'UZS',
-      businessFunction: 'http://purl.org/goodrelations/v1#LeaseOut',
+      // What is on offer: the use of the property for a month, or the property.
+      // The distinction is the whole meaning of the number beside it, and until
+      // listings could be sold there was only one answer.
+      businessFunction: forSale
+        ? 'http://purl.org/goodrelations/v1#Sell'
+        : 'http://purl.org/goodrelations/v1#LeaseOut',
       availability: 'https://schema.org/InStock',
-      // Unconditional. This is a monthly rent whatever it is denominated in,
-      // and the currency was never the thing that made it periodic: gating on
-      // UZS published every dollar-priced flat as a flat $400 — a price to buy
-      // a property, not to rent one for a month.
-      priceSpecification: {
-        '@type': 'UnitPriceSpecification',
-        price: listing.price,
-        priceCurrency: listing.currency || 'UZS',
-        unitCode: 'MON',
-      },
+      // A rent is a price *per month*, and saying so is not decoration: without
+      // the unit spec a search engine reads 6,000,000 UZS as what the flat
+      // costs. On a sale it is exactly that, so the spec is left off rather
+      // than given some other unit — a purchase price is not per anything.
+      //
+      // On the renting side this stays unconditional. The currency was never
+      // what made it periodic: gating it on UZS published every dollar-priced
+      // flat as a flat $400 — a price to buy a property, not to rent one.
+      ...(forSale
+        ? {}
+        : {
+            priceSpecification: {
+              '@type': 'UnitPriceSpecification',
+              price: listing.price,
+              priceCurrency: listing.currency || 'UZS',
+              unitCode: 'MON',
+            },
+          }),
     },
   };
 }

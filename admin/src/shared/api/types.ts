@@ -396,6 +396,16 @@ export interface AdminListingRow {
   id: string;
   title: string;
   description: string;
+  /**
+   * Whether the property is let or sold.
+   *
+   * Optional, and read with a 'RENT' default: rows written before selling
+   * existed carry nothing, and all of them were rentals. It changes how the
+   * price reads — 600 million is an unremarkable flat to buy and an obvious
+   * fraud to rent — so a moderation queue that does not show it is asking
+   * people to judge a number with the units missing.
+   */
+  dealType?: 'RENT' | 'SALE';
   price: number;
   currency: string;
   rooms: number;

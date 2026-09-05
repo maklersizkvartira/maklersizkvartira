@@ -225,6 +225,7 @@
       "owner": "Owner",
       "district": "District",
       "price": "Price",
+      "priceSale": "Sale price",
       "status": "Status",
       "risk": "Risk",
       "views": "Views",
@@ -284,6 +285,10 @@
       "OWNER": "Owner",
       "AGENT": "Agent",
       "agency": "Agency"
+    },
+    "dealType": {
+      "rent": "Rent",
+      "sale": "Sale"
     }
   },
   "reports": {

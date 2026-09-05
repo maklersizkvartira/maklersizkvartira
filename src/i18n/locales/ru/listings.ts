@@ -27,6 +27,7 @@ export const listings = {
     title: 'Фильтры',
     subtitle: 'Настройте поиск под себя',
     openAria: 'Открыть фильтры',
+    dealType: 'Тип сделки',
     closeAria: 'Закрыть фильтры',
     activeCount: 'Активных фильтров: {count}',
     activeNone: 'Фильтры не выбраны',
@@ -62,6 +63,10 @@ export const listings = {
     maxPrice: 'Максимальная цена (сум)',
     minPricePlaceholder: '1 000 000',
     maxPricePlaceholder: '10 000 000',
+    // A ceiling typed against monthly rents matches no sale in the
+    // country, so the sale side suggests its own order of magnitude.
+    minPricePlaceholderSale: '200 000 000',
+    maxPricePlaceholderSale: '900 000 000',
     priceHint: 'Оставьте пустым, чтобы не ограничивать цену.',
 
     areaTitle: 'Площадь',

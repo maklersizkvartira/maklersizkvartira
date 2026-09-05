@@ -225,6 +225,7 @@
       "owner": "Egasi",
       "district": "Tuman",
       "price": "Narx",
+      "priceSale": "Sotuv narxi",
       "status": "Holat",
       "risk": "Xavf",
       "views": "Koʻrishlar",
@@ -284,6 +285,10 @@
       "OWNER": "Uy egasi",
       "AGENT": "Agent",
       "agency": "Agentlik"
+    },
+    "dealType": {
+      "rent": "Ijara",
+      "sale": "Sotuv"
     }
   },
   "reports": {

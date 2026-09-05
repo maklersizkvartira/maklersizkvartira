@@ -516,6 +516,52 @@ export const MapView: React.FC = () => {
           </div>
 
           <div className="hide-scrollbar flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
+            {/* First in the row, because it is the widest cut: it decides
+                whether the numbers in the pins are monthly rents or purchase
+                prices. The setting is shared with the catalogue — one store,
+                one answer — but it had no control here, so somebody who opened
+                the map directly could not reach the sales at all, and somebody
+                who had switched to them on the catalogue arrived at a map full
+                of nine-figure pins with nothing on screen explaining why. */}
+            <div
+              className="flex shrink-0 items-center gap-1 rounded-xl border border-line bg-surface-2 p-1"
+              role="group"
+              aria-label={t('listings.filters.dealType')}
+            >
+              {(
+                [
+                  ['RENT', 'common.dealType.rent'],
+                  ['SALE', 'common.dealType.sale'],
+                ] as const
+              ).map(([value, labelKey]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() =>
+                    setFilters({
+                      dealType: value,
+                      // The same reset the catalogue does, and for the same
+                      // reason: a price ceiling set against rents matches no
+                      // sale, so keeping it would empty the map on the first tap.
+                      rentalType: 'ALL',
+                      roommateGender: 'ALL',
+                      audience: 'ALL',
+                      minPrice: null,
+                      maxPrice: null,
+                    })
+                  }
+                  aria-pressed={filters.dealType === value}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                    filters.dealType === value
+                      ? 'bg-brand text-on-brand shadow-brand'
+                      : 'text-muted hover:bg-surface-3 hover:text-content'
+                  }`}
+                >
+                  {t(labelKey)}
+                </button>
+              ))}
+            </div>
+
             <div
               className="flex shrink-0 items-center gap-1 rounded-xl border border-line bg-surface-2 p-1"
               role="group"

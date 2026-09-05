@@ -20,6 +20,13 @@ export interface ListingQuery {
   maxPrice?: number;
   minArea?: number;
   propertyType?: string;
+  /**
+   * Renting or buying. Omitting it asks for rentals — the server defaults to
+   * RENT, deliberately, so that every prerendered page and every cached bundle
+   * written before selling existed keeps returning what it was written for.
+   * 'ALL' is the only way to get both, and almost nothing wants both.
+   */
+  dealType?: 'RENT' | 'SALE' | 'ALL';
   rentalType?: 'ALL' | 'FULL' | 'ROOMMATE';
   /** Matches rooms marked for this gender plus the ones open to anyone. */
   roommateGender?: 'GIRLS' | 'BOYS' | 'ANY';

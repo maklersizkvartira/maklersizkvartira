@@ -118,6 +118,12 @@ export const owner = {
       descriptionPlaceholder:
         'Опишите условия, состояние ремонта и соседей...',
       priceLabel: 'Цена за месяц',
+      // A sale price is not a monthly one, and the field would otherwise ask
+      // for the rent of a flat somebody is selling.
+      priceLabelSale: 'Цена продажи',
+      pricePlaceholderSale: 'Например: 600 000 000',
+      pricePlaceholderSaleUsd: 'Например, 50 000',
+      priceApproxSale: '≈ {amount}',
       priceApprox: '≈ {amount} / в месяц',
       depositLabel: 'Сумма депозита',
       areaLabel: 'Площадь (м²)',

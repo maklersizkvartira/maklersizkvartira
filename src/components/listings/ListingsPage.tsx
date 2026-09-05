@@ -308,6 +308,9 @@ export const ListingsPage: React.FC = () => {
   }, []);
 
   const filterCount = activeFilterCount();
+  const forSale = filters.dealType === 'SALE';
+  /** Half a million is a nudge on a rent; on a purchase price it is noise. */
+  const priceStep = forSale ? 10_000_000 : 500_000;
   const activeQuick = activeQuickFilter(filters);
 
   /**
@@ -322,7 +325,9 @@ export const ListingsPage: React.FC = () => {
     const next = activeQuick === id ? 'all' : id;
     // Named, not inferred. A whole-set commit always carries a `search` key,
     // so the store used to file every chip tap under the search box.
-    setFilters(quickFilterState(next, filters.search), { quickFilter: next });
+    setFilters(quickFilterState(next, filters.search, filters.dealType), {
+      quickFilter: next,
+    });
   };
 
   const toggleAmenity = (key: string) => {
@@ -562,6 +567,49 @@ export const ListingsPage: React.FC = () => {
               behind `hidden`/`lg:flex` would put two radio groups in the
               accessibility tree for one setting. */}
           <div className="flex flex-wrap items-center gap-2">
+            {/* The cut above every other one, so it leads the bar.
+
+                It costs a row on a phone, and it pays for it on the sale side:
+                the rent-type control below is a rental question — a room to
+                share is not something anyone sells — so it goes away entirely
+                once this says Sotuv, and the sale catalogue is the two rows the
+                rental one used to be.
+
+                Two segments, not three: there is no "both". A month's rent and
+                a purchase price are three orders of magnitude apart, so a list
+                holding both has a price filter that is useless for either and a
+                "cheapest first" that is just every rental, in order, followed by
+                every sale. */}
+            <Segmented
+              label={t('listings.filters.dealType')}
+              value={filters.dealType}
+              size="sm"
+              className="w-full p-0.5 lg:w-auto lg:shrink-0"
+              // Everything downstream of the cut is reset with it. `rentalType`
+              // and `roommateGender` are rental questions the sale side cannot
+              // answer and cannot display, so leaving either standing would
+              // count a filter in the badge that has no control on screen —
+              // the same trap the rent-type switch documents below. The price
+              // range goes too, and that one is not tidiness: a ceiling of 8
+              // million is an ordinary rent and matches no sale in the country,
+              // so keeping it would answer the first tap on "Sotuv" with an
+              // empty catalogue.
+              onChange={(dealType) =>
+                setFilters({
+                  dealType,
+                  rentalType: 'ALL',
+                  roommateGender: 'ALL',
+                  audience: 'ALL',
+                  minPrice: null,
+                  maxPrice: null,
+                })
+              }
+              options={[
+                { value: 'RENT', label: t('common.dealType.rent') },
+                { value: 'SALE', label: t('common.dealType.sale') },
+              ]}
+            />
+
             <div className="flex w-full min-w-0 items-center gap-2 lg:w-auto lg:flex-1">
               {/* The shared control, not a hand-rolled copy of it. This was a
                   raw <input> at `text-sm`, and Field.tsx explains at length why
@@ -646,6 +694,7 @@ export const ListingsPage: React.FC = () => {
               </button>
             </div>
 
+            {filters.dealType === 'RENT' && (
             <Segmented
               label={t('home.search.rentalTypeLabel')}
               value={filters.rentalType}
@@ -680,6 +729,7 @@ export const ListingsPage: React.FC = () => {
                 { value: 'ROOMMATE', label: t('common.rentalType.roommate') },
               ]}
             />
+            )}
           </div>
 
           {/* The categories, and the row they have to fill.
@@ -859,21 +909,34 @@ export const ListingsPage: React.FC = () => {
             <legend className="mb-2 text-xs font-black uppercase tracking-wide text-subtle">
               {t('listings.filters.priceTitle')}
             </legend>
+            {/* The boxes are the same; what they are worth is not. Half a
+                million is a sensible nudge on a rent and 1,800 presses of the
+                arrow key on a purchase price, and a placeholder reading
+                "10 000 000" tells somebody looking to buy that they are about
+                to set a ceiling below every listing on the page. */}
             <div className="grid gap-3 sm:grid-cols-2">
               <NumberFilter
                 label={t('listings.filters.minPrice')}
-                placeholder={t('listings.filters.minPricePlaceholder')}
+                placeholder={t(
+                  forSale
+                    ? 'listings.filters.minPricePlaceholderSale'
+                    : 'listings.filters.minPricePlaceholder',
+                )}
                 value={filters.minPrice}
                 max={MAX_PRICE}
-                step={500_000}
+                step={priceStep}
                 onCommit={(minPrice) => setFilters({ minPrice })}
               />
               <NumberFilter
                 label={t('listings.filters.maxPrice')}
-                placeholder={t('listings.filters.maxPricePlaceholder')}
+                placeholder={t(
+                  forSale
+                    ? 'listings.filters.maxPricePlaceholderSale'
+                    : 'listings.filters.maxPricePlaceholder',
+                )}
                 value={filters.maxPrice}
                 max={MAX_PRICE}
-                step={500_000}
+                step={priceStep}
                 onCommit={(maxPrice) => setFilters({ maxPrice })}
               />
             </div>

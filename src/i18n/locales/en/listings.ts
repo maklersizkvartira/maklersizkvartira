@@ -27,6 +27,7 @@ export const listings = {
     title: 'Filters',
     subtitle: 'Tune the search to what you need',
     openAria: 'Open the filters',
+    dealType: 'Deal type',
     closeAria: 'Close the filters',
     activeCount: '{count} filters active',
     activeNone: 'No filters selected',
@@ -62,6 +63,10 @@ export const listings = {
     maxPrice: 'Maximum price (so‘m)',
     minPricePlaceholder: '1,000,000',
     maxPricePlaceholder: '10,000,000',
+    // A ceiling typed against monthly rents matches no sale in the
+    // country, so the sale side suggests its own order of magnitude.
+    minPricePlaceholderSale: '200,000,000',
+    maxPricePlaceholderSale: '900,000,000',
     priceHint: 'Leave it empty to apply no price limit.',
 
     areaTitle: 'Area',

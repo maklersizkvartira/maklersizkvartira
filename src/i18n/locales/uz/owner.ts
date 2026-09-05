@@ -124,6 +124,12 @@ export const owner = {
       descriptionPlaceholder:
         'Kvartira sharoitlari, ta’mir holati va qo‘shnilar haqida yozing...',
       priceLabel: 'Oylik narx',
+      // A sale price is not a monthly one, and the field would otherwise ask
+      // for the rent of a flat somebody is selling.
+      priceLabelSale: 'Sotuv narxi',
+      pricePlaceholderSale: 'Masalan: 600 000 000',
+      pricePlaceholderSaleUsd: 'Masalan, 50 000',
+      priceApproxSale: '≈ {amount}',
       priceApprox: '≈ {amount} / oyiga',
       depositLabel: 'Depozit summasi',
       areaLabel: 'Maydoni (m²)',

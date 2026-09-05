@@ -76,6 +76,17 @@ export interface Filters {
   maxPrice: number | null;
   minArea: number | null;
   propertyType: string;
+  /**
+   * Renting or buying — the first thing a search decides, and the only filter
+   * here with no 'ALL'.
+   *
+   * The two cannot share a result list. A month's rent and a purchase price
+   * are three orders of magnitude apart, so any price range wide enough to
+   * hold both is useless for either, and "cheapest first" would put every
+   * rental above every sale. Every other filter on this screen means something
+   * different on each side of it.
+   */
+  dealType: 'RENT' | 'SALE';
   rentalType: 'ALL' | 'FULL' | 'ROOMMATE';
   /** 'ALL' is the sentinel; 'GIRLS'/'BOYS' also match rooms left open to anyone. */
   roommateGender: 'ALL' | 'GIRLS' | 'BOYS';
@@ -104,6 +115,7 @@ export const DEFAULT_FILTERS: Filters = {
   maxPrice: null,
   minArea: null,
   propertyType: 'ALL',
+  dealType: 'RENT',
   rentalType: 'ALL',
   roommateGender: 'ALL',
   audience: 'ALL',
@@ -197,10 +209,18 @@ export const QUICK_FILTER_RAIL: readonly QuickFilterId[] = [
  * The whole filter set a quick filter stands for.
  *
  * `search` is carried across rather than reset: it is the visitor's own
- * words, and a chip is a way of narrowing them, not of discarding them.
+ * words, and a chip is a way of narrowing them, not of discarding them. The
+ * deal type is carried for the same reason and a stronger one — somebody
+ * browsing properties for sale who taps "with a garden" is asking to narrow
+ * the sales, and resetting them to rentals would answer a question they did
+ * not ask, without saying so.
  */
-export function quickFilterState(id: QuickFilterId, search = ''): Filters {
-  return { ...DEFAULT_FILTERS, ...QUICK_FILTER_DELTAS[id], search };
+export function quickFilterState(
+  id: QuickFilterId,
+  search = '',
+  dealType: Filters['dealType'] = DEFAULT_FILTERS.dealType,
+): Filters {
+  return { ...DEFAULT_FILTERS, ...QUICK_FILTER_DELTAS[id], search, dealType };
 }
 
 function sameAmenities(a: string[], b: string[]): boolean {
@@ -485,6 +505,7 @@ function toQuery(filters: Filters, page: number, pageSize: number): ListingQuery
     maxPrice: filters.maxPrice ?? undefined,
     minArea: filters.minArea ?? undefined,
     propertyType: filters.propertyType !== 'ALL' ? filters.propertyType : undefined,
+    dealType: filters.dealType,
     rentalType: filters.rentalType,
     roommateGender:
       filters.roommateGender !== 'ALL' ? filters.roommateGender : undefined,
@@ -1088,7 +1109,14 @@ const store = createStore<AppState>((set, get) => ({
     }
   },
   resetFilters: () => {
-    set({ filters: { ...DEFAULT_FILTERS }, page: 1 });
+    // The deal type survives, because it is not one of the filters being
+    // cleared — it is which catalogue is being filtered. "Clear filters" while
+    // browsing properties for sale means show me all of the ones for sale, not
+    // take me back to the rentals.
+    set((state) => ({
+      filters: { ...DEFAULT_FILTERS, dealType: state.filters.dealType },
+      page: 1,
+    }));
     void get().fetchListings({ page: 1 });
   },
   activeFilterCount: () => {

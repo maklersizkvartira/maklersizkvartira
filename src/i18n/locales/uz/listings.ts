@@ -27,6 +27,7 @@ export const listings = {
     title: 'Filtrlar',
     subtitle: 'Qidiruvni o‘zingizga moslang',
     openAria: 'Filtrlarni ochish',
+    dealType: 'Bitim turi',
     closeAria: 'Filtrlarni yopish',
     activeCount: '{count} ta filtr faol',
     activeNone: 'Filtr tanlanmagan',
@@ -62,6 +63,10 @@ export const listings = {
     maxPrice: 'Eng ko‘p narx (so‘m)',
     minPricePlaceholder: '1 000 000',
     maxPricePlaceholder: '10 000 000',
+    // A ceiling typed against monthly rents matches no sale in the
+    // country, so the sale side suggests its own order of magnitude.
+    minPricePlaceholderSale: '200 000 000',
+    maxPricePlaceholderSale: '900 000 000',
     priceHint: 'Bo‘sh qoldirsangiz narx bo‘yicha cheklov qo‘llanmaydi.',
 
     areaTitle: 'Maydon',

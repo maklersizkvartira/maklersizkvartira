@@ -23,6 +23,17 @@ export type SignupRole = 'STUDENT' | 'OWNER' | 'AGENT';
  */
 export type SellerType = 'OWNER' | 'AGENT';
 
+/**
+ * Whether a property is being let or sold.
+ *
+ * The site was rentals only, and `Listing.price` meant one month. It now means
+ * one month or the whole property, and this is the only thing that says which
+ * — so anything that renders, compares or filters a price has to read it
+ * first. Read it through `dealTypeOf`, never off the field: a listing served
+ * before the field existed carries nothing, and all of those were rentals.
+ */
+export type DealType = 'RENT' | 'SALE';
+
 export interface CurrentUser {
   id: string;
   name: string;
@@ -108,7 +119,16 @@ export interface Listing {
   id: string;
   title: string;
   description: string;
-  price: number; // UZS/month
+  /**
+   * Whether the property is being let or sold.
+   *
+   * Optional because a response served by a container predating the field
+   * carries nothing, and every one of those rows was a rental; read it through
+   * `dealTypeOf`, which defaults to 'RENT'.
+   */
+  dealType?: DealType;
+  /** A month's rent when `dealType` is RENT, the whole price when it is SALE. */
+  price: number;
   currency: 'UZS' | 'USD';
   depositPrice: number;
   utilitiesIncluded: boolean;
