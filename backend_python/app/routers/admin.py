@@ -291,27 +291,15 @@ async def admin_verify_credentials(
     if not payload.username or not payload.password:
         raise BadRequest("credentials_required")
 
-    u = payload.username.strip()
-    admin = (
-        await db.execute(
-            select(AdminUser).where(
-                or_(
-                    AdminUser.username == u,
-                    AdminUser.username == u.lstrip("@"),
-                    AdminUser.username.ilike(u),
-                    AdminUser.username.ilike(u.lstrip("@")),
-                ),
-                AdminUser.is_active == True,
-            )
-        )
-    ).scalar_one_or_none()
-
-    if admin is None:
-        raise Unauthorized("invalid_credentials")
-
-    from app.core.security import verify_password
-    if not verify_password(payload.password, admin.password_hash):
-        raise Unauthorized("invalid_credentials")
+    # The same check `POST /admin/auth/login` makes, and not a second copy of
+    # it. This ran its own lookup and its own `verify_password`, which meant it
+    # answered the question "is this the administrator's password?" with no
+    # rate limit, no lockout, no failed-attempt counter and no audit entry —
+    # every guard the real login has, absent from the endpoint next to it. It
+    # was the door a brute-force would have used.
+    admin = await admin_service.verify_admin_credentials(
+        db, username=payload.username, password=payload.password
+    )
 
     return VerifyCredentialsResponse(
         valid=True,
@@ -369,16 +357,15 @@ async def admin_face_login(payload: FaceLoginRequest, db: DbSession, ctx: Reques
     if not payload.username:
         raise BadRequest("username_required")
 
+    # `func.lower(...) == ...`, never `ilike(...)`, on anything that decides who
+    # you are: ILIKE reads `%` and `_` in the submitted name as wildcards, so
+    # "%" used to match whatever staff account existed.
     u = payload.username.strip()
+    candidates = {u.lower(), u.lstrip("@").lower()}
     admins = (
         await db.execute(
             select(AdminUser).where(
-                or_(
-                    AdminUser.username == u,
-                    AdminUser.username == u.lstrip("@"),
-                    AdminUser.username.ilike(u),
-                    AdminUser.username.ilike(u.lstrip("@")),
-                ),
+                func.lower(AdminUser.username).in_(candidates),
                 AdminUser.face_encoding.isnot(None),
                 AdminUser.is_active == True,
             )
@@ -480,18 +467,9 @@ async def admin_face_register(
                 ).scalar_one_or_none()
                 if caller_admin:
                     if clean_username:
-                        target_admin = (
-                            await db.execute(
-                                select(AdminUser).where(
-                                    or_(
-                                        AdminUser.username == clean_username,
-                                        AdminUser.username == clean_username.lstrip("@"),
-                                        AdminUser.username.ilike(clean_username),
-                                        AdminUser.username.ilike(clean_username.lstrip("@")),
-                                    )
-                                )
-                            )
-                        ).scalar_one_or_none()
+                        target_admin = await admin_service.find_admin_by_username(
+                            db, clean_username
+                        )
                     if target_admin is None:
                         target_admin = caller_admin
         except Exception:
@@ -501,28 +479,19 @@ async def admin_face_register(
     if target_admin is None:
         if not clean_username:
             raise BadRequest("username_required")
-        admin = (
-            await db.execute(
-                select(AdminUser).where(
-                    or_(
-                        AdminUser.username == clean_username,
-                        AdminUser.username == clean_username.lstrip("@"),
-                        AdminUser.username.ilike(clean_username),
-                        AdminUser.username.ilike(clean_username.lstrip("@")),
-                    )
-                )
-            )
-        ).scalar_one_or_none()
-        if admin is None or not admin.is_active:
-            raise NotFound("admin_not_found")
-
         if not payload.password:
             raise Unauthorized("credentials_required_for_face_registration")
 
-        from app.core.security import verify_password
-        if not verify_password(payload.password, admin.password_hash):
-            raise Unauthorized("invalid_credentials")
-        target_admin = admin
+        # Enrolling a face on somebody else's account is a login in every way
+        # that matters — it hands over a second, permanent way in — so it goes
+        # through the same guarded check as the login form. It used to do its
+        # own lookup and its own `verify_password`, which made it a third
+        # unmetered oracle for an administrator's password, and one that said
+        # "admin_not_found" for a name that did not exist and something else
+        # for one that did.
+        target_admin = await admin_service.verify_admin_credentials(
+            db, username=clean_username, password=payload.password
+        )
 
     image_bytes = _image_bytes_from_data_url(payload.image)
     encoding = _compute_face_encoding(image_bytes)

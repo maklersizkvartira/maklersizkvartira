@@ -47,16 +47,59 @@ def _start_of_day() -> datetime:
 # ---------------------------------------------------------------------------
 # Admin login
 # ---------------------------------------------------------------------------
-async def admin_login(
+async def find_admin_by_username(
+    db: AsyncSession, username: str
+) -> AdminUser | None:
+    """Resolve a staff account by name. Exact, case-insensitive, no patterns.
+
+    The admin auth endpoints used to match with four ``or_`` arms, two of them
+    ``ilike(username)`` against the raw input. ``ILIKE`` is a pattern match, so
+    ``%`` and ``_`` in that input are wildcards and not characters: a login
+    attempt for the username ``%`` matched whatever staff account existed. The
+    attacker did not need to know who the administrator was, and could walk the
+    name out one character at a time with ``a%``, ``b%``, ``c%``.
+
+    ``lower(username) = lower(:input)`` gets the case-insensitivity the ``ilike``
+    was reached for without getting a pattern language with it. The leading
+    ``@`` is still tolerated, because people type the handle they see.
+    """
+    handle = (username or "").strip()
+    if not handle:
+        return None
+    candidates = {handle.lower(), handle.lstrip("@").lower()}
+    return (
+        await db.execute(
+            select(AdminUser).where(func.lower(AdminUser.username).in_(candidates))
+        )
+    ).scalars().first()
+
+
+async def verify_admin_credentials(
     db: AsyncSession, *, username: str, password: str
-) -> tuple[AdminUser, TokenPair]:
+) -> AdminUser:
+    """Check a staff password, with every guard that makes checking one safe.
+
+    Split out of :func:`admin_login` because it was not the only place asking
+    the question. ``POST /admin/auth/verify-credentials`` — the first step of
+    the two-stage panel login — ran its own lookup and its own
+    ``verify_password`` beside this one, and inherited none of what surrounds
+    it: no rate limit, no lockout, no failed-attempt counter, no audit entry.
+    It was, in other words, the same password check with the brute-force
+    protection removed, and an attacker working on an administrator's password
+    would have used that door rather than this one and never tripped a lock.
+
+    Two copies of a security check drift apart; that is how this happened. So
+    there is one copy, and the endpoints that need an answer call it.
+
+    Raises the same ``Unauthorized("invalid_credentials")`` whether the account
+    is missing, inactive or the password is wrong, and spends the hash either
+    way, so neither the reply nor the time it takes says which.
+    """
     ctx = get_context()
     if ctx.ip:
         await enforce("admin_login_ip", ctx.ip)
 
-    admin = (
-        await db.execute(select(AdminUser).where(AdminUser.username == username))
-    ).scalar_one_or_none()
+    admin = await find_admin_by_username(db, username)
 
     if admin is not None and admin.locked_until and admin.locked_until > _now():
         minutes = max(1, int((admin.locked_until - _now()).total_seconds() // 60) + 1)
@@ -106,6 +149,15 @@ async def admin_login(
         # Without this the lockout counter is discarded by the rollback and
         # admin brute-force protection silently does nothing.
         await commit_then_raise(db, Unauthorized("invalid_credentials"))
+
+    return admin
+
+
+async def admin_login(
+    db: AsyncSession, *, username: str, password: str
+) -> tuple[AdminUser, TokenPair]:
+    admin = await verify_admin_credentials(db, username=username, password=password)
+    ctx = get_context()
 
     from app.core.deps import _ip_allowed
 
