@@ -356,6 +356,14 @@ MESSAGES: dict[str, dict[str, str]] = {
         "ru": "Введите текст сообщения.",
         "en": "Please enter a message.",
     },
+    #: A PATCH that named no field at all. Answered rather than silently
+    #: accepted: "saved" over a request that changed nothing is how a broken
+    #: form goes unnoticed for a month.
+    "ai_settings_empty": {
+        "uz": "O‘zgartirish uchun hech qanday sozlama yuborilmadi.",
+        "ru": "Не передано ни одной настройки для изменения.",
+        "en": "No setting was sent to change.",
+    },
 }
 
 

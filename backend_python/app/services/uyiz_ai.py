@@ -53,6 +53,7 @@ from app.data.locations import (
     METRO_STATIONS,
     REGIONS,
 )
+from app.services import ai_settings
 
 log = structlog.get_logger(__name__)
 
@@ -396,24 +397,6 @@ _BOYS_HINT = re.compile(
 )
 
 
-#: The criteria that describe *where* and *what shape* — the request itself.
-#: These are given up last, one at a time, and the district not at all: the
-#: neighbour search handles that case instead.
-CORE_CRITERIA: tuple[str, ...] = (
-    "district", "rooms", "min_price", "max_price", "audience", "rental_type",
-)
-
-#: Preferences. Every one is a real column the catalogue filters on, but a
-#: visitor who asked for a washing machine would rather see the flat next
-#: door without one than an empty screen — so these are what the loosening
-#: ladder gives up first, before the budget and long before the district.
-SOFT_CRITERIA: tuple[str, ...] = (
-    "metro_station", "university_name", "property_type", "min_area",
-    "furnished", "parking", "internet", "air_conditioning",
-    "washing_machine", "pets_allowed", "roommate_gender", "only_verified",
-)
-
-
 @dataclass(slots=True)
 class SearchIntent:
     """Everything the visitor asked for, in the catalogue's own vocabulary.
@@ -459,6 +442,11 @@ class SearchIntent:
     #: Filled by :func:`search_for_intent`; the reply says them out loud, so
     #: a widened result is never presented as an exact one.
     dropped: list[str] = field(default_factory=list)
+    #: Per-listing match report, keyed by ``str(listing.id)``, filled by
+    #: :func:`search_for_intent` for the rows it returns. Deliberately absent
+    #: from :meth:`as_dict` — it describes results, not the request, and
+    #: as_dict is mirrored straight into the SPA's filter store.
+    matches: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @property
     def has_criteria(self) -> bool:
@@ -666,6 +654,41 @@ ROOMMATE_GENDERS: frozenset[str] = frozenset(_GENDER_WORDS["uz"])
 SORT_ORDERS: frozenset[str] = frozenset(
     ("RECOMMENDED", "NEWEST", "PRICE_LOW", "PRICE_HIGH", "TRUST", "POPULAR")
 )
+
+#: How many publicly visible rows are pulled into memory to be scored. The
+#: catalogue is hundreds of rentals, not tens of thousands, and listings.py:83
+#: already declares a per-row CASE conversion free at this size. One pooled
+#: read is 2 SQL statements; the ladder it replaces cost up to 22 per turn.
+POOL_LIMIT: int = 300
+
+#: A row must satisfy at least one stated criterion to be offered. The user's
+#: rule: one match is a result, zero is not.
+MIN_SCORE: int = 1
+
+#: What each criterion is worth. Place, room count and budget are what people
+#: actually decide on; an amenity is a preference. The keys are exactly the
+#: keys SearchIntent.stated_criteria() can return — any key missing here
+#: scores 1, so a new criterion degrades gracefully instead of vanishing.
+CRITERION_WEIGHTS: dict[str, int] = {
+    "district": 3,
+    "rooms": 3,
+    "max_price": 3,
+    "min_price": 2,
+    "audience": 2,
+    "rental_type": 2,
+    "property_type": 2,
+    "metro_station": 2,
+    "university_name": 2,
+    "min_area": 1,
+    "roommate_gender": 1,
+    "only_verified": 1,
+    "furnished": 1,
+    "parking": 1,
+    "internet": 1,
+    "air_conditioning": 1,
+    "washing_machine": 1,
+    "pets_allowed": 1,
+}
 
 
 def format_price(amount: float | None) -> str:
@@ -1082,7 +1105,14 @@ def _listing_brief(row: Any, index: int) -> dict[str, Any]:
         "airConditioning": row.air_conditioning,
         "washingMachine": row.washing_machine,
         "parking": row.parking,
+        "petsAllowed": row.pets_allowed,
         "isRoommate": row.is_roommate,
+        "roommateGender": row.roommate_gender,
+        "universityName": row.university_name,
+        # Renting or selling. The assistant searches rentals by default, so a
+        # row that says otherwise is something the reply has to name rather
+        # than quietly present as a monthly rent.
+        "dealType": row.deal_type,
         "photos": len(row.images or []),
         # The reliability percentage the listing page shows. It starts full and
         # only falls when an administrator confirms a report about the listing,
@@ -1104,7 +1134,13 @@ async def _chat_json(
                 "https://api.openai.com/v1/chat/completions",
                 headers={"Authorization": f"Bearer {settings.OPENAI_API_KEY}"},
                 json={
-                    "model": settings.OPENAI_MODEL,
+                    # The stored model, not the deployed one — but read from
+                    # the cache rather than the database, because this call is
+                    # three frames below the request and has no session. The
+                    # agent loop runs first in the same request and refreshes
+                    # it; with nothing read yet the cache resolves to
+                    # OPENAI_MODEL, which is what this line used to say.
+                    "model": ai_settings.cached().chat_model,
                     "response_format": {"type": "json_object"},
                     "temperature": temperature,
                     "messages": [{"role": "system", "content": system}, *messages],
@@ -1563,104 +1599,122 @@ def build_fallback_reply(
 Relaxation = Literal["NONE", "EXACT", "PARTIAL", "NEARBY", "ANY"]
 
 
-def _plan(intent: SearchIntent) -> list[dict[str, Any]]:
-    """Filter sets to try, strictest first.
+def _matches_like(value: str | None, wanted: str | None) -> bool:
+    """``column.ilike("%wanted%")`` evaluated in Python, NULL included.
 
-    The rule this encodes: a visitor who states four conditions would rather
-    see a place that meets two of them than an empty result. So conditions are
-    given up in order of how much they cost to lose.
-
-    Preferences go first, and all of them at once — a washing machine is a
-    nice-to-have, and nobody would rather see an empty screen than a flat
-    without one. Then the budget, which people state as a hard ceiling and
-    mean as a soft one. Then the room count. The district is never given up
-    here at all: "somewhere else entirely" is not what they asked for, so the
-    neighbour search handles that case separately.
-
-    Each step carries ``_dropped``, the criterion keys it has let go of, so
-    the reply can say out loud what it stopped filtering on.
+    A NULL column never satisfies a LIKE in SQL — the comparison is NULL, not
+    false, and the WHERE drops the row either way — so an empty column here is
+    a miss rather than a wildcard. Getting that backwards would score every
+    listing with no district recorded as matching whatever district was asked
+    for, which is precisely the "unrelated result" this whole file exists to
+    stop. Mirrors ``listings.apply_filters`` lines 106-111.
     """
-    base: dict[str, Any] = {
-        "district": intent.district,
-        "region": intent.region,
-        "rooms": intent.rooms,
-        "min_price": intent.min_price,
-        "max_price": intent.max_price,
-        "audience": intent.audience,
-        "rental_type": intent.rental_type,
-        "metro_station": intent.metro_station,
-        "university_name": intent.university_name,
-        "property_type": intent.property_type,
-        "min_area": intent.min_area,
-        "furnished": intent.furnished,
-        "parking": intent.parking,
-        "internet": intent.internet,
-        "air_conditioning": intent.air_conditioning,
-        "washing_machine": intent.washing_machine,
-        "pets_allowed": intent.pets_allowed,
-        "roommate_gender": intent.roommate_gender,
-        "only_verified": intent.only_verified,
-        # Ordering is not a filter and is never relaxed.
-        "sort_by": intent.sort_by,
-        "_dropped": (),
-    }
-    steps: list[dict[str, Any]] = [dict(base)]
-    dropped: list[str] = []
-    relaxed = dict(base)
+    if not wanted:
+        return True
+    if not value:
+        return False
+    return wanted.lower() in value.lower()
 
-    soft_asked = [key for key in SOFT_CRITERIA if base[key]]
-    if soft_asked:
-        for key in soft_asked:
-            relaxed[key] = False if key == "only_verified" else None
-        dropped += soft_asked
-        relaxed["_dropped"] = tuple(dropped)
-        steps.append(dict(relaxed))
 
-    if intent.max_price:
-        # A budget stated as a hard ceiling is usually a soft one, so it is
-        # stretched before it is abandoned.
-        steps.append({**relaxed, "max_price": round(intent.max_price * 1.4)})
-        dropped.append("max_price")
-        if intent.min_price:
-            dropped.append("min_price")
-        relaxed = {
-            **relaxed, "max_price": None, "min_price": None,
-            "_dropped": tuple(dropped),
-        }
-        steps.append(dict(relaxed))
+def criterion_matches(row: Any, key: str, intent: SearchIntent, rate: float) -> bool:
+    """Does this row satisfy this one criterion? Mirrors listings.apply_filters.
 
-    if intent.rooms:
-        dropped.append("rooms")
-        relaxed = {**relaxed, "rooms": None, "_dropped": tuple(dropped)}
-        steps.append(dict(relaxed))
+    The catalogue's filtering lives in SQL, and this is the same set of rules
+    written out in Python so that a row can be scored instead of merely
+    included or excluded. The two must agree: a criterion the SQL would have
+    honoured and this function calls a miss becomes a listing the assistant
+    needlessly apologises for, and a criterion the SQL would have rejected and
+    this calls a match becomes an "exact" result that is nothing of the kind.
 
-    if intent.audience != "ALL" or intent.rental_type != "ALL":
-        if intent.audience != "ALL":
-            dropped.append("audience")
-        if intent.rental_type != "ALL":
-            dropped.append("rental_type")
-        relaxed = {
-            **relaxed, "audience": "ALL", "rental_type": "ALL",
-            "_dropped": tuple(dropped),
-        }
-        steps.append(dict(relaxed))
+    Where a branch could ever diverge from its SQL original, the mirrored
+    ``apply_filters`` line is named beside it.
+    """
+    from app.services import listings as listing_service
 
-    # Deduplicate while preserving order: several branches collapse to the
-    # same filter set when only one criterion was given. ``_dropped`` is left
-    # out of the comparison — it is bookkeeping about how we got here, not
-    # part of the query, and including it would keep identical queries.
-    seen: set[str] = set()
-    unique: list[dict[str, Any]] = []
-    for step in steps:
-        key = json.dumps(
-            {k: v for k, v in step.items() if k != "_dropped"},
-            sort_keys=True,
-            default=str,
+    # listings.py:91 ``price_in_uzs``. The price column holds two different
+    # units — 500 in it may mean 500 dollars or 500 so'm, and the currency
+    # lives in a second column — so every comparison against a so'm bound has
+    # to convert first. Compared raw, a $500 flat is a three-figure number
+    # sitting beside seven-figure ones: about 12 000x out, which slips under
+    # every "up to 5 mln" ceiling and fails every "from 1 mln" floor.
+    price = row.price * rate if row.currency == "USD" else row.price
+
+    if key == "district":
+        # apply_filters:107 also skips the filter for the literal "Barchasi".
+        # ``normalise_district`` only ever yields a canonical district name, so
+        # that arm is unreachable from an intent and is not mirrored.
+        return _matches_like(row.district, intent.district)
+    if key == "metro_station":
+        return _matches_like(row.metro_station, intent.metro_station)
+    if key == "university_name":
+        return _matches_like(row.university_name, intent.university_name)
+    if key == "property_type":
+        # apply_filters:122 compares against the enum's ``.value``; the intent
+        # carries that same bare string, already checked against PROPERTY_TYPES.
+        return row.property_type == intent.property_type
+    if key == "rooms":
+        return row.rooms == intent.rooms
+    if key == "min_area":
+        # apply_filters:120 is a bare ``>=``, and a NULL area makes that NULL,
+        # so a listing with no area recorded is excluded rather than kept.
+        return row.area is not None and row.area >= (intent.min_area or 0)
+    if key == "min_price":
+        return price >= (intent.min_price or 0)
+    if key == "max_price":
+        return intent.max_price is not None and price <= intent.max_price
+    if key == "audience":
+        if intent.audience == "STUDENT":
+            return (
+                bool(row.university_name)
+                or bool(row.is_roommate)
+                or row.district in listing_service._STUDENT_DISTRICTS
+            )
+        if intent.audience == "FAMILY":
+            return (row.rooms or 0) >= 2 and not row.is_roommate
+        return True
+    if key == "rental_type":
+        return bool(row.is_roommate) is (intent.rental_type == "ROOMMATE")
+    if key == "roommate_gender":
+        # apply_filters:138-146: the NULL arm only makes sense once the row is
+        # known to be a roommate offer, because NULL is also what every listing
+        # that is not one carries.
+        return bool(row.is_roommate) and row.roommate_gender in (
+            intent.roommate_gender, "ANY", None,
         )
-        if key not in seen:
-            seen.add(key)
-            unique.append(step)
-    return unique
+    if key == "only_verified":
+        return "VERIFIED_OWNER" in (row.safety_badges or [])
+    # The six amenity booleans, each of which apply_filters:164-171 applies
+    # only when the visitor asked for it to be True.
+    return bool(getattr(row, key, False))
+
+
+def score_listing(row: Any, intent: SearchIntent, rate: float) -> dict[str, Any]:
+    """Score one row against every criterion the visitor actually stated.
+
+    Only stated criteria count. Scoring a row against something nobody asked
+    for would make a listing look worse for a preference that was never
+    expressed, and the whole point of the score is to rank rows by how much of
+    *this* request they answer.
+
+    A row with nothing stated against it scores 0 out of 0, reported as a 100%
+    match rather than a division by zero: when no criteria were given, every
+    listing in the catalogue answers the request equally well.
+    """
+    matched: list[str] = []
+    missed: list[str] = []
+    for key in intent.stated_criteria():
+        target = matched if criterion_matches(row, key, intent, rate) else missed
+        target.append(key)
+
+    score = sum(CRITERION_WEIGHTS.get(key, 1) for key in matched)
+    max_score = score + sum(CRITERION_WEIGHTS.get(key, 1) for key in missed)
+    return {
+        "matched": matched,
+        "missed": missed,
+        "score": score,
+        "maxScore": max_score,
+        "matchPercent": round(100 * score / max_score) if max_score else 100,
+    }
 
 
 async def search_for_intent(
@@ -1670,95 +1724,125 @@ async def search_for_intent(
 
     Returns ``(rows, relaxation, searched_district, total)``. ``relaxation``
     tells the reply layer how honest it needs to be about the match quality,
-    and ``intent.dropped`` is filled in with the criterion keys this search
-    had to give up — the reply names them, so a loosened result is never
-    presented as an exact one.
+    ``intent.dropped`` names the criteria nothing in the result set could
+    satisfy, and ``intent.matches`` says, per returned listing, exactly which
+    of them it meets and which it does not.
 
-    Every filter here is one ``ListingFilters`` already knows how to apply:
-    the SQL lives in :func:`app.services.listings.apply_filters` and is not
-    repeated. Widening what the assistant can look for means passing another
-    field through this function, nothing more.
+    The rule this encodes is the product's own: a visitor who states four
+    conditions would rather see the place that meets one of them, told plainly
+    which one, than an empty screen. So nothing is filtered away here for
+    failing a preference. A pool of publicly visible rows is read once, every
+    row is scored against every stated criterion in Python, and anything
+    scoring at least ``MIN_SCORE`` is offered, best first.
+
+    What the SQL still does is *place*, and only place: a district is a
+    different kind of criterion from a washing machine, because "somewhere
+    else entirely" is not what they asked for. So the pool is drawn from the
+    named district first, then the region around it, then the whole catalogue,
+    and the first of those three that yields a scoring row wins. That is three
+    statements at worst; the criterion-by-criterion ladder it replaces cost up
+    to twenty-two and could still come back empty.
     """
     from app.schemas.listing import ListingFilters
+    from app.services import fx
     from app.services import listings as listing_service
 
     intent.dropped = []
+    intent.matches = {}
 
-    async def run(spec: dict[str, Any]) -> tuple[list[Any], int]:
-        filters = ListingFilters(
-            district=spec.get("district"),
-            region=spec.get("region"),
-            metro_station=spec.get("metro_station"),
-            university_name=spec.get("university_name"),
-            property_type=spec.get("property_type"),
-            rooms=spec.get("rooms"),
-            min_area=spec.get("min_area"),
-            min_price=spec.get("min_price"),
-            max_price=spec.get("max_price"),
-            audience=spec.get("audience") if spec.get("audience") in {"ALL", "STUDENT", "FAMILY"} else "ALL",
-            rental_type=spec.get("rental_type") if spec.get("rental_type") in {"ALL", "FULL", "ROOMMATE"} else "ALL",
-            roommate_gender=spec.get("roommate_gender"),
-            furnished=spec.get("furnished"),
-            parking=spec.get("parking"),
-            internet=spec.get("internet"),
-            air_conditioning=spec.get("air_conditioning"),
-            washing_machine=spec.get("washing_machine"),
-            pets_allowed=spec.get("pets_allowed"),
-            only_verified=bool(spec.get("only_verified")),
-            # Honour what was asked for. "Eng arzon" that silently comes back
-            # sorted by promotion is the assistant answering a different
-            # question from the one it was given.
-            sort_by=spec.get("sort_by") if spec.get("sort_by") in SORT_ORDERS else "RECOMMENDED",
-        )
-        return await listing_service.list_public(db, filters, offset=0, limit=limit)
+    # Cached for an hour inside the service and documented never to raise, so
+    # this is a dictionary lookup rather than a call to the Central Bank in the
+    # middle of a chat turn.
+    rate = await fx.usd_to_uzs()
+    # Honour what was asked for. "Eng arzon" that silently comes back sorted by
+    # promotion is the assistant answering a different question from the one it
+    # was given — and because the score sort below is stable, this ordering is
+    # what survives inside each band of equally-matching rows.
+    sort_by = intent.sort_by if intent.sort_by in SORT_ORDERS else "RECOMMENDED"
+
+    async def read(place: dict[str, Any], size: int) -> tuple[list[Any], int]:
+        # ``deal_type`` is deliberately never passed: its "RENT" default is
+        # what keeps purchase prices out of a rental result list, where they
+        # would be three orders of magnitude larger than everything around
+        # them. ListingFilters is a CamelModel with extra="forbid", so a
+        # mistyped keyword here would be a 500 on a chat turn, not a warning.
+        filters = ListingFilters(sort_by=sort_by, **place)
+        return await listing_service.list_public(db, filters, offset=0, limit=size)
+
+    def report(rows: list[Any]) -> dict[str, dict[str, Any]]:
+        return {str(row.id): score_listing(row, intent, rate) for row in rows}
 
     if not intent.has_criteria:
-        rows, total = await run({"audience": "ALL", "rental_type": "ALL", "sort_by": intent.sort_by})
+        # Nothing was asked for, so there is nothing to score against: show
+        # what the catalogue has, in the order that was requested.
+        rows, total = await read({}, limit)
+        intent.matches = report(rows)
         return rows, "NONE", None, total
 
-    steps = _plan(intent)
-    for index, spec in enumerate(steps):
-        rows, total = await run(spec)
-        if rows:
-            intent.dropped = list(spec.get("_dropped") or ())
-            return rows, ("EXACT" if index == 0 else "PARTIAL"), intent.district, total
-
-    # Still nothing inside the requested district: step outward to the
-    # districts that physically border it before giving up on the location.
-    # Everything except the room count is off by this point, so the visitor
-    # is told the district changed AND what stopped being filtered on.
+    # Place, loosened one step at a time. Tier 1 is the district they named,
+    # tier 2 the region around it, tier 3 the whole catalogue.
+    tiers: list[dict[str, Any]] = [{"district": intent.district, "region": intent.region}]
     if intent.district:
-        found: list[Any] = []
-        seen_ids: set[Any] = set()
-        first_hit: str | None = None
-        for neighbour in nearby_districts(intent.district)[:4]:  # closest first
-            rows, _ = await run(
-                {
-                    "district": neighbour,
-                    "region": intent.region,
-                    "rooms": intent.rooms,
-                    "max_price": None,
-                    "audience": "ALL",
-                    "rental_type": "ALL",
-                    "sort_by": intent.sort_by,
-                }
-            )
-            for row in rows:
-                if row.id not in seen_ids:
-                    seen_ids.add(row.id)
-                    found.append(row)
-                    first_hit = first_hit or neighbour
-            if len(found) >= limit:
-                break
-        if found:
-            intent.dropped = [
-                key for key in intent.stated_criteria()
-                if key not in {"district", "rooms"}
-            ]
-            return found[:limit], "NEARBY", first_hit, len(found)
+        tiers.append({"region": intent.region})
+    # A tier identical to one already listed is a second round trip that can
+    # only return the same rows — and, worse, would be labelled as a widening
+    # when nothing was widened. That is the case for a visitor who named no
+    # place at all: for them tier 1 already is the whole catalogue.
+    if {} not in tiers:
+        tiers.append({})
 
-    # Nothing anywhere near their criteria. Show what the platform does have
-    # rather than an empty screen, and let the reply say so plainly.
-    intent.dropped = list(intent.stated_criteria())
-    rows, total = await run({"audience": "ALL", "rental_type": "ALL", "sort_by": intent.sort_by})
-    return rows, "ANY", None, total
+    won = -1
+    kept: list[tuple[Any, dict[str, Any]]] = []
+    for index, place in enumerate(tiers):
+        pool, _ = await read(place, POOL_LIMIT)
+        scored = [(row, score_listing(row, intent, rate)) for row in pool]
+        surviving = [pair for pair in scored if pair[1]["score"] >= MIN_SCORE]
+        if surviving:
+            kept = surviving
+            won = index
+            break
+
+    if won < 0:
+        # Not one listing anywhere satisfies even one stated criterion. Show
+        # what the platform does have rather than an empty screen, and let the
+        # reply say so plainly: an empty list is never returned while any
+        # approved listing exists.
+        rows, total = await read({}, limit)
+        intent.dropped = intent.stated_criteria()
+        intent.matches = report(rows)
+        return rows, "ANY", None, total
+
+    # Python's sort is stable, so rows of equal weight keep the order
+    # ``apply_sort`` gave them and "eng arzon" still means cheapest first. The
+    # second key is the user's rule made explicit: at equal weight, the row
+    # that matches *more* of what they said comes first.
+    ordered = sorted(kept, key=lambda pair: (-pair[1]["score"], -len(pair[1]["matched"])))
+    shown = ordered[:limit]
+    rows = [row for row, _ in shown]
+    payloads = [payload for _, payload in shown]
+
+    intent.matches = {str(row.id): payload for row, payload in shown}
+    # A criterion counts as dropped only when NO returned row satisfies it.
+    # ``build_fallback_reply`` subtracts this set from the stated one to decide
+    # what the results actually match on, so naming a criterion here that one
+    # of the rows does meet would make the reply contradict itself.
+    intent.dropped = [
+        key
+        for key in intent.stated_criteria()
+        if all(key in payload["missed"] for payload in payloads)
+    ]
+
+    if all(not payload["missed"] for payload in payloads):
+        relaxation: Relaxation = "EXACT"
+    elif won > 0 and intent.district:
+        relaxation = "NEARBY"
+    else:
+        relaxation = "PARTIAL"
+
+    # Tier 1 searched the district they named. Anything below it searched
+    # wider, so the honest answer to "where did you look" is where the best row
+    # actually is.
+    searched_district = intent.district if won == 0 else (rows[0].district if rows else None)
+    # The count of rows that scored, not the size of the pool they were drawn
+    # from — otherwise the reply's "{count} found" stops meaning "matching".
+    return rows, relaxation, searched_district, len(kept)

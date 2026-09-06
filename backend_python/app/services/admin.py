@@ -34,6 +34,7 @@ from app.models.enums import (
 from app.models.listing import Listing, TopRequest
 from app.models.moderation import Report, VerificationRequest
 from app.models.user import AdminUser, User
+from app.services import openai_costs
 
 
 def _now() -> datetime:
@@ -319,13 +320,19 @@ def count_of(model, *where) -> Select:
 
 
 async def ai_usage(db: AsyncSession) -> dict[str, Any]:
-    """How much the assistant has been used, from our own records.
+    """How much the assistant has been used, and what that has cost.
 
-    Not a balance. OpenAI publishes no credit endpoint for an ordinary API
-    key — the old `credit_grants` route was withdrawn, and the cost API needs
-    an organisation admin key — so the honest thing to report is the traffic
-    we can actually count, and to say plainly that the money figure has to be
-    read in OpenAI's own dashboard.
+    Still not a balance, and there is no such thing to fetch: OpenAI publishes
+    no credit endpoint for an ordinary API key — the old `credit_grants` route
+    was withdrawn — so nothing here can ever say "you have $40 left". What it
+    can now say is what has been *spent*, read from the organisation Costs API
+    when an admin key is configured; see :mod:`app.services.openai_costs` for
+    why that is a second key and not the one the assistant runs on.
+
+    The traffic counts come first and stand on their own. They are ours, from
+    our own tables, and a provider that times out must never take them off the
+    screen — which is why the cost block is a separate key that carries its own
+    failure rather than an exception that empties the response.
 
     Messages rather than sessions, because a session that was opened and
     abandoned costs nothing while one with forty turns is the expensive kind,
@@ -333,6 +340,7 @@ async def ai_usage(db: AsyncSession) -> dict[str, Any]:
     """
     today = _start_of_day()
     month = today.replace(day=1)
+    cost = await openai_costs.month_to_date()
     return {
         "messagesToday": await _count(
             db, count_of(AIMessage, AIMessage.created_at >= today)
@@ -343,9 +351,77 @@ async def ai_usage(db: AsyncSession) -> dict[str, Any]:
         "sessionsToday": await _count(
             db, count_of(AISession, AISession.created_at >= today)
         ),
+        # Kept meaning what it has always meant — "is there a money figure in
+        # this payload" — so nothing reading the old shape has to change. It
+        # was hardcoded False because the answer was always no; now it is
+        # whether the Costs API actually answered.
+        "costAvailable": bool(cost["available"]),
         # Said in the payload rather than assumed in the panel, so the reason
         # the money is missing travels with the numbers that are present.
-        "costAvailable": False,
+        "cost": cost,
+    }
+
+
+async def _sms_window(db: AsyncSession, since: datetime | None) -> dict[str, Any]:
+    """One row per status for a time window, plus billable parts.
+
+    One grouped query rather than six counts. The SMS page asks for three
+    windows at once and the provider call in front of it is already the slow
+    part of that request; eighteen round trips to count what one GROUP BY
+    counts would be the rest of it.
+
+    ``parts`` is here because DevSMS bills per part, not per message: a Cyrillic
+    reset code is two parts and a Latin one is one, so a month's part count is
+    the number that tracks the invoice while the message count does not.
+    """
+    stmt = select(
+        SmsLog.status,
+        func.count(),
+        func.coalesce(func.sum(SmsLog.parts), 0),
+    ).group_by(SmsLog.status)
+    if since is not None:
+        stmt = stmt.where(SmsLog.created_at >= since)
+
+    by_status: dict[str, int] = {}
+    total = 0
+    parts = 0
+    for status, count, status_parts in (await db.execute(stmt)).all():
+        by_status[str(status)] = int(count or 0)
+        total += int(count or 0)
+        parts += int(status_parts or 0)
+
+    failed = by_status.get(SmsStatus.FAILED.value, 0)
+    return {
+        "total": total,
+        "sent": by_status.get(SmsStatus.SENT.value, 0),
+        "failed": failed,
+        "queued": by_status.get(SmsStatus.QUEUED.value, 0),
+        "skipped": by_status.get(SmsStatus.SKIPPED.value, 0),
+        # A send whose request never came back. Not a failure — the handset may
+        # well have the code — but not a success either, and lumping it in with
+        # one or the other is how a delivery problem hides.
+        "unknown": by_status.get(SmsStatus.UNKNOWN.value, 0),
+        "parts": parts,
+        # Share of every attempt in the window, so it always matches the totals
+        # shown beside it. `None`, not 0, when nothing was sent: no traffic
+        # means nothing is known, and a green 0% over an empty day is a claim.
+        "failureRate": round(failed / total, 4) if total else None,
+    }
+
+
+async def sms_overview(db: AsyncSession) -> dict[str, Any]:
+    """Our own side of the SMS ledger: what we sent and how much of it stuck.
+
+    The provider's balance is added by the router, which is where the network
+    call belongs — this function only ever reads our tables, so it cannot be
+    the reason the page is slow or the reason it fails.
+    """
+    today = _start_of_day()
+    month = today.replace(day=1)
+    return {
+        "today": await _sms_window(db, today),
+        "month": await _sms_window(db, month),
+        "allTime": await _sms_window(db, None),
     }
 
 

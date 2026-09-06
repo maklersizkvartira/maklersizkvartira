@@ -1,9 +1,9 @@
 """Uyiz AI behaviour that does not need a model key.
 
 Everything here exercises the deterministic half of the assistant: the parser,
-the classification merge, the relaxation plan and the written replies. That
-half is what runs in production whenever OpenAI is unreachable, so it is the
-half most worth pinning down.
+the classification merge, the match scoring and the written replies. That half
+is what runs in production whenever OpenAI is unreachable, so it is the half
+most worth pinning down.
 
 The rules being protected, in the order the product asks for them:
 
@@ -12,8 +12,8 @@ The rules being protected, in the order the product asks for them:
   * a question is answered before any listing is suggested;
   * company questions outside the public facts are declined as internal;
   * off-topic questions get the redirect, not an answer;
-  * a search gives up the soft preferences before the budget, the budget
-    before the room count, and only then looks at neighbouring districts;
+  * a search offers the listing that meets one of four stated criteria, says
+    which one, and ranks it below the listing that meets three;
   * a visitor who asks for a person is handed our number rather than flats.
 """
 
@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.services import uyiz_ai
+from app.services import fx, uyiz_ai
 from app.services.uyiz_ai import SearchIntent
 
 
@@ -279,58 +279,8 @@ def test_the_introduction_is_not_followed_by_a_second_greeting():
 
 
 # ---------------------------------------------------------------------------
-# Relaxation plan
+# Saying out loud what the results do not match
 # ---------------------------------------------------------------------------
-def test_plan_starts_strict_and_loosens_one_step_at_a_time():
-    intent = SearchIntent(district="Chilonzor", rooms=3, max_price=3_000_000)
-    steps = uyiz_ai._plan(intent)
-
-    assert steps[0]["rooms"] == 3 and steps[0]["max_price"] == 3_000_000
-    # Budget gives first — it is the criterion people are most flexible on.
-    assert steps[1]["max_price"] > 3_000_000
-    assert any(s["max_price"] is None and s["rooms"] == 3 for s in steps)
-    assert any(s["rooms"] is None for s in steps)
-    # The district is never dropped: "somewhere else entirely" is not what
-    # they asked for, so that case is handled by the neighbour search.
-    assert all(s["district"] == "Chilonzor" for s in steps)
-
-
-def test_plan_has_no_duplicate_steps():
-    steps = uyiz_ai._plan(SearchIntent(district="Sergeli"))
-    seen = [tuple(sorted(s.items(), key=lambda kv: kv[0])) for s in steps]
-    assert len(seen) == len(set(seen))
-
-
-def test_a_preference_is_given_up_before_the_budget():
-    # A washing machine is a nice-to-have; nobody would rather see an empty
-    # screen than a flat without one. The budget is the next thing to give.
-    intent = SearchIntent(
-        district="Chilonzor", rooms=3, max_price=3_000_000,
-        furnished=True, washing_machine=True,
-    )
-    steps = uyiz_ai._plan(intent)
-
-    assert steps[0]["furnished"] is True and steps[0]["max_price"] == 3_000_000
-    assert steps[1]["furnished"] is None and steps[1]["washing_machine"] is None
-    # ...and the budget is still intact at the moment the amenities go.
-    assert steps[1]["max_price"] == 3_000_000
-    assert set(steps[1]["_dropped"]) == {"furnished", "washing_machine"}
-    # The district survives every step, as before.
-    assert all(s["district"] == "Chilonzor" for s in steps)
-
-
-def test_the_plan_stays_short_even_with_every_criterion_set():
-    # Each step is a real database round trip inside a chat turn.
-    intent = SearchIntent(
-        district="Chilonzor", rooms=3, min_price=1_000_000, max_price=3_000_000,
-        audience="STUDENT", rental_type="ROOMMATE", metro_station="Chilonzor",
-        property_type="APARTMENT", min_area=50, furnished=True, parking=True,
-        internet=True, air_conditioning=True, washing_machine=True,
-        pets_allowed=True, only_verified=True,
-    )
-    assert len(uyiz_ai._plan(intent)) <= 6
-
-
 def test_a_loosened_search_says_what_it_gave_up():
     intent = SearchIntent(kind="SEARCH", district="Chilonzor", furnished=True)
     intent.dropped = ["furnished"]
@@ -492,9 +442,9 @@ def test_criteria_labels_are_translated():
 # ---------------------------------------------------------------------------
 # Finding stock — against a real database
 # ---------------------------------------------------------------------------
-"""The relaxation ladder is the part that decides whether a visitor sees an
-empty screen or the closest thing we actually have, so it is exercised against
-real rows rather than a stub."""
+"""The scoring is the part that decides whether a visitor sees an empty screen
+or the closest thing we actually have, so it is exercised against real rows
+rather than a stub."""
 
 from tests.conftest import auth_headers, register_and_verify  # noqa: E402
 
@@ -538,7 +488,8 @@ async def test_exact_match_is_reported_as_exact(client, db, unique_phone):
 
 async def test_budget_is_the_first_criterion_to_give(client, db, unique_phone):
     # Only stock above the stated ceiling exists. Rather than showing nothing,
-    # the search lifts the budget one step and reports the match as partial.
+    # the flat that matches everything except the budget is offered anyway and
+    # the match is reported as partial.
     await _seed(client, unique_phone, {"district": "Chilonzor", "rooms": 3, "price": 5_000_000})
 
     rows, relaxation, _, _ = await uyiz_ai.search_for_intent(
@@ -587,3 +538,212 @@ async def test_nothing_anywhere_is_reported_honestly(db):
         searched_district=None,
     )
     assert "topilmadi" in text or "yo‘q" in text
+
+
+# ---------------------------------------------------------------------------
+# Scoring — the rule that a partial match is a result
+# ---------------------------------------------------------------------------
+"""No listing is ever filtered out for failing a preference. Every publicly
+visible row is scored against everything the visitor actually said, and one
+satisfied criterion is enough to be offered — with the reply saying which one
+it is. These tests are the ones that hold that promise in place."""
+
+
+async def test_a_listing_matching_one_criterion_is_still_offered(client, db, unique_phone):
+    # Three criteria stated; the only flat in that district meets exactly one
+    # of them. Showing nothing here was the whole complaint.
+    created = await _seed(
+        client, unique_phone,
+        {"district": "Chilonzor", "rooms": 5, "price": 9_000_000},
+        {"district": "Sergeli", "rooms": 3, "price": 2_000_000},
+    )
+    intent = SearchIntent(
+        district="Chilonzor", region="Toshkent shahri", rooms=3, max_price=4_000_000
+    )
+
+    rows, relaxation, _, _ = await uyiz_ai.search_for_intent(db, intent)
+
+    assert [str(row.id) for row in rows] == [created[0]["id"]]
+    assert relaxation == "PARTIAL"
+    assert intent.matches[created[0]["id"]]["matched"] == ["district"]
+    assert intent.matches[created[0]["id"]]["missed"] == ["rooms", "max_price"]
+
+
+async def test_the_listing_matching_most_criteria_comes_first(client, db, unique_phone):
+    # Seeded oldest-first, so the catalogue's own RECOMMENDED order would put
+    # the weaker match on top. The score is what reorders them.
+    created = await _seed(
+        client, unique_phone,
+        {"district": "Chilonzor", "rooms": 3, "price": 3_500_000},
+        {"district": "Chilonzor", "rooms": 5, "price": 9_000_000},
+    )
+    everything, weak_only = created
+    intent = SearchIntent(
+        district="Chilonzor", region="Toshkent shahri", rooms=3, max_price=4_000_000
+    )
+
+    rows, _, _, _ = await uyiz_ai.search_for_intent(db, intent)
+
+    assert [str(row.id) for row in rows] == [everything["id"], weak_only["id"]]
+    assert intent.matches[everything["id"]]["score"] > intent.matches[weak_only["id"]]["score"]
+    # The weaker one is still offered, not hidden.
+    assert intent.matches[weak_only["id"]]["matched"] == ["district"]
+
+
+async def test_a_heavier_criterion_outweighs_two_light_ones(client, db, unique_phone):
+    # Place is what people actually decide on; a washing machine is a
+    # preference. Two preferences must not outweigh the district they named.
+    await _seed(
+        client, unique_phone,
+        {"district": "Chilonzor", "rooms": 2},
+        {"district": "Sergeli", "rooms": 2, "furnished": True, "parking": True},
+    )
+    catalogue, _, _, _ = await uyiz_ai.search_for_intent(db, SearchIntent())
+    by_district = {row.district: row for row in catalogue}
+
+    intent = SearchIntent(district="Chilonzor", furnished=True, parking=True)
+    rate = await fx.usd_to_uzs()
+    right_place = uyiz_ai.score_listing(by_district["Chilonzor"], intent, rate)
+    right_kit = uyiz_ai.score_listing(by_district["Sergeli"], intent, rate)
+
+    assert right_place["matched"] == ["district"]
+    assert right_kit["matched"] == ["furnished", "parking"]
+    assert right_place["score"] > right_kit["score"]
+
+
+async def test_equal_scores_keep_the_catalogue_sort(client, db, unique_phone):
+    # Two rows that match identically. Python's sort is stable, so whatever
+    # apply_sort decided survives scoring — which is how "eng arzon" keeps
+    # meaning cheapest first instead of quietly becoming "recommended".
+    created = await _seed(
+        client, unique_phone,
+        {"district": "Chilonzor", "rooms": 2, "price": 2_500_000},
+        {"district": "Chilonzor", "rooms": 2, "price": 5_000_000},
+    )
+    cheaper, dearer = created
+    intent = SearchIntent(
+        district="Chilonzor", region="Toshkent shahri", rooms=2, sort_by="PRICE_LOW"
+    )
+
+    rows, _, _, _ = await uyiz_ai.search_for_intent(db, intent)
+
+    assert [str(row.id) for row in rows] == [cheaper["id"], dearer["id"]]
+    assert (
+        intent.matches[cheaper["id"]]["score"] == intent.matches[dearer["id"]]["score"]
+    )
+
+
+async def test_a_usd_listing_is_priced_in_som_before_it_is_judged(client, db, unique_phone):
+    # The price column holds two units and the currency lives in a second
+    # column, so a $300 flat compared raw against a so'm budget is about
+    # 12 000x out: under every ceiling and below every floor.
+    created = await _seed(
+        client, unique_phone,
+        {"district": "Chilonzor", "rooms": 2, "price": 300, "currency": "USD"},
+    )
+    rate = await fx.usd_to_uzs()
+    intent = SearchIntent(
+        district="Chilonzor", region="Toshkent shahri", rooms=2,
+        min_price=round(rate * 100), max_price=round(rate * 500),
+    )
+
+    rows, relaxation, _, _ = await uyiz_ai.search_for_intent(db, intent)
+
+    assert len(rows) == 1
+    assert relaxation == "EXACT"
+    # The floor is what a raw comparison would fail: 300 is not above 1.27 mln.
+    assert intent.matches[created[0]["id"]]["missed"] == []
+
+
+async def test_the_total_counts_matching_rows_not_the_pool(client, db, unique_phone):
+    # The reply says "{count} found", so the count has to mean "matching". The
+    # size of the pool the rows were scored in is our bookkeeping, not theirs.
+    await _seed(
+        client, unique_phone,
+        {"district": "Chilonzor", "rooms": 3},
+        {"district": "Sergeli", "rooms": 3},
+        {"district": "Mirobod", "rooms": 1},
+        {"district": "Yunusobod", "rooms": 1},
+    )
+
+    rows, _, _, total = await uyiz_ai.search_for_intent(db, SearchIntent(rooms=3))
+
+    assert total == 2
+    assert len(rows) == 2
+    assert all(row.rooms == 3 for row in rows)
+
+
+async def test_nothing_matching_still_returns_something(client, db, unique_phone):
+    # Not one row satisfies a single criterion. An empty screen is never the
+    # answer while the catalogue has anything in it at all.
+    await _seed(client, unique_phone, {"district": "Chilonzor", "rooms": 2})
+    intent = SearchIntent(rooms=7, pets_allowed=True)
+
+    rows, relaxation, searched, _ = await uyiz_ai.search_for_intent(db, intent)
+
+    assert rows
+    assert relaxation == "ANY"
+    assert searched is None
+    assert intent.dropped == ["rooms", "pets_allowed"]
+
+
+async def test_dropped_names_only_what_no_result_satisfies(client, db, unique_phone):
+    # "Dropped" is what the reply apologises for. A criterion one of the shown
+    # listings does meet must not be in it, or the sentence contradicts the
+    # rows printed underneath it.
+    await _seed(
+        client, unique_phone,
+        {"district": "Chilonzor", "rooms": 3},
+        {"district": "Chilonzor", "rooms": 1},
+    )
+    intent = SearchIntent(
+        district="Chilonzor", region="Toshkent shahri", rooms=3, washing_machine=True
+    )
+
+    rows, _, _, _ = await uyiz_ai.search_for_intent(db, intent)
+
+    assert len(rows) == 2
+    assert intent.dropped == ["washing_machine"]
+    assert "rooms" not in intent.dropped, "one of the shown rows has three rooms"
+
+
+async def test_the_match_report_names_both_halves(client, db, unique_phone):
+    # The model is told what each listing meets AND what it misses, because a
+    # partial match presented as an exact one is worse than no match.
+    created = await _seed(
+        client, unique_phone, {"district": "Chilonzor", "rooms": 3, "price": 3_000_000}
+    )
+    intent = SearchIntent(
+        district="Chilonzor", region="Toshkent shahri", rooms=3,
+        max_price=2_000_000, furnished=True,
+    )
+
+    await uyiz_ai.search_for_intent(db, intent)
+    report = intent.matches[created[0]["id"]]
+
+    assert set(report) == {"matched", "missed", "score", "maxScore", "matchPercent"}
+    assert report["matched"] + report["missed"] == intent.stated_criteria()
+    assert report["matched"] == ["district", "rooms"]
+    assert report["missed"] == ["max_price", "furnished"]
+    assert report["score"] == 6
+    assert report["maxScore"] == 10
+    assert report["matchPercent"] == 60
+
+
+async def test_a_sale_listing_never_enters_a_rent_search(client, db, unique_phone):
+    # A monthly rent and a purchase price differ by three orders of magnitude,
+    # so one of them is always either invisible or the only thing visible. The
+    # assistant searches rentals, and the pooled read must not widen that.
+    created = await _seed(
+        client, unique_phone,
+        {"district": "Chilonzor", "rooms": 3, "price": 3_000_000},
+        {"district": "Chilonzor", "rooms": 3, "price": 600_000_000, "dealType": "SALE"},
+    )
+    rented, sold = created
+    intent = SearchIntent(district="Chilonzor", region="Toshkent shahri", rooms=3)
+
+    rows, _, _, total = await uyiz_ai.search_for_intent(db, intent)
+
+    assert [str(row.id) for row in rows] == [rented["id"]]
+    assert sold["id"] not in intent.matches
+    assert total == 1

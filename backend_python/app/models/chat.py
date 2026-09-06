@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, String, Text, DateTime
+from sqlalchemy import ForeignKey, String, Text, DateTime, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -54,7 +54,13 @@ class SupportConversation(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True
     )
-    status: Mapped[str] = mapped_column(String(20), default="OPEN", index=True)
+    #: The DB has carried this default since the table was created; only the
+    #: model was silent about it, and `alembic check` reported that silence as
+    #: a permanent `modify_default` drift on every run. Declaring it here makes
+    #: the model agree with the column that already exists — no migration.
+    status: Mapped[str] = mapped_column(
+        String(20), default="OPEN", server_default=text("'OPEN'"), index=True
+    )
 
     user = relationship("User", foreign_keys=[user_id], lazy="selectin")
     messages = relationship(

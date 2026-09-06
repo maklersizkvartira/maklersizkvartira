@@ -80,6 +80,7 @@ from app.schemas.chat import (
     SupportMessageOut,
 )
 from app.schemas.admin import (
+    AdminAiReplyCreate,
     AdminAiSessionRow,
     AdminListingFilters,
     AdminListingRow,
@@ -93,6 +94,7 @@ from app.schemas.admin import (
     AdminUserFilters,
     AdminUserRow,
     AdminVerificationRow,
+    AiSettingsUpdate,
     AuditFilters,
     AuditLogRow,
     CreateAdminRequest,
@@ -111,6 +113,7 @@ from app.schemas.auth import AdminLoginRequest, AdminOut, RefreshRequest, TokenR
 from app.schemas.common import MessageResponse, PaginationParams, build_page_meta
 from app.schemas.listing import ListingFeatureRequest, ListingModerationRequest
 from app.services import admin as admin_service
+from app.services import ai_settings
 from app.services import sms as sms_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -1942,11 +1945,251 @@ async def review_verification(
 # ===========================================================================
 # AI, SMS and security feeds
 # ===========================================================================
+async def _ai_settings_payload(db: AsyncSession) -> dict[str, Any]:
+    """The assistant's configuration as the AI page needs to render it.
+
+    Read with ``force=True`` on purpose. The panel calls this straight after a
+    save, and the whole point of the cache in :mod:`app.services.ai_settings`
+    is that a worker may be up to half a minute behind — showing the previous
+    model on the screen that was just used to change it would read as "the save
+    did not work" and get pressed again.
+    """
+    effective = await ai_settings.load(db, force=True)
+    return {
+        **effective.as_payload(),
+        # A choice, not a free-text box — but see KNOWN_MODELS: any id that
+        # passes validation may still be saved, because this list is stale the
+        # week after it is written.
+        "models": [dict(model) for model in ai_settings.KNOWN_MODELS],
+        "limits": {
+            "minToolSteps": ai_settings.MIN_TOOL_STEPS,
+            "maxToolSteps": ai_settings.MAX_TOOL_STEPS,
+            "modelIdMaxLength": ai_settings.MODEL_ID_MAX_LENGTH,
+        },
+        # What clearing a stored value falls back to, so "reset to default" can
+        # say what it will do before it does it. `reasoningModel` is null when
+        # no smart tier is deployed at all, which means it mirrors the everyday
+        # model — the same thing `sources.reasoningModel: "inherited"` says.
+        "defaults": {
+            "chatModel": settings.OPENAI_MODEL,
+            "reasoningModel": settings.OPENAI_MODEL_SMART or None,
+            "maxToolSteps": settings.AI_MAX_TOOL_STEPS,
+        },
+        # Whether there is an API key at all. Without one the assistant falls
+        # back to templated replies and no model choice on this page changes
+        # anything, which the page has to be able to say. The key itself is
+        # never sent — only whether it exists.
+        "assistantEnabled": bool(settings.OPENAI_API_KEY),
+    }
+
+
+@router.get("/ai/settings", summary="How the assistant is configured")
+async def ai_settings_read(admin: RequireAdmin, db: DbSession) -> dict:
+    """The models and tool budget in force, and where each value came from.
+
+    ADMIN may look; only SUPERADMIN can change it below, because a model id is
+    a platform-wide setting that spends money on every visitor's turn.
+    """
+    return _ok(await _ai_settings_payload(db))
+
+
+@router.patch("/ai/settings", summary="Change the assistant's models or tool budget")
+async def ai_settings_update(
+    payload: AiSettingsUpdate, admin: RequireSuperadmin, db: DbSession
+) -> dict:
+    """Store a model choice so it survives a restart and needs no deploy.
+
+    Only the fields actually present in the request body are touched. A field
+    sent as ``null`` deletes its row, which hands the setting back to the
+    environment variable rather than freezing today's default into the
+    database — the difference ``model_fields_set`` is read for.
+    """
+    sent = payload.model_fields_set
+    values: dict[str, str | None] = {}
+    if "chat_model" in sent:
+        values[ai_settings.KEY_CHAT_MODEL] = payload.chat_model
+    if "reasoning_model" in sent:
+        values[ai_settings.KEY_REASONING_MODEL] = payload.reasoning_model
+    if "max_tool_steps" in sent:
+        values[ai_settings.KEY_MAX_TOOL_STEPS] = (
+            None if payload.max_tool_steps is None else str(payload.max_tool_steps)
+        )
+    if not values:
+        raise BadRequest("ai_settings_empty")
+
+    changes = await ai_settings.store(db, values)
+
+    # One row per setting that moved, not one row for the request. The entity
+    # is the SETTING — the same rule toggle_monetization follows — so each
+    # key's history is its own, and "who changed the model, and from what" is
+    # answerable by filtering the audit feed on that one entity id.
+    for key, change in changes.items():
+        before = change["from"] or "(deploy default)"
+        after = change["to"] or "(deploy default)"
+        await audit_log.record(
+            db,
+            AuditAction.ADMIN_SETTINGS_CHANGED,
+            entity_type="system_settings",
+            entity_id=key,
+            entity_label=key,
+            summary=f"{admin.full_name} changed {key} from {before} to {after}",
+            changes={"value": change},
+        )
+
+    payload = await _ai_settings_payload(db)
+    # Built, then forgotten again.
+    #
+    # `_ai_settings_payload` reads with `force=True`, which writes what it read
+    # into the module-level cache the assistant runs on — and at this point the
+    # rows are flushed but NOT committed. If the commit `get_db` is about to
+    # attempt fails, the database rolls back to the old model while the process
+    # keeps serving real visitor turns on the new one for the whole cache TTL.
+    # The response is unaffected: it is already built from the values above.
+    ai_settings.invalidate()
+
+    return _ok(
+        {
+            **payload,
+            # Which keys actually moved. An empty list means the request asked
+            # for what was already stored, which is a successful no-op and not
+            # a failure — the panel should not claim a change it did not make.
+            "changed": sorted(changes),
+        }
+    )
+
+
+# Visitor turns the operator has not seen yet. A correlated aggregate for the
+# reason admin_list_support_conversations spells out at length: every open
+# chat desk re-reads the list every few seconds, so nothing in it may grow
+# with the transcript. `to_timestamp(0)` rather than an OR against NULL,
+# because `created_at > NULL` is NULL and counts as false - a conversation
+# nobody has opened yet would badge as zero unread, and that is precisely the
+# thread an operator most needs to see.
+_AI_UNREAD_COUNT = (
+    select(func.count())
+    .select_from(AIMessage)
+    .where(
+        AIMessage.session_id == AISession.id,
+        AIMessage.role == "user",
+        AIMessage.created_at
+        > func.coalesce(AISession.admin_read_at, func.to_timestamp(0)),
+    )
+    .scalar_subquery()
+)
+# When this conversation last moved. The desk sorts on it, and `created_at`
+# cannot stand in: a thread opened yesterday and answered a minute ago is at
+# the bottom of the queue by one and at the top by the other.
+_AI_LAST_MESSAGE_AT = (
+    select(func.max(AIMessage.created_at))
+    .where(AIMessage.session_id == AISession.id)
+    .scalar_subquery()
+)
+
+
+def _ai_sessions_select():
+    """The conversation list query, shared so one row reads back like the page.
+
+    Takeover, release and an operator's own reply each answer with a single
+    conversation in exactly the list's shape, and the panel merges that answer
+    straight into the list it already holds. Two hand-built copies of these
+    joins is how the merged row starts differing from the polled one.
+    """
+    return (
+        select(
+            AISession,
+            User.name,
+            AdminUser.full_name,
+            _AI_UNREAD_COUNT.label("unread_count"),
+            _AI_LAST_MESSAGE_AT.label("last_message_at"),
+        )
+        .outerjoin(User, User.id == AISession.user_id)
+        .outerjoin(AdminUser, AdminUser.id == AISession.taken_over_by)
+    )
+
+
+def _ai_session_payload(
+    session: AISession,
+    user_name: str | None,
+    operator_name: str | None,
+    unread: int | None,
+    last_message_at: datetime | None,
+) -> dict:
+    """One row of `_ai_sessions_select` as the panel receives it."""
+    row = AdminAiSessionRow.model_validate(session)
+    row.user_name = user_name
+    row.taken_over_by_name = operator_name
+    row.unread_count = int(unread or 0)
+    row.last_message_at = last_message_at
+    return row.model_dump(by_alias=True)
+
+
+def _ai_message_payload(msg: AIMessage) -> dict:
+    """The four keys every reader of an AI transcript depends on.
+
+    `role` is passed through verbatim and is now one of user, assistant or
+    admin. There is deliberately no per-message author name: the session's
+    `takenOverByName` answers "who", and a thread released and retaken by a
+    second operator is the rare case the label "Operator" already covers.
+    """
+    return {
+        "id": str(msg.id),
+        "role": msg.role,
+        "content": msg.content,
+        "createdAt": msg.created_at.isoformat(),
+        "listingIds": (msg.listing_ids or {}).get("ids", []),
+    }
+
+
+async def _ai_session_or_404(db: AsyncSession, session_id: uuid.UUID) -> AISession:
+    session = (
+        await db.execute(select(AISession).where(AISession.id == session_id))
+    ).scalar_one_or_none()
+    if session is None:
+        raise NotFound("ai_session_not_found")
+    return session
+
+
+async def _ai_session_response(db: AsyncSession, session_id: uuid.UUID) -> dict:
+    """Re-read one conversation after a write, in the list's own shape."""
+    row = (
+        await db.execute(_ai_sessions_select().where(AISession.id == session_id))
+    ).first()
+    if row is None:
+        raise NotFound("ai_session_not_found")
+    return _ai_session_payload(*row)
+
+
 @router.get("/ai/sessions")
 async def ai_sessions(
-    admin: RequireModerator, db: DbSession, pagination: PaginationParams = Depends()
+    admin: RequireModerator,
+    db: DbSession,
+    taken_over: bool | None = None,
+    has_lead: bool | None = None,
+    pagination: PaginationParams = Depends(),
 ) -> dict:
-    stmt = select(AISession, User.name).outerjoin(User, User.id == AISession.user_id)
+    """The live chat desk's queue: every AI conversation, newest first.
+
+    `taken_over` and `has_lead` are bare route parameters, so they arrive
+    snake_case - `?taken_over=true` - while `page` and `pageSize` come through
+    the `Depends()` model and stay camelCase. Getting that split wrong fails
+    silently: FastAPI ignores a query key it does not know and answers 200
+    with the whole unfiltered queue, which reads as "the filter found
+    everything" rather than as "the filter was never applied".
+    """
+    stmt = _ai_sessions_select()
+    if taken_over is not None:
+        stmt = stmt.where(
+            AISession.taken_over_by.isnot(None)
+            if taken_over
+            else AISession.taken_over_by.is_(None)
+        )
+    if has_lead is not None:
+        stmt = stmt.where(
+            AISession.lead_phone.isnot(None)
+            if has_lead
+            else AISession.lead_phone.is_(None)
+        )
+
     total = int(
         (
             await db.execute(
@@ -1965,15 +2208,9 @@ async def ai_sessions(
         )
     ).unique().all()
 
-    data = []
-    for session, name in rows:
-        row = AdminAiSessionRow.model_validate(session)
-        row.user_name = name
-        data.append(row.model_dump(by_alias=True))
-
     return {
         "status": "success",
-        "data": data,
+        "data": [_ai_session_payload(*row) for row in rows],
         "meta": build_page_meta(
             pagination.page, pagination.page_size, total
         ).model_dump(by_alias=True),
@@ -1982,28 +2219,165 @@ async def ai_sessions(
 
 @router.get("/ai/sessions/{session_id}/messages")
 async def ai_session_messages(
-    session_id: uuid.UUID, admin: RequireModerator, db: DbSession
+    session_id: uuid.UUID,
+    admin: RequireModerator,
+    db: DbSession,
+    limit: int | None = Query(default=None, ge=1, le=500),
 ) -> dict:
-    rows = (
-        await db.execute(
-            select(AIMessage)
-            .where(AIMessage.session_id == session_id)
-            .order_by(AIMessage.created_at.asc())
-            .limit(200)
-        )
-    ).scalars().all()
-    return _ok(
-        [
-            {
-                "id": str(m.id),
-                "role": m.role,
-                "content": m.content,
-                "createdAt": m.created_at.isoformat(),
-                "listingIds": (m.listing_ids or {}).get("ids", []),
-            }
-            for m in rows
-        ]
+    """The transcript, oldest first, and the thread is marked as read.
+
+    `limit` is opt-in and never defaulted, for the reason
+    admin_get_support_messages spells out: the desk polls this every few
+    seconds and reconciles by id, so a silent window would make every message
+    older than that window look to the merge like a message the server had
+    dropped. When it is asked for it keeps the tail, which is the half an
+    operator is actually reading.
+
+    Reading a thread is what clears its unread badge - the same mark
+    `_AI_UNREAD_COUNT` counts past - so the write happens here rather than on
+    a separate endpoint the panel would have to remember to call. `now()` is
+    the database's clock on purpose: it is the clock `created_at` is stamped
+    from, and comparing the two against each other across two machines is how
+    a freshly read thread comes back still showing unread messages.
+    """
+    await db.execute(
+        update(AISession)
+        .where(AISession.id == session_id)
+        .values(admin_read_at=func.now())
+        .execution_options(synchronize_session=False)
     )
+    await db.commit()
+
+    stmt = select(AIMessage).where(AIMessage.session_id == session_id)
+    if limit:
+        # Newest first so the cap keeps the tail, then reversed back into the
+        # order the panel renders.
+        rows = list(
+            (
+                await db.execute(
+                    stmt.order_by(AIMessage.created_at.desc()).limit(limit)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        rows.reverse()
+    else:
+        rows = list(
+            (await db.execute(stmt.order_by(AIMessage.created_at.asc()).limit(200)))
+            .scalars()
+            .all()
+        )
+    return _ok([_ai_message_payload(m) for m in rows])
+
+
+@router.post(
+    "/ai/sessions/{session_id}/takeover", summary="Answer this visitor yourself"
+)
+async def ai_session_takeover(
+    session_id: uuid.UUID, db: DbSession, admin: RequireModerator
+) -> dict:
+    """Stop the model and put this operator into the conversation.
+
+    `taken_over_by` is the whole switch. routers/ai.py reads it on the
+    visitor's very next turn and returns without calling the agent at all, so
+    the visitor is never answered by a person and a machine at the same time.
+
+    Re-taking a thread you already hold is a no-op that answers 200, not a
+    409: the desk sends this whenever it opens a thread it believes it owns,
+    and a reload should not be told it lost a conversation it never lost.
+    """
+    session = await _ai_session_or_404(db, session_id)
+    if session.taken_over_by is not None and session.taken_over_by != admin.id:
+        raise Conflict("ai_session_already_taken")
+
+    session.taken_over_by = admin.id
+    session.taken_over_at = _now()
+    # Opening a thread in order to answer it is reading it.
+    session.admin_read_at = _now()
+    await audit_log.record(
+        db,
+        AuditAction.ADMIN_AI_TAKEOVER,
+        entity_type="ai_session",
+        entity_id=session.id,
+    )
+    await db.commit()
+    return _ok(await _ai_session_response(db, session_id))
+
+
+@router.post(
+    "/ai/sessions/{session_id}/release", summary="Hand the conversation back to the AI"
+)
+async def ai_session_release(
+    session_id: uuid.UUID, db: DbSession, admin: RequireModerator
+) -> dict:
+    """Give the thread back to the model.
+
+    Any moderator may release, including one who did not take it. Desks hand
+    off and shifts end, and a conversation held by an operator who has gone
+    home would otherwise answer nobody at all until somebody edited the row.
+
+    `taken_over_at` is deliberately left where it is. Cleared, the history
+    would say the thread had never been touched by a person; kept, a closed
+    conversation still shows when a human was on it.
+    """
+    session = await _ai_session_or_404(db, session_id)
+    session.taken_over_by = None
+    await audit_log.record(
+        db,
+        AuditAction.ADMIN_AI_RELEASED,
+        entity_type="ai_session",
+        entity_id=session.id,
+    )
+    await db.commit()
+    return _ok(await _ai_session_response(db, session_id))
+
+
+@router.post(
+    "/ai/sessions/{session_id}/messages", summary="Reply to the visitor yourself"
+)
+async def ai_session_reply(
+    session_id: uuid.UUID,
+    payload: AdminAiReplyCreate,
+    db: DbSession,
+    admin: RequireModerator,
+) -> dict:
+    """Write one operator turn into a taken-over conversation.
+
+    Takeover is a precondition rather than a convenience, and refusing here
+    with a 409 is what makes the panel's disabled composer honest: the button
+    being greyed out is a courtesy to one tab, this is the rule for all of
+    them.
+
+    `role` is the lowercase string "admin" on purpose. `_used_today` in
+    routers/ai.py and the counters in services/admin.py both filter on
+    `role == "user"` literally, so an operator's turn stored as "user" would
+    silently burn the visitor's own daily quota; stored as "assistant" it
+    would be replayed to the model as something the model itself had said.
+    """
+    session = await _ai_session_or_404(db, session_id)
+    if session.taken_over_by is None:
+        raise Conflict("ai_session_not_taken")
+    if session.taken_over_by != admin.id:
+        raise Conflict("ai_session_taken_by_other")
+
+    content = payload.content.strip()
+    msg = AIMessage(session_id=session.id, role="admin", content=content)
+    db.add(msg)
+    session.message_count += 1
+    # The operator is looking at the thread they just answered.
+    session.admin_read_at = _now()
+    await db.flush()
+    await audit_log.record(
+        db,
+        AuditAction.ADMIN_AI_REPLIED,
+        entity_type="ai_session",
+        entity_id=session.id,
+        summary=content[:200],
+    )
+    await db.commit()
+    await db.refresh(msg)
+    return _ok(_ai_message_payload(msg))
 
 
 @router.get("/sms")
@@ -2028,6 +2402,38 @@ async def sms_log(
             pagination.page, pagination.page_size, total
         ).model_dump(by_alias=True),
     }
+
+
+@router.get("/sms/overview", summary="SMS credit and delivery health")
+async def sms_overview(admin: RequireAdmin, db: DbSession) -> dict:
+    """Everything the SMS page needs except the log itself.
+
+    The log is ``GET /admin/sms``, which is paginated and already exists;
+    folding it in here would make the one request that has to cross the network
+    to DevSMS carry a page of rows as well.
+
+    ``provider`` is null when the token is unset or the provider could not be
+    reached. The panel shows that as unknown rather than as zero: running out
+    of credit stops registration, code sign-in and password reset dead with
+    nothing in the product to say why, so a false zero and a false balance are
+    dangerous in opposite directions.
+    """
+    provider = await sms_service.check_balance()
+    return _ok(
+        {
+            "provider": provider,
+            # Our own threshold, sent rather than duplicated in the panel, so
+            # "low" means the same thing on the screen as it does in the log
+            # line that warns about it.
+            "lowBalanceWarnSum": sms_service.LOW_BALANCE_WARN_SUM,
+            # The company name screened on every OTP send. Twenty consecutive
+            # refusals suspend sending for a day, so which name is in force is
+            # part of the SMS page's diagnosis, not a detail.
+            "senderName": settings.DEVSMS_SERVICE_NAME,
+            "smsEnabled": settings.SMS_ENABLED,
+            "counters": await admin_service.sms_overview(db),
+        }
+    )
 
 
 @router.get("/security/login-attempts")

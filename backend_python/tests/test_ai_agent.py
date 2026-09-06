@@ -71,7 +71,7 @@ def _listing(**over):
         latitude=41.3, longitude=69.2, university_name=None,
         university_distance_minutes=None, roommate_gender=None,
         deposit_price=None, utilities_included=False, property_type="APARTMENT",
-        owner_id=uuid.uuid4(), is_public=True,
+        owner_id=uuid.uuid4(), is_public=True, deal_type="RENT",
     )
     base.update(over)
     return types.SimpleNamespace(**base)
@@ -285,6 +285,52 @@ def test_destructive_and_outward_facing_tools_ask_first():
 
 
 # ---------------------------------------------------------------------------
+# Lead capture — the one handoff that must not stop and ask
+# ---------------------------------------------------------------------------
+def test_lead_capture_does_not_stop_to_ask_permission():
+    """Handing over a number IS the consent.
+
+    The loop only pauses on a tool flagged ``needs_confirmation``. Flagging
+    this one would cost a whole round trip asking "shall I send it?" of
+    somebody who has just answered exactly that question, and that extra beat
+    is where people close the chat.
+    """
+    assert not ai_tools.TOOLS["capture_lead"].needs_confirmation
+
+
+def test_lead_capture_insists_on_a_number():
+    """A lead with no way to call it back is not a lead."""
+    assert ai_tools.TOOLS["capture_lead"].parameters["required"] == ["phone"]
+
+
+async def test_a_guest_lead_without_a_name_is_refused():
+    """Support cannot open a conversation with an anonymous number."""
+    with pytest.raises(ToolError) as exc:
+        await ai_tools._capture_lead(_ctx(), {"phone": "998901234567"})
+    assert "not signed in" in str(exc.value)
+
+
+async def test_a_malformed_number_never_becomes_a_lead():
+    """The model cannot check a number; a mistyped digit is a call that
+    never arrives and nothing downstream would ever notice."""
+    with pytest.raises(ToolError) as exc:
+        await ai_tools._capture_lead(_ctx(), {"phone": "12", "name": "Aziz"})
+    assert "not a valid" in str(exc.value)
+
+
+def test_the_confirmation_sentence_exists_in_every_language():
+    """The one promise in this conversation that has to read the same twice.
+
+    The model is told to say it word for word, so a language missing from
+    here would have it improvising a timeframe nobody agreed to.
+    """
+    assert set(ai_tools.LEAD_CONFIRMATION) == {"uz", "ru", "en"}
+    assert "rahmat" in ai_tools.LEAD_CONFIRMATION["uz"]
+    assert "Спасибо" in ai_tools.LEAD_CONFIRMATION["ru"]
+    assert "Thank you" in ai_tools.LEAD_CONFIRMATION["en"]
+
+
+# ---------------------------------------------------------------------------
 # Conversation memory
 # ---------------------------------------------------------------------------
 def test_a_short_conversation_is_sent_whole():
@@ -378,6 +424,85 @@ def test_an_earlier_summary_is_carried_into_the_prompt():
         summary="Chilonzor | 2 xona | 500$",
     )
     assert "Chilonzor | 2 xona | 500$" in prompt
+
+
+def test_the_prompt_refuses_the_off_topic_question_in_three_languages():
+    """A refusal the model writes itself drifts into answering the question.
+
+    "One warm sentence" is read by a model as licence to hedge, so the
+    sentence is written out here and the model only has to pick a language.
+    """
+    prompt = ai_agent.build_system_prompt(
+        language="uz", viewer=None, user_name=None, is_first_turn=False, summary=None
+    )
+    assert (
+        "Kechirasiz, bu savol Uyiz faoliyatidan tashqarida. Men uy-joy — "
+        "ijara, xarid va sotuv bo'yicha yordam beraman. Shu yo'nalishdagi "
+        "savolingiz bo'lsa, bajonidil javob beraman."
+    ) in prompt
+    assert (
+        "Извините, этот вопрос вне сферы Uyiz. Я помогаю с жильём — арендой, "
+        "покупкой и продажей недвижимости. Если у вас есть вопрос по этой "
+        "теме, с радостью помогу."
+    ) in prompt
+    assert (
+        "I'm sorry — that's outside what Uyiz covers. I help with housing: "
+        "renting, buying and selling property. If you have a question in "
+        "that area, I'd be glad to help."
+    ) in prompt
+
+
+def test_the_prompt_keeps_company_internals_private_in_three_languages():
+    """Headcount, revenue and how moderation decides are asked for often,
+    and rephrasing the question is the usual way in."""
+    prompt = ai_agent.build_system_prompt(
+        language="ru", viewer=None, user_name=None, is_first_turn=False, summary=None
+    )
+    assert (
+        "Bu — kompaniyaning ichki ma'lumoti, shuning uchun uni oshkor qila "
+        "olmayman. Ammo uy-joy tanlash yoki e'lonlar bo'yicha savolingiz "
+        "bo'lsa, bajonidil yordam beraman."
+    ) in prompt
+    assert (
+        "Это внутренняя информация компании, и я не могу её раскрывать. Но "
+        "если у вас есть вопрос по жилью или объявлениям, буду рад помочь."
+    ) in prompt
+    assert (
+        "That's the company's internal information, so I'm not able to share "
+        "it. If you have a question about housing or listings, though, I'd be "
+        "glad to help."
+    ) in prompt
+
+
+def test_the_prompt_names_three_conveniences():
+    """Three, named, and never a fourth — otherwise "why Uyiz?" is answered
+    with invented features. Flattened, because the list is hard-wrapped."""
+    prompt = " ".join(
+        ai_agent.build_system_prompt(
+            language="uz", viewer=None, user_name=None,
+            is_first_turn=False, summary=None,
+        ).split()
+    ).lower()
+    assert "what uyiz gives you" in prompt
+    assert "this assistant" in prompt
+    assert "the map" in prompt
+    assert "free and it is transparent" in prompt
+
+
+def test_the_prompt_tells_the_model_to_answer_property_advice():
+    """"I can only search listings" is the wrong answer to "how do I buy"."""
+    prompt = ai_agent.build_system_prompt(
+        language="uz", viewer=None, user_name=None, is_first_turn=False, summary=None
+    )
+    assert "ADVICE ABOUT PROPERTY" in prompt
+
+
+def test_the_prompt_forbids_asking_permission_before_capturing_a_lead():
+    """The tool does not stop to ask, so the prompt must not either."""
+    prompt = ai_agent.build_system_prompt(
+        language="uz", viewer=None, user_name=None, is_first_turn=False, summary=None
+    )
+    assert "Do not ask permission to send it" in prompt
 
 
 # ---------------------------------------------------------------------------

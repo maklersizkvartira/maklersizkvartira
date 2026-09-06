@@ -549,6 +549,10 @@ async def test_reliability_drops_only_when_an_admin_confirms_a_report(
 # ---------------------------------------------------------------------------
 # Admin authorisation
 # ---------------------------------------------------------------------------
+#: Any syntactically valid UUID. Nothing is seeded under it - these routes must
+#: refuse the caller long before they go looking for the row.
+_ANY_SESSION_ID = "11111111-1111-1111-1111-111111111111"
+
 ADMIN_ROUTES = [
     ("GET", "/api/v1/admin/stats"),
     ("GET", "/api/v1/admin/users"),
@@ -560,6 +564,15 @@ ADMIN_ROUTES = [
     ("GET", "/api/v1/admin/sms"),
     ("GET", "/api/v1/admin/security/login-attempts"),
     ("GET", "/api/v1/admin/ai/sessions"),
+    # The live chat desk. A moderator answering a visitor by hand is the most
+    # sensitive thing in the AI feature - the operator writes into a stranger's
+    # conversation - so the three routes that do it are pinned here alongside
+    # the read-only ones. The session id is a well-formed UUID on purpose: the
+    # point of the assertion is that the token is refused before the path is
+    # ever looked up, not that a bad UUID is a 422.
+    ("POST", f"/api/v1/admin/ai/sessions/{_ANY_SESSION_ID}/takeover"),
+    ("POST", f"/api/v1/admin/ai/sessions/{_ANY_SESSION_ID}/release"),
+    ("POST", f"/api/v1/admin/ai/sessions/{_ANY_SESSION_ID}/messages"),
     ("GET", "/api/v1/admin/chart/registrations"),
     ("GET", "/api/v1/admin/staff"),
 ]

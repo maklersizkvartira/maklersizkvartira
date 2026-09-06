@@ -17,6 +17,7 @@ from app.core.rate_limit import enforce
 from app.core.security import generate_token
 from app.models.ai import AIMessage, AISession
 from app.models.enums import AuditAction, UserRole
+from app.models.user import AdminUser
 from app.schemas.common import CamelModel
 from app.schemas.listing import ListingOut
 from app.services import ai_agent
@@ -177,8 +178,16 @@ async def assistant(
     language = (viewer.language if viewer else None) or lang
     session = await _load_session(db, payload.session_key, viewer=viewer, ctx=ctx)
 
+    # An operator has taken this conversation over: the machine stops talking
+    # for as long as they hold it.
+    handled_by_human = session.taken_over_by is not None
+
     used = await _used_today(db, viewer=viewer, ctx=ctx)
-    if not unlimited and used >= DAILY_LIMIT:
+    # The daily quota exists to cap an OpenAI bill, and a turn answered by a
+    # person costs nothing. Cutting a visitor off mid-conversation with a
+    # colleague would strand both of them, so the quota is skipped here; the
+    # hourly ``enforce("ai_chat", ...)`` limiter above remains the abuse guard.
+    if not unlimited and not handled_by_human and used >= DAILY_LIMIT:
         await audit_log.record(
             db,
             AuditAction.AI_LIMIT_REACHED,
@@ -196,6 +205,38 @@ async def assistant(
             "listings": [],
         }
 
+    if handled_by_human:
+        # Store the visitor's turn and stop. The model is not called at all:
+        # two voices answering the same person is worse than a pause, and the
+        # operator reads this row in the admin chat desk within seconds. The
+        # empty ``reply`` is the wire signal for "no bubble" — the widget
+        # renders the handover banner instead of an empty AI message.
+        operator_name = (
+            await db.execute(
+                select(AdminUser.full_name).where(AdminUser.id == session.taken_over_by)
+            )
+        ).scalar_one_or_none()
+        db.add(AIMessage(session_id=session.id, role="user", content=payload.message))
+        session.message_count += 1
+        await db.flush()
+        return {
+            "status": "success",
+            "reply": "",
+            "need": session.last_intent or {},
+            "matchQuality": "NONE",
+            "listings": [],
+            "actions": [],
+            "steps": [],
+            "awaitingConfirmation": False,
+            "handledByHuman": True,
+            "operatorName": operator_name,
+            "sessionKey": session.session_key,
+            "used": used + 1,
+            "limit": 0 if unlimited else DAILY_LIMIT,
+            "remaining": 0 if unlimited else max(0, DAILY_LIMIT - (used + 1)),
+            "unlimited": unlimited,
+        }
+
     history_rows = (
         await db.execute(
             select(AIMessage)
@@ -205,7 +246,17 @@ async def assistant(
         )
     ).scalars().all()
     is_first_turn = len(history_rows) == 0
-    history = [{"role": row.role, "content": row.content} for row in history_rows]
+    # An operator's turn is a real part of the conversation and the model must
+    # see it — but "admin" is not a role the Chat Completions API accepts, and
+    # sending one 400s the whole turn. It goes in as an assistant message,
+    # labelled, so the model neither contradicts the operator nor impersonates
+    # a system it does not have.
+    history = [
+        {"role": "assistant", "content": f"[Uyiz operator]: {row.content}"}
+        if row.role == "admin"
+        else {"role": row.role, "content": row.content}
+        for row in history_rows
+    ]
 
     db.add(AIMessage(session_id=session.id, role="user", content=payload.message))
     session.message_count += 1
@@ -453,6 +504,13 @@ async def _finish(
             if step.get("label")
         ],
         "awaitingConfirmation": bool(pending),
+        # Every turn that reaches here was written by the model, so these two
+        # are constants — but they are sent on every reply all the same. The
+        # widget reads them to decide whether the handover banner stays up,
+        # and a key that appears only sometimes leaves it stuck on the banner
+        # for the rest of the conversation after an operator hands back.
+        "handledByHuman": False,
+        "operatorName": None,
         "sessionKey": session.session_key,
         "used": used + 1,
         "limit": 0 if unlimited else DAILY_LIMIT,
@@ -521,6 +579,13 @@ async def close_assistant(
 
     if session.user_id is not None and (viewer is None or viewer.id != session.user_id):
         raise Forbidden("forbidden")
+
+    # The visitor closing the widget must not close a thread an operator is
+    # still working. Closing it here would stamp ``closed_at``, summarise the
+    # conversation and post the transcript out from under them — and the
+    # widget sends this on every unmount, so a reopened tab would do it again.
+    if session.taken_over_by is not None:
+        return {"status": "success"}
 
     messages = (
         await db.execute(

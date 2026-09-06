@@ -313,6 +313,13 @@ class AuditAction(StrEnum):
     SMS_SENT = "SMS_SENT"
     SMS_FAILED = "SMS_FAILED"
     TELEGRAM_NOTIFIED = "TELEGRAM_NOTIFIED"
+    #: The prefixes are load-bearing, not cosmetic: the audit filter groups
+    #: AI_* under "ai" and ADMIN_* under "admin", so a visitor-side event and
+    #: an operator-side one have to be named for the side they happened on.
+    AI_LEAD_CAPTURED = "AI_LEAD_CAPTURED"
+    ADMIN_AI_TAKEOVER = "ADMIN_AI_TAKEOVER"
+    ADMIN_AI_RELEASED = "ADMIN_AI_RELEASED"
+    ADMIN_AI_REPLIED = "ADMIN_AI_REPLIED"
 
     # -- Security ---------------------------------------------------------
     SECURITY_RATE_LIMITED = "SECURITY_RATE_LIMITED"

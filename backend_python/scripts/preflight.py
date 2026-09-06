@@ -153,10 +153,45 @@ def report_missing_in_production(settings) -> bool:
             "OPENAI_API_KEY is empty: Uyiz AI falls back to templated replies "
             "and cannot hold a real conversation. This is safe, just reduced.",
         ))
+    if settings.OPENAI_API_KEY and not settings.OPENAI_ADMIN_KEY:
+        notes.append((
+            "OpenAI xarajati ko'rinmaydi — admin kalit yo'q",
+            "OPENAI_ADMIN_KEY is empty: the panel shows how much the assistant "
+            "was used but no money figure, because an ordinary sk-... key "
+            "cannot read spend. Create an admin key (sk-admin-...) at "
+            "platform.openai.com under Organization -> Admin keys.",
+        ))
     if not settings.TELEGRAM_BOT_TOKEN:
         notes.append((
             "Telegram xabarnomalari o'chiq",
             "TELEGRAM_BOT_TOKEN is empty: operations notifications are off.",
+        ))
+    elif not settings.TELEGRAM_GROUP_ID:
+        notes.append((
+            "Telegram guruhi ko'rsatilmagan",
+            "TELEGRAM_GROUP_ID is empty: the bot is configured but has nowhere "
+            "to post, so leads, support callbacks and chat summaries are all "
+            "dropped without an error.",
+        ))
+    elif settings.telegram_chat_id != settings.TELEGRAM_GROUP_ID.strip():
+        # The single most common misconfiguration in this project, and the one
+        # with no symptom: a supergroup id copied without its leading minus.
+        # normalise_chat_id repairs it at the point of use, but the repair is a
+        # safety net and the variable itself should be right.
+        notes.append((
+            "Telegram guruh ID sida minus yo'q edi - vaqtincha tuzatildi",
+            f"TELEGRAM_GROUP_ID is {settings.TELEGRAM_GROUP_ID.strip()}, but a "
+            f"supergroup id is negative: sends are going to "
+            f"{settings.telegram_chat_id}. Put the leading minus in the "
+            "variable itself.",
+        ))
+    elif not settings.telegram_chat_id.startswith(("@", "-")):
+        notes.append((
+            "Telegram guruh ID si noto'g'ri ko'rinishda",
+            f"TELEGRAM_GROUP_ID={settings.telegram_chat_id} is neither a "
+            "@channelusername nor a negative group id. Telegram reads a "
+            "positive id as a USER id and answers every send with "
+            "400 Bad Request: chat not found.",
         ))
 
     if notes:

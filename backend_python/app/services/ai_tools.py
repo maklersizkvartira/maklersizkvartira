@@ -29,12 +29,14 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable
 
 import structlog
 
+from app.core import audit as audit_log
 from app.core.phone import format_display, is_valid_phone, normalise_phone
-from app.models.enums import ListingStatus, PUBLISHER_ROLE_VALUES, UserRole
+from app.models.enums import AuditAction, ListingStatus, PUBLISHER_ROLE_VALUES, UserRole
 from app.services import listings as listing_service
 from app.services import uyiz_ai
 
@@ -250,6 +252,28 @@ async def _search_listings(ctx: ToolContext, args: dict[str, Any]) -> dict[str, 
     ctx.rows_out = list(rows)
     ctx.last_search = intent.as_dict()
 
+    # Every row that came back is a *partial* answer now — the search no
+    # longer filters rows away, it scores them — so each one carries what it
+    # meets and what it misses. Without this the model can see that a listing
+    # was returned but not why, and it either presents a one-criterion match
+    # as an exact one or hides it out of caution. Both are worse than saying
+    # plainly "this is in Chilonzor but it is 3 rooms, not 2".
+    listings: list[dict[str, Any]] = []
+    for index, row in enumerate(rows, start=1):
+        brief = _listing_public(row, position=index)
+        report = intent.matches.get(str(row.id))
+        if report:
+            brief["match"] = {
+                **report,
+                "matchedLabels": [
+                    intent.label_for(k, ctx.language) for k in report["matched"]
+                ],
+                "missedLabels": [
+                    intent.label_for(k, ctx.language) for k in report["missed"]
+                ],
+            }
+        listings.append(brief)
+
     return {
         "count": len(rows),
         "totalMatching": total,
@@ -261,9 +285,7 @@ async def _search_listings(ctx: ToolContext, args: dict[str, Any]) -> dict[str, 
         # The criteria this search stopped filtering on in order to find
         # anything. Empty on an exact match.
         "droppedCriteria": intent.dropped_labels(ctx.language),
-        "listings": [
-            _listing_public(row, position=i + 1) for i, row in enumerate(rows)
-        ],
+        "listings": listings,
         "note": (
             "These are the only rows that exist for this search. Do not "
             "mention any apartment that is not in this list. If "
@@ -627,6 +649,106 @@ async def _request_callback(ctx: ToolContext, args: dict[str, Any]) -> dict[str,
     }
 
 
+#: What the visitor is told once their details are with the team, written out
+#: rather than left to the model. A promise about a human calling back is the
+#: one sentence in this whole conversation that has to read the same every
+#: time: a model paraphrasing it invents a timeframe ("within an hour") that
+#: nobody agreed to, or repeats the number back and turns a two-line handoff
+#: into a confirmation dialogue. The tool hands this string to the model and
+#: the prompt tells it to say it word for word.
+LEAD_CONFIRMATION: dict[str, str] = {
+    "uz": (
+        "Ma'lumotlaringizni qabul qildik. Qo'llab-quvvatlash xizmatimiz siz "
+        "bilan yaqin orada bog'lanadi. Murojaatingiz uchun rahmat!"
+    ),
+    "ru": (
+        "Мы приняли ваши данные. Наша служба поддержки свяжется с вами в "
+        "ближайшее время. Спасибо за обращение!"
+    ),
+    "en": (
+        "We've received your details. Our support team will be in touch with "
+        "you shortly. Thank you for reaching out!"
+    ),
+}
+
+
+async def _capture_lead(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
+    """Take the visitor's details and hand them to the support team.
+
+    Unlike :func:`_request_callback` this does not stop to ask. Handing over a
+    phone number is itself the consent, and the extra "shall I send it?" round
+    trip is where people leave: they answered the question once already. The
+    number is validated here rather than by the model, because a mistyped
+    digit is a call that never arrives and nothing downstream would notice.
+
+    The details are written onto the session as well as sent, so a Telegram
+    outage does not lose the lead — the admin panel reads the same columns.
+    """
+    raw = str(args.get("phone") or "").strip()
+    if not raw:
+        raise ToolError(
+            "No phone number was given. Ask the visitor for their number "
+            "first, then call this again with it."
+        )
+    if not is_valid_phone(raw):
+        raise ToolError(
+            "That is not a valid Uzbek phone number. Ask the visitor to "
+            "repeat it in the form +998 90 123 45 67, then call this again."
+        )
+
+    phone = normalise_phone(raw)
+    name = str(args.get("name") or "").strip()[:120] or (
+        ctx.viewer.name if ctx.viewer else ""
+    )
+    if not name:
+        raise ToolError(
+            "This visitor is not signed in, so a name is required too. Ask "
+            "for their name, then call this again with both the name and the "
+            "phone number."
+        )
+    note = str(args.get("note") or "")[:400]
+
+    ctx.session.lead_name = name
+    ctx.session.lead_phone = phone
+    ctx.session.lead_note = note or None
+    ctx.session.lead_captured_at = datetime.now(timezone.utc)
+    await ctx.db.flush()
+
+    await audit_log.record(
+        ctx.db,
+        AuditAction.AI_LEAD_CAPTURED,
+        entity_type="ai_session",
+        entity_id=ctx.session.id,
+        summary=name,
+        meta={"registered": ctx.viewer is not None},
+    )
+
+    from app.services.telegram import send_lead_notification
+
+    delivered = await send_lead_notification(
+        ctx.db,
+        name=name,
+        phone=phone,
+        language=ctx.language,
+        session_key=ctx.session.session_key,
+        is_registered=ctx.viewer is not None,
+        note=note,
+        intent=ctx.session.last_intent or {},
+    )
+
+    return {
+        "recorded": True,
+        "name": name,
+        "phone": format_display(phone),
+        # Whether Telegram accepted it changes nothing for the visitor: the
+        # lead is on the session and in the audit log either way.
+        "deliveredToTeam": delivered,
+        "sayToVisitor": LEAD_CONFIRMATION[
+            ctx.language if ctx.language in LEAD_CONFIRMATION else "uz"
+        ],
+    }
+
+
 # ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
@@ -797,9 +919,10 @@ _register(Tool(
 _register(Tool(
     name="request_support_callback",
     description=(
-        "Record the visitor's phone number so support calls them back. Ask "
-        "for the number first and pass it exactly as they said it. Use this "
-        "when they would rather be called than call us."
+        "Legacy callback route, kept for a visitor who explicitly asks to be "
+        "phoned back later rather than contacted now. Prefer `capture_lead` "
+        "in every ordinary case: it takes the name as well and reaches the "
+        "team immediately."
     ),
     parameters=_params({
         "phone": {"type": "string", "description": "The visitor's number, e.g. +998901234567. Omit only if they are signed in and asked you to use their account number."},
@@ -809,6 +932,49 @@ _register(Tool(
     needs_confirmation=True,
     progress={"uz": "So'rovingizni yuboryapman", "ru": "Передаю заявку", "en": "Passing it to support"},
 ))
+
+# No ``needs_confirmation`` here, and that omission is the whole design. The
+# loop only stops to ask on a flagged tool, so leaving this one unflagged is
+# what lets the details go out and the confirming sentence be written in the
+# same turn the visitor gave their number in.
+_register(
+    Tool(
+        name="capture_lead",
+        description=(
+            "Record a visitor who wants our team to contact them, and send "
+            "their details to the team at once. Call it the moment you have "
+            "their phone number — and their name as well when they are not "
+            "signed in. There is no confirmation step: giving you the number "
+            "IS the consent, so never ask permission to send it. A malformed "
+            "number is refused here with a reason; ask them to repeat it and "
+            "call again. When it returns, say the sentence in `sayToVisitor` "
+            "back to them word for word and add nothing else about the request."
+        ),
+        parameters=_params(
+            {
+                "phone": {
+                    "type": "string",
+                    "description": "The visitor's number exactly as they said it, e.g. +998 90 123 45 67.",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "The visitor's name. Required when they are not signed in; omit only for a signed-in visitor whose account name you already have.",
+                },
+                "note": {
+                    "type": "string",
+                    "description": "One short line on what they need, for the support team. Their own words where you can.",
+                },
+            },
+            ["phone"],
+        ),
+        handler=_capture_lead,
+        progress={
+            "uz": "Ma'lumotlaringizni jamoaga yuboryapman",
+            "ru": "Передаю ваши данные команде",
+            "en": "Passing your details to the team",
+        },
+    )
+)
 
 
 def schemas_for(ctx: ToolContext) -> list[dict[str, Any]]:

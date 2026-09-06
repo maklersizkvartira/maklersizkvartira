@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from app.models.enums import (
     AdminRole,
@@ -20,6 +20,12 @@ from app.models.enums import (
     VerificationStatus,
 )
 from app.schemas.common import CamelModel, IPStr, ORMCamelModel
+from app.services.ai_settings import (
+    MAX_TOOL_STEPS,
+    MIN_TOOL_STEPS,
+    MODEL_ID_MAX_LENGTH,
+    MODEL_ID_PATTERN,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -307,6 +313,58 @@ class AdminAiSessionRow(ORMCamelModel):
     closed_at: datetime | None = None
     ip: IPStr = None
     created_at: datetime
+    taken_over_by: uuid.UUID | None = None
+    taken_over_at: datetime | None = None
+    admin_read_at: datetime | None = None
+    lead_name: str | None = None
+    lead_phone: str | None = None
+    lead_note: str | None = None
+    lead_captured_at: datetime | None = None
+    #: Filled by hand after model_validate, exactly like user_name above.
+    taken_over_by_name: str | None = None
+    unread_count: int = 0
+    last_message_at: datetime | None = None
+
+
+class AiSettingsUpdate(CamelModel):
+    """A partial change to the assistant's configuration.
+
+    Every field is optional, and an omitted field is not the same thing as one
+    sent as ``null``. Omitted means "leave it alone"; ``null`` means "forget
+    the stored value and go back to the deployed environment variable", which
+    is otherwise a one-way door — once a row exists there is no way back to the
+    default except pinning it to whatever the default happens to be today. The
+    route tells them apart with ``model_fields_set``.
+
+    A model id is only bounded, never matched against a list: OpenAI ships
+    models faster than we redeploy, and a panel that refuses ``gpt-6-mini``
+    because this file has not heard of it is worse than useless on the day it
+    matters. The charset rule exists to stop a newline or a space arriving in a
+    value that is pasted straight into a provider request.
+    """
+
+    chat_model: str | None = Field(default=None, max_length=MODEL_ID_MAX_LENGTH)
+    reasoning_model: str | None = Field(default=None, max_length=MODEL_ID_MAX_LENGTH)
+    max_tool_steps: int | None = Field(
+        default=None, ge=MIN_TOOL_STEPS, le=MAX_TOOL_STEPS
+    )
+
+    @field_validator("chat_model", "reasoning_model")
+    @classmethod
+    def _check_model_id(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        value = v.strip()
+        if not value:
+            # An empty string is what a cleared text box sends. Read it as the
+            # explicit null it means, so "I deleted the override" works from a
+            # form that cannot send JSON null.
+            return None
+        if not MODEL_ID_PATTERN.match(value):
+            raise ValueError(
+                "A model id may only contain letters, digits, '.', '_', ':' and '-'"
+            )
+        return value
 
 
 class AdminSmsRow(ORMCamelModel):
@@ -422,3 +480,8 @@ class VerifyCredentialsResponse(CamelModel):
     full_name: str
     has_face: bool
 
+
+class AdminAiReplyCreate(CamelModel):
+    """One operator message typed into a taken-over AI conversation."""
+
+    content: Annotated[str, Field(min_length=1, max_length=2000)]

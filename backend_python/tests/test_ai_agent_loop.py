@@ -39,8 +39,33 @@ def _user(role: str = UserRole.STUDENT.value):
 
 def _session():
     return types.SimpleNamespace(
-        session_key="k" * 32, last_intent=None, agent_state=None
+        id=uuid.uuid4(), session_key="k" * 32, last_intent=None, agent_state=None
     )
+
+
+class _FakeDb:
+    """Enough of an ``AsyncSession`` for a tool that writes.
+
+    ``capture_lead`` flushes the session row and then writes an audit entry,
+    so a bare ``None`` is no longer a usable database here. What is under test
+    is still the loop's own decision — that it runs the tool at all and does
+    not stop to ask first — so the rows are collected rather than stored.
+    """
+
+    def __init__(self) -> None:
+        self.added: list = []
+
+    def add(self, entry) -> None:
+        self.added.append(entry)
+
+    async def flush(self) -> None:
+        return None
+
+    async def execute(self, statement):
+        # `ai_settings.load` reads the three tuning rows at the top of every
+        # turn. Nothing is stored, so the environment wins — which is the
+        # behaviour every other test in this module already assumes.
+        return types.SimpleNamespace(all=lambda: [])
 
 
 def _listing(**over):
@@ -57,7 +82,7 @@ def _listing(**over):
         moderation_note=None, published_at=None, latitude=41.3, longitude=69.2,
         university_name=None, university_distance_minutes=None,
         roommate_gender=None, deposit_price=None, utilities_included=False,
-        property_type="APARTMENT", owner_id=uuid.uuid4(), is_public=True,
+        property_type="APARTMENT", owner_id=uuid.uuid4(), is_public=True, deal_type="RENT",
     )
     base.update(over)
     return types.SimpleNamespace(**base)
@@ -258,6 +283,78 @@ async def test_a_malformed_number_is_refused_before_anyone_is_paged(
 
     assert delivered == []
     assert "not a valid" in sent[0]["messages"][-1]["content"]
+
+
+# ---------------------------------------------------------------------------
+# Lead capture — the handoff that must NOT ask first
+# ---------------------------------------------------------------------------
+async def test_a_lead_is_captured_in_one_turn(scripted, monkeypatch):
+    """The number arrives and the team has it before the turn ends.
+
+    This is the whole point of leaving ``needs_confirmation`` off: the
+    callback tool above spends a round trip asking "shall I send it?" of
+    somebody who has just given their number, and that beat is where people
+    leave. Here the tool runs, and the model writes the confirming sentence
+    knowing it has already gone.
+    """
+    delivered: list[str] = []
+
+    async def fake_send(db, text, *, context="notification"):
+        delivered.append(text)
+        return True
+
+    monkeypatch.setattr("app.services.telegram.send_message", fake_send)
+    sent = scripted(
+        _wants("capture_lead", {"phone": "998901234567", "name": "Aziz"}),
+        _assistant("Ma'lumotlaringizni qabul qildik."),
+    )
+
+    outcome = await ai_agent.run_turn(
+        db=_FakeDb(), viewer=None, session=_session(),
+        message="Menga bog'laning, raqamim 998901234567, ismim Aziz",
+        history=[], language="uz", user_name=None, is_first_turn=False,
+        shown_ids=[],
+    )
+
+    # Nothing was held back for a yes.
+    assert outcome.pending is None
+    assert "capture_lead" in outcome.actions
+    assert delivered, "the team was never told"
+    assert "998 90 123 45 67" in delivered[0]
+    assert "Aziz" in delivered[0]
+    # The model is handed the sentence to repeat, in the same turn.
+    tool_replies = [m for m in sent[1]["messages"] if m.get("role") == "tool"]
+    assert "sayToVisitor" in tool_replies[0]["content"]
+
+
+async def test_a_bad_lead_number_is_refused_before_anyone_is_paged(
+    scripted, monkeypatch
+):
+    """A mistyped digit is a call that never arrives, and nobody downstream
+    would ever notice. The refusal comes back as a sentence the model can act
+    on, so it asks for the number again instead of promising a call."""
+    delivered: list[str] = []
+
+    async def fake_send(db, text, *, context="notification"):
+        delivered.append(text)
+        return True
+
+    monkeypatch.setattr("app.services.telegram.send_message", fake_send)
+    sent = scripted(
+        _wants("capture_lead", {"phone": "12", "name": "Aziz"}),
+        _assistant("Raqamni qayta yozib bering."),
+    )
+
+    outcome = await ai_agent.run_turn(
+        db=_FakeDb(), viewer=None, session=_session(), message="raqamim 12",
+        history=[], language="uz", user_name=None, is_first_turn=False,
+        shown_ids=[],
+    )
+
+    assert delivered == []
+    assert "capture_lead" not in outcome.actions
+    tool_replies = [m for m in sent[1]["messages"] if m.get("role") == "tool"]
+    assert "not a valid" in tool_replies[0]["content"]
 
 
 async def test_a_refused_action_is_explained_to_the_model_not_swallowed(scripted):

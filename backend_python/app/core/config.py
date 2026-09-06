@@ -31,6 +31,26 @@ def _pad_b64(value: str) -> str:
     return value + "=" * (-len(value) % 4)
 
 
+def normalise_chat_id(raw: str | None) -> str:
+    """Return a Telegram chat id in the form the Bot API actually accepts.
+
+    A supergroup or channel id is negative and begins ``-100``. Copied out of
+    a client, an export or a bot log it very often loses the sign, and a
+    positive id is read by Telegram as a *user* id: the send comes back
+    ``400 Bad Request: chat not found`` and, because this codebase never read
+    the response body, nothing anywhere said why. ``@channelusername`` and an
+    already-signed id are returned untouched.
+    """
+    value = (raw or "").strip()
+    if not value:
+        return ""
+    if value.startswith("@") or value.startswith("-"):
+        return value
+    if value.isdigit() and value.startswith("100") and len(value) >= 13:
+        return f"-{value}"
+    return value
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=(".env", "../.env"),
@@ -209,10 +229,33 @@ class Settings(BaseSettings):
 
     TELEGRAM_BOT_TOKEN: str = ""
     TELEGRAM_GROUP_ID: str = ""
+    #: A SECOND bot and chat, for the AI transcripts only. Both empty is the
+    #: normal case and means "use the operations bot and the operations
+    #: group" - the transcripts land beside everything else. Set them when the
+    #: AI feed is noisy enough to deserve a channel of its own; setting only
+    #: one of the two is fine as well, because each falls back on its own.
+    TELEGRAM_AI_BOT_TOKEN: str = ""
+    TELEGRAM_AI_CHAT_ID: str = ""
 
     OPENAI_API_KEY: str = ""
+    #: Read-only organisation key, used for one thing: reading what the
+    #: assistant actually costs. It is deliberately NOT the same variable as
+    #: OPENAI_API_KEY, because it cannot be the same key. OpenAI publishes no
+    #: credit balance for an ordinary ``sk-...`` key — the old
+    #: ``/dashboard/billing/credit_grants`` route was withdrawn — and the one
+    #: supported route, the organisation Costs API, answers 401 to anything
+    #: but an admin key (``sk-admin-...``, created at platform.openai.com
+    #: under Organization -> Admin keys). Empty means the panel shows the
+    #: usage counts and says plainly that the money figure needs this key,
+    #: which is the honest answer; see app/services/openai_costs.py.
+    OPENAI_ADMIN_KEY: str = ""
     #: The everyday model. Used for classification, moderation and for the
     #: agent loop itself, which is the majority of calls by volume.
+    #:
+    #: This is the FALLBACK, not the last word: a superadmin can override it
+    #: from the panel and the value is kept in ``system_settings``. Read it
+    #: through :mod:`app.services.ai_settings`, never directly, so a change
+    #: made in the panel does not have to wait for a deploy.
     OPENAI_MODEL: str = "gpt-4o-mini"
     #: The model used when a turn actually has to reason: an owner asking why
     #: their listing is not performing, a multi-step request, a turn that
@@ -222,7 +265,9 @@ class Settings(BaseSettings):
     OPENAI_MODEL_SMART: str = ""
     #: How many tool round trips one turn may take before the loop gives up.
     #: Four covers "search, look at one of them, save it" with room to spare;
-    #: past that the model is looping rather than working.
+    #: past that the model is looping rather than working. Overridable from the
+    #: panel like the two model ids; same rule, read it through
+    #: :mod:`app.services.ai_settings`.
     AI_MAX_TOOL_STEPS: int = 4
     #: Support numbers the assistant may hand out, highest priority first.
     #: Comma-separated so they can be changed without a deploy.
@@ -244,6 +289,26 @@ class Settings(BaseSettings):
     @property
     def support_phones(self) -> list[str]:
         return [p.strip() for p in self.SUPPORT_PHONES.split(",") if p.strip()]
+
+    #: The raw TELEGRAM_* fields are deliberately left un-normalised: they show
+    #: up in logs and in /admin/settings exactly as the operator typed them, so
+    #: a mistyped id stays visible instead of being quietly rewritten
+    #: underneath them. The repair happens here, at the point of use, and
+    #: nowhere else.
+    @property
+    def telegram_chat_id(self) -> str:
+        """The operations group, in the form the API accepts."""
+        return normalise_chat_id(self.TELEGRAM_GROUP_ID)
+
+    @property
+    def telegram_ai_bot_token(self) -> str:
+        """The bot the AI transcripts go through; the ops bot when unset."""
+        return (self.TELEGRAM_AI_BOT_TOKEN or self.TELEGRAM_BOT_TOKEN).strip()
+
+    @property
+    def telegram_ai_chat_id(self) -> str:
+        """Where AI transcripts land; the ops group when unset."""
+        return normalise_chat_id(self.TELEGRAM_AI_CHAT_ID or self.TELEGRAM_GROUP_ID)
 
     # Required to verify Firebase ID tokens on /auth/google. Empty disables
     # Google sign-in rather than accepting unverified identities.

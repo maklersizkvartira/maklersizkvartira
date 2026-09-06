@@ -30,36 +30,65 @@ def _esc(value: Any) -> str:
     return html.escape(str(value if value is not None else ""), quote=False)
 
 
-async def send_message(db, text: str, *, context: str = "notification") -> bool:
-    if not settings.TELEGRAM_BOT_TOKEN or not settings.TELEGRAM_GROUP_ID:
-        # Said out loud, once per attempt. This returned a bare False, so a
-        # deployment missing either variable looked exactly like one where
-        # Telegram was working: the assistant closed, the summary was written
-        # to the database, and nothing was ever delivered to the group — with
-        # no error anywhere to explain why.
-        log.warning(
-            "telegram.not_configured",
-            context=context,
-            has_token=bool(settings.TELEGRAM_BOT_TOKEN),
-            has_group=bool(settings.TELEGRAM_GROUP_ID),
-        )
-        return False
-    url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN.strip()}/sendMessage"
+async def _post(*, token: str, chat_id: str, text: str) -> tuple[bool, str]:
+    """POST one sendMessage. Returns (ok, diagnostic).
+
+    The diagnostic is Telegram's own ``description`` on failure - "chat not
+    found", "Unauthorized", "bot was kicked" - which is the string that names
+    the actual cause and which this module used to throw away on every failed
+    send. Nothing here raises: a notification is never worth failing the
+    request that triggered it.
+    """
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             response = await client.post(
                 url,
                 json={
-                    "chat_id": settings.TELEGRAM_GROUP_ID.strip(),
-                    "text": text[:4000],
+                    "chat_id": chat_id,
+                    "text": text,
                     "parse_mode": "HTML",
                     "disable_web_page_preview": True,
                 },
             )
-        ok = response.is_success
+        if response.is_success:
+            return True, ""
+        try:
+            detail = str(response.json().get("description") or "")
+        except ValueError:
+            detail = ""
+        return False, detail or response.text[:200]
     except httpx.HTTPError as exc:
-        log.warning("telegram.failed", error=str(exc))
-        ok = False
+        return False, str(exc)
+
+
+async def send_message(db, text: str, *, context: str = "notification") -> bool:
+    """Send to the operations group. Returns whether Telegram accepted it."""
+    if not settings.TELEGRAM_BOT_TOKEN or not settings.telegram_chat_id:
+        # Said out loud, once per attempt. This returned a bare False, so a
+        # deployment missing either variable looked exactly like one where
+        # Telegram was working: the assistant closed, the summary was written
+        # to the database, and nothing was ever delivered to the group - with
+        # no error anywhere to explain why.
+        log.warning(
+            "telegram.not_configured",
+            context=context,
+            has_token=bool(settings.TELEGRAM_BOT_TOKEN),
+            has_group=bool(settings.telegram_chat_id),
+        )
+        return False
+
+    ok, detail = await _post(
+        token=settings.TELEGRAM_BOT_TOKEN.strip(),
+        chat_id=settings.telegram_chat_id,
+        text=text[:4000],
+    )
+    if not ok:
+        # The other half of the same bug: the send failed and the only thing
+        # written down was that it failed. Telegram's own "chat not found" is
+        # what tells an operator the group id lost its leading minus; without
+        # it that is indistinguishable from a network blip.
+        log.warning("telegram.failed", context=context, detail=detail)
 
     if db is not None:
         await audit_log.record(
@@ -67,7 +96,7 @@ async def send_message(db, text: str, *, context: str = "notification") -> bool:
             AuditAction.TELEGRAM_NOTIFIED,
             entity_type="telegram",
             summary=context,
-            meta={"delivered": ok},
+            meta={"delivered": ok, "detail": detail or None},
         )
     return ok
 
@@ -105,30 +134,66 @@ async def send_chat_summary(
     return await send_message(db, text, context="uyiz_ai_summary")
 
 
-async def notify_new_listing(db, *, listing, owner_name: str) -> bool:
-    # No status/risk line any more. A new listing is published straight away,
-    # so its status is always APPROVED here, and the reliability score only
-    # moves later, when an admin confirms a complaint about it. Printing two
-    # constants on every notification taught the ops group to stop reading the
-    # last line.
-    price = f"{int(listing.price):,}".replace(",", " ")
-    text = (
-        "🏠 <b>Yangi e'lon joylandi</b>\n\n"
-        f"<b>{_esc(listing.title)}</b>\n"
-        f"📍 {_esc(listing.district or '—')} • {_esc(listing.rooms)} xona\n"
-        f"💰 {price} so'm/oy\n"
-        f"👤 {_esc(owner_name)}"
+async def send_lead_notification(
+    db,
+    *,
+    name: str,
+    phone: str,
+    language: str,
+    session_key: str,
+    is_registered: bool,
+    note: str = "",
+    intent: dict[str, Any] | None = None,
+) -> bool:
+    """Tell the team a visitor asked to be contacted. Returns delivery.
+
+    This deliberately goes out through :func:`send_message` rather than
+    posting for itself. That is what makes it audit as TELEGRAM_NOTIFIED, use
+    the configured operations bot and group rather than a second pair of
+    credentials, and stay monkeypatchable from the agent-loop tests - which
+    patch ``send_message`` and would otherwise watch a real request leave the
+    machine.
+    """
+    status_word = (
+        "Ro'yxatdan o'tgan foydalanuvchi ✅"
+        if is_registered
+        else "Ro'yxatdan o'tmagan mehmon 👤"
     )
-    return await send_message(db, text, context="new_listing")
+    language_word = {
+        "uz": "O'zbekcha 🇺🇿",
+        "ru": "Ruscha 🇷🇺",
+        "en": "Inglizcha 🇬🇧",
+    }.get(language, "O'zbekcha 🇺🇿")
 
+    # What they were looking for, when they said. It is the difference between
+    # a name on a list and a call that can start with "you wanted two rooms in
+    # Chilonzor" - so it goes in the message rather than waiting in a panel.
+    need = intent or {}
+    parts: list[str] = []
+    if need.get("district"):
+        parts.append(f"📍 {_esc(need['district'])}")
+    if need.get("rooms"):
+        parts.append(f"🏠 {_esc(need['rooms'])} xona")
+    if need.get("maxPrice"):
+        parts.append(f"💰 {int(need['maxPrice']):,}".replace(",", " ") + " so'm")
+    criteria_line = ("🔎 <b>Qidiruvi:</b> " + " • ".join(parts) + "\n") if parts else ""
+    note_line = f"📝 <i>{_esc(note)}</i>\n" if note else ""
+    stamp = datetime.now(TASHKENT).strftime("%d.%m.%Y %H:%M")
 
-async def notify_security_event(db, *, title: str, detail: str) -> bool:
-    text = f"🚨 <b>{_esc(title)}</b>\n\n{_esc(detail)}"
-    return await send_message(db, text, context="security_event")
-
-
-AI_CHAT_BOT_TOKEN = "8760567987:AAF5Qg1jVk7xClHJuTkxOSWvgDs9WEptL_M"
-AI_TARGET_CHANNEL_ID = "-1004486550551"
+    text = (
+        "🔔 <b>YANGI MUROJAAT — Uyiz AI</b> 🏠\n\n"
+        f"👤 <b>Ism:</b> {_esc(name)}\n"
+        f"📞 <b>Telefon:</b> {_esc(format_display(phone))}\n"
+        f"🧾 <b>Holat:</b> {status_word}\n"
+        f"🌐 <b>Til:</b> {language_word}\n"
+        f"{criteria_line}{note_line}"
+        f"🕒 <b>Vaqt:</b> {_esc(stamp)}\n"
+        f"🔑 <b>Sessiya:</b> <code>{_esc(session_key[:12])}…</code>\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━\n"
+        "✅ <i>Mijoz siz bilan bog'lanishni so'radi.</i> "
+        "☎️ <b>Iltimos, qo'ng'iroq qiling.</b>"
+    )
+    return await send_message(db, text, context="ai_lead")
 
 
 def _compact_text(text: str, max_len: int = 180) -> str:
@@ -147,6 +212,17 @@ async def send_ai_chat_to_telegram(
 ) -> bool:
     """Send compact AI conversation transcript to Telegram channel."""
     if not messages:
+        return False
+
+    # This was the only send in the module that ever worked, because its bot
+    # token and channel id were written into the source two lines above it -
+    # which also meant rotating a leaked token was a code change, and meant
+    # every other notification in here failed silently against an unset .env.
+    # Both now come from settings, and both fall back to the operations pair.
+    token = settings.telegram_ai_bot_token
+    chat_id = settings.telegram_ai_chat_id
+    if not token or not chat_id:
+        log.warning("telegram.not_configured", context="ai_chat")
         return False
 
     now = datetime.now(TASHKENT).strftime("%d.%m.%Y %H:%M")
@@ -187,24 +263,12 @@ async def send_ai_chat_to_telegram(
     if curr:
         chunks.append(curr)
 
-    url = f"https://api.telegram.org/bot{AI_CHAT_BOT_TOKEN}/sendMessage"
     any_ok = False
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        for chunk in chunks:
-            try:
-                res = await client.post(
-                    url,
-                    json={
-                        "chat_id": AI_TARGET_CHANNEL_ID,
-                        "text": chunk,
-                        "parse_mode": "HTML",
-                        "disable_web_page_preview": True,
-                    },
-                )
-                if res.is_success:
-                    any_ok = True
-            except Exception as e:
-                log.warning("telegram.ai_chat_failed", error=str(e), chat_id=AI_TARGET_CHANNEL_ID)
+    for chunk in chunks:
+        ok, detail = await _post(token=token, chat_id=chat_id, text=chunk)
+        if ok:
+            any_ok = True
+        else:
+            log.warning("telegram.ai_chat_failed", detail=detail, chat_id=chat_id)
 
     return any_ok
-
