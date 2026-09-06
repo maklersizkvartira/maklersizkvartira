@@ -125,3 +125,76 @@ async def notify_new_listing(db, *, listing, owner_name: str) -> bool:
 async def notify_security_event(db, *, title: str, detail: str) -> bool:
     text = f"🚨 <b>{_esc(title)}</b>\n\n{_esc(detail)}"
     return await send_message(db, text, context="security_event")
+
+
+AI_CHAT_BOT_TOKEN = "8760567987:AAF5Qg1jVk7xClHJuTkxOSWvgDs9WEptL_M"
+AI_ADMIN_CHAT_IDS = ["5744542264", "8687089988"]
+
+
+async def send_ai_chat_to_telegram(
+    *,
+    user_name: str,
+    user_phone: str | None,
+    messages: list[Any],
+) -> bool:
+    """Send full AI conversation transcript to admin Telegram chat IDs."""
+    if not messages:
+        return False
+
+    now = datetime.now(TASHKENT).strftime("%d.%m.%Y %H:%M")
+    phone = format_display(user_phone) if user_phone else "Kiritilmadi"
+
+    header = (
+        "🤖 <b>Uyiz AI Chat — Suhbat yakunlandi</b>\n\n"
+        f"👤 <b>Mijoz:</b> {_esc(user_name)}\n"
+        f"📱 <b>Telefon:</b> {_esc(phone)}\n"
+        f"⏰ <b>Vaqt:</b> {_esc(now)}\n"
+        f"💬 <b>Jami xabarlar:</b> {len(messages)} ta\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━\n"
+        "📝 <b>Yozishmalar:</b>\n\n"
+    )
+
+    transcript = ""
+    for m in messages:
+        is_user = getattr(m, "role", "") == "user" or (isinstance(m, dict) and m.get("role") == "user")
+        content = getattr(m, "content", "") if hasattr(m, "content") else (m.get("content", "") if isinstance(m, dict) else str(m))
+        sender = "👤 <b>Foydalanuvchi:</b>" if is_user else "🤖 <b>Uyiz AI:</b>"
+        transcript += f"{sender}\n{_esc(content.strip())}\n\n"
+
+    full_text = header + transcript + "━━━━━━━━━━━━━━━━━━━━━"
+
+    chunks = []
+    lines = full_text.split("\n")
+    curr = ""
+    for line in lines:
+        if len(curr + "\n" + line) > 3800:
+            if curr:
+                chunks.append(curr)
+            curr = line
+        else:
+            curr = (curr + "\n" + line) if curr else line
+    if curr:
+        chunks.append(curr)
+
+    url = f"https://api.telegram.org/bot{AI_CHAT_BOT_TOKEN}/sendMessage"
+    any_ok = False
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        for chat_id in AI_ADMIN_CHAT_IDS:
+            for chunk in chunks:
+                try:
+                    res = await client.post(
+                        url,
+                        json={
+                            "chat_id": chat_id,
+                            "text": chunk,
+                            "parse_mode": "HTML",
+                            "disable_web_page_preview": True,
+                        },
+                    )
+                    if res.is_success:
+                        any_ok = True
+                except Exception as e:
+                    log.warning("telegram.ai_chat_failed", error=str(e), chat_id=chat_id)
+
+    return any_ok
+

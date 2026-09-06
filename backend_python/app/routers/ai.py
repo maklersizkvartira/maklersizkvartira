@@ -22,7 +22,7 @@ from app.schemas.listing import ListingOut
 from app.services import ai_agent
 from app.services import listings as listing_service
 from app.services import uyiz_ai
-from app.services.telegram import send_chat_summary
+from app.services.telegram import send_chat_summary, send_ai_chat_to_telegram
 
 router = APIRouter(prefix="/smart", tags=["uyiz-ai"])
 
@@ -543,6 +543,13 @@ async def close_assistant(
     # The conversation is retained, not deleted: the admin panel needs the
     # history, and destroying it on an unauthenticated request was a way to
     # erase evidence of abuse.
+    # Send full chat transcript to Telegram bot for the admins
+    await send_ai_chat_to_telegram(
+        user_name=(viewer.name if viewer else "Noma'lum mijoz"),
+        user_phone=(viewer.phone if viewer else None),
+        messages=messages,
+    )
+
     await send_chat_summary(
         db,
         user_name=(viewer.name if viewer else "Noma'lum mijoz"),

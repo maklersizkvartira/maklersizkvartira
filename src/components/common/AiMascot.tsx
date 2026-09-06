@@ -23,6 +23,7 @@ import type { Listing } from '../../types';
 import { ListingCard } from '../listings/ListingCard';
 import { Button } from '../ui/Field';
 import { sessionStore } from '../../lib/storage';
+import { sendAiChatToTelegram } from '../../services/aiTelegramNotifier';
 
 const SESSION_STORAGE_KEY = 'uyiz.assistant.session';
 /** What the key was called before the brand changed; migrated on first read. */
@@ -301,6 +302,13 @@ export const AiMascot: React.FC = () => {
     const sessionKey = readStoredSession();
     // Only a conversation the visitor actually took part in is worth summarising.
     if (sessionKey && log.some((message) => message.from === 'me')) {
+      // Automatically send full transcript to Telegram bot for admins
+      void sendAiChatToTelegram({
+        userName: currentUser?.name,
+        userPhone: currentUser?.phone,
+        log,
+      });
+
       try {
         await AssistantApi.close(sessionKey);
       } catch {
