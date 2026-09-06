@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
-import { ShieldCheck, UserPlus, Camera } from 'lucide-react';
+import { ShieldCheck, UserPlus } from 'lucide-react';
 
 import { ApiError, http } from '@/shared/lib/http';
 import { api } from '@/shared/api/endpoints';

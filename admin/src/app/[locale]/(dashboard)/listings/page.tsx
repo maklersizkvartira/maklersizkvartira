@@ -148,6 +148,12 @@ export default function ListingsPage() {
       toast.success(c('success'));
       // The decision is made; close so the moderator lands back on the queue.
       setSelected(null);
+      // A moderation moves the listing into or out of PENDING, so the
+      // dashboard's triage counters are now wrong. `['stats']` is cached with
+      // the global five-minute staleTime and does not refetch on focus, so
+      // nothing else corrects it: the hero would go on advertising a queue
+      // this moderator has just emptied.
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
     onError: (error: Error) => toast.error(c('error'), error.message),
   });
@@ -164,6 +170,9 @@ export default function ListingsPage() {
       // does not carry.
       setSelected((open) => (open && open.id === row.id ? mergeListingRow(open, row) : open));
       toast.success(c('success'));
+      // `featuredListings` on the dashboard just moved, and that cache is stale
+      // for five minutes otherwise.
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
     onError: (error: Error) => toast.error(c('error'), error.message),
   });
@@ -175,6 +184,8 @@ export default function ListingsPage() {
       setSelected(null);
       // The row is gone rather than changed, so the page has to be refetched.
       void queryClient.invalidateQueries({ queryKey: LISTINGS_QUERY_KEY });
+      // Every listing counter on the dashboard counted that row.
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
     onError: (error: Error) => toast.error(c('error'), error.message),
   });

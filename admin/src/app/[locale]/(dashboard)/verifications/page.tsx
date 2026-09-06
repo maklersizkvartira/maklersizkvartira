@@ -75,7 +75,34 @@ export default function VerificationsPage() {
   const { canAccess } = useRole();
 
   const [viewing, setViewing] = useState<Viewing | null>(null);
-  const [rejectingId, setRejectingId] = useState<string | null>(null);
+
+  /**
+   * The row the reject sheet is open on, held whole rather than by id.
+   *
+   * It used to be an id looked up in `list.rows` on every render, so anything
+   * that replaced the fetched page pulled the sheet out from under the
+   * moderator mid-typing: a retry from the error banner, or `useAdminList`'s
+   * render-phase page clamp firing once `patchVerificationCache` had dropped
+   * the reviewed row and shrunk `totalPages`. The row is not on the new page,
+   * the lookup returns nothing, and the sheet unmounts — taking the
+   * half-written rejection reason with it and saying nothing. Held here it
+   * survives all of that, the same way `selected` does in listings/page.tsx.
+   */
+  const [rejecting, setRejecting] = useState<AdminVerificationRow | null>(null);
+
+  /**
+   * The ids with an approval in flight, tracked per row.
+   *
+   * `approve.variables` cannot answer this question: one `useMutation` holds
+   * only the most recent call's arguments. Approving a second row while the
+   * first PATCH was still going — not a narrow window when a request carries
+   * ~8 MB of base64 over cellular — moved `variables` onto the second id, so
+   * the first row lost its spinner and re-enabled its buttons mid-request and
+   * offered a second approval of something no route in this API undoes.
+   * Rejection needs no such set: it can only be fired from the modal sheet,
+   * one at a time.
+   */
+  const [approvingIds, setApprovingIds] = useState<ReadonlySet<string>>(new Set<string>());
 
   const dateFormat = useMemo(
     () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }),
@@ -96,22 +123,39 @@ export default function VerificationsPage() {
     },
   });
 
-  const rejecting = list.rows.find((row) => row.id === rejectingId) ?? null;
-
   /* ── Mutations ────────────────────────────────────────────────────────────
      Merged into the cached rows rather than replacing them: the PATCH path does
      no join, so it answers with a null user name and phone every time. */
 
   const approve = useMutation({
     mutationFn: (id: string) => approveVerification(id),
+    onMutate: (id) => {
+      setApprovingIds((ids) => new Set(ids).add(id));
+    },
     onSuccess: (row) => {
       patchVerificationCache(queryClient, row);
       toast.success(c('success'));
       // The approval raises the user's trust score and verification level, so
       // anything the users screen is holding about them is now stale.
       void queryClient.invalidateQueries({ queryKey: ['users'] });
+      // That user's own detail page prints both numbers, and it is cached
+      // under its own key that the list invalidation above does not reach.
+      void queryClient.invalidateQueries({ queryKey: ['user', row.userId] });
+      // And `pendingVerifications` on the dashboard just dropped. `['stats']`
+      // is cached with the global five-minute staleTime and does not refetch
+      // on focus, so nothing else would correct the triage counters.
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
     onError: (error: Error) => toast.error(c('error'), error.message),
+    // In `onSettled` rather than `onSuccess`, so a failed approval releases
+    // the row instead of leaving it disabled until the page is reloaded.
+    onSettled: (_row, _error, id) => {
+      setApprovingIds((ids) => {
+        const next = new Set(ids);
+        next.delete(id);
+        return next;
+      });
+    },
   });
 
   const reject = useMutation({
@@ -119,7 +163,10 @@ export default function VerificationsPage() {
     onSuccess: (row) => {
       patchVerificationCache(queryClient, row);
       toast.success(c('success'));
-      setRejectingId(null);
+      setRejecting(null);
+      // A rejection settles the request too, so the dashboard's
+      // `pendingVerifications` counter moves with it.
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
     onError: (error: Error) => toast.error(c('error'), error.message),
   });
@@ -153,8 +200,7 @@ export default function VerificationsPage() {
   };
 
   const busyOn = (id: string) =>
-    (approve.isPending && approve.variables === id) ||
-    (reject.isPending && reject.variables?.id === id);
+    approvingIds.has(id) || (reject.isPending && reject.variables?.id === id);
 
   const columns: Column<AdminVerificationRow>[] = [
     {
@@ -241,7 +287,7 @@ export default function VerificationsPage() {
             size="sm"
             icon={<BadgeCheck size={13} />}
             disabled={row.status === 'APPROVED' || busyOn(row.id)}
-            loading={approve.isPending && approve.variables === row.id}
+            loading={approvingIds.has(row.id)}
             onClick={() => void askThenApprove(row)}
           >
             {t('approve')}
@@ -260,7 +306,7 @@ export default function VerificationsPage() {
             variant="secondary"
             icon={<X size={13} />}
             disabled={row.status === 'APPROVED' || busyOn(row.id)}
-            onClick={() => setRejectingId(row.id)}
+            onClick={() => setRejecting(row)}
           >
             {t('reject')}
           </Button>
@@ -351,7 +397,7 @@ export default function VerificationsPage() {
         <RejectVerificationSheet
           key={rejecting.id}
           row={rejecting}
-          onClose={() => setRejectingId(null)}
+          onClose={() => setRejecting(null)}
           onSubmit={(reason) => reject.mutate({ id: rejecting.id, reason })}
           onViewDocument={() =>
             rejecting.documentUrl &&

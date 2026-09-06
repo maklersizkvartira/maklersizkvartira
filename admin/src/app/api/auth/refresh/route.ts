@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import { env } from '@/env';
 import { REFRESH_COOKIE, refreshCookieOptions } from '../cookie';
+import { isSameOrigin } from '../same-origin';
 
 /**
  * Trade the httpOnly refresh cookie for a fresh access token.
@@ -17,7 +19,13 @@ import { REFRESH_COOKIE, refreshCookieOptions } from '../cookie';
  * replaced on every success, and on failure it MUST be cleared rather than
  * left in place for a second attempt that would look like a replay.
  */
-export async function POST() {
+export async function POST(req: NextRequest) {
+  // The same guard the other two auth routes carry. Rotation is single-use, so
+  // a cross-site call here spends a token the panel was about to need.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ code: 'forbidden_origin' }, { status: 403 });
+  }
+
   const cookieStore = await cookies();
   const refreshToken = cookieStore.get(REFRESH_COOKIE)?.value;
 

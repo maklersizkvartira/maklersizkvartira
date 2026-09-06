@@ -589,6 +589,8 @@ export interface AdminTopRequestRow {
   listingTitle: string | null;
   listingDistrict: string | null;
   listingPrice: number | null;
+  /** Which unit `listingPrice` is in. The column holds both. */
+  listingCurrency: string | null;
   /** ONE image, never the array — see the `images` caveat on AdminListingRow. */
   listingImage: string | null;
   listingIsFeatured: boolean;

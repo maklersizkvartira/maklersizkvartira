@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { env } from '@/env';
 import { REFRESH_COOKIE, refreshCookieOptions } from '../cookie';
+import { isSameOrigin } from '../same-origin';
 
 /**
  * End the session on both sides in one round trip.
@@ -16,6 +17,12 @@ import { REFRESH_COOKIE, refreshCookieOptions } from '../cookie';
  * so the teardown is unconditional and the upstream status is only reported.
  */
 export async function POST(req: NextRequest) {
+  // Signing somebody out is not a breach, but it is not something any page on
+  // the web gets to do to an administrator mid-task either.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ code: 'forbidden_origin' }, { status: 403 });
+  }
+
   const authorization = req.headers.get('authorization');
 
   let revoked = false;

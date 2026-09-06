@@ -18,12 +18,18 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasRefreshToken = request.cookies.has('refresh_token');
 
-  // Skip localization and auth check for API, public static files, etc.
-  if (
-    pathname.startsWith('/api/') ||
-    pathname.startsWith('/_next/') ||
-    pathname.includes('.')
-  ) {
+  // Skip localization and the auth check for the API and Next's own internals.
+  //
+  // Static files are NOT tested for here any more. The third arm used to be
+  // `pathname.includes('.')`, which was meant to catch assets but matches route
+  // pathnames just as happily: `/uz/users/some.id`, or any future slug carrying
+  // a dot, returned early and so skipped BOTH the auth redirect and
+  // `intlMiddleware` — a signed-out visitor was never bounced to /login and
+  // next-intl never resolved a locale for the request. The `matcher` below
+  // already excludes `_next/static`, `_next/image` and every asset extension
+  // this panel serves, which made the substring test redundant as well as
+  // wrong. A new asset type belongs in that matcher, never back here.
+  if (pathname.startsWith('/api/') || pathname.startsWith('/_next/')) {
     return NextResponse.next();
   }
 

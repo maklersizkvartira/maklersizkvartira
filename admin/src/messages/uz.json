@@ -115,7 +115,8 @@
       "rateLimited": "Juda koʻp urinish. Biroz kutib turing.",
       "forbidden": "Bu IP manzildan kirish taqiqlangan",
       "network": "Serverga ulanib boʻlmadi",
-      "unknown": "Nomaʼlum xatolik"
+      "unknown": "Nomaʼlum xatolik",
+      "sessionNotStored": "Kirish muvaffaqiyatli bo‘ldi, lekin seansni bu brauzerda saqlab bo‘lmadi. Sahifani yangilab, qayta urinib ko‘ring."
     }
   },
   "dashboard": {
@@ -754,6 +755,20 @@
     "userRole": "Rol",
     "userPhone": "Telefon",
     "statusChanged": "Murojaat holati oʻzgartirildi",
-    "replySent": "Javob mijozga yuborildi"
+    "replySent": "Javob mijozga yuborildi",
+    "errors": {
+      "conversations": "Murojaatlar ro‘yxatini yuklashda xatolik yuz berdi",
+      "messages": "Suhbat xabarlarini yuklashda xatolik yuz berdi",
+      "send": "Xabarni yuborishda xatolik yuz berdi",
+      "status": "Holatni o‘zgartirishda xatolik yuz berdi"
+    },
+    "refresh": "Yangilash",
+    "back": "Orqaga",
+    "senderYou": "Siz",
+    "senderOperator": "Operator (Siz)",
+    "quick1": "Assalomu alaykum! Sizga qanday yordam bera olamiz?",
+    "quick2": "Murojaatingiz qabul qilindi. Tez orada masalani ko‘rib chiqib javob beramiz.",
+    "quick3": "Iltimos, e’loningiz sarlavhasi yoki ID raqamini yozib yuborsangiz.",
+    "quick4": "Muammo muvaffaqiyatli bartaraf etildi. Platformamizdan foydalanganingiz uchun rahmat!"
   }
 }

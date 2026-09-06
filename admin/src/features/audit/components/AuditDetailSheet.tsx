@@ -9,6 +9,7 @@ import type { AuditLogRow } from '@/shared/api/types';
 import { Badge } from '@/shared/ui/Badge';
 import { severityVariant } from './severity';
 import { JsonTree } from './JsonTree';
+import { Z_DIALOG } from '@/shared/ui/z-layers';
 
 /**
  * The expanded form of one audit row: everything the table has no width for,
@@ -27,9 +28,23 @@ interface AuditDetailSheetProps {
   onClose: () => void;
   /** Translated action name, resolved by the caller against `auditActions`. */
   actionLabel: string;
+  /**
+   * Translated severity, resolved by the caller with its `t.has` guard.
+   *
+   * Looked up here instead, a severity the backend adds later — or any casing
+   * drift — printed the literal message path `audit.severity.EMERGENCY` in the
+   * badge, while the guarded table behind the sheet printed `EMERGENCY`: two
+   * different labels for one row, one of them a raw key.
+   */
+  severityLabel: string;
 }
 
-export function AuditDetailSheet({ row, onClose, actionLabel }: AuditDetailSheetProps) {
+export function AuditDetailSheet({
+  row,
+  onClose,
+  actionLabel,
+  severityLabel,
+}: AuditDetailSheetProps) {
   const t = useTranslations('audit');
   const c = useTranslations('common');
   const locale = useLocale();
@@ -63,8 +78,22 @@ export function AuditDetailSheet({ row, onClose, actionLabel }: AuditDetailSheet
   // nullable columns that only mean anything together.
   const request = [row.method, row.path].filter(Boolean).join(' ');
 
+  /*
+   * `Z_DIALOG`, not the literal `z-[999999]` this used to carry.
+   *
+   * That number was picked to beat the mobile dock (99999) and beat everything
+   * else with it. The shared `Select` portals its dropdown to `document.body`
+   * at `Z_DIALOG_POPOVER` (100001), so a dropdown opened from inside this
+   * sheet was painted UNDERNEATH the sheet and its opaque blurred backdrop:
+   * the options were invisible, and a tap where they should have been hit the
+   * backdrop and closed the whole form. Toasts sit just above that, so an
+   * error raised while this was open was invisible too.
+   */
   return createPortal(
-    <div className="fixed inset-0 z-[999999] flex items-center justify-center md:p-4">
+    <div
+      className="fixed inset-0 flex items-center justify-center md:p-4"
+      style={{ zIndex: Z_DIALOG }}
+    >
       <button
         type="button"
         aria-label={c('close')}
@@ -99,10 +128,7 @@ export function AuditDetailSheet({ row, onClose, actionLabel }: AuditDetailSheet
         >
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <Badge
-                variant={severityVariant(row.severity)}
-                label={t(`severity.${row.severity}` as Parameters<typeof t>[0])}
-              />
+              <Badge variant={severityVariant(row.severity)} label={severityLabel} />
               <h2
                 className="text-[15px] font-bold min-w-0 truncate"
                 style={{ color: 'var(--color-text-primary)' }}

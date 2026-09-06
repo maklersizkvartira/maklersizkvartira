@@ -112,6 +112,11 @@ export default function ReportsPage() {
       if (variables.body.listingAction && variables.body.listingAction !== 'NONE') {
         void queryClient.invalidateQueries({ queryKey: LISTINGS_QUERY_KEY });
       }
+      // `openReports` on the dashboard's triage card just changed. That cache
+      // is held under `['stats']` with the global five-minute staleTime and
+      // `refetchOnWindowFocus` off, so without this the tile keeps offering a
+      // queue that has already been cleared.
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
     onError: (error: Error) => toast.error(c('error'), error.message),
   });
@@ -280,9 +285,17 @@ export default function ReportsPage() {
 
         {/* Everything past this divider narrows the page in hand, not the
             queue — hence the marker, and hence the count line under the
-            table. There is no server-side filter for any of them. */}
+            table. There is no server-side filter for any of them.
+
+            Desktop only. FilterBar renders its children a second time inside
+            the mobile disclosure, and that panel is a grid, so `self-center`
+            means nothing there and the marker lands as a full-width row
+            reading "Sahifa 1" wedged between two selects — which parses as a
+            half-rendered filter control rather than as a divider. On a phone
+            the `c('showing', …)` line under the table makes the same point,
+            in a sentence. */}
         <span
-          className="text-[10px] font-bold uppercase tracking-[0.09em] self-center px-1"
+          className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.09em] self-center px-1"
           style={{ color: 'var(--color-text-muted)' }}
         >
           {c('page')} {list.page}

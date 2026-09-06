@@ -2,8 +2,10 @@
 
 import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/ui/Button';
 import { Input } from '@/shared/ui/Input';
+import { Z_DIALOG } from '@/shared/ui/z-layers';
 import { AlertTriangle } from 'lucide-react';
 
 interface ConfirmOptions {
@@ -71,6 +73,14 @@ export function ConfirmProvider({ children }: ConfirmProviderProps) {
   const [mounted, setMounted] = useState(false);
   const promptInputRef = useRef<HTMLInputElement>(null);
 
+  // The dialog's own chrome — its two buttons and the loading/success/error
+  // states — was hardcoded English in a uz/ru/en panel, so the busiest dialog
+  // there is (approve/reject on /listings, which passes no labels at all) put
+  // "Cancel" and "Confirm" under an Uzbek question. The provider sits below
+  // `NextIntlClientProvider`, so the catalogue is available here; call sites
+  // that pass a specific action verb still win over these defaults.
+  const c = useTranslations('common');
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -130,21 +140,29 @@ export function ConfirmProvider({ children }: ConfirmProviderProps) {
             ? {
                 ...prev,
                 type: 'loading',
-                title: prev.options.title ? `${prev.options.title}...` : 'Processing...',
+                title: prev.options.title ? `${prev.options.title}...` : c('loading'),
               }
             : null
         );
 
-        modalState.resolveBoolean?.(true);
         await confirmOpts.onConfirm!();
+        // Resolved only now that the work has actually succeeded. This used to
+        // resolve `true` *before* the await, which left the `resolve(false)` in
+        // the catch below landing on an already-settled promise — a caller
+        // written as `if (await confirm({ onConfirm: doDelete })) { ... }` ran
+        // its success branch even when the delete threw.
+        modalState.resolveBoolean?.(true);
 
         setModalState((prev) =>
           prev
             ? {
                 ...prev,
                 type: 'success',
-                title: 'Success',
-                message: 'Operation completed successfully.',
+                title: c('success'),
+                // The catalogue carries no sentence-length success string, and
+                // the ring plus the title already say it — better an empty body
+                // than an English one in a panel that is otherwise translated.
+                message: '',
               }
             : null
         );
@@ -155,10 +173,8 @@ export function ConfirmProvider({ children }: ConfirmProviderProps) {
             ? {
                 ...prev,
                 type: 'error',
-                title: 'Error',
-                message:
-                  (err instanceof Error && err.message) ||
-                  'An unexpected error occurred.',
+                title: c('error'),
+                message: (err instanceof Error && err.message) || c('error'),
               }
             : null
         );
@@ -172,8 +188,16 @@ export function ConfirmProvider({ children }: ConfirmProviderProps) {
   return (
     <ConfirmContext.Provider value={{ confirm, prompt }}>
       {children}
+      {/* The literal `z-[999999]` the portal below used to carry was a number
+          picked to beat the mobile dock, and it beat the toast layer with it —
+          so an error raised while this dialog was open was painted under its
+          own blurred backdrop. `Z_DIALOG` is the 100000 every other dialog
+          uses: still above the dock, now correctly below a toast. */}
       {modalState && mounted && createPortal(
-        <div className="fixed inset-0 z-[999999] flex items-center justify-center md:p-4">
+        <div
+          className="fixed inset-0 flex items-center justify-center md:p-4"
+          style={{ zIndex: Z_DIALOG }}
+        >
           <div
             className="absolute inset-0 transition-opacity duration-300"
             style={{
@@ -281,7 +305,9 @@ export function ConfirmProvider({ children }: ConfirmProviderProps) {
                 {modalState.type === 'confirm' ? (
                   <div className="flex gap-2">
                     <Button variant="ghost" className="flex-1 text-xs" type="button" onClick={handleClose}>
-                      {modalState.options.cancelLabel || 'Cancel'}
+                      {/* `||`, not `??`: a call site that passes an empty label
+                          gets the catalogue default rather than a blank button. */}
+                      {modalState.options.cancelLabel || c('cancel')}
                     </Button>
                     <Button
                       variant={'isDestructive' in modalState.options && modalState.options.isDestructive ? 'danger' : 'primary'}
@@ -289,13 +315,13 @@ export function ConfirmProvider({ children }: ConfirmProviderProps) {
                       type="button"
                       onClick={handleConfirm}
                     >
-                      {modalState.options.confirmLabel || 'Confirm'}
+                      {modalState.options.confirmLabel || c('confirm')}
                     </Button>
                   </div>
                 ) : modalState.type === 'prompt' ? (
                   <div className="flex gap-2">
                     <Button variant="ghost" className="flex-1 text-xs" type="button" onClick={handleClose}>
-                      {modalState.options.cancelLabel || 'Cancel'}
+                      {modalState.options.cancelLabel || c('cancel')}
                     </Button>
                     <Button
                       variant="primary"
@@ -303,7 +329,9 @@ export function ConfirmProvider({ children }: ConfirmProviderProps) {
                       type="button"
                       onClick={handleConfirm}
                     >
-                      {modalState.options.confirmLabel || 'OK'}
+                      {/* `common` has no `ok` key in any of the three
+                          catalogues, and confirm reads the same on a prompt. */}
+                      {modalState.options.confirmLabel || c('confirm')}
                     </Button>
                   </div>
                 ) : (
@@ -313,7 +341,7 @@ export function ConfirmProvider({ children }: ConfirmProviderProps) {
                     type="button"
                     onClick={handleClose}
                   >
-                    {modalState.options.confirmLabel || 'Close'}
+                    {modalState.options.confirmLabel || c('close')}
                   </Button>
                 )}
               </div>

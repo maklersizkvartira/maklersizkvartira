@@ -12,6 +12,7 @@ import type { AdminAiMessageRow, AdminAiSessionRow } from '@/shared/api/types';
 import { shortId } from '@/shared/lib/mask';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { Spinner } from '@/shared/ui/Spinner';
+import { Z_DIALOG } from '@/shared/ui/z-layers';
 
 /**
  * One Uyiz AI conversation, read end to end.
@@ -84,8 +85,22 @@ export function AiTranscriptSheet({ session, onClose }: AiTranscriptSheetProps) 
 
   const who = session.userName ?? session.guestLabel ?? c('unknown');
 
+  /*
+   * `Z_DIALOG`, not the literal `z-[999999]` this used to carry.
+   *
+   * That number was picked to beat the mobile dock (99999) and beat everything
+   * else with it. The shared `Select` portals its dropdown to `document.body`
+   * at `Z_DIALOG_POPOVER` (100001), so a dropdown opened from inside this
+   * sheet was painted UNDERNEATH the sheet and its opaque blurred backdrop:
+   * the options were invisible, and a tap where they should have been hit the
+   * backdrop and closed the whole form. Toasts sit just above that, so an
+   * error raised while this was open was invisible too.
+   */
   return createPortal(
-    <div className="fixed inset-0 z-[999999] flex items-center justify-center md:p-4">
+    <div
+      className="fixed inset-0 flex items-center justify-center md:p-4"
+      style={{ zIndex: Z_DIALOG }}
+    >
       <button
         type="button"
         aria-label={c('close')}

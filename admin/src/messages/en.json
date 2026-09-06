@@ -115,7 +115,8 @@
       "rateLimited": "Too many attempts. Please wait a moment.",
       "forbidden": "Access from this IP is not allowed",
       "network": "Could not reach the server",
-      "unknown": "Unknown error"
+      "unknown": "Unknown error",
+      "sessionNotStored": "Signed in, but the session could not be stored in this browser. Reload the page and try again."
     }
   },
   "dashboard": {
@@ -754,6 +755,20 @@
     "userRole": "Role",
     "userPhone": "Phone",
     "statusChanged": "Support ticket status updated",
-    "replySent": "Reply sent to customer"
+    "replySent": "Reply sent to customer",
+    "errors": {
+      "conversations": "Could not load the list of conversations",
+      "messages": "Could not load the conversation's messages",
+      "send": "Could not send the message",
+      "status": "Could not change the status"
+    },
+    "refresh": "Refresh",
+    "back": "Back",
+    "senderYou": "You",
+    "senderOperator": "Operator (you)",
+    "quick1": "Hello! How can we help you?",
+    "quick2": "We have received your message. We will look into it and reply shortly.",
+    "quick3": "Please send the title or the ID of your listing.",
+    "quick4": "The problem has been resolved. Thank you for using our platform!"
   }
 }

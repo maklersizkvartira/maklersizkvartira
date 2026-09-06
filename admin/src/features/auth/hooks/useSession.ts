@@ -57,10 +57,26 @@ export function useSession() {
       const account = await getMe();
       setAuth(account, getAccessToken()!);
     } catch (error) {
-      // status 0 is the client's own marker for "the request never reached the
-      // server" — offline, DNS, a blocked preflight or our timeout.
-      if (error instanceof ApiError && error.status === 0) setStatus('error');
-      else clearAuth();
+      // Only the server actually refusing the session ends it.
+      //
+      // This used to clear on everything except status 0, so a 500 from
+      // `/admin/auth/me`, a 502 from an API restarting behind the proxy or a
+      // 503 during a deploy all read as "you are signed out" — while the
+      // refresh cookie was still perfectly valid. `clearAuth` sends the shell
+      // to /login, the middleware sees that cookie and bounces it straight
+      // back to /dashboard, and the bootstrap has already run: the tab sat on
+      // the splash for ever, with no error, no retry and no reachable sign-in
+      // page. A transient 5xx locked an administrator out of the panel until
+      // they knew to hand-edit the URL.
+      //
+      // 401 and 403 are the two the server uses to say no. Everything else —
+      // including status 0, the client's own marker for a request that never
+      // reached the server at all — is an outage, and an outage is retryable.
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        clearAuth();
+      } else {
+        setStatus('error');
+      }
     }
   }, [clearAuth, setAuth, setStatus]);
 

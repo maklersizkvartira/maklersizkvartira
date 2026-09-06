@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations, useLocale } from 'next-intl';
-import { Moon, Palette, Sun } from 'lucide-react';
+import { AlertTriangle, Moon, Palette, Sun } from 'lucide-react';
 
 import { http } from '@/shared/lib/http';
 import { api } from '@/shared/api/endpoints';
@@ -85,7 +85,14 @@ export default function SettingsPage() {
             <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
               {t('monetization')}
             </h2>
-            {!monetization.isLoading && (
+            {/* Only a read that actually succeeded may draw this pill. The card
+                used to render it whenever `isLoading` was false, and
+                `monetizationOn` is `data?.is_monetization_enabled === true`, so
+                a failed /settings — undefined data — printed a confident "off"
+                for a platform that may well be billing. A network error is not
+                a product state; the error branch below says so and offers the
+                retry, exactly as the dashboard's MonetizationCard does. */}
+            {monetization.isSuccess && (
               <StatusPill
                 status={monetizationOn ? 'ACTIVE' : 'ARCHIVED'}
                 label={monetizationOn ? d('monetizationOn') : d('monetizationOff')}
@@ -95,6 +102,25 @@ export default function SettingsPage() {
           <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
             {t('monetizationDescription')}
           </p>
+          {monetization.isError && (
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <p
+                role="alert"
+                className="flex items-center gap-2 text-xs"
+                style={{ color: 'var(--color-danger)' }}
+              >
+                <AlertTriangle size={14} aria-hidden="true" />
+                {c('error')}
+              </p>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void monetization.refetch()}
+              >
+                {c('retry')}
+              </Button>
+            </div>
+          )}
         </section>
 
         {/* ── Appearance ─────────────────────────────────────────────────── */}

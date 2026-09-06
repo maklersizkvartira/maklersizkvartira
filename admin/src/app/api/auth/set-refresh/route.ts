@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { REFRESH_COOKIE, refreshCookieOptions } from '../cookie';
+import { isSameOrigin } from '../same-origin';
 
 /**
  * Park the refresh token the login response returned into an httpOnly cookie.
@@ -10,6 +11,13 @@ import { REFRESH_COOKIE, refreshCookieOptions } from '../cookie';
  * it is discarded immediately afterwards.
  */
 export async function POST(req: NextRequest) {
+  // Before anything reads the body. See `isSameOrigin`: without this, any page
+  // on the web could POST here and plant its own refresh token as this
+  // browser's session.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ code: 'forbidden_origin' }, { status: 403 });
+  }
+
   const { refresh } = (await req.json().catch(() => ({}))) as { refresh?: string };
 
   if (!refresh) {

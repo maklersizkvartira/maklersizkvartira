@@ -38,8 +38,16 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     hydrateSidebar();
   }, [hydrateSidebar]);
 
+  // `?reauth=1`, not a bare /login.
+  //
+  // We only reach here once the session has genuinely been refused, which
+  // means the refresh cookie in the browser is stale — and the middleware
+  // redirects /login to /dashboard for as long as that cookie exists. A bare
+  // /login therefore bounced straight back here and the shell sat on its own
+  // splash. `reauth` is the branch in the middleware that deletes the cookie
+  // and then renders the form.
   useEffect(() => {
-    if (status === 'unauthenticated') router.replace('/login');
+    if (status === 'unauthenticated') router.replace('/login?reauth=1');
   }, [status, router]);
 
   // 'unauthenticated' keeps the splash up while the redirect above runs —
@@ -228,7 +236,24 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           minHeight: 'calc(100vh - var(--header-height))',
         }}
       >
-        <div className="px-6 sm:px-10 lg:px-16 py-8 lg:py-12 max-w-[1600px] mx-auto animate-fade-in">
+        {/* The bottom padding is the mobile dock's clearance, reserved once
+            here for every page instead of page by page. The dock is fixed at
+            z-index 99999 and 64px tall, floating 16px (≤640px) to 24px above
+            the bottom edge, so without this the last in-flow element of a long
+            page — on a list page that is the pagination bar — sits underneath
+            it and taps land on the dock, not the arrows. 6rem clears the 88px
+            worst case.
+
+            The breakpoint is 1025px, not `lg:`: the dock's own rule is
+            `@media (max-width: 1024px)`, which still shows it AT 1024px, while
+            Tailwind's `lg:` starts at 1024px too and would take the clearance
+            away exactly there — the width of an iPad in landscape. `min-[1025px]`
+            and the dock's query are disjoint, so neither can overlap the other.
+
+            `env(safe-area-inset-bottom)` resolves to 0 today because no layout
+            exports a viewport with `viewportFit: 'cover'`; it is in the calc so
+            that the home indicator is cleared the moment one does. */}
+        <div className="px-6 sm:px-10 lg:px-16 pt-8 lg:pt-12 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[1025px]:pb-12 max-w-[1600px] mx-auto animate-fade-in">
           {children}
         </div>
       </main>

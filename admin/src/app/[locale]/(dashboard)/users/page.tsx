@@ -20,6 +20,7 @@ import { ListErrorBanner, ListState } from '@/shared/ui/ListState';
 import { Pagination } from '@/shared/ui/Pagination';
 import { StatusPill } from '@/shared/ui/StatusPill';
 import { Avatar } from '@/shared/ui/Avatar';
+import { TOUCH_SELECT } from '@/features/listings/components/moderation-kit';
 
 /**
  * Every account on the platform. The list engine (`useAdminList`) owns the
@@ -152,14 +153,24 @@ export default function UsersPage() {
         resetLabel={c('reset')}
         activeCount={activeCount}
         onReset={list.resetFilters}
+        // Search belongs in `leading`, not among the children: below sm the
+        // children render only inside the open disclosure, and looking an
+        // account up by name or phone is the one thing this screen is for.
+        // `fullWidth` is what makes it stretch, in the row and in the panel.
+        leading={
+          <Input
+            value={list.filters.search}
+            onChange={(e) => list.setFilter('search', e.target.value)}
+            placeholder={t('filters.search')}
+            aria-label={t('filters.search')}
+            fullWidth
+          />
+        }
       >
-        <Input
-          value={list.filters.search}
-          onChange={(e) => list.setFilter('search', e.target.value)}
-          placeholder={t('filters.search')}
-          aria-label={t('filters.search')}
-        />
+        {/* `Select` hardcodes a 36px trigger; TOUCH_SELECT lifts it to 44px on
+            touch widths, the way Listings and Verifications already do. */}
         <Select
+          className={TOUCH_SELECT}
           value={list.filters.role}
           onChange={(value) => list.setFilter('role', value, { immediate: true })}
           placeholder={t('filters.role')}
@@ -169,6 +180,7 @@ export default function UsersPage() {
           ]}
         />
         <Select
+          className={TOUCH_SELECT}
           value={list.filters.status}
           onChange={(value) => list.setFilter('status', value, { immediate: true })}
           placeholder={t('filters.status')}
@@ -178,6 +190,7 @@ export default function UsersPage() {
           ]}
         />
         <Select
+          className={TOUCH_SELECT}
           value={list.filters.hasListings}
           onChange={(value) => list.setFilter('hasListings', value, { immediate: true })}
           placeholder={t('filters.hasListings')}
@@ -188,6 +201,7 @@ export default function UsersPage() {
           ]}
         />
         <Select
+          className={TOUCH_SELECT}
           value={list.filters.sortBy}
           onChange={(value) => list.setFilter('sortBy', value, { immediate: true })}
           placeholder={c('sortBy')}

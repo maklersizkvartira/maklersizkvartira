@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from '@/i18n/routing';
 import { login } from '../api';
 import { useAuthStore } from '@/store/auth.store';
+import { ApiError } from '@/shared/lib/http';
 import type { LoginFormValues } from '../schemas';
 
 /**
@@ -33,11 +34,30 @@ export function useLogin() {
       queryClient.clear();
       setAuth(result.admin, result.accessToken);
 
-      await fetch('/api/auth/set-refresh', {
+      // Checked, not fired and forgotten.
+      //
+      // The cookie this writes is the whole session: the access token lives in
+      // memory and is gone on the next reload, and `proxy.ts` gates every
+      // protected route on the cookie's presence. So a `set-refresh` that
+      // failed — offline for the half-second after the login POST returned, a
+      // 403 from the new same-origin guard, a 500 — used to be swallowed, and
+      // the redirect went ahead anyway: the middleware saw no cookie and sent
+      // the admin straight back to the login form, with correct credentials,
+      // no error, and nothing on screen to explain it. Throwing here puts the
+      // mutation into its error state, which the form already renders.
+      const parked = await fetch('/api/auth/set-refresh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh: result.refreshToken }),
-      });
+      }).catch(() => null);
+
+      if (!parked?.ok) {
+        throw new ApiError(
+          parked?.status ?? 0,
+          'session_not_stored',
+          'The session could not be stored in this browser.',
+        );
+      }
 
       router.replace('/dashboard');
     },

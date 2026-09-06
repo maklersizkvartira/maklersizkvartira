@@ -36,10 +36,40 @@ export function Select({
   const [open, setOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const containerRef = useRef<HTMLDivElement>(null);
+  /**
+   * The option list, so opening can put focus in it.
+   *
+   * Without this the control was not operable by keyboard at all: every option
+   * committed its value from `onMouseDown` and nothing else — no `onClick`, no
+   * key handler — so Enter and Space on a focused option did nothing. And the
+   * list portals to `document.body`, so it is the LAST thing in the document:
+   * a Tab from the trigger did not reach it, it went to whatever followed the
+   * trigger in the page. There was no sequence of keys that could change a
+   * value here.
+   */
+  const listRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const uid = useId();
   const selectId = id ?? uid;
 
   const selected = options.find((o) => o.value === value);
+  /**
+   * Whether the trigger should say what this filter IS rather than what it is
+   * set to.
+   *
+   * Every filter row in the panel passes a `placeholder` naming its field —
+   * "Holat", "Tuman", "Eng kam risk" — and every one of them also carries a
+   * `{ value: '', label: 'Barchasi' }` option for the unfiltered state. So the
+   * placeholder was dead code in all of them: `selected` was always found, its
+   * label always won, and a filter row rendered as four identical unlabelled
+   * "Barchasi" pills with nothing to say which was which.
+   *
+   * An empty value is the neutral state everywhere in this panel, so when it
+   * is the one selected and the caller has said what the field is, the field's
+   * name is the more useful of the two. The option itself keeps its own label
+   * inside the open list, where it reads as a choice rather than a heading.
+   */
+  const showPlaceholder = !selected || (selected.value === '' && Boolean(placeholder));
 
   const updateDropdownPosition = useCallback(() => {
     if (!containerRef.current) return;
@@ -48,6 +78,22 @@ export function Select({
     const spaceBelow = viewportHeight - rect.bottom;
     const dropdownHeight = Math.min(options.length * 40 + 8, 280);
     const openBelow = spaceBelow >= dropdownHeight || spaceBelow > rect.top;
+    // The side we picked also has to cap the height. The 280px above only ever
+    // chose a side: the list itself was then painted at its natural height, so
+    // an 8-option status filter opened from the lower half of a phone ran off
+    // the bottom of the viewport, and because the list is `position: fixed` the
+    // page behind it cannot be scrolled to the options that fell off. The last
+    // two statuses were simply not selectable. 160px keeps four rows visible
+    // even in a cramped spot; the 12px is the 6px gap plus a little breathing
+    // room at the viewport edge.
+    const availableSpace = openBelow ? spaceBelow : rect.top;
+
+    // The list is at least 160px wide whatever the trigger is, so a Select that
+    // has been squeezed narrow near the right-hand edge of a row used to open
+    // partly off-screen — and being `position: fixed`, nothing could scroll it
+    // back. Pinned to the viewport with the same 8px it keeps everywhere else.
+    const width = Math.min(Math.max(rect.width, 160), window.innerWidth - 16);
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
 
     setDropdownStyle({
       position: 'fixed',
@@ -55,8 +101,9 @@ export function Select({
       // can be opened from — a modal or a moderation sheet, both of which sit
       // above the mobile dock. See `z-layers`.
       zIndex: Z_DIALOG_POPOVER,
-      left: rect.left,
-      width: Math.max(rect.width, 160),
+      left,
+      width,
+      maxHeight: Math.max(160, availableSpace - 12),
       ...(openBelow
         ? { top: rect.bottom + 6 }
         : { bottom: viewportHeight - rect.top + 6 }),
@@ -86,13 +133,27 @@ export function Select({
     return () => document.removeEventListener('mousedown', handler);
   }, [open, selectId]);
 
-  // Close on Escape
+  // Close on Escape, and give the keyboard back to the trigger it came from.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key !== 'Escape') return;
+      setOpen(false);
+      triggerRef.current?.focus();
     };
     if (open) document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
+  }, [open]);
+
+  // Opening moves focus into the list, onto the current value. This is what
+  // makes the arrow keys below reachable at all — the list is portalled to the
+  // end of the body, so nothing would otherwise ever tab into it.
+  useEffect(() => {
+    if (!open) return;
+    const list = listRef.current;
+    if (!list) return;
+    const items = list.querySelectorAll<HTMLButtonElement>('button:not([disabled])');
+    const current = list.querySelector<HTMLButtonElement>('button[aria-selected="true"]');
+    (current ?? items[0])?.focus();
   }, [open]);
 
   // Update position on scroll/resize
@@ -109,10 +170,48 @@ export function Select({
 
   const heights = size === 'sm' ? 'h-8 text-xs' : 'h-9 text-sm';
 
+  const commit = (opt: SelectOption) => {
+    if (opt.disabled) return;
+    onChange(opt.value);
+    setOpen(false);
+    triggerRef.current?.focus();
+  };
+
+  /** Arrow keys move focus inside the list; Tab closes it rather than escaping
+   *  into whatever happens to follow the portal at the end of the body. */
+  const onListKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const list = listRef.current;
+    if (!list) return;
+    const items = Array.from(
+      list.querySelectorAll<HTMLButtonElement>('button:not([disabled])'),
+    );
+    if (items.length === 0) return;
+    const index = items.indexOf(document.activeElement as HTMLButtonElement);
+
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      const next = index < 0 ? 0 : (index + step + items.length) % items.length;
+      items[next].focus();
+      return;
+    }
+    if (e.key === 'Home' || e.key === 'End') {
+      e.preventDefault();
+      items[e.key === 'Home' ? 0 : items.length - 1].focus();
+      return;
+    }
+    if (e.key === 'Tab') {
+      setOpen(false);
+      triggerRef.current?.focus();
+    }
+  };
+
   const dropdownEl = open ? (
     <div
+      ref={listRef}
       id={`select-portal-${selectId.replace(/:/g, '')}`}
       role="listbox"
+      onKeyDown={onListKeyDown}
       style={{
         ...dropdownStyle,
         background: 'var(--color-surface)',
@@ -120,7 +219,12 @@ export function Select({
         boxShadow: 'var(--shadow-dropdown)',
         borderRadius: 'var(--radius-lg)',
         padding: '4px 0',
-        overflow: 'hidden',
+        // `auto`, not `hidden`: with a `maxHeight` now set, `hidden` would
+        // clip the overflowing options away instead of letting the admin
+        // reach them. `contain` keeps the flick that scrolls the list from
+        // chaining into the page — or into the dialog — behind it.
+        overflowY: 'auto',
+        overscrollBehavior: 'contain',
         animation: 'fade-in-dropdown 0.15s ease',
       }}
     >
@@ -133,16 +237,28 @@ export function Select({
             role="option"
             aria-selected={isSelected}
             disabled={opt.disabled}
+            // Both. `onMouseDown` is what makes a pointer selection survive
+            // the outside-click handler that would otherwise close the list
+            // first; `onClick` is what a keyboard Enter or Space fires on a
+            // <button>, and it was missing — which is why this control could
+            // not be operated by keyboard at all.
             onMouseDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              if (!opt.disabled) {
-                onChange(opt.value);
-                setOpen(false);
-              }
+              commit(opt);
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              commit(opt);
             }}
             className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left transition-all"
             style={{
+              // A finger needs 44px. The panel's touch-target rule is written
+              // as a direct-child selector, and this list is portalled to the
+              // body, so it never reached these rows — the one part of the
+              // control an admin on a phone actually taps.
+              minHeight: 'var(--select-option-min-h, 36px)',
               background: isSelected ? 'var(--color-info-bg)' : 'transparent',
               color: opt.disabled
                 ? 'var(--color-text-muted)'
@@ -176,6 +292,7 @@ export function Select({
     <div ref={containerRef} className={`relative ${className}`} id={selectId}>
       {/* Trigger */}
       <button
+        ref={triggerRef}
         type="button"
         disabled={disabled}
         onClick={handleOpen}
@@ -188,13 +305,13 @@ export function Select({
         style={{
           background: 'var(--color-surface)',
           border: `1.5px solid ${open ? 'var(--color-brand-500)' : 'var(--color-border)'}`,
-          color: selected ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+          color: showPlaceholder ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
           boxShadow: open ? '0 0 0 3px var(--color-info-border)' : 'none',
         }}
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className="truncate">{selected?.label ?? placeholder}</span>
+        <span className="truncate">{showPlaceholder ? placeholder : selected?.label}</span>
         <ChevronDown
           size={14}
           style={{

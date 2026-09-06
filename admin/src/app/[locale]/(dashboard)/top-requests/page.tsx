@@ -7,7 +7,7 @@ import { ShieldAlert, Star } from 'lucide-react';
 
 import type { AdminTopRequestRow, TopRequestStatus } from '@/shared/api/types';
 import type { TopRequestListParams } from '@/shared/api/endpoints';
-import { useAdminList, countActiveFilters, type AdminFilters } from '@/shared/hooks/useAdminList';
+import { useAdminList, type AdminFilters } from '@/shared/hooks/useAdminList';
 import { useRole } from '@/providers/role-provider';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { FilterBar } from '@/shared/ui/FilterBar';
@@ -35,6 +35,7 @@ import {
   TRANSLATED_TOP_REQUEST_STATUSES,
 } from '@/features/top-requests/constants';
 import { ReviewTopRequestSheet } from '@/features/top-requests/components/ReviewTopRequestSheet';
+import { formatListingPrice } from '@/shared/lib/price';
 
 /**
  * Owners asking for the promoted ("Top") rail.
@@ -70,7 +71,6 @@ export default function TopRequestsPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const numberFormat = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const dateFormat = useMemo(
     () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }),
     [locale],
@@ -111,6 +111,10 @@ export default function TopRequestsPage() {
       toast.success(c('success'));
       setSelectedId(null);
       void queryClient.invalidateQueries({ queryKey: LISTINGS_QUERY_KEY });
+      // `pendingTopRequests` on the dashboard just dropped, and `['stats']` is
+      // cached with the global five-minute staleTime and no refetch on focus,
+      // so nothing else would correct the triage counters.
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
     onError: (error: Error) => toast.error(c('error'), error.message),
   });
@@ -121,6 +125,9 @@ export default function TopRequestsPage() {
       patchTopRequestCache(queryClient, row);
       toast.success(c('success'));
       setSelectedId(null);
+      // A rejection leaves the listing alone but still settles the request, so
+      // `pendingTopRequests` moves and the stats cache has to go with it.
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
     onError: (error: Error) => toast.error(c('error'), error.message),
   });
@@ -150,7 +157,7 @@ export default function TopRequestsPage() {
             <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
               {[
                 row.listingDistrict,
-                row.listingPrice === null ? null : numberFormat.format(row.listingPrice),
+                formatListingPrice(row.listingPrice, row.listingCurrency, locale),
               ]
                 .filter(Boolean)
                 .join(' · ') || c('unknown')}
@@ -228,6 +235,19 @@ export default function TopRequestsPage() {
     );
   }
 
+  /**
+   * How far the view has moved from its default, for FilterBar's badge and the
+   * reset control it gates.
+   *
+   * Not `countActiveFilters`: that helper drops empty values before it ever
+   * compares them against `initial`, and this is the one queue whose default
+   * is not empty. Picking "All" sets status to '' and was therefore reported
+   * as zero active filters — so the badge went blank and the reset affordance
+   * disappeared exactly when the moderator had left the PENDING queue, which
+   * on a phone is the only way back to it.
+   */
+  const activeCount = list.filters.status === INITIAL.status ? 0 : 1;
+
   return (
     <div>
       <PageHeader title={t('title')} subtitle={t('subtitle')} />
@@ -235,7 +255,7 @@ export default function TopRequestsPage() {
       <FilterBar
         label={c('filters')}
         resetLabel={c('reset')}
-        activeCount={countActiveFilters(list.filters, INITIAL)}
+        activeCount={activeCount}
         onReset={list.resetFilters}
       >
         <Select

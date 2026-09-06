@@ -82,23 +82,53 @@ const DEFAULT_TIMEOUT_MS = 60_000;
  */
 let _accessToken: string | null = null;
 
+/*
+   Both functions used to mirror the token into `localStorage` under
+   `uyiz_admin_access_token` and read it back on a cold module — the exact
+   opposite of what the paragraph above claims, and of what `auth.store.ts`,
+   `useLogin` and `useSession` all promise in their own comments. The write is
+   gone. A staff bearer token is the credential behind `DELETE /admin/users/{id}`
+   and every moderation action; persisted, it sat under a guessable key, outlived
+   the tab and the browser restart, and was one `getItem` away from any script
+   that ever got injected into the page.
+
+   Nothing is lost by dropping it: a reload restores the session through the
+   refresh cookie, which is what `useSession`'s bootstrap and the whole refresh
+   section below exist for. The one real behaviour change is that a cold load is
+   no longer able to reuse a cached token when the refresh cookie is already
+   gone — correct, because that cookie's one-day life (see
+   `app/api/auth/cookie.ts`) is the actual session length, not the half hour the
+   access token happened to be cached for. It also removes a wasted round trip:
+   `useSession` guards its bootstrap on `!getAccessToken()`, so a persisted and
+   possibly long-expired token used to skip the refresh and buy a guaranteed 401
+   on every cold start. */
 export function setAccessToken(token: string | null) {
   _accessToken = token;
-  if (typeof window !== 'undefined') {
-    try {
-      if (token) localStorage.setItem('uyiz_admin_access_token', token);
-      else localStorage.removeItem('uyiz_admin_access_token');
-    } catch {}
-  }
 }
 
 export function getAccessToken(): string | null {
-  if (!_accessToken && typeof window !== 'undefined') {
-    try {
-      _accessToken = localStorage.getItem('uyiz_admin_access_token');
-    } catch {}
-  }
   return _accessToken;
+}
+
+/**
+ * A one-off purge of the tokens the write removed above already left behind in
+ * admins' browsers. Deleting the code stops new ones being stored but does
+ * nothing about the ones already there, and those stay readable forever — the
+ * same exposure, just frozen. Every browser clears its own the first time it
+ * loads this bundle.
+ *
+ * Delete this block, and the constant, once every browser has loaded a bundle
+ * carrying it at least once; the same reasoning as the rename window further
+ * down applies.
+ */
+const PERSISTED_TOKEN_KEY = 'uyiz_admin_access_token';
+
+if (typeof window !== 'undefined') {
+  try {
+    window.localStorage.removeItem(PERSISTED_TOKEN_KEY);
+  } catch {
+    /* site data blocked — then there is nothing stored for a script to read */
+  }
 }
 
 // ─── Language ─────────────────────────────────────────────────────────────────
@@ -144,6 +174,15 @@ function loginUrl(): string {
  * the same tab.
  */
 export async function endSession(): Promise<void> {
+  // Read the token BEFORE anything drops it. `/api/auth/logout` only relays to
+  // the backend when an Authorization header is present, and this path used to
+  // send none — it had nulled the token two lines earlier. The cookie was
+  // cleared locally while `token_version` was never bumped, so on the "refresh
+  // rejected" teardown every access token the account still held on another
+  // device stayed live until it expired on its own. `useLogout` forwards it
+  // correctly; this path simply forgot to.
+  const token = getAccessToken();
+
   setAccessToken(null);
   try {
     const { useAuthStore } = await import('@/store/auth.store');
@@ -151,7 +190,10 @@ export async function endSession(): Promise<void> {
   } catch {}
 
   try {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
   } catch {}
 
   if (typeof window !== 'undefined' && !window.location.pathname.endsWith('/login')) {

@@ -63,6 +63,7 @@ export function mergeTopRequestRow(
     listingImage: next.listingImage ?? previous.listingImage,
     listingDistrict: next.listingDistrict ?? previous.listingDistrict,
     listingPrice: next.listingPrice ?? previous.listingPrice,
+    listingCurrency: next.listingCurrency ?? previous.listingCurrency,
   };
 }
 

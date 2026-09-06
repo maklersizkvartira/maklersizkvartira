@@ -50,6 +50,16 @@ const SEVERITIES: AuditSeverity[] = ['INFO', 'NOTICE', 'WARNING', 'CRITICAL'];
  */
 const ACTOR_TYPES: ActorType[] = ['USER', 'ADMIN', 'SYSTEM', 'ANONYMOUS'];
 
+/**
+ * `AuditFilters.actor_id` is typed `uuid.UUID` on the backend, unlike
+ * `entity_id` beside it which is a plain `str`. FastAPI therefore answers 422
+ * for anything that is not a well-formed UUID, and react-query never retries a
+ * 4xx — so a half-typed id used to replace the whole 25-row feed with a red
+ * error card and leave it there, where the reader expected "no rows matched".
+ * Nothing that fails this test is ever sent.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 interface AuditFilterState extends AdminFilters {
   search: string;
   action: string;
@@ -96,11 +106,24 @@ function utcEnd(day: string): string | undefined {
 export default function AuditPage() {
   const t = useTranslations('audit');
   const c = useTranslations('common');
+  // `te`, not the `e` the other pages use: every input on this screen already
+  // names its change event `e`, and a translator shadowed six times over is a
+  // trap for whoever edits one of those handlers next.
+  const te = useTranslations('errors');
   const ta = useTranslations('auditActions');
   const td = useTranslations('dashboard');
   const locale = useLocale();
 
   const [selected, setSelected] = useState<AuditLogRow | null>(null);
+
+  /**
+   * The Actor ID box types freely and commits only what the backend can parse.
+   * It needs its own draft state precisely because the committed filter is not
+   * always what is on screen: a partial UUID stays visible, flagged, while the
+   * feed goes back to unfiltered rather than to an error card.
+   */
+  const [actorIdDraft, setActorIdDraft] = useState('');
+  const actorIdInvalid = actorIdDraft !== '' && !UUID_RE.test(actorIdDraft);
 
   const timeFormat = useMemo(
     () => new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' }),
@@ -253,7 +276,13 @@ export default function AuditPage() {
         label={c('filters')}
         resetLabel={c('reset')}
         activeCount={activeCount}
-        onReset={list.resetFilters}
+        // Actor ID keeps its text outside the list's filter state, so Reset has
+        // to clear both or the box would still show an id it is no longer
+        // filtering by.
+        onReset={() => {
+          setActorIdDraft('');
+          list.resetFilters();
+        }}
         leading={
           <Input
             value={list.filters.search}
@@ -316,10 +345,18 @@ export default function AuditPage() {
           className="sm:w-44"
         />
         <Input
-          value={list.filters.actorId}
-          onChange={(e) => list.setFilter('actorId', e.target.value)}
+          value={actorIdDraft}
+          onChange={(e) => {
+            const value = e.target.value;
+            setActorIdDraft(value);
+            // Anything that is not a UUID would come back 422 and take the
+            // whole feed down with it, so it is simply not committed — the
+            // inline error says why the box is not filtering anything.
+            list.setFilter('actorId', UUID_RE.test(value) ? value : '');
+          }}
           placeholder={t('filters.actorId')}
           aria-label={t('filters.actorId')}
+          error={actorIdInvalid ? te('validation') : undefined}
           className="sm:w-44"
         />
         <Input
@@ -327,7 +364,11 @@ export default function AuditPage() {
           onChange={(e) => list.setFilter('ip', e.target.value)}
           placeholder={t('filters.ip')}
           aria-label={t('filters.ip')}
-          inputMode="numeric"
+          // Not `numeric`: that opens the digits-only keypad on iOS, with no
+          // dot, no colon and no letters, so an IPv4 address cannot be typed on
+          // a phone at all and an IPv6 one nowhere. The backend matches this
+          // field with an ilike substring, not as a number.
+          inputMode="text"
           className="sm:w-36"
         />
 
@@ -411,6 +452,7 @@ export default function AuditPage() {
         row={selected}
         onClose={() => setSelected(null)}
         actionLabel={selected ? actionLabel(selected.action) : ''}
+        severityLabel={selected ? severityLabel(selected.severity) : ''}
       />
     </div>
   );

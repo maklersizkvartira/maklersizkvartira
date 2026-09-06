@@ -248,6 +248,27 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userRef = useRef<HTMLDivElement>(null);
 
+  /** `sidebarCollapsed` is a per-device localStorage flag, but the collapsed
+   *  treatment is desktop-only: every rule that makes 80px readable — hiding
+   *  the brand copy, the nav labels and the group headings, re-centring the
+   *  nav items — lives inside `@media (min-width: 1024px)` in globals.css. An
+   *  iPad that collapsed the rail in landscape and then rotated used to open
+   *  the mobile drawer at 80px with all the 260px-designed labels still in it.
+   *  Nothing resets the flag on resize, so the width has to ask where it is.
+   *  Read after mount, never during render, so the server HTML and the first
+   *  client pass agree — the same rule the remembered width itself follows. */
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const sync = () => setIsDesktop(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+
+  const railCollapsed = sidebarCollapsed && isDesktop;
+
   // ── Apple Glass Dock Drag State ──
   const [isDragging, setIsDragging] = useState(false);
   const [dragPos, setDragPos] = useState<number | null>(null);
@@ -270,16 +291,28 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
     items: group.items.filter((item) => atLeast(role, ROUTE_MIN_ROLE[item.href] ?? 'MODERATOR')),
   })).filter((group) => group.items.length > 0);
 
-  const dockActiveIndex = Math.max(0, DOCK_ROUTES.findIndex(isCurrent));
+  /** -1 on the eight routes the dock does not cover (/audit, /staff, /support,
+   *  /top-requests, /verifications, /security, /sms, /ai). It used to be
+   *  clamped to 0 right here, which handed `data-active` to the Dashboard item
+   *  on those pages — and `.apple-glass-item[data-active="true"]` sets
+   *  `pointer-events: none`, so the one dock button that could take a
+   *  moderator home was dead on eight of thirteen screens. */
+  const rawIndex = DOCK_ROUTES.findIndex(isCurrent);
 
-  const currentIndex = pending && pending.from === pathname ? pending.index : dockActiveIndex;
+  /** The flicked-to slot wins until the pathname catches up; still -1 off-dock,
+   *  where no item should claim to be active. */
+  const activeIndex = pending && pending.from === pathname ? pending.index : rawIndex;
+
+  /** The thumb is a resting position, not a claim about the current page, so it
+   *  — and only it — keeps the clamp: off-dock it parks over the first slot. */
+  const thumbIndex = Math.max(0, activeIndex);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
     setIsDragging(true);
     startXRef.current = e.clientX;
-    startIndexRef.current = dockActiveIndex;
-    setDragPos(dockActiveIndex * DOCK_STRIDE);
+    startIndexRef.current = thumbIndex;
+    setDragPos(thumbIndex * DOCK_STRIDE);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -302,7 +335,10 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
       const targetIndex = Math.round(dragPos / DOCK_STRIDE);
       setDragPos(null);
       setPending({ index: targetIndex, from: pathname });
-      if (targetIndex !== dockActiveIndex) {
+      // Compared against the unclamped index on purpose: off-dock `rawIndex` is
+      // -1, so a flick into slot 0 still pushes /dashboard, while on /dashboard
+      // itself it is 0 and the redundant same-route push is still swallowed.
+      if (targetIndex !== rawIndex) {
         router.push(DOCK_ROUTES[targetIndex] ?? DOCK_ROUTES[0]);
       }
     }
@@ -343,7 +379,7 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
         className="sidebar-panel fixed left-0 top-0 bottom-0 z-40 flex flex-col overflow-visible transition-transform duration-300 ease-in-out"
         data-sidebar-collapsed={sidebarCollapsed}
         style={{
-          width: sidebarCollapsed ? '80px' : '260px',
+          width: railCollapsed ? '80px' : '260px',
           background: 'var(--color-surface)',
           borderRight: '1px solid var(--color-border)',
           boxShadow: 'var(--shadow-sidebar)',
@@ -351,13 +387,13 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
       >
         {/* Header */}
         <div
-          className={`flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} shrink-0 transition-all duration-300`}
+          className={`flex items-center ${railCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} shrink-0 transition-all duration-300`}
           style={{ height: 'var(--header-height)', borderBottom: '1px solid var(--color-border)' }}
         >
           <div
-            onClick={() => sidebarCollapsed && setSidebarCollapsed(false)}
-            title={sidebarCollapsed ? t('expand') : ''}
-            className={`w-10 h-10 flex-center rounded-[14px] shrink-0 transition-transform duration-300 hover:scale-105 ${sidebarCollapsed ? 'cursor-pointer' : ''}`}
+            onClick={() => railCollapsed && setSidebarCollapsed(false)}
+            title={railCollapsed ? t('expand') : ''}
+            className={`w-10 h-10 flex-center rounded-[14px] shrink-0 transition-transform duration-300 hover:scale-105 ${railCollapsed ? 'cursor-pointer' : ''}`}
             style={{
               background: '#ffffff',
               boxShadow: '0 4px 12px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.05) inset',
@@ -366,7 +402,7 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
             <Image src="/brand/mark-lockup@2x.png" alt="Uyiz" width={152} height={192} className="h-7 w-auto" priority />
           </div>
 
-          {!sidebarCollapsed && (
+          {!railCollapsed && (
             <div className="sidebar-brand-copy min-w-0 flex-1 animate-fade-in">
               <Wordmark height={17} style={{ color: 'var(--color-text-primary)' }} />
               {/* Left untranslated on purpose: this line is the second half of
@@ -378,7 +414,7 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
             </div>
           )}
 
-          {!sidebarCollapsed && (
+          {!railCollapsed && (
             <button
               onClick={() => setSidebarCollapsed(true)}
               title={t('collapse')}
@@ -424,7 +460,7 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
                         {t(key as Parameters<typeof t>[0])}
                       </span>
                       {/* Floating tooltip in collapsed mode */}
-                      {sidebarCollapsed && (
+                      {railCollapsed && (
                         <div className="absolute left-[54px] rounded-lg px-2.5 py-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] text-xs font-semibold text-[var(--color-text-primary)] shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 z-50 whitespace-nowrap">
                           {t(key as Parameters<typeof t>[0])}
                         </div>
@@ -444,14 +480,14 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
           {/* Toolbar & User Area */}
           <div className="px-3 space-y-2">
             {/* The Capsule Toolbar */}
-            <div className={`sidebar-footer-toolbar flex ${sidebarCollapsed ? 'flex-col w-11 p-1 mx-auto rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)] shadow-inner gap-1' : 'items-center justify-center gap-0.5 px-1 pb-1'} transition-all duration-300`}>
+            <div className={`sidebar-footer-toolbar flex ${railCollapsed ? 'flex-col w-11 p-1 mx-auto rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)] shadow-inner gap-1' : 'items-center justify-center gap-0.5 px-1 pb-1'} transition-all duration-300`}>
               <button
                 onClick={toggleTheme}
                 title={t('theme')}
                 className="icon-btn flex group relative w-9 h-9 rounded-full"
               >
                 {theme === 'light' ? Icons.moon : Icons.sun}
-                {sidebarCollapsed && (
+                {railCollapsed && (
                   <div className="absolute left-[48px] rounded-lg px-2 py-1 bg-[var(--color-surface)] border border-[var(--color-border)] text-[11px] font-semibold text-[var(--color-text-primary)] shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 z-50 whitespace-nowrap">
                     {t('theme')}
                   </div>
@@ -464,7 +500,7 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
                 className={`icon-btn flex group relative w-9 h-9 rounded-full ${paletteOpen ? 'icon-btn-active' : ''}`}
               >
                 {Icons.palette}
-                {sidebarCollapsed && (
+                {railCollapsed && (
                   <div className="absolute left-[48px] rounded-lg px-2 py-1 bg-[var(--color-surface)] border border-[var(--color-border)] text-[11px] font-semibold text-[var(--color-text-primary)] shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 z-50 whitespace-nowrap">
                     {t('appearance')}
                   </div>
@@ -478,7 +514,7 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
                 className="icon-btn flex group relative w-9 h-9 rounded-full"
               >
                 {Icons.settings}
-                {sidebarCollapsed && (
+                {railCollapsed && (
                   <div className="absolute left-[48px] rounded-lg px-2 py-1 bg-[var(--color-surface)] border border-[var(--color-border)] text-[11px] font-semibold text-[var(--color-text-primary)] shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 z-50 whitespace-nowrap">
                     {t('settings')}
                   </div>
@@ -490,7 +526,7 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
             <div ref={userRef} className="relative">
               {userMenuOpen && (
                 <div
-                  className={`absolute bottom-full ${sidebarCollapsed ? 'left-12 w-60 mb-1' : 'left-0 right-0 mb-2'} rounded-[var(--radius-lg)] py-1.5 z-50 animate-scale-in`}
+                  className={`absolute bottom-full ${railCollapsed ? 'left-12 w-60 mb-1' : 'left-0 right-0 mb-2'} rounded-[var(--radius-lg)] py-1.5 z-50 animate-scale-in`}
                   style={{
                     background: 'var(--color-surface)',
                     border: '1px solid var(--color-border)',
@@ -540,7 +576,7 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
 
               <button
                 onClick={() => {
-                  if (sidebarCollapsed) {
+                  if (railCollapsed) {
                     setSidebarCollapsed(false);
                     setUserMenuOpen(true);
                   } else {
@@ -567,7 +603,7 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
                   {Icons.chevron(userMenuOpen)}
                 </span>
                 {/* Tooltip for User Profile */}
-                {sidebarCollapsed && (
+                {railCollapsed && (
                   <div className="absolute left-[54px] rounded-lg px-2.5 py-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] text-xs font-semibold text-[var(--color-text-primary)] shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 z-50 whitespace-nowrap">
                     {displayName} ({t('settings')} / {t('signOut')})
                   </div>
@@ -585,7 +621,7 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
           <div
             className="apple-glass-thumb"
             style={{
-              transform: `translateX(${dragPos !== null ? dragPos : currentIndex * DOCK_STRIDE}px)`,
+              transform: `translateX(${dragPos !== null ? dragPos : thumbIndex * DOCK_STRIDE}px)`,
               transition: isDragging ? 'none' : 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1)',
             }}
             onPointerDown={handlePointerDown}
@@ -594,13 +630,13 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
             onPointerCancel={handlePointerUp}
           />
 
-          <Link href="/dashboard" className="apple-glass-item" aria-label={t('dashboard')} data-active={currentIndex === 0}>
+          <Link href="/dashboard" className="apple-glass-item" aria-label={t('dashboard')} data-active={activeIndex === 0}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
               <path d="M11.47 3.84a.75.75 0 0 1 1.06 0l8.25 8.25a.75.75 0 1 1-1.06 1.06l-.72-.72V20.25a1.75 1.75 0 0 1-1.75 1.75h-3.5a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 0-.75-.75h-1.5a.75.75 0 0 0-.75.75v4.5a.75.75 0 0 1-.75.75h-3.5a1.75 1.75 0 0 1-1.75-1.75V12.43l-.72.72a.75.75 0 1 1-1.06-1.06l8.25-8.25Z" />
             </svg>
           </Link>
 
-          <Link href="/listings" className="apple-glass-item" aria-label={t('listings')} data-active={currentIndex === 1}>
+          <Link href="/listings" className="apple-glass-item" aria-label={t('listings')} data-active={activeIndex === 1}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 21h18" />
               <path d="M5 21V7.5L12 3l7 4.5V21" />
@@ -608,21 +644,21 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
             </svg>
           </Link>
 
-          <Link href="/reports" className="apple-glass-item" aria-label={t('reports')} data-active={currentIndex === 2}>
+          <Link href="/reports" className="apple-glass-item" aria-label={t('reports')} data-active={activeIndex === 2}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4.5 22V3.4" />
               <path d="M4.5 4.2A6 6 0 0 1 8 3c3 0 5 2 8 2a6 6 0 0 0 2.6-.6.5.5 0 0 1 .7.5v9.3a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-3.5 1.2" />
             </svg>
           </Link>
 
-          <Link href="/users" className="apple-glass-item" aria-label={t('users')} data-active={currentIndex === 3}>
+          <Link href="/users" className="apple-glass-item" aria-label={t('users')} data-active={activeIndex === 3}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="8" r="4" />
               <path d="M4.5 21a7.5 7.5 0 0 1 15 0" />
             </svg>
           </Link>
 
-          <Link href="/settings" className="apple-glass-item" aria-label={t('settings')} data-active={currentIndex === 4}>
+          <Link href="/settings" className="apple-glass-item" aria-label={t('settings')} data-active={activeIndex === 4}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />

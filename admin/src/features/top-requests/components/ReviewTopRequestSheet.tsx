@@ -27,6 +27,7 @@ import {
 
 import { isTopLive } from '../api';
 import { TOP_REJECTION_REASON_MAX } from '../constants';
+import { formatListingPrice } from '@/shared/lib/price';
 
 /**
  * One Top request and the single call that settles it.
@@ -84,7 +85,6 @@ export function ReviewTopRequestSheet({
   const [weight, setWeight] = useState(String(FEATURE_WEIGHT_DEFAULT));
   const [reason, setReason] = useState(row.rejectionReason ?? '');
 
-  const numberFormat = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const dateFormat = useMemo(
     () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }),
     [locale],
@@ -188,7 +188,7 @@ export function ReviewTopRequestSheet({
             <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
               {[
                 row.listingDistrict,
-                row.listingPrice === null ? null : numberFormat.format(row.listingPrice),
+                formatListingPrice(row.listingPrice, row.listingCurrency, locale),
               ]
                 .filter(Boolean)
                 .join(' · ') || c('unknown')}

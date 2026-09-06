@@ -9,6 +9,7 @@ import type { AdminRole, CreateStaffPayload } from '@/shared/api/types';
 import { Button } from '@/shared/ui/Button';
 import { Input } from '@/shared/ui/Input';
 import { Select } from '@/shared/ui/Select';
+import { Z_DIALOG } from '@/shared/ui/z-layers';
 
 /**
  * The only way to add a staff account, and the only staff form that exists —
@@ -91,8 +92,22 @@ export function CreateStaffSheet({ open, onClose, pending, onSubmit }: CreateSta
     });
   };
 
+  /*
+   * `Z_DIALOG`, not the literal `z-[999999]` this used to carry.
+   *
+   * That number was picked to beat the mobile dock (99999) and beat everything
+   * else with it. The shared `Select` portals its dropdown to `document.body`
+   * at `Z_DIALOG_POPOVER` (100001), so a dropdown opened from inside this
+   * sheet was painted UNDERNEATH the sheet and its opaque blurred backdrop:
+   * the options were invisible, and a tap where they should have been hit the
+   * backdrop and closed the whole form. Toasts sit just above that, so an
+   * error raised while this was open was invisible too.
+   */
   return createPortal(
-    <div className="fixed inset-0 z-[999999] flex items-center justify-center md:p-4">
+    <div
+      className="fixed inset-0 flex items-center justify-center md:p-4"
+      style={{ zIndex: Z_DIALOG }}
+    >
       <button
         type="button"
         aria-label={c('close')}

@@ -22,7 +22,7 @@ export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [remaining, setRemaining] = useState(0);
+  const [ticked, setTicked] = useState(0);
 
   /* ── Backend error codes ──────────────────────────────────────────────────
      The API answers a refused login with a machine-readable code and, for the
@@ -43,15 +43,38 @@ export default function LoginPage() {
         ? (apiError?.retryAfter ?? params.retry_after ?? 0)
         : 0;
 
+  /**
+   * How long the door stays shut, counted against the clock rather than down.
+   *
+   * Two things were wrong with the counter this replaces. It seeded itself
+   * with `setRemaining(lockSeconds)` inside the effect body — a cascading
+   * render, and the ESLint error that made `npm run lint` exit non-zero for
+   * the whole admin app. And it only ever decremented, one per interval tick:
+   * `setInterval` is throttled to a crawl and often suspended outright in a
+   * backgrounded tab, so on a phone the form went on saying "wait 2:14"
+   * minutes after the lock had actually expired, with no way to find out
+   * except by trying.
+   *
+   * The deadline is captured on the first tick instead of here, because
+   * reading a clock during render or writing state during an effect body are
+   * both things this codebase's React rules reject — and at 250ms the delay
+   * before the first number appears is imperceptible against a lock measured
+   * in minutes.
+   */
   useEffect(() => {
-    if (lockSeconds <= 0) {
-      setRemaining(0);
-      return;
-    }
-    setRemaining(lockSeconds);
-    const id = setInterval(() => setRemaining((r) => (r <= 1 ? 0 : r - 1)), 1000);
+    if (lockSeconds <= 0) return;
+    let deadline = 0;
+    const id = setInterval(() => {
+      if (!deadline) deadline = Date.now() + lockSeconds * 1000;
+      setTicked(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+    }, 250);
     return () => clearInterval(id);
   }, [error, lockSeconds]);
+
+  // Nothing resets `ticked` when a NEW error arrives that carries no lock, so
+  // the guard is here rather than in the effect's cleanup — which would be one
+  // more state write where none is allowed.
+  const remaining = lockSeconds > 0 ? ticked : 0;
 
   const isThrottled = code === 'account_locked' || code === 'rate_limited';
 
@@ -66,6 +89,10 @@ export default function LoginPage() {
       case 'rate_limited':        return te('rateLimited');
       case 'admin_forbidden':     return te('forbidden');
       case 'forbidden':           return te('forbidden');
+      // Raised by `useLogin` when the credentials were right but the httpOnly
+      // session cookie could not be written — without this the admin was sent
+      // back to this form with no message at all.
+      case 'session_not_stored': return te('sessionNotStored');
       default:
         return apiError.message && apiError.message !== 'error'
           ? apiError.message
@@ -296,7 +323,12 @@ export default function LoginPage() {
                   <span className="leading-normal tabular-nums">{formatCountdown(remaining)}</span>
                 ) : (
                   <>
-                    <span className="leading-normal">Tizimga kirish</span>
+                    {/* `auth.submit`, which is what every other string on this
+                        form uses — including this button's own loading state
+                        one branch up. The literal here left the panel's primary
+                        action in Uzbek for a Russian- or English-speaking
+                        administrator. */}
+                    <span className="leading-normal">{t('submit')}</span>
                     <ArrowRight size={15} />
                   </>
                 )}

@@ -167,9 +167,16 @@ export default function DashboardPage() {
    * Refresh means refresh. It used to refetch only `['stats']` while the four
    * charts and the monetization state went on showing whatever they had, so
    * the button silently did a fifth of what it said.
+   *
+   * `balancesQuery` belongs in here too, and was the last omission: SMS credit
+   * is the one number on the page that comes from an external provider, so it
+   * is both the most likely to have failed and the one an admin most wants to
+   * re-read on demand — after topping the account up, the button has to reach
+   * it rather than leave the card on its 120s poll.
    */
   const queries = [
     statsQuery,
+    balancesQuery,
     registrationsQuery,
     trafficQuery,
     districtsQuery,
@@ -256,10 +263,12 @@ export default function DashboardPage() {
 
       {/* One gutter for the whole page — 16px, everywhere, so the vertical
           rhythm cannot drift the way it did when each block carried its own
-          mb-6/mb-8. The bottom padding is room for the fixed mobile dock: it
-          floats 16px from the bottom below 1024px and would otherwise sit on
-          top of the reference band, which is now the last thing on the page. */}
-      <div className="flex flex-col gap-4 pb-24 lg:pb-4">
+          mb-6/mb-8. There is deliberately no bottom padding here any more: the
+          mobile dock's clearance moved into DashboardLayout, which now reserves
+          it once for every page. The `pb-24 lg:pb-4` that used to live on this
+          div stacked on top of that and left ~192px of dead space under the
+          reference band on a phone. */}
+      <div className="flex flex-col gap-4">
         {/* ── 1 · Triage ───────────────────────────────────────────────────
             A failed /admin/stats says nothing about /admin/chart/*, so the
             error replaces this floor only and everything below still renders. */}
@@ -291,6 +300,7 @@ export default function DashboardPage() {
               <BalancesCard
                 data={balancesQuery.data}
                 isError={balancesQuery.isError}
+                onRetry={() => void balancesQuery.refetch()}
               />
             </Reveal>
 

@@ -5,6 +5,8 @@ import { useTranslations } from 'next-intl';
 import { X, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 import { useUIStore, type ToastMessage, type ToastType } from '@/store/ui.store';
 
+import { Z_DIALOG_POPOVER } from './z-layers';
+
 /**
  * Transient notices.
  *
@@ -20,6 +22,19 @@ import { useUIStore, type ToastMessage, type ToastType } from '@/store/ui.store'
  */
 
 export type { ToastMessage, ToastType };
+
+/**
+ * One step above the topmost layer in `z-layers`, because a toast has to clear
+ * every dialog and not only the mobile dock.
+ *
+ * Almost every toast in the panel is raised *while* the thing that raised it is
+ * still on screen — a moderation mutation fails and its sheet stays open — and
+ * the old `z-[100]` put the whole stack under the dialog's opaque blurred
+ * backdrop. The moderator saw nothing at all and tapped the action a second
+ * time. The wrapper stays `pointer-events-none` (only the card itself takes
+ * clicks) so raising the layer cannot swallow taps meant for the dialog below.
+ */
+const Z_TOAST = Z_DIALOG_POPOVER + 1;
 
 const ICONS: Record<ToastType, React.ReactNode> = {
   success: <CheckCircle2 className="text-[var(--color-success)]" size={20} />,
@@ -79,7 +94,10 @@ export function Toaster() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed inset-x-0 top-0 z-[100] flex items-start p-4 pointer-events-none sm:p-6 justify-center sm:justify-end">
+    <div
+      className="fixed inset-x-0 top-0 flex items-start p-4 pointer-events-none sm:p-6 justify-center sm:justify-end"
+      style={{ zIndex: Z_TOAST }}
+    >
       <div className="w-full max-w-sm flex flex-col items-center space-y-4 sm:items-end">
         {toasts.map((toast) => (
           <ToastItem key={toast.id} toast={toast} />

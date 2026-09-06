@@ -1515,3 +1515,16 @@ html[data-theme="light"] .apple-glass-item[data-active="true"] {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* The Select dropdown's row height, as one variable two rules can set.
+
+   The list portals to `document.body`, so no ancestor selector on the control
+   can reach it — the panel's 44px touch-target rules are written as direct
+   descendants of a field and stop at the trigger. A finger-sized row on a
+   coarse pointer and the original compact row on a precise one is the same
+   split the rest of this stylesheet makes, applied to the one part of a Select
+   that is actually tapped. */
+:root { --select-option-min-h: 36px; }
+@media (pointer: coarse) {
+  :root { --select-option-min-h: 44px; }
+}

@@ -440,47 +440,63 @@ export default function UserDetailPage() {
 
       {/* ── Edit ───────────────────────────────────────────────────────────
           Only the three fields this screen has translated labels for. Adding a
-          field here means adding its label to `users.columns` first. */}
-      <EditModal
-        // Remount on every saved change so the form's initial state is the row
-        // that came back, not the one it was first opened with.
-        key={user.updatedAt}
-        open={editOpen}
-        onClose={() => setEditOpen(false)}
-        user={user}
-        pending={patch.isPending}
-        onSubmit={(body) => patch.mutate(body)}
-        labels={{
-          title: t('actions.edit'),
-          role: t('columns.role'),
-          status: t('columns.status'),
-          trust: t('columns.trust'),
-          save: c('save'),
-          cancel: c('cancel'),
-          close: c('close'),
-        }}
-        roleOptions={USER_ROLES.map((role) => ({ value: role, label: roleLabel(role) }))}
-        statusOptions={USER_STATUSES.map((status) => ({
-          value: status,
-          label: statusLabel(status),
-        }))}
-      />
+          field here means adding its label to `users.columns` first.
 
-      <SetPasswordModal
-        open={passwordOpen}
-        onClose={() => setPasswordOpen(false)}
-        pending={setPassword.isPending}
-        onSubmit={(body) => setPassword.mutate(body)}
-        labels={{
-          title: t('setPassword.title'),
-          newPassword: t('setPassword.newPassword'),
-          mustChange: t('setPassword.mustChange'),
-          revokeSessions: t('setPassword.revokeSessions'),
-          submit: t('setPassword.submit'),
-          cancel: c('cancel'),
-          close: c('close'),
-        }}
-      />
+          Mounted only while open, rather than always mounted and told to
+          render nothing. `EditModal` seeds `role`/`status`/`trust` from the row
+          once, on mount, so a permanently mounted form kept whatever the admin
+          had picked before tapping Cancel — reopening it later to nudge the
+          trust score would silently resend that abandoned Status, and a
+          discarded BANNED demotes an account nobody meant to touch. Unmounting
+          on close throws the draft away; reopening reseeds from the row the
+          refetch brought back, which is what the old `key={user.updatedAt}`
+          remount was for. */}
+      {editOpen && (
+        <EditModal
+          open
+          onClose={() => setEditOpen(false)}
+          user={user}
+          pending={patch.isPending}
+          onSubmit={(body) => patch.mutate(body)}
+          labels={{
+            title: t('actions.edit'),
+            role: t('columns.role'),
+            status: t('columns.status'),
+            trust: t('columns.trust'),
+            save: c('save'),
+            cancel: c('cancel'),
+            close: c('close'),
+          }}
+          roleOptions={USER_ROLES.map((role) => ({ value: role, label: roleLabel(role) }))}
+          statusOptions={USER_STATUSES.map((status) => ({
+            value: status,
+            label: statusLabel(status),
+          }))}
+        />
+      )}
+
+      {/* Same treatment, and here it is the plaintext that must not outlive the
+          dialog: `SetPasswordModal` holds the typed password in state, so a
+          modal that only rendered null left it in memory — and prefilled in the
+          field — for the rest of the page's life, one tap from being re-applied
+          and revoking that account's sessions a second time. */}
+      {passwordOpen && (
+        <SetPasswordModal
+          open
+          onClose={() => setPasswordOpen(false)}
+          pending={setPassword.isPending}
+          onSubmit={(body) => setPassword.mutate(body)}
+          labels={{
+            title: t('setPassword.title'),
+            newPassword: t('setPassword.newPassword'),
+            mustChange: t('setPassword.mustChange'),
+            revokeSessions: t('setPassword.revokeSessions'),
+            submit: t('setPassword.submit'),
+            cancel: c('cancel'),
+            close: c('close'),
+          }}
+        />
+      )}
     </div>
   );
 }
