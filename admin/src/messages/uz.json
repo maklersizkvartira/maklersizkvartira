@@ -73,6 +73,7 @@
     "listings": "Eʼlonlar",
     "reports": "Shikoyatlar",
     "support": "Mijozlar bilan ishlash",
+    "chat": "AI suhbatlari (jonli)",
     "topRequests": "Top soʻrovlari",
     "verifications": "Tasdiqlashlar",
     "people": "Odamlar",
@@ -81,7 +82,7 @@
     "system": "Tizim",
     "audit": "Barcha harakatlar",
     "security": "Xavfsizlik",
-    "sms": "SMS jurnali",
+    "sms": "SMS",
     "ai": "AI",
     "settings": "Sozlamalar",
     "overview": "Umumiy",
@@ -92,7 +93,8 @@
     "appearance": "Koʻrinish sozlamalari",
     "collapse": "Menyuni yigʻish",
     "expand": "Menyuni yoyish",
-    "searchPlaceholder": "Qidirish..."
+    "searchPlaceholder": "Qidirish...",
+    "analytics": "Tahlil"
   },
   "auth": {
     "signIn": "Kirish",
@@ -230,7 +232,17 @@
       "smsUnknown": "Provayderga ulanib bo‘lmadi",
       "ai": "Uyiz AI — bugungi xabarlar",
       "aiMonth": "Shu oyda {count} ta",
-      "aiCostNote": "Sarflangan pulni OpenAI hisobida ko‘rish mumkin."
+      "aiCostNote": "Sarflangan pulni OpenAI hisobida ko‘rish mumkin.",
+      "aiCost": "OpenAI sarfi",
+      "aiCostToday": "Bugun {amount}",
+      "aiCostMonth": "Shu oy boshidan {amount}",
+      "aiCostUnavailable": "Sarf summasi mavjud emas",
+      "aiCostSetup": "AI sahifasida sozlash",
+      "smsLow": "Balans tugab qolyapti",
+      "openSmsPage": "SMS sahifasi",
+      "openAiPage": "AI sahifasi",
+      "asOf": "{time} holatiga koʻra",
+      "cached": "Keshdan olindi"
     }
   },
   "listings": {
@@ -599,7 +611,46 @@
     "status": {
       "QUEUED": "Navbatda",
       "SENT": "Yuborildi",
-      "FAILED": "Yuborilmadi"
+      "FAILED": "Yuborilmadi",
+      "SKIPPED": "Oʻtkazib yuborilgan",
+      "UNKNOWN": "Nomaʻlum"
+    },
+    "overview": {
+      "title": "SMS holati",
+      "subtitle": "Balans, joʻnatuvchi nomi va yuborilgan SMS statistikasi.",
+      "balance": "Provayder balansi",
+      "balanceUnknown": "Nomaʼlum",
+      "balanceUnknownHint": "Provayder javob bermadi yoki token sozlanmagan. Bu 0 degani emas.",
+      "credit": "{amount} soʻm",
+      "remaining": "Taxminan {count} ta SMS qoladi",
+      "price": "1 SMS narxi: {amount} soʻm",
+      "low": "Balans past",
+      "lowHint": "Ogohlantirish chegarasi: {amount} soʻm. Balans tugasa, roʻyxatdan oʻtish toʻxtaydi va sayt buni aytmaydi.",
+      "senderName": "Joʻnatuvchi nomi",
+      "senderNameHint": "Har bir kod shu nom bilan yetib boradi.",
+      "enabled": "SMS yoqilgan",
+      "disabled": "SMS oʻchirilgan",
+      "disabledHint": "SMS_ENABLED oʻchirilgan — kodlar haqiqatda joʻnatilmaydi.",
+      "windows": {
+        "today": "Bugun",
+        "month": "Shu oy",
+        "allTime": "Butun davr"
+      },
+      "counters": {
+        "total": "Jami",
+        "sent": "Yuborilgan",
+        "failed": "Xato",
+        "queued": "Navbatda",
+        "skipped": "Oʻtkazib yuborilgan",
+        "unknown": "Nomaʼlum",
+        "parts": "Qismlar",
+        "failureRate": "Xatolik ulushi"
+      },
+      "partsHint": "Hisob xabar emas, qism boʻyicha yuritiladi — uzun matn bir nechta qismga boʻlinadi va har biri alohida toʻlanadi.",
+      "nothingSent": "Bu davrda hech narsa yuborilmagan",
+      "utcNote": "Kun UTC boʻyicha hisoblanadi — Toshkent vaqtidan 5 soat orqada.",
+      "logTitle": "Soʻnggi SMSlar",
+      "loadError": "SMS holatini yuklab boʻlmadi."
     }
   },
   "ai": {
@@ -617,7 +668,89 @@
     "messagesCapped": "Faqat oxirgi {limit} ta xabar koʻrsatilmoqda.",
     "noMessages": "Xabarlar yoʻq",
     "user": "Mijoz",
-    "assistant": "AI"
+    "assistant": "AI",
+    "tabs": {
+      "overview": "Umumiy",
+      "settings": "Sozlamalar",
+      "sessions": "Suhbatlar"
+    },
+    "sessionsTitle": "AI suhbatlari",
+    "settings": {
+      "title": "Yordamchi sozlamalari",
+      "subtitle": "Model va vositalar chegarasi. Oʻzgarish darhol kuchga kiradi.",
+      "chatModel": "Kundalik model",
+      "chatModelHint": "Har bir savolga birinchi boʻlib shu model javob beradi.",
+      "reasoningModel": "Chuqur oʻylash modeli",
+      "reasoningModelHint": "Qidiruv natijasi qaytgandan keyin javobni shu model yigʻadi.",
+      "maxToolSteps": "Vosita chaqiruvlari chegarasi",
+      "maxToolStepsHint": "Bitta javob uchun yordamchi qidiruvni necha marta ishlata oladi. {min} dan {max} gacha.",
+      "modelPlaceholder": "masalan, gpt-4o-mini",
+      "modelCustom": "Boshqa model — qoʻlda kiritish",
+      "modelCustomHint": "Roʻyxat tavsiya, cheklov emas: OpenAI’dagi istalgan model nomini yozish mumkin.",
+      "tier": {
+        "fast": "Tez",
+        "balanced": "Muvozanatli",
+        "reasoning": "Chuqur oʻylaydigan"
+      },
+      "source": {
+        "stored": "Panelda saqlangan",
+        "env": "Server sozlamasidan",
+        "inherited": "Kundalik modeldan olinmoqda"
+      },
+      "sourceHint": {
+        "stored": "Qiymat shu panelda oʻrnatilgan va serverdagi sozlamadan ustun turadi.",
+        "env": "Qiymat serverda berilgan; panelda hech narsa saqlanmagan.",
+        "inherited": "Alohida chuqur oʻylash modeli tanlanmagan — kundalik model ishlatiladi."
+      },
+      "defaultValue": "Standart: {value}",
+      "defaultInherits": "Standart: kundalik model bilan bir xil",
+      "reset": "Standartga qaytarish",
+      "resetHint": "Panelda saqlangan qiymat oʻchiriladi va serverdagi sozlama yana kuchga kiradi.",
+      "save": "Saqlash",
+      "saving": "Saqlanmoqda…",
+      "saved": "Saqlandi: {count} ta sozlama oʻzgardi",
+      "noChanges": "Hech narsa oʻzgarmadi — bu qiymatlar allaqachon shunday saqlangan edi.",
+      "unsaved": "Saqlanmagan oʻzgarishlar bor",
+      "readOnly": "Sozlamalarni faqat SUPERADMIN oʻzgartira oladi.",
+      "assistantDisabled": "OPENAI_API_KEY berilmagan — saytdagi yordamchi hozir ishlamaydi. Sozlamani hozir oʻzgartirish mumkin, u kalit qoʻshilganda kuchga kiradi.",
+      "assistantEnabled": "Yordamchi ishlayapti",
+      "historyLink": "Shu sozlama tarixi",
+      "errors": {
+        "empty": "Hech qanday sozlama yuborilmadi.",
+        "invalidModel": "Model nomida faqat harf, raqam va . _ : - belgilari boʻlishi mumkin, uzunligi {max} tagacha.",
+        "range": "Vosita chaqiruvlari {min} dan {max} gacha boʻlishi kerak.",
+        "save": "Saqlab boʻlmadi. Qaytadan urinib koʻring."
+      }
+    },
+    "usage": {
+      "title": "Yordamchidan foydalanish",
+      "subtitle": "Bu raqamlar oʻz bazamizdan olinadi — har doim aniq.",
+      "messagesToday": "Bugungi xabarlar",
+      "messagesThisMonth": "Shu oydagi xabarlar",
+      "sessionsToday": "Bugungi suhbatlar",
+      "utcNote": "Kun UTC boʻyicha hisoblanadi — Toshkent vaqtidan 5 soat orqada."
+    },
+    "cost": {
+      "title": "OpenAI sarfi",
+      "subtitle": "Summa toʻgʻridan-toʻgʻri OpenAI hisobidan olinadi.",
+      "monthToDate": "Shu oy boshidan",
+      "today": "Bugun",
+      "period": "{date} dan buyon",
+      "asOf": "{time} holatiga koʻra",
+      "cached": "Keshdan (5 daqiqada bir yangilanadi)",
+      "refresh": "Yangilash",
+      "unavailable": "Sarf summasi hozir mavjud emas",
+      "neverEstimated": "Bu yerda faqat OpenAI qaytargan haqiqiy summa koʻrsatiladi. Xabarlar sonidan pul taxmin qilinmaydi.",
+      "usageStillShown": "Quyidagi foydalanish raqamlari baribir toʻgʻri — ular oʻz bazamizdan olinadi.",
+      "status": "OpenAI javobi: {status}",
+      "docsLink": "Admin kalitini yaratish",
+      "reason": {
+        "no_admin_key": "Admin kaliti sozlanmagan. Serverga {envVar} oʻzgaruvchisini qoʻshing — kalit OpenAI’da Organization → Admin keys boʻlimida yaratiladi. Oddiy sk-... kaliti bu maʼlumotni ololmaydi.",
+        "key_rejected": "OpenAI kalitni qabul qilmadi. {envVar} ichida sk-admin-... koʻrinishidagi tashkilot admin kaliti boʻlishi kerak; oddiy API kaliti bu yerda 401 qaytaradi.",
+        "provider_unreachable": "OpenAI serveriga ulanib boʻlmadi. Biroz vaqtdan keyin qayta urinib koʻring.",
+        "provider_error": "OpenAI xato qaytardi. Biroz vaqtdan keyin qayta urinib koʻring."
+      }
+    }
   },
   "settings": {
     "title": "Sozlamalar",
@@ -786,5 +919,74 @@
     "quick2": "Murojaatingiz qabul qilindi. Tez orada masalani ko‘rib chiqib javob beramiz.",
     "quick3": "Iltimos, e’loningiz sarlavhasi yoki ID raqamini yozib yuborsangiz.",
     "quick4": "Muammo muvaffaqiyatli bartaraf etildi. Platformamizdan foydalanganingiz uchun rahmat!"
+  },
+  "chat": {
+    "title": "AI suhbatlari",
+    "subtitle": "Mijozlar bilan AI suhbatini kuzating va kerak boʻlsa oʻzingiz javob bering",
+    "refresh": "Yangilash",
+    "back": "Suhbatlar",
+    "all": "Barchasi",
+    "liveOnly": "Operatorda",
+    "withLead": "Raqam qoldirgan",
+    "search": "Mijoz, sessiya yoki telefon boʻyicha qidirish...",
+    "noConversations": "Suhbatlar mavjud emas",
+    "selectConversation": "Suhbatni koʻrish uchun chap tomondan birini tanlang",
+    "noMessages": "Xabarlar yoʻq",
+    "guest": "Mehmon",
+    "roleVisitor": "Mijoz",
+    "roleAi": "AI",
+    "roleAdmin": "Operator",
+    "takeOver": "Suhbatni oʻz zimmangizga oling",
+    "handBack": "AI ga qaytarish",
+    "takenOverBy": "Suhbatni {name} olib bormoqda",
+    "aiActive": "AI javob bermoqda",
+    "replyPlaceholder": "Mijozga javobingizni yozing...",
+    "send": "Yuborish",
+    "sent": "Javob mijozga yuborildi",
+    "takenOver": "Suhbat sizga oʻtdi",
+    "released": "Suhbat AI ga qaytarildi",
+    "leadTitle": "Mijoz maʼlumotlari",
+    "leadName": "Ism",
+    "leadPhone": "Telefon",
+    "leadNote": "Izoh",
+    "messages": "Xabarlar",
+    "started": "Boshlangan",
+    "errors": {
+      "conversations": "Suhbatlar roʻyxatini yuklashda xatolik yuz berdi",
+      "messages": "Suhbat xabarlarini yuklashda xatolik yuz berdi",
+      "send": "Xabarni yuborishda xatolik yuz berdi",
+      "takeover": "Suhbatni boshqa operator olib ulgurdi",
+      "notTaken": "Avval suhbatni oʻz zimmangizga oling"
+    }
+  },
+  "analytics": {
+    "title": "Tahlil",
+    "subtitle": "Sayt, foydalanuvchilar va eʼlonlar boʻyicha grafiklar.",
+    "charts": {
+      "registrations": "Yangi roʻyxatdan oʻtishlar",
+      "traffic": "Tashriflar",
+      "districts": "Tumanlar boʻyicha eʼlonlar",
+      "activity": "Tizimdagi harakatlar"
+    },
+    "range": {
+      "label": "Davr",
+      "days": "{count} kun"
+    },
+    "limit": {
+      "label": "Tumanlar soni",
+      "value": "{count} ta"
+    },
+    "summary": {
+      "visitors": "Tashrifchilar",
+      "views": "Koʻrishlar",
+      "registrations": "Roʻyxatdan oʻtganlar",
+      "events": "Harakatlar",
+      "avgPerDay": "Kuniga oʻrtacha {count}",
+      "peak": "Eng yuqori: {count}",
+      "total": "Jami {count}"
+    },
+    "noData": "Bu davr uchun maʼlumot yoʻq",
+    "utcNote": "Sanalar UTC boʻyicha hisoblanadi — Toshkent vaqtidan 5 soat orqada.",
+    "loadError": "Grafiklarni yuklab boʻlmadi."
   }
 }

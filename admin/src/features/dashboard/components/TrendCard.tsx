@@ -13,6 +13,10 @@ import { Segmented } from './Segmented';
 import { CountUp, StatLabel, StatNum } from './stat-kit';
 
 /**
+ * NOTHING RENDERS THIS ANY MORE. Read the paragraph at the end before using
+ * it, and delete the file rather than leave it here unreferenced if the answer
+ * is that /analytics keeps its four separate cards.
+ *
  * The one full-width chart card, holding three of the four endpoints behind a
  * segmented switcher.
  *
@@ -25,6 +29,18 @@ import { CountUp, StatLabel, StatNum } from './stat-kit';
  *
  * Districts deliberately stays outside: its horizontal HTML bar rows are the
  * best chart in the panel on a small screen and share no x-axis with these.
+ *
+ * Why it is unused: the trade above was priced for the DASHBOARD, where a
+ * chart is a passenger and a thousand pixels of scrolling is a thousand pixels
+ * the queues get pushed down by. The charts have their own page now, where the
+ * reader arrived for them, so each series got the card, the title, the empty
+ * state and the retry it could not have here — `AnalyticsCard`, three times
+ * over. The retry-one-series behaviour survived the move intact: retrying a
+ * chart on /analytics refetches that chart's query and no other.
+ *
+ * It is kept, for now, only because the segmented arrangement is still the
+ * right answer if these charts ever have to share a screen with something more
+ * urgent again. If they do not, this file is dead weight — delete it.
  */
 
 type SeriesKey = 'registrations' | 'traffic' | 'activity';

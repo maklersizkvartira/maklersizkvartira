@@ -169,11 +169,15 @@ export const api = {
   stats: '/admin/stats',
 
   /**
-   * `GET` — SMS credit and assistant usage. MODERATOR+.
+   * `GET` — SMS credit, assistant usage and assistant spend. MODERATOR+.
    *
    * Separate from `stats` because it leaves the building: it calls the SMS
-   * provider, so a slow one would hold up every counter on the page if the
-   * two were fetched together.
+   * provider and OpenAI, so a slow one would hold up every counter on the page
+   * if the two were fetched together. Both outside reads fail soft — the
+   * payload keeps its shape and says which part is missing and why.
+   *
+   * This is the route the dashboard uses for BOTH balances; there is no
+   * separate OpenAI endpoint to call beside it.
    */
   balances: '/admin/balances',
 
@@ -263,14 +267,47 @@ export const api = {
   },
 
   ai: {
-    /** `GET`, MODERATOR+. Pagination only — no filters exist on this route. */
-    sessions: (params?: PaginationParams) => `/admin/ai/sessions${qs({ ...params })}`,
-    /** `GET`, MODERATOR+. Not paginated; returns up to 200 messages, oldest first. */
-    sessionMessages: (sessionId: string) => `/admin/ai/sessions/${sessionId}/messages`,
+    /** `GET`, MODERATOR+. Pagination plus two bare-route filters, hence
+     *  snake_case: a Depends() model would be camelCase. An unknown key is
+     *  silently ignored by FastAPI and returns an unfiltered 200. */
+    sessions: (params?: PaginationParams & { taken_over?: boolean; has_lead?: boolean }) =>
+      `/admin/ai/sessions${qs({ ...params })}`,
+    /** `GET`, MODERATOR+. Oldest first; 200 rows unless `limit` is given.
+     *  Marks the thread read. Keyed by AISession.id, NOT sessionKey. */
+    sessionMessages: (sessionId: string, params?: { limit?: number }) =>
+      `/admin/ai/sessions/${sessionId}/messages${qs({ ...params })}`,
+    /** `POST`, MODERATOR+. No body. 409 when another admin holds it. */
+    takeover: (sessionId: string) => `/admin/ai/sessions/${sessionId}/takeover`,
+    /** `POST`, MODERATOR+. No body. Leaves takenOverAt in place. */
+    release: (sessionId: string) => `/admin/ai/sessions/${sessionId}/release`,
+    /** `POST`, MODERATOR+. Body `{ content: string }`, 1–2000 chars.
+     *  409 `ai_session_not_taken` until takeover has succeeded. */
+    sendMessage: (sessionId: string) => `/admin/ai/sessions/${sessionId}/messages`,
+    /**
+     * `GET`, ADMIN+. No query parameters. Returns `AiSettings`: the effective
+     * model names, where each came from, the suggestion list and the bounds.
+     */
+    settings: '/admin/ai/settings',
+    /**
+     * `PATCH`, SUPERADMIN only — the same path as `settings`, split in two the
+     * way `staff.list`/`staff.create` are, so a call site names the method it
+     * means. Body: `AiSettingsPatch`; answer: `AiSettingsPatchResult`.
+     */
+    patchSettings: '/admin/ai/settings',
   },
 
-  /** `GET`, ADMIN+. Pagination only. */
+  /** `GET`, ADMIN+. Pagination only. The log of individual sends. */
   sms: (params?: PaginationParams) => `/admin/sms${qs({ ...params })}`,
+
+  /**
+   * `GET`, ADMIN+. No query parameters. Provider credit, the sender name and
+   * the sent/failed/parts counters for today, this month and all time.
+   *
+   * A sibling of `sms` rather than a key inside it, because `sms` is a callable
+   * that the log screen already passes pagination to; nesting it would rename
+   * that call for no gain. `stats` and `balances` sit at this level too.
+   */
+  smsOverview: '/admin/sms/overview',
 
   security: {
     /** `GET`, ADMIN+. Note the snake_case `only_failed`. */

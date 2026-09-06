@@ -68,14 +68,52 @@ export function atLeast(
  */
 const ROUTE_TABLE = {
   '/dashboard': 'MODERATOR',
+  /**
+   * The charts, moved off the dashboard onto a page of their own.
+   *
+   * MODERATOR because it reads `/admin/chart/*`, and every one of those four
+   * routes is MODERATOR+ on the backend — the same rung the dashboard that
+   * used to draw them sits on. Nothing here is per-person data.
+   */
+  '/analytics': 'MODERATOR',
   '/listings': 'MODERATOR',
   '/reports': 'MODERATOR',
   '/support': 'MODERATOR',
+  /**
+   * The live AI desk: watch a visitor's conversation with the assistant and,
+   * when it is going wrong, take it over and answer them yourself.
+   *
+   * MODERATOR, the same rung as `/support`, because it is the same job on a
+   * different channel — and because every route behind it (`/admin/ai/sessions`
+   * and the takeover, release and reply posts) is MODERATOR+ on the backend.
+   * It is deliberately NOT gated with `/ai`'s settings block in mind: nothing
+   * on this page changes how the assistant is configured, it only reads and
+   * writes one conversation.
+   */
+  '/chat': 'MODERATOR',
   '/top-requests': 'MODERATOR',
   '/verifications': 'MODERATOR',
+  /**
+   * Stays MODERATOR, even though the page now carries the assistant's
+   * settings.
+   *
+   * The page is two things at once: the conversation log, which
+   * `GET /admin/ai/sessions` hands to a moderator, and the settings block,
+   * which `GET /admin/ai/settings` gives an admin and `PATCH` gives only a
+   * superadmin. A route gate is one number, so raising it to ADMIN to cover
+   * the second half would take the transcripts away from the moderators who
+   * read them today — a real loss, to protect nothing, since the backend
+   * refuses the settings call on its own.
+   *
+   * So the page keeps the lower gate and the block inside it is gated by
+   * `aiSettingsRead` / `aiSettingsWrite` below. A moderator opening /ai sees
+   * the conversations and no settings card at all — not a card that 403s.
+   */
   '/ai': 'MODERATOR',
   '/audit': 'MODERATOR',
   '/users': 'MODERATOR',
+  /** Both halves are ADMIN on the backend: `/admin/sms` and
+   *  `/admin/sms/overview`. Unchanged. */
   '/sms': 'ADMIN',
   '/security': 'ADMIN',
   '/staff': 'SUPERADMIN',
@@ -116,6 +154,17 @@ export const ACTION_MIN_ROLE = {
   topRequestReview: 'MODERATOR',
   /** `DELETE /admin/listings/{id}` */
   listingDelete: 'ADMIN',
+  /** `GET /admin/ai/settings` — RequireAdmin. Gates whether the settings card
+   *  is rendered at all on a page a moderator may also open. */
+  aiSettingsRead: 'ADMIN',
+  /**
+   * `PATCH /admin/ai/settings` — RequireSuperadmin.
+   *
+   * Which model answers every visitor, and how many searches it may run per
+   * answer, is a platform-wide setting: it changes the product and the bill for
+   * everyone at once. Same rung as the monetization switch below.
+   */
+  aiSettingsWrite: 'SUPERADMIN',
   /** `POST /admin/settings/toggle-monetization` */
   monetizationToggle: 'SUPERADMIN',
   /** `POST /admin/staff` and `PATCH /admin/staff/{id}/active` */

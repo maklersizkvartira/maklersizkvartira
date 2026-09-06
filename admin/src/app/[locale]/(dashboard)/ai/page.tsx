@@ -1,160 +1,146 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
-import { Bot, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
+import { AlertTriangle } from 'lucide-react';
 
 import { http } from '@/shared/lib/http';
-import { api, type PaginationParams } from '@/shared/api/endpoints';
-import type { AdminAiSessionRow } from '@/shared/api/types';
-import { shortId } from '@/shared/lib/mask';
-import { useAdminList, type AdminFilters } from '@/shared/hooks/useAdminList';
+import { api } from '@/shared/api/endpoints';
+import type { AdminBalances } from '@/shared/api/types';
+import { useRole } from '@/providers/role-provider';
 import { PageHeader } from '@/shared/ui/PageHeader';
-import { DataTable, type Column } from '@/shared/ui/DataTable';
-import { ListErrorBanner, ListState } from '@/shared/ui/ListState';
-import { Pagination } from '@/shared/ui/Pagination';
-import { AiTranscriptSheet } from '@/features/ai/components/AiTranscriptSheet';
+import { Button } from '@/shared/ui/Button';
+import { EmptyState } from '@/shared/ui/EmptyState';
+import { Segmented, type SegmentedItem } from '@/features/dashboard/components/Segmented';
+import { AiCostCard } from '@/features/ai/components/AiCostCard';
+import { AiUsageCard } from '@/features/ai/components/AiUsageCard';
+import { AiSettingsCard } from '@/features/ai/components/AiSettingsCard';
+import { AiSessionsPanel } from '@/features/ai/components/AiSessionsPanel';
 
 /**
- * Conversations the public site's Uyiz AI assistant has held.
+ * Where the Uyiz AI assistant is run from.
  *
- * `GET /admin/ai/sessions` is pagination and nothing else — no search, no date
- * range, no filter by user — so this page has no FilterBar. An empty one would
- * only promise a search the API cannot run.
+ * It used to be a paginated table of conversations and nothing else, which
+ * meant the two questions an owner actually asks about the assistant — what is
+ * it costing, and which model is it on — had no answer anywhere in the panel.
+ * Now the page is three things, and the log is the third of them rather than
+ * the whole of it.
  *
- * The transcript opens from a row rather than a route because this workstream
- * owns `/ai` and not `/ai/[id]`; the sheet reads the same on a phone as a
- * pushed screen would, and keeps the reader's place in the list underneath.
+ * Three, not one long scroll, because the three are read at different times:
+ * spend is a daily glance, settings are a rare and deliberate change, and the
+ * transcripts are an investigation. On a phone a single column carrying all
+ * three would put the conversation table two full screens below the number
+ * somebody opened the page for.
+ *
+ * The gates are not the same on all three, and the route gate is only the
+ * lowest of them:
+ *
+ *  · MODERATOR opens the page and reads the spend, the usage and the
+ *    conversations — `/admin/balances` and `/admin/ai/sessions` are both
+ *    MODERATOR on the backend.
+ *  · ADMIN additionally sees the settings tab, because `GET /admin/ai/settings`
+ *    is RequireAdmin. A moderator gets no settings tab at all rather than a tab
+ *    that 403s on open.
+ *  · SUPERADMIN additionally gets the save and reset controls, because the
+ *    PATCH is RequireSuperadmin — which is right, since a model change alters
+ *    what every visitor's assistant runs on and what it bills us.
  */
 
-const PAGE_SIZE = 25;
+type AiTab = 'overview' | 'settings' | 'sessions';
 
 export default function AiPage() {
   const t = useTranslations('ai');
   const c = useTranslations('common');
-  const locale = useLocale();
+  const { can } = useRole();
 
-  const [selected, setSelected] = useState<AdminAiSessionRow | null>(null);
+  const canReadSettings = can('aiSettingsRead');
+  const canWriteSettings = can('aiSettingsWrite');
 
-  const timeFormat = useMemo(
-    () => new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' }),
-    [locale],
-  );
+  const [tab, setTab] = useState<AiTab>('overview');
 
-  const list = useAdminList<AdminAiSessionRow, AdminFilters>({
-    queryKey: ['ai-sessions'],
-    fetcher: async ({ page, signal }) => {
-      const params: PaginationParams = { page, pageSize: PAGE_SIZE };
-      const { data, meta } = await http.page<AdminAiSessionRow>(api.ai.sessions(params), {
-        signal,
-      });
-      return { rows: data, meta };
-    },
+  /**
+   * Both halves of the overview come from one route.
+   *
+   * There is no OpenAI-only endpoint: `/admin/balances` is where the assistant's
+   * usage counters and its real spend live, beside the SMS credit the dashboard
+   * reads from the same call. Sharing the dashboard's query key is deliberate —
+   * an admin who came here from the dashboard sees the figures immediately
+   * instead of watching a second identical request run.
+   */
+  const balances = useQuery({
+    queryKey: ['balances'],
+    queryFn: ({ signal }) => http.get<AdminBalances>(api.balances, { signal }),
   });
 
-  const columns: Column<AdminAiSessionRow>[] = [
-    {
-      key: 'sessionKey',
-      header: t('columns.session'),
-      render: (row) => (
-        <div className="min-w-0">
-          <p className="font-mono text-xs" style={{ color: 'var(--color-text-primary)' }}>
-            {shortId(row.sessionKey)}
-          </p>
-          {row.summary && (
-            <p className="text-xs line-clamp-2" style={{ color: 'var(--color-text-muted)' }}>
-              {row.summary}
-            </p>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'user',
-      header: t('columns.user'),
-      // `guestLabel` is set instead of `userName` when nobody was signed in.
-      render: (row) => row.userName ?? row.guestLabel ?? c('unknown'),
-    },
-    {
-      key: 'messageCount',
-      header: t('columns.messages'),
-      align: 'right',
-    },
-    {
-      key: 'createdAt',
-      header: t('columns.started'),
-      render: (row) => timeFormat.format(new Date(row.createdAt)),
-    },
-    {
-      key: 'closedAt',
-      // The row carries no "last message at"; `closedAt` is the only later
-      // timestamp on it, and an open conversation has none yet.
-      header: t('columns.lastActivity'),
-      render: (row) => (row.closedAt ? timeFormat.format(new Date(row.closedAt)) : c('never')),
-    },
-    {
-      key: 'open',
-      header: t('viewMessages'),
-      align: 'right',
-      width: '48px',
-      // Desktop-only affordance: below lg the whole card is already the button.
-      hideOnCard: true,
-      render: () => (
-        <ChevronRight size={15} style={{ color: 'var(--color-text-muted)' }} aria-hidden="true" />
-      ),
-    },
+  const tabs: SegmentedItem<AiTab>[] = [
+    { key: 'overview', label: t('tabs.overview') },
+    ...(canReadSettings ? [{ key: 'settings' as const, label: t('tabs.settings') }] : []),
+    { key: 'sessions', label: t('tabs.sessions') },
   ];
 
   return (
     <div>
-      <PageHeader title={t('title')} subtitle={t('subtitle')} />
-
-      {/* A refetch that fails leaves the previous page on screen and says
-          nothing — `keepPreviousData` holds those rows. The empty-state
-          branch below never runs in that case, so the warning goes here. */}
-      <ListErrorBanner
-        error={list.rows.length > 0 ? list.error : null}
-        title={c('error')}
-        retryLabel={c('retry')}
-        onRetry={list.refetch}
+      {/* No subtitle: `ai.subtitle` describes the conversation log, which is now
+          one third of this page, so it sits with the log itself instead. */}
+      <PageHeader
+        title={t('title')}
+        actions={
+          <Segmented
+            items={tabs}
+            value={tab}
+            onChange={setTab}
+            ariaLabel={t('title')}
+            className={`grid w-full ${tabs.length === 3 ? 'grid-cols-3' : 'grid-cols-2'} sm:inline-grid sm:grid-flow-col sm:w-auto`}
+          />
+        }
       />
 
-      <div
-        style={{
-          opacity: list.isFetching && !list.isLoading ? 0.6 : 1,
-          transition: 'opacity 0.15s',
-        }}
-      >
-        <DataTable
-          columns={columns}
-          rows={list.rows}
-          keyOf={(row) => row.id}
-          loading={list.isLoading}
-          loadingRows={PAGE_SIZE}
-          onRowClick={(row) => setSelected(row)}
-          empty={
-            <ListState
-              icon={<Bot size={26} />}
-              emptyTitle={c('noData')}
-              errorTitle={c('error')}
-              retryLabel={c('retry')}
-              error={list.error}
-              onRetry={list.refetch}
-            />
-          }
-        />
-      </div>
+      {tab === 'overview' && (
+        <section className="flex flex-col gap-4">
+          {balances.isError ? (
+            <div className="card p-5">
+              <EmptyState
+                tone="danger"
+                icon={<AlertTriangle size={26} />}
+                title={c('error')}
+                description={balances.error.message}
+                size="sm"
+                action={
+                  <Button variant="secondary" onClick={() => void balances.refetch()}>
+                    {c('retry')}
+                  </Button>
+                }
+              />
+            </div>
+          ) : (
+            <>
+              {/* Spend first, and usage under it: the copy in the spend card
+                  points at these counters as the numbers that are still correct
+                  when OpenAI cannot be read, so they have to be the ones below
+                  it at every width. */}
+              <AiCostCard
+                cost={balances.data?.ai.cost}
+                loading={balances.isLoading}
+                refreshing={balances.isFetching}
+                onRefresh={() => void balances.refetch()}
+              />
+              <AiUsageCard usage={balances.data?.ai} loading={balances.isLoading} />
+            </>
+          )}
 
-      <Pagination
-        meta={list.meta}
-        onPage={list.setPage}
-        summary={(page, total) => c('pagination.pageOf', { page, total })}
-        navLabel={c('pagination.label')}
-        previousLabel={c('pagination.previousPage')}
-        nextLabel={c('pagination.nextPage')}
-      />
+          {/* One note for both cards. "Today" is the UTC day on the backend for
+              the spend and for the counters alike — five hours behind Tashkent,
+              the same boundary the dashboard's counters use. */}
+          <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+            {t('usage.utcNote')}
+          </p>
+        </section>
+      )}
 
-      <AiTranscriptSheet session={selected} onClose={() => setSelected(null)} />
+      {tab === 'settings' && canReadSettings && <AiSettingsCard canWrite={canWriteSettings} />}
+
+      {tab === 'sessions' && <AiSessionsPanel />}
     </div>
   );
 }

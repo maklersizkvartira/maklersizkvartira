@@ -73,6 +73,7 @@
     "listings": "Listings",
     "reports": "Reports",
     "support": "Customer Support",
+    "chat": "AI chats (live)",
     "topRequests": "Top requests",
     "verifications": "Verifications",
     "people": "People",
@@ -81,7 +82,7 @@
     "system": "System",
     "audit": "All activity",
     "security": "Security",
-    "sms": "SMS log",
+    "sms": "SMS",
     "ai": "AI",
     "settings": "Settings",
     "overview": "Overview",
@@ -92,7 +93,8 @@
     "appearance": "Appearance",
     "collapse": "Collapse menu",
     "expand": "Expand menu",
-    "searchPlaceholder": "Search..."
+    "searchPlaceholder": "Search...",
+    "analytics": "Analytics"
   },
   "auth": {
     "signIn": "Sign in",
@@ -230,7 +232,17 @@
       "smsUnknown": "Provider unreachable",
       "ai": "Uyiz AI — messages today",
       "aiMonth": "{count} this month",
-      "aiCostNote": "Spend is shown in the OpenAI dashboard."
+      "aiCostNote": "Spend is shown in the OpenAI dashboard.",
+      "aiCost": "OpenAI spend",
+      "aiCostToday": "{amount} today",
+      "aiCostMonth": "{amount} month to date",
+      "aiCostUnavailable": "Spend figure unavailable",
+      "aiCostSetup": "Set it up on the AI page",
+      "smsLow": "Credit is running out",
+      "openSmsPage": "SMS page",
+      "openAiPage": "AI page",
+      "asOf": "As of {time}",
+      "cached": "From cache"
     }
   },
   "listings": {
@@ -599,7 +611,46 @@
     "status": {
       "QUEUED": "Queued",
       "SENT": "Sent",
-      "FAILED": "Failed"
+      "FAILED": "Failed",
+      "SKIPPED": "Skipped",
+      "UNKNOWN": "Unknown"
+    },
+    "overview": {
+      "title": "SMS status",
+      "subtitle": "Credit, sender name and the statistics of everything sent.",
+      "balance": "Provider credit",
+      "balanceUnknown": "Unknown",
+      "balanceUnknownHint": "The provider did not answer, or no token is configured. This is not zero.",
+      "credit": "{amount} so‘m",
+      "remaining": "Roughly {count} SMS left",
+      "price": "One SMS costs {amount} so‘m",
+      "low": "Low credit",
+      "lowHint": "Warning threshold: {amount} so‘m. When the credit runs out, signup stops working and the site says nothing.",
+      "senderName": "Sender name",
+      "senderNameHint": "Every code arrives under this name.",
+      "enabled": "SMS is on",
+      "disabled": "SMS is off",
+      "disabledHint": "SMS_ENABLED is off — codes are not actually sent.",
+      "windows": {
+        "today": "Today",
+        "month": "This month",
+        "allTime": "All time"
+      },
+      "counters": {
+        "total": "Total",
+        "sent": "Sent",
+        "failed": "Failed",
+        "queued": "Queued",
+        "skipped": "Skipped",
+        "unknown": "Unknown",
+        "parts": "Parts",
+        "failureRate": "Failure rate"
+      },
+      "partsHint": "Billing counts parts, not messages — a long text is split into several parts and each one is paid for.",
+      "nothingSent": "Nothing was sent in this period",
+      "utcNote": "The day is counted in UTC — five hours behind Tashkent.",
+      "logTitle": "Recent messages",
+      "loadError": "The SMS status could not be loaded."
     }
   },
   "ai": {
@@ -617,7 +668,89 @@
     "messagesCapped": "Only the last {limit} messages are shown.",
     "noMessages": "No messages",
     "user": "Client",
-    "assistant": "AI"
+    "assistant": "AI",
+    "tabs": {
+      "overview": "Overview",
+      "settings": "Settings",
+      "sessions": "Conversations"
+    },
+    "sessionsTitle": "AI conversations",
+    "settings": {
+      "title": "Assistant settings",
+      "subtitle": "The model and the tool budget. A change takes effect immediately.",
+      "chatModel": "Everyday model",
+      "chatModelHint": "This model answers every question first.",
+      "reasoningModel": "Reasoning model",
+      "reasoningModelHint": "Writes the answer once a search has come back.",
+      "maxToolSteps": "Tool-call budget",
+      "maxToolStepsHint": "How many times the assistant may reach for search to produce one answer. {min} to {max}.",
+      "modelPlaceholder": "e.g. gpt-4o-mini",
+      "modelCustom": "Another model — type it in",
+      "modelCustomHint": "The list is a suggestion, not a whitelist: any OpenAI model name can be typed here.",
+      "tier": {
+        "fast": "Fast",
+        "balanced": "Balanced",
+        "reasoning": "Reasoning"
+      },
+      "source": {
+        "stored": "Saved in the panel",
+        "env": "From the server settings",
+        "inherited": "Taken from the everyday model"
+      },
+      "sourceHint": {
+        "stored": "Set here in the panel, and it overrides the server setting.",
+        "env": "Set on the server; nothing is stored in the panel.",
+        "inherited": "No separate reasoning model is chosen — the everyday model is used."
+      },
+      "defaultValue": "Default: {value}",
+      "defaultInherits": "Default: same as the everyday model",
+      "reset": "Reset to default",
+      "resetHint": "Deletes the value stored in the panel, so the server setting takes over again.",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Saved: {count} setting(s) changed",
+      "noChanges": "Nothing changed — these values were already stored exactly like this.",
+      "unsaved": "There are unsaved changes",
+      "readOnly": "Only a SUPERADMIN can change these settings.",
+      "assistantDisabled": "OPENAI_API_KEY is not set — the assistant on the site is not running. Settings can still be changed; they take effect once the key is added.",
+      "assistantEnabled": "The assistant is running",
+      "historyLink": "History of this setting",
+      "errors": {
+        "empty": "No setting was sent.",
+        "invalidModel": "A model name may contain only letters, digits and . _ : -, up to {max} characters.",
+        "range": "The tool-call budget must be between {min} and {max}.",
+        "save": "Could not save. Try again."
+      }
+    },
+    "usage": {
+      "title": "Assistant usage",
+      "subtitle": "These numbers come from our own database — they are always exact.",
+      "messagesToday": "Messages today",
+      "messagesThisMonth": "Messages this month",
+      "sessionsToday": "Conversations today",
+      "utcNote": "The day is counted in UTC — five hours behind Tashkent."
+    },
+    "cost": {
+      "title": "OpenAI spend",
+      "subtitle": "The figure comes straight from the OpenAI account.",
+      "monthToDate": "Month to date",
+      "today": "Today",
+      "period": "Since {date}",
+      "asOf": "As of {time}",
+      "cached": "From cache (refreshed every 5 minutes)",
+      "refresh": "Refresh",
+      "unavailable": "The spend figure is unavailable right now",
+      "neverEstimated": "Only the real figure OpenAI returns is shown here. Money is never estimated from a message count.",
+      "usageStillShown": "The usage numbers below are still correct — they come from our own database.",
+      "status": "OpenAI answered: {status}",
+      "docsLink": "Create an admin key",
+      "reason": {
+        "no_admin_key": "No admin key is configured. Add the {envVar} variable on the server — the key is created in OpenAI under Organization → Admin keys. An ordinary sk-... key cannot read this.",
+        "key_rejected": "OpenAI refused the key. {envVar} must hold an organisation admin key that looks like sk-admin-...; an ordinary API key returns 401 here.",
+        "provider_unreachable": "OpenAI could not be reached. Try again shortly.",
+        "provider_error": "OpenAI answered with an error. Try again shortly."
+      }
+    }
   },
   "settings": {
     "title": "Settings",
@@ -786,5 +919,74 @@
     "quick2": "We have received your message. We will look into it and reply shortly.",
     "quick3": "Please send the title or the ID of your listing.",
     "quick4": "The problem has been resolved. Thank you for using our platform!"
+  },
+  "chat": {
+    "title": "AI chats",
+    "subtitle": "Watch a visitor's conversation with the AI and step in yourself when it needs you",
+    "refresh": "Refresh",
+    "back": "Conversations",
+    "all": "All",
+    "liveOnly": "With an operator",
+    "withLead": "Left a number",
+    "search": "Search by customer, session or phone...",
+    "noConversations": "No conversations yet",
+    "selectConversation": "Pick a conversation on the left to open it",
+    "noMessages": "No messages",
+    "guest": "Guest",
+    "roleVisitor": "Visitor",
+    "roleAi": "AI",
+    "roleAdmin": "Operator",
+    "takeOver": "Take this conversation over",
+    "handBack": "Hand back to the AI",
+    "takenOverBy": "{name} is handling this conversation",
+    "aiActive": "The AI is answering",
+    "replyPlaceholder": "Write your reply to the visitor...",
+    "send": "Send",
+    "sent": "Your reply was sent",
+    "takenOver": "This conversation is yours now",
+    "released": "Handed back to the AI",
+    "leadTitle": "Visitor's details",
+    "leadName": "Name",
+    "leadPhone": "Phone",
+    "leadNote": "Note",
+    "messages": "Messages",
+    "started": "Started",
+    "errors": {
+      "conversations": "Could not load the conversation list",
+      "messages": "Could not load this conversation",
+      "send": "Could not send the message",
+      "takeover": "Another operator got to this conversation first",
+      "notTaken": "Take the conversation over first"
+    }
+  },
+  "analytics": {
+    "title": "Analytics",
+    "subtitle": "Charts for the site, its users and its listings.",
+    "charts": {
+      "registrations": "New registrations",
+      "traffic": "Visits",
+      "districts": "Listings by district",
+      "activity": "System activity"
+    },
+    "range": {
+      "label": "Period",
+      "days": "{count} days"
+    },
+    "limit": {
+      "label": "How many districts",
+      "value": "{count}"
+    },
+    "summary": {
+      "visitors": "Visitors",
+      "views": "Views",
+      "registrations": "Registrations",
+      "events": "Events",
+      "avgPerDay": "{count} a day on average",
+      "peak": "Peak: {count}",
+      "total": "{count} in total"
+    },
+    "noData": "No data for this period",
+    "utcNote": "Dates are counted in UTC — five hours behind Tashkent.",
+    "loadError": "The charts could not be loaded."
   }
 }

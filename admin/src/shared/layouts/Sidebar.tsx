@@ -28,6 +28,15 @@ const Icons = {
       <rect x="14" y="14" width="7" height="7" rx="1.5" />
     </svg>
   ),
+  analytics: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3v16.5A1.5 1.5 0 0 0 4.5 21H21" />
+      <path d="M7 15.5V12" />
+      <path d="M11.5 15.5V8" />
+      <path d="M16 15.5v-5" />
+      <path d="M20.5 15.5V5.5" />
+    </svg>
+  ),
   listings: (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 21h18" />
@@ -45,6 +54,15 @@ const Icons = {
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
       <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+    </svg>
+  ),
+  /* A speech bubble with a spark in it — the live AI desk. Deliberately not
+     the `sms` bubble and not the `ai` chip: all three sit in the same rail and
+     a moderator picks this one out by the spark. */
+  chat: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.5 11.6a8.2 8.2 0 0 1-11.8 7.4L3.5 20.5l1.5-4.6a8.2 8.2 0 1 1 15.5-4.3z" />
+      <path d="M12 7.9l1 2.4 2.4 1-2.4 1-1 2.4-1-2.4-2.4-1 2.4-1z" />
     </svg>
   ),
   topRequests: (
@@ -181,21 +199,42 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-/** The Uyiz admin surface. Header's command palette reads the same list,
- *  so a route added here becomes searchable without a second registration. */
+/**
+ * The Uyiz admin surface, grouped by what a page IS rather than by the order
+ * the pages happened to be built in. Header's command palette reads the same
+ * list, so a route added here becomes searchable without a second
+ * registration.
+ *
+ * Five things were meant to be five groups — Overview, Moderation, People,
+ * Services and System — and there are four here because `nav.services` does
+ * not exist in the message catalogues and those three files belong to another
+ * stage. Rather than hardcode one language's word for it, AI and SMS sit at
+ * the HEAD of `system`, adjacent and ahead of the housekeeping pages, so they
+ * still read as the pair of outside services they are. Splitting them into
+ * their own group later is three lines here and one key in each of uz/ru/en.
+ */
 export const NAV_GROUPS: NavGroup[] = [
   {
     key: 'overview',
-    items: [{ key: 'dashboard', href: '/dashboard', icon: Icons.dashboard }],
+    items: [
+      { key: 'dashboard', href: '/dashboard', icon: Icons.dashboard },
+      { key: 'analytics', href: '/analytics', icon: Icons.analytics },
+    ],
   },
   {
+    // The three queues first, in the order the dashboard's triage card counts
+    // them, so the rail and the hero agree about what is waiting.
     key: 'moderation',
     items: [
       { key: 'listings', href: '/listings', icon: Icons.listings },
       { key: 'reports', href: '/reports', icon: Icons.reports },
-      { key: 'support', href: '/support', icon: Icons.support },
-      { key: 'topRequests', href: '/top-requests', icon: Icons.topRequests },
       { key: 'verifications', href: '/verifications', icon: Icons.verifications },
+      { key: 'topRequests', href: '/top-requests', icon: Icons.topRequests },
+      { key: 'support', href: '/support', icon: Icons.support },
+      // Beside `support` and not down in `system` with `/ai`: it is the same
+      // desk work on a different channel, and an operator taking a
+      // conversation over reaches for it from the same part of the rail.
+      { key: 'chat', href: '/chat', icon: Icons.chat },
     ],
   },
   {
@@ -208,18 +247,34 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     key: 'system',
     items: [
-      { key: 'audit', href: '/audit', icon: Icons.audit },
-      { key: 'security', href: '/security', icon: Icons.security },
+      // The two paid services first — see the note above about the group they
+      // would have had to themselves.
       { key: 'ai', href: '/ai', icon: Icons.ai },
       { key: 'sms', href: '/sms', icon: Icons.sms },
+      { key: 'audit', href: '/audit', icon: Icons.audit },
+      { key: 'security', href: '/security', icon: Icons.security },
       { key: 'settings', href: '/settings', icon: Icons.settings },
     ],
   },
 ];
 
-/** Fixed at five: the dock's 64px stride, its 0..256 drag clamp and the
- *  :nth-child(2..6) tap animations in globals.css all assume this length. */
-const DOCK_ROUTES = ['/dashboard', '/listings', '/reports', '/users', '/settings'] as const;
+/**
+ * Fixed at five: the dock's 64px stride, its 0..256 drag clamp and the
+ * :nth-child(2..6) tap animations in globals.css all assume this length.
+ *
+ * So the five have to earn their slot, and the test is what a MODERATOR — the
+ * rank that works from a phone all day — actually reaches for. Home, then the
+ * three queues the dashboard's hero counts and a moderator is here to empty,
+ * then the user lookup most of those decisions end in.
+ *
+ * /verifications took /settings' place. Settings is a page you open once a
+ * quarter and it is already reachable twice from the drawer — the footer
+ * toolbar and the user menu — while verifications, one of the three queues on
+ * the dashboard, had no thumb position at all. /analytics is deliberately not
+ * here either: it is somewhere you go on purpose, not somewhere you jump to
+ * between decisions.
+ */
+const DOCK_ROUTES = ['/dashboard', '/listings', '/reports', '/verifications', '/users'] as const;
 const DOCK_STRIDE = 64;
 const DOCK_MAX_DRAG = (DOCK_ROUTES.length - 1) * DOCK_STRIDE;
 
@@ -287,7 +342,7 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
    * Off-canvas is not hidden.
    *
    * The closed drawer is moved out of sight by `transform` alone, so its
-   * thirteen nav links, the three icon buttons, both close buttons and the user
+   * fifteen nav links, the three icon buttons, both close buttons and the user
    * trigger stayed focusable and in the accessibility tree: a Tab from the
    * header walked ~20 invisible stops before reaching the page, with no visible
    * focus ring, and Enter navigated somewhere the admin could not see. `inert`
@@ -349,12 +404,12 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
     items: group.items.filter((item) => atLeast(role, ROUTE_MIN_ROLE[item.href] ?? 'MODERATOR')),
   })).filter((group) => group.items.length > 0);
 
-  /** -1 on the eight routes the dock does not cover (/audit, /staff, /support,
-   *  /top-requests, /verifications, /security, /sms, /ai). It used to be
-   *  clamped to 0 right here, which handed `data-active` to the Dashboard item
-   *  on those pages — and `.apple-glass-item[data-active="true"]` sets
-   *  `pointer-events: none`, so the one dock button that could take a
-   *  moderator home was dead on eight of thirteen screens. */
+  /** -1 on the ten routes the dock does not cover (/analytics, /support,
+   *  /chat, /top-requests, /ai, /sms, /audit, /security, /settings, /staff).
+   *  It used to be clamped to 0 right here, which handed `data-active` to the
+   *  Dashboard item on those pages — and `.apple-glass-item[data-active="true"]`
+   *  sets `pointer-events: none`, so the one dock button that could take a
+   *  moderator home was dead on ten of fifteen screens. */
   const rawIndex = DOCK_ROUTES.findIndex(isCurrent);
 
   /** The flicked-to slot wins until the pathname catches up; still -1 off-dock,
@@ -717,17 +772,20 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
             </svg>
           </Link>
 
-          <Link href="/users" className="apple-glass-item" aria-label={t('users')} data-active={activeIndex === 3}>
+          {/* Slot 3 was Settings. A shield with a tick, matching the rail's
+              verifications glyph one weight heavier, so the same page is the
+              same picture in both navs. */}
+          <Link href="/verifications" className="apple-glass-item" aria-label={t('verifications')} data-active={activeIndex === 3}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="8" r="4" />
-              <path d="M4.5 21a7.5 7.5 0 0 1 15 0" />
+              <path d="M12 21.5c5-2.4 7.5-5.9 7.5-10.5V5.2L12 2.5 4.5 5.2v5.8c0 4.6 2.5 8.1 7.5 10.5z" />
+              <polyline points="8.9 11.6 11.2 13.9 15.2 9.6" />
             </svg>
           </Link>
 
-          <Link href="/settings" className="apple-glass-item" aria-label={t('settings')} data-active={activeIndex === 4}>
+          <Link href="/users" className="apple-glass-item" aria-label={t('users')} data-active={activeIndex === 4}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4.5 21a7.5 7.5 0 0 1 15 0" />
             </svg>
           </Link>
         </div>

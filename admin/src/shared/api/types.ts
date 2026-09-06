@@ -645,16 +645,282 @@ export interface AdminAiSessionRow {
   closedAt: string | null;
   ip: string | null;
   createdAt: string;
+  /** Non-null means an operator owns this thread and the AI has stopped. */
+  takenOverBy: string | null;
+  takenOverByName: string | null;
+  /** Survives a release, so the history still shows a human was on it. */
+  takenOverAt: string | null;
+  adminReadAt: string | null;
+  leadName: string | null;
+  leadPhone: string | null;
+  leadNote: string | null;
+  leadCapturedAt: string | null;
+  /** Visitor messages since `adminReadAt`. */
+  unreadCount: number;
+  lastMessageAt: string | null;
 }
 
 /** `GET /admin/ai/sessions/{id}/messages`. Oldest first, capped at 200 rows. */
 export interface AdminAiMessageRow {
   id: string;
-  role: 'user' | 'assistant';
+  /** `admin` is an operator's own turn, typed on this page. */
+  role: 'user' | 'assistant' | 'admin';
   content: string;
   createdAt: string;
   /** Listings the assistant cited in this turn; empty on user turns. */
   listingIds: string[];
+}
+
+// ─── Assistant settings ───────────────────────────────────────────────────────
+
+/**
+ * How a suggested model is meant to be used. Purely a label for the picker —
+ * the backend never checks it and never refuses a model because of it.
+ */
+export type AiModelTier = 'fast' | 'balanced' | 'reasoning';
+
+/**
+ * One entry of the suggestion list.
+ *
+ * `models` is NOT a whitelist. The backend validates a model name by charset
+ * and length only, so the picker has to accept a typed-in value as well —
+ * OpenAI ships new model names faster than we redeploy, and a select that only
+ * offers these eight would make the newest model unreachable from the panel.
+ */
+export interface AiModelOption {
+  id: string;
+  tier: AiModelTier;
+}
+
+/**
+ * Where an effective value came from.
+ *
+ * 'stored'    — a row in `system_settings`, set from this panel. Wins.
+ * 'env'       — nothing stored, so the deployed environment variable applies.
+ * 'inherited' — reasoning tier ONLY: no reasoning model is chosen anywhere, so
+ *               the smart calls run on the everyday model. Not the same thing
+ *               as 'env' and must not be worded as if it were: nobody picked
+ *               this value, it is a fallback to the field above it.
+ */
+export type AiSettingSource = 'stored' | 'env' | 'inherited';
+
+/** Per-field provenance. Only `reasoningModel` can ever be 'inherited'. */
+export interface AiSettingsSources {
+  chatModel: Exclude<AiSettingSource, 'inherited'>;
+  reasoningModel: AiSettingSource;
+  maxToolSteps: Exclude<AiSettingSource, 'inherited'>;
+}
+
+/** Validation bounds the panel should enforce before it sends a 422. */
+export interface AiSettingsLimits {
+  minToolSteps: number;
+  maxToolSteps: number;
+  modelIdMaxLength: number;
+}
+
+/**
+ * What CLEARING a stored value falls back to — i.e. what the deployment is
+ * configured with. `reasoningModel` is null when no reasoning tier is deployed
+ * either, which is the 'inherited' case above.
+ */
+export interface AiSettingsDefaults {
+  chatModel: string;
+  reasoningModel: string | null;
+  maxToolSteps: number;
+}
+
+/**
+ * `GET /admin/ai/settings`, ADMIN+.
+ *
+ * The three values at the top are the EFFECTIVE ones — what the assistant is
+ * running on right now, wherever they came from. `sources` says which of the
+ * two layers each one came from, and `defaults` says what a reset would land
+ * on; a screen that shows the value without the source invites somebody to
+ * "change" a setting that was never stored and wonder why the badge stays put.
+ *
+ * `assistantEnabled` is whether OPENAI_API_KEY is set at all. The key itself is
+ * never sent — nothing on this route can be used to read a secret.
+ */
+export interface AiSettings {
+  chatModel: string;
+  reasoningModel: string;
+  maxToolSteps: number;
+  sources: AiSettingsSources;
+  models: AiModelOption[];
+  limits: AiSettingsLimits;
+  defaults: AiSettingsDefaults;
+  assistantEnabled: boolean;
+}
+
+/** The `system_settings` keys this screen owns, as the backend names them. */
+export type AiSettingsKey = 'ai_chat_model' | 'ai_reasoning_model' | 'ai_max_tool_steps';
+
+/**
+ * Body of `PATCH /admin/ai/settings`, SUPERADMIN only. Unknown keys are a 422,
+ * so build this object field by field rather than spreading a form state.
+ *
+ * The three states are all different and all reachable from one form:
+ *   • OMIT the key   — leave that setting exactly as it is.
+ *   • null           — delete the stored row, so the deployed environment
+ *                      variable takes over again. This is "reset to default",
+ *                      NOT "set it to empty".
+ *   • '' (models)    — a cleared text box; the backend reads it as null.
+ * Sending every field on every save would turn "I only touched the budget"
+ * into a silent reset of both model rows.
+ */
+export interface AiSettingsPatch {
+  /** 1..64 chars matching `^[A-Za-z0-9._:-]+$`, or null to reset. */
+  chatModel?: string | null;
+  reasoningModel?: string | null;
+  /** 1..10, or null to reset. */
+  maxToolSteps?: number | null;
+}
+
+/**
+ * Response of `PATCH /admin/ai/settings`: the refreshed `AiSettings` plus what
+ * actually moved.
+ *
+ * `changed` is empty when the request asked for what was already stored — a
+ * successful no-op, and the only way to tell it apart from a real save. A
+ * "Saved" toast fired on the 200 alone tells the owner they changed a model
+ * when they changed nothing.
+ */
+export interface AiSettingsPatchResult extends AiSettings {
+  changed: AiSettingsKey[];
+}
+
+// ─── Assistant spend ──────────────────────────────────────────────────────────
+
+/**
+ * Why there is no money figure. Every one of these keeps the usage counts on
+ * screen — only the currency line is missing.
+ *
+ * 'no_admin_key'         — `envVar` is unset. The everyday OPENAI_API_KEY is
+ *                          not enough: OpenAI's costs API answers 401 to an
+ *                          ordinary `sk-...` key.
+ * 'key_rejected'         — OpenAI refused the key we do have, almost always an
+ *                          ordinary key pasted into the admin-key variable.
+ * 'provider_unreachable' — the request never got an answer.
+ * 'provider_error'       — OpenAI answered, with an error.
+ */
+export type AiCostUnavailableReason =
+  | 'no_admin_key'
+  | 'key_rejected'
+  | 'provider_unreachable'
+  | 'provider_error';
+
+/**
+ * Real spend, read from OpenAI's organisation costs API.
+ *
+ * There is no credit or "remaining balance" figure anywhere in this object,
+ * because OpenAI publishes none for an API key — the old `credit_grants` route
+ * was withdrawn. What exists is spend over a window, and that is what these
+ * two numbers are.
+ *
+ * NEVER render a figure while `available` is false, and never derive one from
+ * the message counts beside it: tokens are not dollars, and a made-up number
+ * on this screen is worse than an honest gap. When `available` is false the
+ * amounts are null precisely so that a template cannot accidentally print one.
+ *
+ * `envVar` and `docsUrl` are always present, on the good path too — the empty
+ * state has to name the variable and link the page where the key is created,
+ * and neither string belongs hardcoded in a component.
+ */
+export interface AiCost {
+  available: boolean;
+  reason: AiCostUnavailableReason | null;
+  currency: 'usd' | null;
+  /** Spend since the 1st of the month, UTC. Null unless `available`. */
+  monthToDateUsd: number | null;
+  /** Spend in the current UTC day. Null unless `available`. */
+  todayUsd: number | null;
+  /** ISO-8601 start of the month the figures cover. */
+  periodStart: string | null;
+  /** ISO-8601. Always present, including on every failure. */
+  asOf: string;
+  /** True when served from the backend's 5-minute in-process cache. */
+  cached: boolean;
+  /** 'OPENAI_ADMIN_KEY'. Comes from the server so the panel cannot drift. */
+  envVar: string;
+  /** Where the admin key is created, under Organization → Admin keys. */
+  docsUrl: string;
+  /** HTTP status OpenAI answered with; only on 'key_rejected'/'provider_error'. */
+  status?: number;
+}
+
+// ─── SMS ──────────────────────────────────────────────────────────────────────
+
+/**
+ * The SMS provider's own credit payload, passed through UNRESHAPED — these are
+ * the only snake_case keys in the admin API and they are deliberate, so that
+ * what the provider says and what we store cannot quietly diverge.
+ *
+ * Typing them camelCase is not a cosmetic mistake: `remaining_sms` read as
+ * `remainingSms` is `undefined` on every response, and the dashboard card that
+ * did exactly that spent its life showing raw credit where it meant to show
+ * "N codes left", with nothing on screen to suggest a field was missing.
+ */
+export interface SmsProviderBalance {
+  /** Money left with the provider, in so'm. */
+  balance: number;
+  /** Price of one SMS part, in so'm. */
+  sms_price: number;
+  /** How many more codes fit in the credit, or null when the price is 0. */
+  remaining_sms: number | null;
+  /** Provider-shaped counters. Free-form: the provider changes it at will. */
+  statistics: Record<string, unknown>;
+}
+
+/**
+ * One window of the SMS counters. Every field is a row count except `parts`.
+ *
+ * `parts` is billable SEGMENTS, not messages — a long text is split and each
+ * piece is charged, so this is the number that tracks the invoice while
+ * `total` tracks how many people were texted.
+ *
+ * `failureRate` is 0..1 and null when `total` is 0. Null must render as an
+ * em dash, never as 0%: "nothing was sent" and "everything sent fine" are
+ * different facts, and on the all-time window they are worlds apart.
+ */
+export interface SmsCounterWindow {
+  total: number;
+  sent: number;
+  failed: number;
+  queued: number;
+  skipped: number;
+  unknown: number;
+  parts: number;
+  failureRate: number | null;
+}
+
+/**
+ * `GET /admin/sms/overview`, ADMIN+.
+ *
+ * Everything about SMS except the log itself, which stays on `api.sms()` —
+ * duplicating rows into this payload would make one screen fetch the same
+ * table twice.
+ *
+ * `provider` is null when no token is configured OR the provider could not be
+ * reached. Show it as unknown, never as 0: an empty account stops registration
+ * and a flaky provider does not, and the two must not look alike.
+ *
+ * The windows are UTC days, matching the dashboard counters — "today" starts at
+ * 05:00 in Tashkent.
+ */
+export interface SmsOverview {
+  provider: SmsProviderBalance | null;
+  /** The backend's own "low" threshold, in so'm. Style against this number
+   *  rather than inventing a second one that disagrees with the alerting. */
+  lowBalanceWarnSum: number;
+  /** DEVSMS_SERVICE_NAME — the company name screened on every code we send. */
+  senderName: string;
+  /** SMS_ENABLED. False means codes are logged but never actually sent. */
+  smsEnabled: boolean;
+  counters: {
+    today: SmsCounterWindow;
+    month: SmsCounterWindow;
+    allTime: SmsCounterWindow;
+  };
 }
 
 export interface AdminSmsRow {
@@ -721,28 +987,39 @@ export interface CreateStaffPayload {
 
 
 /**
- * What the paid services have left.
+ * What the paid services have left. `GET /admin/balances`, MODERATOR+.
  *
  * `sms` is null when the provider could not be reached or no token is set —
  * shown as unknown rather than as zero, because zero is a real and alarming
  * value and the two must not look alike.
  */
 export interface AdminBalances {
-  sms: {
-    balance: number;
-    smsPrice: number;
-    /** How many more codes can be sent before signup stops working. */
-    remainingSms: number | null;
-  } | null;
+  sms:
+    | (SmsProviderBalance & {
+        /**
+         * @deprecated Never sent, and never was. The provider block is passed
+         * through in the provider's own snake_case (see `SmsProviderBalance`)
+         * while this file typed it camelCase, so every read of it was
+         * `undefined` and the dashboard card silently fell back to raw credit
+         * instead of "N codes left". Read `remaining_sms`. Typed as `undefined`
+         * rather than deleted only so the card still compiles while it is
+         * rewritten — delete the two together.
+         */
+        remainingSms?: undefined;
+      })
+    | null;
   ai: {
     messagesToday: number;
     messagesThisMonth: number;
     sessionsToday: number;
     /**
-     * Always false today. OpenAI publishes no credit endpoint for an ordinary
-     * API key, so the spend has to be read in their own dashboard; this flag
-     * is what lets the panel say that instead of showing a blank.
+     * Mirror of `cost.available`: is there a money figure in this payload.
+     *
+     * It was hardcoded false for as long as the only route OpenAI offered was
+     * the withdrawn `credit_grants` one. It is now a real answer — false still
+     * means "say so honestly", never "show zero" — and `cost.reason` says why.
      */
     costAvailable: boolean;
+    cost: AiCost;
   };
 }

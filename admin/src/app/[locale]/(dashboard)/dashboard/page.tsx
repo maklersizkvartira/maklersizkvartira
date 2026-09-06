@@ -1,6 +1,5 @@
 'use client';
 
-import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations, useLocale } from 'next-intl';
 import { ShieldAlert } from 'lucide-react';
@@ -8,12 +7,9 @@ import { ShieldAlert } from 'lucide-react';
 import { http } from '@/shared/lib/http';
 import { api } from '@/shared/api/endpoints';
 import type {
-  ActivityPoint,
   AdminBalances,
   AdminStats,
-  DistrictPoint,
   PublicSettings,
-  RegistrationPoint,
   TrafficPoint,
 } from '@/shared/api/types';
 import { useRole } from '@/providers/role-provider';
@@ -30,8 +26,6 @@ import { TriageCard } from '@/features/dashboard/components/TriageCard';
 import { RiskCard } from '@/features/dashboard/components/RiskCard';
 import { TodayCard } from '@/features/dashboard/components/TodayCard';
 import { ListingFlowCard } from '@/features/dashboard/components/ListingFlowCard';
-import { TrendCard } from '@/features/dashboard/components/TrendCard';
-import { DistrictsCard } from '@/features/dashboard/components/DistrictsCard';
 import { MonetizationCard } from '@/features/dashboard/components/MonetizationCard';
 import { StatBand } from '@/features/dashboard/components/StatBand';
 
@@ -48,6 +42,17 @@ import { StatBand } from '@/features/dashboard/components/StatBand';
  * reference band at the bottom. Nothing was removed: all 25 counters are still
  * on the page, one tap away at every width.
  *
+ * The deep charts are no longer here. Registrations, traffic, activity and
+ * districts moved to /analytics, which is what they were always for: they
+ * answer questions worth a minute, not the question this page answers, and
+ * four extra reads over cellular data delayed every counter above them while
+ * pushing the queues below the fold on a phone. What is left is what needs
+ * watching — the queues, what the paid services cost, today, and the platform
+ * mode — with the twenty-five counters still one tap away at the bottom. The
+ * one chart that stayed is the visitor sparkline inside the Today card, which
+ * is a shape rather than a chart and is drawn from a series this page fetches
+ * anyway.
+ *
  * Every number here is still a plain count from the backend. There is no trend
  * endpoint, so nothing on this page prints a delta — inventing one from the
  * "today" and "week" counters would be arithmetic the API never did. The one
@@ -55,36 +60,30 @@ import { StatBand } from '@/features/dashboard/components/StatBand';
  * integers of the same kind with all three parts printed underneath it.
  */
 
-/** How many days of history the three time charts ask for. The backend caps
- *  `days` at 90. The window is now printed once, by the trend card's chip,
- *  from this constant — the chart titles no longer hard-code it, so changing
- *  this number no longer means editing nine message strings. */
-const CHART_DAYS = 7;
-/** `limit` on the districts chart; the backend allows 1..30. */
-const DISTRICT_LIMIT = 10;
+/**
+ * The window behind the Today card's visitor sparkline, and the only reason
+ * this page still reads a chart endpoint.
+ *
+ * Seven days because that is the shape a single day needs to be read against,
+ * and because it matches the window /analytics opens on — the two pages share
+ * one react-query cache entry, so arriving here from there costs no request at
+ * all.
+ */
+const SPARKLINE_DAYS = 7;
 
 /**
  * How often the stats spine re-reads itself.
  *
  * Two minutes, not one. `/admin/stats` runs about two dozen uncached
  * sequential COUNTs under a per-IP ceiling, the primary reader is on a phone
- * on cellular data, and the manual refresh below — which now invalidates all
- * six queries rather than only this one — is the appropriate path for someone
- * who wants a number NOW. Background polling is off for the same reason.
+ * on cellular data, and the manual refresh below — which invalidates every
+ * query on the page rather than only this one — is the appropriate path for
+ * someone who wants a number NOW. Background polling is off for the same
+ * reason.
  */
 const STATS_POLL_MS = 120_000;
-/** The charts move far more slowly than the counters do. */
+/** The sparkline's series moves far more slowly than the counters do. */
 const CHART_POLL_MS = 300_000;
-
-/** ISO date → a short axis label in the reader's locale. */
-function useDayFormatter() {
-  const locale = useLocale();
-  return useMemo(
-    () =>
-      new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', timeZone: 'UTC' }),
-    [locale],
-  );
-}
 
 export default function DashboardPage() {
   const t = useTranslations('dashboard');
@@ -94,7 +93,6 @@ export default function DashboardPage() {
   const { can, canAccess } = useRole();
   const confirm = useConfirm();
   const queryClient = useQueryClient();
-  const dayFormat = useDayFormatter();
 
   const statsQuery = useQuery({
     queryKey: ['stats'],
@@ -106,9 +104,10 @@ export default function DashboardPage() {
   /**
    * Fetched on its own, and allowed to fail on its own.
    *
-   * This one calls the SMS provider over the network, so it is slower and
-   * less reliable than the database counters beside it. Folded into `stats`
-   * a struggling provider would have delayed every number on the page.
+   * This one leaves the building twice — the SMS provider for credit, OpenAI
+   * for spend — so it is slower and less reliable than the database counters
+   * beside it. Folded into `stats` a struggling provider would have delayed
+   * every number on the page.
    */
   const balancesQuery = useQuery({
     queryKey: ['balances'],
@@ -117,32 +116,16 @@ export default function DashboardPage() {
     refetchIntervalInBackground: false,
   });
 
-  const registrationsQuery = useQuery({
-    queryKey: ['chart', 'registrations', CHART_DAYS],
-    queryFn: ({ signal }) =>
-      http.get<RegistrationPoint[]>(api.charts.registrations(CHART_DAYS), { signal }),
-    refetchInterval: CHART_POLL_MS,
-    refetchIntervalInBackground: false,
-  });
-
+  /**
+   * The last chart read on this page, and it is here for the sparkline alone.
+   *
+   * Same query key /analytics uses for its default window, so the two pages
+   * share one cache entry instead of asking the same question twice.
+   */
   const trafficQuery = useQuery({
-    queryKey: ['chart', 'traffic', CHART_DAYS],
-    queryFn: ({ signal }) => http.get<TrafficPoint[]>(api.charts.traffic(CHART_DAYS), { signal }),
-    refetchInterval: CHART_POLL_MS,
-    refetchIntervalInBackground: false,
-  });
-
-  const districtsQuery = useQuery({
-    queryKey: ['chart', 'districts', DISTRICT_LIMIT],
+    queryKey: ['chart', 'traffic', SPARKLINE_DAYS],
     queryFn: ({ signal }) =>
-      http.get<DistrictPoint[]>(api.charts.districts(DISTRICT_LIMIT), { signal }),
-    refetchInterval: CHART_POLL_MS,
-    refetchIntervalInBackground: false,
-  });
-
-  const activityQuery = useQuery({
-    queryKey: ['chart', 'activity', CHART_DAYS],
-    queryFn: ({ signal }) => http.get<ActivityPoint[]>(api.charts.activity(CHART_DAYS), { signal }),
+      http.get<TrafficPoint[]>(api.charts.traffic(SPARKLINE_DAYS), { signal }),
     refetchInterval: CHART_POLL_MS,
     refetchIntervalInBackground: false,
   });
@@ -176,44 +159,24 @@ export default function DashboardPage() {
   });
 
   /**
-   * Refresh means refresh. It used to refetch only `['stats']` while the four
+   * Refresh means refresh. It used to refetch only `['stats']` while the
    * charts and the monetization state went on showing whatever they had, so
    * the button silently did a fifth of what it said.
    *
    * `balancesQuery` belongs in here too, and was the last omission: SMS credit
-   * is the one number on the page that comes from an external provider, so it
-   * is both the most likely to have failed and the one an admin most wants to
-   * re-read on demand — after topping the account up, the button has to reach
-   * it rather than leave the card on its 120s poll.
+   * and the assistant's spend are the two numbers on the page that come from
+   * outside, so they are both the most likely to have failed and the ones an
+   * admin most wants to re-read on demand — after topping the account up, the
+   * button has to reach them rather than leave the card on its 120s poll.
    */
-  const queries = [
-    statsQuery,
-    balancesQuery,
-    registrationsQuery,
-    trafficQuery,
-    districtsQuery,
-    activityQuery,
-    monetizationQuery,
-  ];
+  const queries = [statsQuery, balancesQuery, trafficQuery, monetizationQuery];
   const refreshing = queries.some((query) => query.isFetching);
   const refreshAll = () => {
     void Promise.all(queries.map((query) => query.refetch()));
   };
 
   const stats = statsQuery.data;
-  const registrations = registrationsQuery.data ?? [];
   const traffic = trafficQuery.data ?? [];
-  const districts = districtsQuery.data ?? [];
-  const activity = activityQuery.data ?? [];
-
-  const formatDay = (iso: string) => dayFormat.format(new Date(iso));
-
-  /** TrendCard shows one series at a time; retrying refetches only that one. */
-  const retryTrend = (key: 'registrations' | 'traffic' | 'activity') => {
-    const query =
-      key === 'traffic' ? trafficQuery : key === 'activity' ? activityQuery : registrationsQuery;
-    void query.refetch();
-  };
 
   // The page's own gate, alongside the sidebar's. Every other guarded page
   // carries one; this is the eleventh. A rank that cannot reach the route must
@@ -280,8 +243,9 @@ export default function DashboardPage() {
           reference band on a phone. */}
       <div className="flex flex-col gap-4">
         {/* ── 1 · Triage ───────────────────────────────────────────────────
-            A failed /admin/stats says nothing about /admin/chart/*, so the
-            error replaces this floor only and everything below still renders. */}
+            A failed /admin/stats says nothing about the traffic series or the
+            balances, so the error replaces this floor only and everything
+            below still renders. */}
         {statsQuery.error ? (
           <div className="card card-cut-bl flex flex-wrap items-center gap-4 p-5">
             <div className="flex-1">
@@ -334,76 +298,45 @@ export default function DashboardPage() {
           </section>
         )}
 
-        {/* ── 2 · What changed ─────────────────────────────────────────── */}
-        <Storey id="trend" label={t('sections.trend')}>
+        {/* ── 2 · Platform mode ────────────────────────────────────────────
+            Headless on purpose: the card's own label says "Monetization", and
+            a Storey heading above it would be a second label for one thing.
+            Held to a third of the width on a desktop so it keeps reading as
+            one switch rather than as a banner — it is the only control on the
+            page, not the subject of it. */}
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <Reveal index={4}>
-            <TrendCard
-              days={CHART_DAYS}
-              registrations={registrations}
-              traffic={traffic}
-              activity={activity}
-              loading={{
-                registrations: registrationsQuery.isLoading,
-                traffic: trafficQuery.isLoading,
-                activity: activityQuery.isLoading,
+            <MonetizationCard
+              enabled={monetizationOn}
+              loading={monetizationQuery.isLoading}
+              error={monetizationQuery.isError}
+              onRetry={() => void monetizationQuery.refetch()}
+              canToggle={can('monetizationToggle')}
+              toggling={toggleMonetization.isPending}
+              // Confirmed in BOTH directions, unlike the staff switch that
+              // skips the dialog for the harmless one — neither direction is
+              // harmless here. This is a full-width button in the scroll
+              // path of a phone, and one accidental contact either publishes
+              // paid promotion to every visitor of a live site or takes it
+              // away. Only `isDestructive` differs.
+              onToggle={async () => {
+                const ok = await confirm({
+                  title: t('monetization'),
+                  message: monetizationOn
+                    ? t('monetizationOffConfirm')
+                    : t('monetizationOnConfirm'),
+                  isDestructive: monetizationOn,
+                  confirmLabel: monetizationOn
+                    ? t('monetizationDisable')
+                    : t('monetizationEnable'),
+                });
+                if (ok) toggleMonetization.mutate();
               }}
-              error={{
-                registrations: registrationsQuery.isError,
-                traffic: trafficQuery.isError,
-                activity: activityQuery.isError,
-              }}
-              onRetry={retryTrend}
-              formatDay={formatDay}
             />
           </Reveal>
-        </Storey>
+        </div>
 
-        {/* ── 3 · Coverage and mode ────────────────────────────────────── */}
-        <Storey id="reach" label={t('sections.reach')}>
-          {/* 8:5 is 1.6:1 — see the note on the hero row above. */}
-          <div className="grid gap-4 xl:grid-cols-[8fr_5fr]">
-            <Reveal index={5}>
-              <DistrictsCard
-                districts={districts}
-                loading={districtsQuery.isLoading}
-                error={districtsQuery.isError}
-                onRetry={() => void districtsQuery.refetch()}
-                limit={DISTRICT_LIMIT}
-              />
-            </Reveal>
-            <Reveal index={6}>
-              <MonetizationCard
-                enabled={monetizationOn}
-                loading={monetizationQuery.isLoading}
-                error={monetizationQuery.isError}
-                onRetry={() => void monetizationQuery.refetch()}
-                canToggle={can('monetizationToggle')}
-                toggling={toggleMonetization.isPending}
-                // Confirmed in BOTH directions, unlike the staff switch that
-                // skips the dialog for the harmless one — neither direction is
-                // harmless here. This is a full-width button in the scroll
-                // path of a phone, and one accidental contact either publishes
-                // paid promotion to every visitor of a live site or takes it
-                // away. Only `isDestructive` differs.
-                onToggle={async () => {
-                  const ok = await confirm({
-                    title: t('monetization'),
-                    message: monetizationOn
-                      ? t('monetizationOffConfirm')
-                      : t('monetizationOnConfirm'),
-                    isDestructive: monetizationOn,
-                    confirmLabel: monetizationOn
-                      ? t('monetizationDisable')
-                      : t('monetizationEnable'),
-                  });
-                  if (ok) toggleMonetization.mutate();
-                }}
-              />
-            </Reveal>
-          </div>
-        </Storey>
-
-        {/* ── 4 · Everything else ──────────────────────────────────────── */}
+        {/* ── 3 · Everything else ──────────────────────────────────────── */}
         <Storey
           id="reference"
           label={t('allMetrics')}
@@ -413,7 +346,7 @@ export default function DashboardPage() {
             </span>
           }
         >
-          <Reveal index={7}>
+          <Reveal index={5}>
             <StatBand
               stats={stats}
               error={statsQuery.isError}
