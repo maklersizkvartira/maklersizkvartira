@@ -54,10 +54,6 @@ export function proxy(request: NextRequest) {
         response.cookies.delete('refresh_token');
         return response;
       }
-      if (hasRefreshToken) {
-        const locale = pathname.match(LOCALE_PREFIX)?.[1] ?? routing.defaultLocale;
-        return NextResponse.redirect(new URL(`/${locale}${DASHBOARD_ROOT}`, request.url));
-      }
     }
     return intlMiddleware(request);
   }

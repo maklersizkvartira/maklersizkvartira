@@ -40,6 +40,9 @@ export function useLogout() {
       // Offline. The refresh cookie outlives us by at most a day and the
       // access token by half an hour; there is nothing further to do here.
     }
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('admin_session_valid');
+    }
     clearAuth();
     queryClient.clear();
     router.replace('/login');

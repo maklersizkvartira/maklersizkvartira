@@ -36,6 +36,14 @@ export function useSession() {
   const started = useRef(false);
 
   const bootstrap = useCallback(async () => {
+    // If the browser window/tab was closed, sessionStorage is empty.
+    // In that case, do not auto-login: revoke refresh token and require login & 2FA again.
+    if (typeof window !== 'undefined' && !sessionStorage.getItem('admin_session_valid')) {
+      void fetch('/api/auth/logout', { method: 'POST' });
+      clearAuth();
+      return;
+    }
+
     if (useAuthStore.getState().status === 'authenticated') return;
 
     setStatus('loading');

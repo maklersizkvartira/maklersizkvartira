@@ -34,17 +34,11 @@ export function useLogin() {
       queryClient.clear();
       setAuth(result.admin, result.accessToken);
 
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('admin_session_valid', 'true');
+      }
+
       // Checked, not fired and forgotten.
-      //
-      // The cookie this writes is the whole session: the access token lives in
-      // memory and is gone on the next reload, and `proxy.ts` gates every
-      // protected route on the cookie's presence. So a `set-refresh` that
-      // failed — offline for the half-second after the login POST returned, a
-      // 403 from the new same-origin guard, a 500 — used to be swallowed, and
-      // the redirect went ahead anyway: the middleware saw no cookie and sent
-      // the admin straight back to the login form, with correct credentials,
-      // no error, and nothing on screen to explain it. Throwing here puts the
-      // mutation into its error state, which the form already renders.
       const parked = await fetch('/api/auth/set-refresh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

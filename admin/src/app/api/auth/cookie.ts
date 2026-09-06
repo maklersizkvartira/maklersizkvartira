@@ -34,6 +34,6 @@ export function refreshCookieOptions() {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax' as const,
     path: '/',
-    maxAge: 60 * 60 * 24,
+    // Session cookie: no maxAge, so closing the browser window ends the session
   };
 }
