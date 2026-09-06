@@ -167,7 +167,7 @@ def apply_filters(stmt: Select, filters: ListingFilters, rate: float) -> Select:
 
     for field_name in (
         "furnished", "parking", "internet", "air_conditioning",
-        "washing_machine", "pets_allowed",
+        "washing_machine", "pets_allowed", "utilities_included",
     ):
         value = getattr(filters, field_name)
         if value is True:

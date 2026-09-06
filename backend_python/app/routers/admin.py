@@ -1487,6 +1487,7 @@ def _top_row(request: TopRequest, listing: Listing) -> AdminTopRequestRow:
     row.listing_title = listing.title
     row.listing_district = listing.district
     row.listing_price = listing.price
+    row.listing_currency = listing.currency
     row.listing_image = listing.images[0] if listing.images else None
     row.listing_is_featured = listing.is_featured
     row.listing_featured_until = listing.featured_until

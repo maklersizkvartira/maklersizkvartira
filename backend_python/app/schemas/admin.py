@@ -255,6 +255,12 @@ class AdminTopRequestRow(ORMCamelModel):
     listing_title: str | None = None
     listing_district: str | None = None
     listing_price: float | None = None
+    #: The currency that price is IN. Without it the queue printed a bare
+    #: number, so a $700 listing and a 700 000 so'm one were indistinguishable
+    #: on the one screen where a moderator decides to push a listing to the top
+    #: of the public catalogue. The column holds two units; a figure taken from
+    #: it is meaningless on its own.
+    listing_currency: str | None = None
     #: ONE image, never the whole array: a listing's `images` can hold
     #: multi-megabyte base64 data URIs, and a queue page carrying full arrays
     #: is the trap that forced the listings page size down.

@@ -376,8 +376,14 @@ class ListingFilters(CamelModel):
     metro_station: str | None = Field(default=None, max_length=80)
     university_name: str | None = Field(default=None, max_length=120)
     rooms: int | None = Field(default=None, ge=0, le=30)
-    min_price: float | None = Field(default=None, ge=0, le=1_000_000_000)
-    max_price: float | None = Field(default=None, ge=0, le=1_000_000_000)
+    #: The filter bounds take the SALE cap, not the renting one. A search box
+    #: is not a publish form: the two numbers here only narrow a query, so a
+    #: bound that is too loose costs nothing, while one that is too tight
+    #: rejects the request outright — and a billion so'm is under the price of
+    #: an ordinary Tashkent flat, so every realistic purchase-price filter came
+    #: back 422 and the grid blanked itself with a retry that could not succeed.
+    min_price: float | None = Field(default=None, ge=0, le=MAX_SALE_UZS)
+    max_price: float | None = Field(default=None, ge=0, le=MAX_SALE_UZS)
     min_area: float | None = Field(default=None, ge=0, le=10_000)
     property_type: PropertyType | None = None
     #: Defaults to RENT, and that default is load-bearing. Rentals and sales
@@ -407,6 +413,12 @@ class ListingFilters(CamelModel):
     air_conditioning: bool | None = None
     washing_machine: bool | None = None
     pets_allowed: bool | None = None
+    #: The map has always drawn this chip and the client has always sent
+    #: `utilitiesIncluded`; without the field here FastAPI simply dropped it,
+    #: so the chip lit up, the badge counted it and the identical rows came
+    #: back. Rent-only in meaning — `_normalise_deal` clears it on every sale
+    #: row — so asking for it on the sale side legitimately matches nothing.
+    utilities_included: bool | None = None
     sort_by: Literal[
         "RECOMMENDED", "NEWEST", "PRICE_LOW", "PRICE_HIGH", "TRUST", "POPULAR"
     ] = "RECOMMENDED"
