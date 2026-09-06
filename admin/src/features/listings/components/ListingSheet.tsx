@@ -118,6 +118,19 @@ export function ListingSheet({
   const [weight, setWeight] = useState(
     String(row.promotionWeight > 0 ? row.promotionWeight : FEATURE_WEIGHT_DEFAULT),
   );
+  /**
+   * Which decision is in flight, so the spinner lands on the button that was
+   * pressed.
+   *
+   * `moderating` and `featuring` are one flag each for two buttons, so
+   * approving a listing put a spinner on the red "Rad etish" as well — for the
+   * second or two a PATCH takes on cellular the moderator could not tell which
+   * decision had actually been sent. These say which; the flags from the page
+   * still say whether anything is running, and `busy` below still locks the
+   * whole sheet either way.
+   */
+  const [decided, setDecided] = useState<typeof APPROVE_STATUS | typeof REJECT_STATUS | null>(null);
+  const [promotingTo, setPromotingTo] = useState<boolean | null>(null);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -155,7 +168,10 @@ export function ListingSheet({
   const decide = async (status: typeof APPROVE_STATUS | typeof REJECT_STATUS) => {
     const message =
       status === APPROVE_STATUS ? t('moderation.approveConfirm') : t('moderation.rejectConfirm');
+    // Recorded inside the branch, never before the await: a cancelled dialog
+    // would otherwise leave the wrong button ready to spin on the next press.
     if (await confirm({ message, isDestructive: status === REJECT_STATUS })) {
+      setDecided(status);
       onModerate({ status, note: noteForWire() });
     }
   };
@@ -178,14 +194,14 @@ export function ListingSheet({
             <>
               <Button
                 variant="danger"
-                loading={moderating}
+                loading={moderating && decided === REJECT_STATUS}
                 disabled={busy}
                 onClick={() => void decide(REJECT_STATUS)}
               >
                 {t('actions.reject')}
               </Button>
               <Button
-                loading={moderating}
+                loading={moderating && decided === APPROVE_STATUS}
                 disabled={busy}
                 onClick={() => void decide(APPROVE_STATUS)}
               >
@@ -431,9 +447,10 @@ export function ListingSheet({
               <Button
                 variant="secondary"
                 icon={<Star size={14} />}
-                loading={featuring}
+                loading={featuring && promotingTo === true}
                 disabled={busy}
-                onClick={() =>
+                onClick={() => {
+                  setPromotingTo(true);
                   onFeature({
                     isFeatured: true,
                     days: clamp(Number(days), FEATURE_DAYS_MIN, FEATURE_DAYS_MAX, FEATURE_DAYS_DEFAULT),
@@ -443,17 +460,20 @@ export function ListingSheet({
                       FEATURE_WEIGHT_MAX,
                       FEATURE_WEIGHT_DEFAULT,
                     ),
-                  })
-                }
+                  });
+                }}
               >
                 {t('actions.feature')}
               </Button>
               {featured && (
                 <Button
                   variant="ghost"
-                  loading={featuring}
+                  loading={featuring && promotingTo === false}
                   disabled={busy}
-                  onClick={() => onFeature({ isFeatured: false })}
+                  onClick={() => {
+                    setPromotingTo(false);
+                    onFeature({ isFeatured: false });
+                  }}
                 >
                   {t('actions.unfeature')}
                 </Button>

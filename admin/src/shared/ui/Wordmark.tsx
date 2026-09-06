@@ -48,7 +48,12 @@ export function Wordmark({
       {/* currentColor so the word takes the surface's text colour, the same way
           the heading it replaced did. */}
       <path d={WORD} fill="currentColor" />
-      <path d={CHEVRON} fill="var(--color-accent, #1447e6)" />
+      {/* `--accent`, not `--color-accent`: the latter is defined nowhere, so
+          the chevron always fell through to the literal below and stayed brand
+          blue while the rest of the panel followed the palette an admin had
+          picked. `--accent` is the property the pre-paint script and
+          `rehydrateThemePalette` actually write. */}
+      <path d={CHEVRON} fill="var(--accent, #1447e6)" />
     </svg>
   );
 }

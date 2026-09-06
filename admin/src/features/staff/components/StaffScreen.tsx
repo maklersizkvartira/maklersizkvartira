@@ -13,7 +13,7 @@ import { useConfirm } from '@/providers/confirm-provider';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Button } from '@/shared/ui/Button';
 import { DataTable, type Column } from '@/shared/ui/DataTable';
-import { EmptyState } from '@/shared/ui/EmptyState';
+import { ListErrorBanner, ListState } from '@/shared/ui/ListState';
 import { StatusPill } from '@/shared/ui/StatusPill';
 import { toast } from '@/shared/ui/Toast';
 import { CreateStaffSheet } from './CreateStaffSheet';
@@ -234,6 +234,18 @@ export function StaffScreen() {
         }
       />
 
+      {/* Shown only while the table still has rows on it. `invalidate()` runs
+          after both mutations, and react-query keeps the previous `data` when
+          a refetch fails — so the table stays populated, the empty branch never
+          runs, and a failed refresh would otherwise be completely silent under
+          the green "Bajarildi" toast that has just fired. */}
+      <ListErrorBanner
+        error={staff.data && staff.data.length > 0 ? staff.error : null}
+        title={c('error')}
+        retryLabel={c('retry')}
+        onRetry={staff.refetch}
+      />
+
       <DataTable
         columns={columns}
         rows={staff.data}
@@ -241,17 +253,17 @@ export function StaffScreen() {
         loading={staff.isLoading}
         loadingRows={6}
         empty={
-          <EmptyState
+          // A dead request and an empty table are not the same news. This used
+          // to render `common.noData` over the fetch error as a muted sub-line,
+          // so a superadmin whose token had just been rejected read it as
+          // "there are no staff accounts".
+          <ListState
             icon={<ShieldCheck size={26} />}
-            title={c('noData')}
-            description={staff.error?.message}
-            action={
-              staff.error ? (
-                <Button variant="secondary" onClick={() => staff.refetch()}>
-                  {c('retry')}
-                </Button>
-              ) : undefined
-            }
+            emptyTitle={c('noData')}
+            errorTitle={c('error')}
+            retryLabel={c('retry')}
+            error={staff.error}
+            onRetry={staff.refetch}
           />
         }
       />

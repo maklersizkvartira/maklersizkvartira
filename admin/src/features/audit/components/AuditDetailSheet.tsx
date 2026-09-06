@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocale, useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
@@ -22,6 +22,18 @@ import { Z_DIALOG } from '@/shared/ui/z-layers';
  */
 
 const subscribeNever = () => () => {};
+
+/**
+ * What Tab may reach while the sheet is open. Kept local rather than shared
+ * with the other dialogs on purpose: a cycle like the one below is only safe
+ * because nothing in this sheet portals a popover out to `document.body`. The
+ * shared `Select` does exactly that and runs its own focus management, so a
+ * trap that forced focus back inside would make it unreachable — which is why
+ * generalising this belongs with those dialogs and not here.
+ */
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+  'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 interface AuditDetailSheetProps {
   row: AuditLogRow | null;
@@ -51,6 +63,11 @@ export function AuditDetailSheet({
 
   const mounted = useSyncExternalStore(subscribeNever, () => true, () => false);
 
+  /** The portal root, so the Tab cycle below can see the backdrop button too —
+   *  it is a focusable sibling of the dialog, not a descendant of it. */
+  const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -61,11 +78,61 @@ export function AuditDetailSheet({
 
   useEffect(() => {
     if (!row) return;
+    // Restore whatever was there rather than clearing, the way the moderation
+    // kit's sheet does: opened over a surface that had already locked the
+    // page, this would otherwise hand scrolling back while that one is still
+    // open.
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = previousOverflow;
     };
   }, [row]);
+
+  /**
+   * Focus in on open, back to the row on close.
+   *
+   * The sheet declared `aria-modal` and locked the page but never moved focus,
+   * so a keyboard reader who opened a row was left standing on the table
+   * behind an opaque backdrop, tabbing through a sidebar they could not see,
+   * with a screen reader announcing the whole page rather than the dialog.
+   *
+   * `mounted` is in the dependency list because the portal's children do not
+   * exist on the render where `useSyncExternalStore` still answers false — a
+   * `[row]`-only effect can run with `panelRef.current` still null and never
+   * try again. `preventScroll`, because focusing the panel in the middle of
+   * `animate-slide-up-mobile` jumps the page on iOS.
+   */
+  useEffect(() => {
+    if (!row || !mounted) return;
+    const trigger = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus({ preventScroll: true });
+    return () => {
+      // The feed keeps its rows and refetches underneath, so the row that
+      // opened this can be detached by the time it closes — and focusing a
+      // detached node silently drops focus to <body>, which is the half of
+      // this bug that costs the reader their place in a 25-row feed.
+      if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+    };
+  }, [row, mounted]);
+
+  /** Tab wraps inside the portal instead of walking out into the covered page.
+   *  Scoped to the portal root rather than to the `role="dialog"` element, or
+   *  the backdrop's own close button would become an unreachable tab stop. */
+  const trapTab = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return;
+    const focusable = rootRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE);
+    if (!focusable || focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   if (!row || !mounted) return null;
 
@@ -91,6 +158,8 @@ export function AuditDetailSheet({
    */
   return createPortal(
     <div
+      ref={rootRef}
+      onKeyDown={trapTab}
       className="fixed inset-0 flex items-center justify-center md:p-4"
       style={{ zIndex: Z_DIALOG }}
     >
@@ -103,9 +172,12 @@ export function AuditDetailSheet({
       />
 
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={actionLabel}
+        // Focusable as a target for the effect above, never as a tab stop.
+        tabIndex={-1}
         className="relative w-full flex flex-col overflow-hidden
                    md:max-w-2xl md:rounded-[24px] md:animate-scale-in
                    max-md:fixed max-md:bottom-0 max-md:left-0 max-md:right-0

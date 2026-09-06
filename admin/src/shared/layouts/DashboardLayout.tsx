@@ -175,11 +175,17 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             ) : (
               <>
                 <div className="flex items-center gap-3">
+                  {/* The catalogue's trailing "..." is trimmed here rather
+                      than in the messages: at this letter-spacing it renders as
+                      three widely spaced dots immediately left of the three
+                      animated ones below, and every other consumer of the key
+                      (the Spinner labels, the confirm dialog) reads it in
+                      sentence case where the ellipsis is right. */}
                   <span
                     className="text-[10px] font-semibold uppercase tracking-[0.28em]"
                     style={{ color: 'var(--color-text-muted)' }}
                   >
-                    Loading
+                    {c('loading').replace(/[.…]+$/, '')}
                   </span>
                   <div className="flex items-center gap-1.5">
                     {[0, 1, 2].map((i) => (

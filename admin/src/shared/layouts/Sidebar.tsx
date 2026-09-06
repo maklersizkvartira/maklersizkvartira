@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { useUIStore } from '@/store/ui.store';
 import { Avatar } from '@/shared/ui/Avatar';
+import { useEscapeToClose } from '@/shared/ui/escape-layer';
 import { Wordmark } from '@/shared/ui/Wordmark';
 import { useTheme } from '@/providers';
 import { useRole } from '@/providers/role-provider';
@@ -258,16 +259,73 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
    *  Read after mount, never during render, so the server HTML and the first
    *  client pass agree — the same rule the remembered width itself follows. */
   const [isDesktop, setIsDesktop] = useState(false);
+  /** Whether the query above has actually been read yet. `isDesktop` starts
+   *  false for the SSR pass, and `inert` below must not believe that: it would
+   *  render a DESKTOP sidebar inert for the first client paint, where it is
+   *  fully visible and every nav link would silently do nothing. */
+  const [mqReady, setMqReady] = useState(false);
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');
-    const sync = () => setIsDesktop(mq.matches);
+    const sync = () => {
+      setIsDesktop(mq.matches);
+      setMqReady(true);
+    };
     sync();
     mq.addEventListener('change', sync);
     return () => mq.removeEventListener('change', sync);
   }, []);
 
   const railCollapsed = sidebarCollapsed && isDesktop;
+
+  /** The drawer only exists below 1024px: from there up globals.css pins the
+   *  panel open and the backdrop is `lg:hidden`. Everything modal about it —
+   *  the scroll lock, Escape, `inert` — has to ask where it is first. */
+  const drawerOpen = sidebarOpen && !isDesktop;
+
+  /**
+   * Off-canvas is not hidden.
+   *
+   * The closed drawer is moved out of sight by `transform` alone, so its
+   * thirteen nav links, the three icon buttons, both close buttons and the user
+   * trigger stayed focusable and in the accessibility tree: a Tab from the
+   * header walked ~20 invisible stops before reaching the page, with no visible
+   * focus ring, and Enter navigated somewhere the admin could not see. `inert`
+   * removes both at once — `aria-hidden` alone would leave every control
+   * tabbable but unannounceable, which is worse than the bug.
+   */
+  const drawerInert = mqReady && !isDesktop && !sidebarOpen;
+
+  /**
+   * Leaving the shell must close the drawer.
+   *
+   * Nothing else resets it: the UI store is a module singleton that survives a
+   * client-side navigation, so a drawer left open at sign-out was still open
+   * when the next sign-in mounted this shell again — the dashboard behind a
+   * full-screen backdrop and the dock animated away. The per-link handlers
+   * below stay: tapping the item for the route you are already on produces no
+   * pathname change, and this effect would never fire for it.
+   */
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname, setSidebarOpen]);
+
+  /** While the drawer is over the page, the page holds still — a flick on the
+   *  backdrop used to scroll the queue underneath it. The previous overflow is
+   *  restored rather than cleared, so a Modal opened on top of the drawer is
+   *  not unlocked when the drawer closes. */
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [drawerOpen]);
+
+  // Escape backs out of the drawer, through the shared stack so a dialog
+  // raised over it takes the press first.
+  useEscapeToClose(drawerOpen, () => setSidebarOpen(false));
 
   // ── Apple Glass Dock Drag State ──
   const [isDragging, setIsDragging] = useState(false);
@@ -378,6 +436,7 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
       <aside
         className="sidebar-panel fixed left-0 top-0 bottom-0 z-40 flex flex-col overflow-visible transition-transform duration-300 ease-in-out"
         data-sidebar-collapsed={sidebarCollapsed}
+        inert={drawerInert}
         style={{
           width: railCollapsed ? '80px' : '260px',
           background: 'var(--color-surface)',
@@ -566,7 +625,11 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
                   <div style={{ height: '1px', background: 'var(--color-border)', margin: '4px 0' }} />
 
                   <button
-                    onClick={() => void logout()}
+                    // Closed here rather than left to the pathname effect: the
+                    // drawer must never be open when the shell remounts after
+                    // the next sign-in, and clearing it on mount instead would
+                    // paint one frame of open drawer and then slide it out.
+                    onClick={() => { setSidebarOpen(false); void logout(); }}
                     className="menu-item menu-item-danger py-2.5 px-3"
                   >
                     {Icons.logout} {t('signOut')}
@@ -615,7 +678,10 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
       </aside>
 
       {/* ── Apple VisionOS Liquid Glass Mobile Dock ── */}
-      <div className="apple-glass-dock-wrapper" data-hidden={sidebarOpen}>
+      {/* The mirror of `drawerInert`: with the drawer open the dock is pushed
+          off the bottom edge by a transform, so without this its five links
+          stay tabbable and announced from behind the backdrop. */}
+      <div className="apple-glass-dock-wrapper" data-hidden={sidebarOpen} inert={drawerOpen}>
         <div className="apple-glass-dock">
           {/* 3D Crystal Glass Sliding Thumb */}
           <div

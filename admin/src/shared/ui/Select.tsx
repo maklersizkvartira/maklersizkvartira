@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useId, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Check } from 'lucide-react';
 
+import { useEscapeToClose } from './escape-layer';
 import { Z_DIALOG_POPOVER } from './z-layers';
 
 export interface SelectOption {
@@ -134,15 +135,14 @@ export function Select({
   }, [open, selectId]);
 
   // Close on Escape, and give the keyboard back to the trigger it came from.
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      setOpen(false);
-      triggerRef.current?.focus();
-    };
-    if (open) document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [open]);
+  //
+  // Through the shared stack: an open list inside a moderation sheet is the
+  // topmost layer, so the press closes the list and leaves the sheet standing.
+  // Bound on `document` directly, both would have closed on one press.
+  useEscapeToClose(open, () => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  });
 
   // Opening moves focus into the list, onto the current value. This is what
   // makes the arrow keys below reachable at all — the list is portalled to the

@@ -132,11 +132,39 @@ export function DataTable<Row>({
             </tr>
           </thead>
           <tbody>
+            {/* A clickable row is a tab stop and answers Enter / Space, so the
+                table branch is operable by keyboard at all — until this, a
+                moderator on a desktop could not open a row from /listings,
+                /reports, /users or /verifications by any key, and narrowing the
+                window below lg to reach the card branch was the only way in.
+
+                Deliberately NOT `role="button"`: that would override the
+                implicit `row` role, leaving the cells without a `row` parent
+                and the table without owned rows, at which point a screen reader
+                stops offering row/column navigation and flattens all fourteen
+                cells into one announcement. The row keeps its table semantics
+                and merely gains activation.
+
+                The target guard is because DataTable is shared: rows that carry
+                their own buttons in a cell (StaffScreen's activate/deactivate)
+                must keep Space for those buttons. */}
             {rows.map((row) => (
               <tr
                 key={keyOf(row)}
                 data-clickable={clickable}
+                tabIndex={clickable ? 0 : undefined}
                 onClick={clickable ? () => onRowClick?.(row) : undefined}
+                onKeyDown={
+                  clickable
+                    ? (event) => {
+                        if (event.target !== event.currentTarget) return;
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          onRowClick?.(row);
+                        }
+                      }
+                    : undefined
+                }
               >
                 {columns.map((column) => (
                   <td key={column.key} style={{ textAlign: column.align ?? 'left' }}>

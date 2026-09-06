@@ -854,6 +854,16 @@ input.input-field.h-8 {
 .data-table tbody tr[data-clickable="true"]:hover,
 .data-table tbody tr[data-clickable="true"]:focus-within { background: var(--color-surface-2); }
 
+/* The row itself is the keyboard target (DataTable gives a clickable row a
+   tabIndex), and the tint above is a background swap, not a focus indicator.
+   The global `:focus-visible` rule would draw its ring 2px OUTSIDE the row,
+   where the `.table-scroll` clips it on the first and last rows; a negative
+   offset keeps the whole ring inside the row it belongs to. */
+.data-table tbody tr[data-clickable="true"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 /* The `display` is scoped to the breakpoint this list is for, instead of being
    declared unconditionally, because everything in this file is UNLAYERED while
    Tailwind's utilities sit in `@layer utilities` — and an unlayered rule beats

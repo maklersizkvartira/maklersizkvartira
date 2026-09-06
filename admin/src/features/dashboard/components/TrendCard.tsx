@@ -69,6 +69,9 @@ export function TrendCard({
 }: TrendCardProps) {
   const t = useTranslations('dashboard');
   const c = useTranslations('common');
+  // The four severity levels are the audit feed's vocabulary, and the /audit
+  // screen already ships them in all three locales.
+  const a = useTranslations('audit');
   const [series, setSeries] = useState<SeriesKey>('registrations');
 
   const options = [
@@ -126,16 +129,21 @@ export function TrendCard({
         chart: (
           // Severity is a state, so the series take the status colours rather
           // than the neutral chart slots. INFO and NOTICE therefore share the
-          // accent on purpose — every segment is named in the legend, so no
-          // meaning rests on the hue alone.
+          // accent on purpose — the legend names every segment in the reader's
+          // own language, so no meaning rests on the hue alone. It did while
+          // those four labels were the English enums: the shared accent left
+          // 'INFO' and 'NOTICE' telling a reader of Uzbek or Russian nothing.
+          //
+          // `key` stays the wire value — it is the React list key downstream
+          // and the stable id `Series.key` documents the colour as following.
           <BarChart
             stacked
             labels={activity.map((point) => formatDay(point.date))}
             series={[
-              { key: 'INFO', label: 'INFO', values: activity.map((p) => p.info), color: severityColor('INFO') },
-              { key: 'NOTICE', label: 'NOTICE', values: activity.map((p) => p.notice), color: severityColor('NOTICE') },
-              { key: 'WARNING', label: 'WARNING', values: activity.map((p) => p.warning), color: severityColor('WARNING') },
-              { key: 'CRITICAL', label: 'CRITICAL', values: activity.map((p) => p.critical), color: severityColor('CRITICAL') },
+              { key: 'INFO', label: a('severity.INFO'), values: activity.map((p) => p.info), color: severityColor('INFO') },
+              { key: 'NOTICE', label: a('severity.NOTICE'), values: activity.map((p) => p.notice), color: severityColor('NOTICE') },
+              { key: 'WARNING', label: a('severity.WARNING'), values: activity.map((p) => p.warning), color: severityColor('WARNING') },
+              { key: 'CRITICAL', label: a('severity.CRITICAL'), values: activity.map((p) => p.critical), color: severityColor('CRITICAL') },
             ]}
           />
         ),

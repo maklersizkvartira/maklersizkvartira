@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { PageMeta } from '@/shared/api/types';
 
@@ -11,11 +12,20 @@ import type { PageMeta } from '@/shared/api/types';
  * the twelve list pages — anyone reading `meta.totalPages` elsewhere should
  * expect the raw value.
  *
- * The clamp is for the LABELS only. The arrows step from `meta.page`, the page
- * actually fetched, so a request that landed past the end (the last row on
- * page 2 was deleted) steps back to a page that exists instead of skipping one
- * — and the whole control stays mounted in that case, because "no controls at
- * all" is how a moderator gets stranded on an empty page.
+ * The clamp is for the LABELS only. The arrows step from the page the admin
+ * has ASKED for, so a request that landed past the end (the last row on page 2
+ * was deleted) steps back to a page that exists instead of skipping one — and
+ * the whole control stays mounted in that case, because "no controls at all"
+ * is how a moderator gets stranded on an empty page.
+ *
+ * "Asked for", not `meta.page`: `keepPreviousData` holds `meta` at the
+ * PREVIOUS page for the whole of a step, so stepping from it meant the label
+ * still read "1 / 5" while page 2 was loading and a second, impatient tap on
+ * Next recomputed 1 + 1 = 2 — the page already in flight. Nothing happened,
+ * and the arrow read as broken. `hasNext` / `hasPrevious` are stale in exactly
+ * the same way, so the arrows are gated on the page number instead; the
+ * backend defines both as pure functions of it (`page * page_size < total`,
+ * `page > 1`), so nothing is lost by deriving them.
  *
  * Every visible string is injected, as everywhere else in this kit: the
  * components take labels, the pages hold the translator.
@@ -59,16 +69,26 @@ export function Pagination({
   nextLabel = 'Next page',
   className = '',
 }: PaginationProps) {
+  /** Where the server says the rows on screen came from. */
+  const fetched = meta ? Math.max(1, meta.page) : 1;
+  /** The step the admin asked for, tagged with the page it was asked FROM.
+   *  Tagging is what retires it: once the answer lands, `fetched` no longer
+   *  matches the tag and the real page takes over with no effect needed to
+   *  clear it — which also covers the page a filter change resets to and the
+   *  one `useAdminList` clamps back to off the end of a shrunken result. */
+  const [requested, setRequested] = useState<{ page: number; from: number } | null>(null);
+
   if (!meta) return null;
 
   const totalPages = Math.max(1, meta.totalPages);
-  /** Where the server thinks we are — which can be past the last page. */
-  const fetched = Math.max(1, meta.page);
-  const page = Math.min(fetched, totalPages);
+  const current = requested && requested.from === fetched ? requested.page : fetched;
+  /** Labels and the highlighted button only, so a step past a shrinking result
+   *  never renders as "3 / 1". The arrows keep the unclamped `current`. */
+  const page = Math.min(current, totalPages);
 
   // A single page of results needs no controls at all — unless we are stranded
   // beyond it, where these controls are the only way back.
-  if (totalPages <= 1 && fetched <= totalPages) return null;
+  if (totalPages <= 1 && current <= totalPages) return null;
 
   return (
     <nav className={`flex items-center justify-between gap-3 flex-wrap mt-4 ${className}`} aria-label={navLabel}>
@@ -79,8 +99,11 @@ export function Pagination({
       <div className="flex items-center gap-1.5">
         <button
           className="page-btn"
-          onClick={() => onPage(fetched - 1)}
-          disabled={!meta.hasPrevious || fetched <= 1}
+          onClick={() => {
+            setRequested({ page: current - 1, from: fetched });
+            onPage(current - 1);
+          }}
+          disabled={current <= 1}
           aria-label={previousLabel}
         >
           <ChevronLeft size={15} />
@@ -96,7 +119,10 @@ export function Pagination({
               <button
                 key={entry}
                 className={`page-btn ${entry === page ? 'page-btn-active' : ''}`}
-                onClick={() => onPage(entry)}
+                onClick={() => {
+                  setRequested({ page: entry, from: fetched });
+                  onPage(entry);
+                }}
                 aria-current={entry === page ? 'page' : undefined}
               >
                 {entry}
@@ -107,8 +133,11 @@ export function Pagination({
 
         <button
           className="page-btn"
-          onClick={() => onPage(fetched + 1)}
-          disabled={!meta.hasNext || fetched >= totalPages}
+          onClick={() => {
+            setRequested({ page: current + 1, from: fetched });
+            onPage(current + 1);
+          }}
+          disabled={current >= totalPages}
           aria-label={nextLabel}
         >
           <ChevronRight size={15} />

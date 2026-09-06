@@ -178,6 +178,10 @@
     "monetizationOff": "Off",
     "toggleMonetization": "Toggle monetization",
     "monetizationHint": "While it is on, paid promotion and pricing are visible on the public site.",
+    "monetizationOnConfirm": "Paid promotion and pricing become visible to every visitor.",
+    "monetizationOffConfirm": "Paid promotion and pricing disappear from the public site immediately.",
+    "monetizationEnable": "Enable",
+    "monetizationDisable": "Disable",
     "kpi": {
       "totalUsers": "Total users",
       "activeUsers": "Active",

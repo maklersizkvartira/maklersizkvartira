@@ -4,6 +4,7 @@ import { useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
+import { useEscapeToClose } from './escape-layer';
 import { Z_DIALOG } from './z-layers';
 
 interface ModalProps {
@@ -46,13 +47,9 @@ export function Modal({
   // no state to set from an effect, and no hydration mismatch.
   const mounted = useSyncExternalStore(subscribeNever, () => true, () => false);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    if (open) document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [open, onClose]);
+  // Through the shared stack, so a Select list or a confirm dialog raised from
+  // inside this modal takes the press first and only that layer closes.
+  useEscapeToClose(open, onClose);
 
   useEffect(() => {
     if (open) {

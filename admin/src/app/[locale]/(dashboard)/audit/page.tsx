@@ -23,7 +23,12 @@ import { DataTable, type Column } from '@/shared/ui/DataTable';
 import { ListErrorBanner, ListState } from '@/shared/ui/ListState';
 import { Pagination } from '@/shared/ui/Pagination';
 import { AuditDetailSheet } from '@/features/audit/components/AuditDetailSheet';
-import { severityAccent, severityVariant } from '@/features/audit/components/severity';
+import { auditActionLabel } from '@/features/audit/components/action-label';
+import {
+  AUDIT_SEVERITIES,
+  severityAccent,
+  severityVariant,
+} from '@/features/audit/components/severity';
 
 /**
  * Every action in the system, in one feed.
@@ -40,8 +45,6 @@ import { severityAccent, severityVariant } from '@/features/audit/components/sev
 
 const PAGE_SIZE = 25;
 
-const SEVERITIES: AuditSeverity[] = ['INFO', 'NOTICE', 'WARNING', 'CRITICAL'];
-
 /**
  * `AuditLog.actor_type` is upper-cased by the route before it compares, and
  * these four are the whole `ActorType` enum. They have no entry in the message
@@ -49,6 +52,32 @@ const SEVERITIES: AuditSeverity[] = ['INFO', 'NOTICE', 'WARNING', 'CRITICAL'];
  * that are also what the `Actor type` column prints.
  */
 const ACTOR_TYPES: ActorType[] = ['USER', 'ADMIN', 'SYSTEM', 'ANONYMOUS'];
+
+/**
+ * Every `entity_type` the backend writes, most-used first.
+ *
+ * The route compares this column with `==`, so anything but a byte-perfect
+ * value answers 200 with an empty feed — which reads exactly like "nothing
+ * matched" rather than "that is not a thing". Offered as a `<datalist>` on the
+ * free-text box: a phone user picks from the list instead of guessing, and
+ * anyone typing still gets suggestions rather than a closed dropdown that
+ * could not show an entity type added after this build.
+ *
+ * Lowercase like the writers, and shown as they arrive — these are wire values
+ * with no entry in the message catalogue, the same as the actor types above.
+ */
+const ENTITY_TYPES = [
+  'user',
+  'phone',
+  'admin',
+  'listing',
+  'ai_session',
+  'verification',
+  'session',
+  'report',
+  'system_settings',
+  'telegram',
+];
 
 /**
  * `AuditFilters.actor_id` is typed `uuid.UUID` on the backend, unlike
@@ -99,8 +128,14 @@ function utcStart(day: string): string | undefined {
   return day ? `${day}T00:00:00Z` : undefined;
 }
 
+/**
+ * `.999999`, not `.999` and not a bare second: the backend compares with `<=`
+ * against a Postgres `timestamptz`, which resolves to the microsecond. Pinned
+ * to `T23:59:59Z` the bound excluded everything recorded in the chosen day's
+ * final second — on the one screen where a missing row is a wrong answer.
+ */
 function utcEnd(day: string): string | undefined {
-  return day ? `${day}T23:59:59Z` : undefined;
+  return day ? `${day}T23:59:59.999999Z` : undefined;
 }
 
 export default function AuditPage() {
@@ -172,13 +207,12 @@ export default function AuditPage() {
 
   /**
    * `auditActions` covers the backend's AuditAction enum as it stood when the
-   * catalogue was written. An action added since renders its raw constant —
-   * ugly, but readable, and never a next-intl MISSING_MESSAGE crash.
+   * catalogue was written; anything added since is humanised rather than
+   * printed as a raw constant, and neither path can throw next-intl's
+   * MISSING_MESSAGE. Shared with the user detail page's activity list, which
+   * used to print the enum itself for the same rows.
    */
-  const actionLabel = (action: string) => {
-    const key = action as Parameters<typeof ta>[0];
-    return ta.has(key) ? ta(key) : action;
-  };
+  const actionLabel = (action: string) => auditActionLabel(ta, action);
 
   const severityLabel = (severity: string) => {
     const key = `severity.${severity}` as Parameters<typeof t>[0];
@@ -313,7 +347,7 @@ export default function AuditPage() {
           placeholder={t('filters.severity')}
           options={[
             { value: '', label: c('all') },
-            ...SEVERITIES.map((severity) => ({
+            ...AUDIT_SEVERITIES.map((severity) => ({
               value: severity,
               label: severityLabel(severity),
             })),
@@ -330,16 +364,24 @@ export default function AuditPage() {
           ]}
           className="sm:w-40"
         />
+        {/* Normalised on the way in, because the column is compared with `==`
+            and every writer stores it lowercase: `Admin` typed by a moderator
+            emptied the feed and looked identical to "no rows matched". The box
+            shows the canonical form it is actually filtering by, and the
+            datalist under the bar spares the reader from knowing the word. */}
         <Input
           value={list.filters.entityType}
-          onChange={(e) => list.setFilter('entityType', e.target.value)}
+          onChange={(e) => list.setFilter('entityType', e.target.value.trim().toLowerCase())}
           placeholder={t('filters.entityType')}
           aria-label={t('filters.entityType')}
+          list="audit-entity-types"
           className="sm:w-36"
         />
+        {/* Trimmed but never lowercased: an id is opaque — a phone number, a
+            settings key or a UUID — and casing is part of it. */}
         <Input
           value={list.filters.entityId}
-          onChange={(e) => list.setFilter('entityId', e.target.value)}
+          onChange={(e) => list.setFilter('entityId', e.target.value.trim())}
           placeholder={t('filters.entityId')}
           aria-label={t('filters.entityId')}
           className="sm:w-44"
@@ -402,6 +444,15 @@ export default function AuditPage() {
           </p>
         </div>
       </FilterBar>
+
+      {/* Outside the bar, not among its children: `FilterBar` renders those
+          twice — once in the phone panel, once in the sm-and-up row — and an
+          id has to be unique for `list=` to resolve to it. */}
+      <datalist id="audit-entity-types">
+        {ENTITY_TYPES.map((entityType) => (
+          <option key={entityType} value={entityType} />
+        ))}
+      </datalist>
 
       {/* A refetch that fails leaves the previous page on screen and says
           nothing — `keepPreviousData` holds those rows. The empty-state

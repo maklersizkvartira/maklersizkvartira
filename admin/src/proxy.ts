@@ -49,7 +49,22 @@ export function proxy(request: NextRequest) {
   if (isPublic) {
     const normalizedPath = pathname.replace(LOCALE_PREFIX, '/');
     if (normalizedPath === '/login') {
-      if (request.nextUrl.searchParams.has('reauth')) {
+      // `?reauth=1` deletes the refresh cookie. That branch is load-bearing:
+      // the panel sends a genuinely refused session here precisely because the
+      // cookie is stale, and while it exists nothing else clears it server-side
+      // — so a bare /login leaves the shell bouncing against its own splash.
+      //
+      // But a URL that ends a session is also a link anyone can paste into a
+      // staff chat, and following it costs a moderator the rejection reason
+      // they were halfway through typing, with no prompt. Only a request the
+      // panel itself started carries `Sec-Fetch-Site: same-origin` — that
+      // covers both the full document load in `endSession` and the client-side
+      // replace in `DashboardLayout`. A link from Telegram or email sends
+      // `cross-site`; a bookmark, a home-screen shortcut or a typed URL sends
+      // `none`. Both now fall through to the ordinary render below, which is
+      // the safe direction: at worst a redirect, never a forced sign-out.
+      const sameOrigin = request.headers.get('sec-fetch-site') === 'same-origin';
+      if (sameOrigin && request.nextUrl.searchParams.has('reauth')) {
         const response = intlMiddleware(request);
         response.cookies.delete('refresh_token');
         return response;

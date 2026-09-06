@@ -12,6 +12,17 @@ import type { BadgeVariant } from '@/shared/ui/Badge';
  * bar down the left of a row.
  */
 
+/**
+ * The four levels this build ships, in ascending order.
+ *
+ * It lives here rather than beside the feed's filter dropdown because two other
+ * screens now label a severity — the user detail page's activity list and the
+ * dashboard's activity chart — and each of them had to know the closed list to
+ * hand it to `enumLabeller`. One array means a fifth backend level is added in
+ * one file instead of three.
+ */
+export const AUDIT_SEVERITIES: AuditSeverity[] = ['INFO', 'NOTICE', 'WARNING', 'CRITICAL'];
+
 export const SEVERITY_VARIANT: Record<AuditSeverity, BadgeVariant> = {
   INFO: 'info',
   NOTICE: 'info',

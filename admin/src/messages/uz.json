@@ -178,6 +178,10 @@
     "monetizationOff": "Oʻchirilgan",
     "toggleMonetization": "Monetizatsiyani oʻzgartirish",
     "monetizationHint": "Yoqilganda pullik reklama va tariflar saytda koʻrinadi.",
+    "monetizationOnConfirm": "Pullik reklama va tariflar saytdagi barcha foydalanuvchilarga koʻrinadi.",
+    "monetizationOffConfirm": "Pullik reklama va tariflar saytdan darhol yoʻqoladi.",
+    "monetizationEnable": "Yoqish",
+    "monetizationDisable": "Oʻchirish",
     "kpi": {
       "totalUsers": "Jami foydalanuvchilar",
       "activeUsers": "Faol",

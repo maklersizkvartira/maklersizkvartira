@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, ImageOff, X } from 'lucide-react';
 
 import { Badge, type BadgeVariant } from '@/shared/ui/Badge';
+import { useEscapeToClose } from '@/shared/ui/escape-layer';
 import { Z_DIALOG } from '@/shared/ui/z-layers';
 
 /**
@@ -82,21 +83,21 @@ export function Sheet({
 }: SheetProps) {
   const mounted = useSyncExternalStore(subscribeNever, () => true, () => false);
 
+  // Through the shared stack, so a lightbox opened from inside this sheet
+  // takes the press on its own and the sheet — with the half-typed note in it
+  // — stays where it is. See `shared/ui/escape-layer`.
+  useEscapeToClose(open, onClose);
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
     // Restore whatever was there rather than clearing: a sheet opened from
     // inside a lightbox would otherwise hand scrolling back to the page early.
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
-      document.removeEventListener('keydown', onKey);
       document.body.style.overflow = previousOverflow;
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open || !mounted) return null;
 
@@ -238,16 +239,22 @@ export function Lightbox({
   const mounted = useSyncExternalStore(subscribeNever, () => true, () => false);
   const count = images.length;
 
+  // The viewer opens over the sheet that raised it, so it is pushed onto the
+  // stack second and takes the press — the sheet below keeps its state.
+  useEscapeToClose(open, onClose);
+
+  // The arrows stay in an effect of their own, and it must keep `index` in its
+  // deps: folded into a subscription that only re-runs on `open`, they would
+  // page from whichever index was current when the viewer opened.
   useEffect(() => {
-    if (!open) return;
+    if (!open || count < 2) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-      if (event.key === 'ArrowLeft' && count > 1) onIndexChange((index - 1 + count) % count);
-      if (event.key === 'ArrowRight' && count > 1) onIndexChange((index + 1) % count);
+      if (event.key === 'ArrowLeft') onIndexChange((index - 1 + count) % count);
+      if (event.key === 'ArrowRight') onIndexChange((index + 1) % count);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose, onIndexChange, index, count]);
+  }, [open, onIndexChange, index, count]);
 
   if (!open || !mounted || count === 0) return null;
 

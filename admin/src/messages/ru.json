@@ -178,6 +178,10 @@
     "monetizationOff": "Выключена",
     "toggleMonetization": "Переключить монетизацию",
     "monetizationHint": "Когда включена, платное продвижение и тарифы видны на сайте.",
+    "monetizationOnConfirm": "Платное продвижение и тарифы станут видны всем посетителям.",
+    "monetizationOffConfirm": "Платное продвижение и тарифы сразу исчезнут с сайта.",
+    "monetizationEnable": "Включить",
+    "monetizationDisable": "Выключить",
     "kpi": {
       "totalUsers": "Всего пользователей",
       "activeUsers": "Активных",

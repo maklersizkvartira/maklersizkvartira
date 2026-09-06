@@ -17,6 +17,7 @@ import type {
   TrafficPoint,
 } from '@/shared/api/types';
 import { useRole } from '@/providers/role-provider';
+import { useConfirm } from '@/providers/confirm-provider';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -91,6 +92,7 @@ export default function DashboardPage() {
   const e = useTranslations('errors');
   const locale = useLocale();
   const { can, canAccess } = useRole();
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const dayFormat = useDayFormatter();
 
@@ -155,11 +157,21 @@ export default function DashboardPage() {
       http.raw.get<PublicSettings>(api.settings.publicRead, { signal, skipAuth: true }),
   });
 
+  const monetizationOn = monetizationQuery.data?.is_monetization_enabled === true;
+
   const toggleMonetization = useMutation({
     mutationFn: () => http.post(api.settings.toggleMonetization),
     // The toggle route answers with an acknowledgement and no new value, so the
     // only way to learn the result is to read /settings again.
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['public-settings'] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['public-settings'] });
+      // Said out loud, because the status pill several lines up the card is
+      // otherwise the only sign that the site's billing mode just changed —
+      // and it does not move until that refetch lands. `monetizationOn` still
+      // holds the state before the tap here, so the message names the state
+      // the platform is now in.
+      toast.success(c('success'), monetizationOn ? t('monetizationOff') : t('monetizationOn'));
+    },
     onError: (error: Error) => toast.error(c('error'), error.message),
   });
 
@@ -202,8 +214,6 @@ export default function DashboardPage() {
       key === 'traffic' ? trafficQuery : key === 'activity' ? activityQuery : registrationsQuery;
     void query.refetch();
   };
-
-  const monetizationOn = monetizationQuery.data?.is_monetization_enabled === true;
 
   // The page's own gate, alongside the sidebar's. Every other guarded page
   // carries one; this is the eleventh. A rank that cannot reach the route must
@@ -369,7 +379,25 @@ export default function DashboardPage() {
                 onRetry={() => void monetizationQuery.refetch()}
                 canToggle={can('monetizationToggle')}
                 toggling={toggleMonetization.isPending}
-                onToggle={() => toggleMonetization.mutate()}
+                // Confirmed in BOTH directions, unlike the staff switch that
+                // skips the dialog for the harmless one — neither direction is
+                // harmless here. This is a full-width button in the scroll
+                // path of a phone, and one accidental contact either publishes
+                // paid promotion to every visitor of a live site or takes it
+                // away. Only `isDestructive` differs.
+                onToggle={async () => {
+                  const ok = await confirm({
+                    title: t('monetization'),
+                    message: monetizationOn
+                      ? t('monetizationOffConfirm')
+                      : t('monetizationOnConfirm'),
+                    isDestructive: monetizationOn,
+                    confirmLabel: monetizationOn
+                      ? t('monetizationDisable')
+                      : t('monetizationEnable'),
+                  });
+                  if (ok) toggleMonetization.mutate();
+                }}
               />
             </Reveal>
           </div>

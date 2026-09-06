@@ -40,6 +40,7 @@ export function Header({ paletteOpen, onTogglePalette, onClosePalette }: HeaderP
   const roleT = useTranslations('staff');
   const admin = useAuthStore((s) => s.admin);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+  const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const { locale, setLocale } = useLocale();
@@ -342,7 +343,11 @@ export function Header({ paletteOpen, onTogglePalette, onClosePalette }: HeaderP
 
                 {/* Logout */}
                 <button
-                  onClick={() => void logout()}
+                  // The drawer must not outlive the session: the UI store is a
+                  // module singleton that survives the navigation to /login, so
+                  // an open drawer would still be covering the dashboard when
+                  // the next sign-in mounts the shell again.
+                  onClick={() => { setSidebarOpen(false); void logout(); }}
                   className="menu-item menu-item-danger"
                 >
                   <LogOut size={15} /> {navT('signOut')}

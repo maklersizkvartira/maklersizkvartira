@@ -69,7 +69,25 @@ export default function TopRequestsPage() {
   const queryClient = useQueryClient();
   const { canAccess, can } = useRole();
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  /**
+   * The row the review sheet is open on, held whole rather than by id.
+   *
+   * It used to be an id looked up in `list.rows` on every render, so any
+   * refetch that no longer carried the request pulled the sheet out from under
+   * the moderator mid-review — a phone reconnecting after a dead spot, another
+   * moderator deciding it first, or newer PENDING requests pushing it off page
+   * one. The lookup returns nothing, the sheet unmounts, and the typed
+   * rejection reason and the granted days and weight go with it, silently.
+   * Held here it survives all three, the same way `selected` does in
+   * listings/page.tsx and `rejecting` in verifications/page.tsx.
+   *
+   * The cost is that it no longer follows a refetch: a request settled
+   * elsewhere still shows as PENDING here with its buttons live. That is the
+   * better failure — the backend answers 409 `top_request_already_reviewed`
+   * and `onError` explains it in a toast, with the moderator's work still on
+   * screen.
+   */
+  const [selected, setSelected] = useState<AdminTopRequestRow | null>(null);
 
   const dateFormat = useMemo(
     () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }),
@@ -90,8 +108,6 @@ export default function TopRequestsPage() {
     },
   });
 
-  const selected = list.rows.find((row) => row.id === selectedId) ?? null;
-
   /* ── Mutations ────────────────────────────────────────────────────────────
      Merged into the cached rows rather than replacing them: the PATCH path
      joins only the listing, so it answers with a null owner name and phone
@@ -109,7 +125,7 @@ export default function TopRequestsPage() {
     onSuccess: (row) => {
       patchTopRequestCache(queryClient, row);
       toast.success(c('success'));
-      setSelectedId(null);
+      setSelected(null);
       void queryClient.invalidateQueries({ queryKey: LISTINGS_QUERY_KEY });
       // `pendingTopRequests` on the dashboard just dropped, and `['stats']` is
       // cached with the global five-minute staleTime and no refetch on focus,
@@ -124,7 +140,7 @@ export default function TopRequestsPage() {
     onSuccess: (row) => {
       patchTopRequestCache(queryClient, row);
       toast.success(c('success'));
-      setSelectedId(null);
+      setSelected(null);
       // A rejection leaves the listing alone but still settles the request, so
       // `pendingTopRequests` moves and the stats cache has to go with it.
       void queryClient.invalidateQueries({ queryKey: ['stats'] });
@@ -292,7 +308,7 @@ export default function TopRequestsPage() {
           keyOf={(row) => row.id}
           loading={list.isLoading}
           loadingRows={10}
-          onRowClick={(row) => setSelectedId(row.id)}
+          onRowClick={(row) => setSelected(row)}
           empty={
             <ListState
               icon={<Star size={26} />}
@@ -319,7 +335,7 @@ export default function TopRequestsPage() {
         <ReviewTopRequestSheet
           key={selected.id}
           row={selected}
-          onClose={() => setSelectedId(null)}
+          onClose={() => setSelected(null)}
           onApprove={(days, weight) => approve.mutate({ id: selected.id, days, weight })}
           onReject={(reason) => reject.mutate({ id: selected.id, reason })}
           approving={approve.isPending}

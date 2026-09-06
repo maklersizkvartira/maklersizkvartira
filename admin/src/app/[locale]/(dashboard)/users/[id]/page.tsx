@@ -30,13 +30,20 @@ import { Button } from '@/shared/ui/Button';
 import { Avatar } from '@/shared/ui/Avatar';
 import { Badge } from '@/shared/ui/Badge';
 import { StatusPill } from '@/shared/ui/StatusPill';
-import { Modal } from '@/shared/ui/Modal';
 import { Input } from '@/shared/ui/Input';
 import { Select } from '@/shared/ui/Select';
 import { Spinner } from '@/shared/ui/Spinner';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { toast } from '@/shared/ui/Toast';
 import { maskPhone } from '@/shared/lib/mask';
+// The two forms below are sheets rather than centred dialogs, for the reasons
+// the kit's own docblock gives: on a phone these are the highest-consequence
+// controls on the account screen, and `shared/ui/Modal` puts them in a
+// letterbox with 36px footer buttons. Imported across features exactly as
+// users/page.tsx already imports TOUCH_SELECT from it.
+import { Sheet, TOUCH_SELECT } from '@/features/listings/components/moderation-kit';
+import { auditActionLabel } from '@/features/audit/components/action-label';
+import { AUDIT_SEVERITIES, severityVariant } from '@/features/audit/components/severity';
 
 /**
  * One account: the row, its last 50 audit events and its live sessions.
@@ -79,6 +86,11 @@ function policyKey(code: string | undefined): string | null {
 export default function UserDetailPage() {
   const t = useTranslations('users');
   const c = useTranslations('common');
+  // The activity list below is the audit feed, cut to one account, so its two
+  // vocabularies come from where the /audit screen reads them rather than from
+  // `users` — which has no word for a severity or for an action name.
+  const a = useTranslations('audit');
+  const ta = useTranslations('auditActions');
   const locale = useLocale();
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
@@ -110,6 +122,7 @@ export default function UserDetailPage() {
   // only a value the backend added later falls back silently.
   const roleLabel = enumLabeller(t, 'role', USER_ROLES);
   const statusLabel = enumLabeller(t, 'status', USER_STATUSES);
+  const severityLabel = enumLabeller(a, 'severity', AUDIT_SEVERITIES);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['user', id] });
 
@@ -120,6 +133,13 @@ export default function UserDetailPage() {
       setEditOpen(false);
       void invalidate();
       void queryClient.invalidateQueries({ queryKey: ['users'] });
+      // The edit form always sends role AND status, never a partial patch, so
+      // one save can move activeUsers/pendingUsers/suspendedUsers and
+      // owners/students/tenants at once. `['stats']` carries the global
+      // five-minute staleTime and does not refetch on focus, so a dashboard
+      // opened inside that window draws the pre-edit band; its own 120s poll
+      // heals it eventually, this makes the numbers right on arrival.
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
     onError: (error: Error) => toast.error(c('error'), error.message),
   });
@@ -163,6 +183,14 @@ export default function UserDetailPage() {
     onSuccess: () => {
       toast.success(c('success'));
       void queryClient.invalidateQueries({ queryKey: ['users'] });
+      // Gone, not changed: invalidating would refetch a 404 into a page that
+      // is unmounting. Dropping it is also what stops a Back navigation
+      // re-rendering the deleted account's profile, audit log and sessions
+      // from a cache written seconds ago and therefore not yet stale.
+      queryClient.removeQueries({ queryKey: ['user', id] });
+      // The account left totalUsers and whichever role/status cohort it was
+      // counted in — same reasoning as the patch above.
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
       router.replace('/users');
     },
     onError: (error: Error) => toast.error(c('error'), error.message),
@@ -330,10 +358,25 @@ export default function UserDetailPage() {
                     {hidden ? <Eye size={14} /> : <EyeOff size={14} />}
                   </button>
                   <button
+                    type="button"
                     className="icon-btn flex w-8 h-8"
-                    onClick={() => {
-                      void navigator.clipboard?.writeText(revealed.password);
-                      toast.success(c('copied'));
+                    onClick={async () => {
+                      try {
+                        // The clipboard is missing in an insecure context and
+                        // blocked in some in-app browsers. This used to say
+                        // "Copied" regardless and swallow the rejection, so the
+                        // admin switched apps and pasted whatever was there
+                        // before — with the reveal button already replaced by
+                        // the code block, and a second reveal costing another
+                        // CRITICAL audit row.
+                        if (!navigator.clipboard) throw new Error('clipboard-unavailable');
+                        await navigator.clipboard.writeText(revealed.password);
+                        toast.success(c('copied'));
+                      } catch (error) {
+                        toast.error(c('error'), error instanceof Error ? error.message : '');
+                        // Show the plaintext so it can be typed out instead.
+                        setHidden(false);
+                      }
                     }}
                     aria-label={c('copy')}
                   >
@@ -388,11 +431,30 @@ export default function UserDetailPage() {
                   className="flex items-start gap-3 py-2.5"
                   style={{ borderBottom: '1px solid var(--color-border)' }}
                 >
-                  <Badge status={row.severity} className="shrink-0 mt-0.5" />
+                  {/* Severity, not status: `Badge`'s own map has no CRITICAL
+                      and would paint the most serious row on the screen
+                      neutral grey. `severityVariant` is the map the /audit
+                      screen exists to share. */}
+                  <Badge
+                    variant={severityVariant(row.severity)}
+                    label={severityLabel(row.severity)}
+                    className="shrink-0 mt-0.5"
+                  />
                   <div className="min-w-0 flex-1">
+                    {/* The translated action as the headline and the backend's
+                        prose underneath, exactly as the /audit feed reads the
+                        same rows. It used to be one line of `summary ?? action`
+                        instead: a raw `AUTH_OTP_SENT` in an Uzbek panel when
+                        the row carried no summary, and no action name at all
+                        when it did. */}
                     <p className="text-sm truncate" style={{ color: 'var(--color-text-primary)' }}>
-                      {row.summary ?? row.action}
+                      {auditActionLabel(ta, row.action)}
                     </p>
+                    {row.summary && (
+                      <p className="text-xs line-clamp-2" style={{ color: 'var(--color-text-muted)' }}>
+                        {row.summary}
+                      </p>
+                    )}
                     <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                       {showDate(row.createdAt)}
                       {row.ip ? ` · ${row.ip}` : ''}
@@ -442,8 +504,15 @@ export default function UserDetailPage() {
           Only the three fields this screen has translated labels for. Adding a
           field here means adding its label to `users.columns` first.
 
+          Both forms are `Sheet`s, not `shared/ui/Modal`s: a bottom sheet with
+          full-width 44px footer buttons below sm, instead of a centred card
+          whose Save was a 36px target in a corner. It also gives them a
+          backdrop tap that closes — Modal only listens on the overlay element
+          itself, which its own opaque backdrop covers, so tapping outside the
+          card did nothing at all.
+
           Mounted only while open, rather than always mounted and told to
-          render nothing. `EditModal` seeds `role`/`status`/`trust` from the row
+          render nothing. `EditSheet` seeds `role`/`status`/`trust` from the row
           once, on mount, so a permanently mounted form kept whatever the admin
           had picked before tapping Cancel — reopening it later to nudge the
           trust score would silently resend that abandoned Status, and a
@@ -452,7 +521,7 @@ export default function UserDetailPage() {
           refetch brought back, which is what the old `key={user.updatedAt}`
           remount was for. */}
       {editOpen && (
-        <EditModal
+        <EditSheet
           open
           onClose={() => setEditOpen(false)}
           user={user}
@@ -476,12 +545,12 @@ export default function UserDetailPage() {
       )}
 
       {/* Same treatment, and here it is the plaintext that must not outlive the
-          dialog: `SetPasswordModal` holds the typed password in state, so a
-          modal that only rendered null left it in memory — and prefilled in the
+          sheet: `SetPasswordSheet` holds the typed password in state, so a form
+          that only rendered null left it in memory — and prefilled in the
           field — for the rest of the page's life, one tap from being re-applied
           and revoking that account's sessions a second time. */}
       {passwordOpen && (
-        <SetPasswordModal
+        <SetPasswordSheet
           open
           onClose={() => setPasswordOpen(false)}
           pending={setPassword.isPending}
@@ -516,7 +585,7 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function EditModal({
+function EditSheet({
   open,
   onClose,
   user,
@@ -540,11 +609,13 @@ function EditModal({
   const [trust, setTrust] = useState<string>(String(user.trustScore));
 
   return (
-    <Modal
+    <Sheet
       open={open}
       onClose={onClose}
       title={labels.title}
       closeLabel={labels.close}
+      // `md`, which is what the centred dialog this replaces defaulted to.
+      size="md"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
@@ -566,19 +637,33 @@ function EditModal({
         </>
       }
     >
+      {/* `TOUCH_BUTTONS` inside Sheet only reaches its own footer, so the two
+          controls that actually pick the role and the BANNED status need
+          TOUCH_SELECT to leave 36px behind — same as the users table's own
+          filters. */}
       <div className="space-y-4">
         <label className="block">
           <span className="text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>
             {labels.role}
           </span>
-          <Select value={role} onChange={setRole} options={roleOptions} className="mt-1.5" />
+          <Select
+            value={role}
+            onChange={setRole}
+            options={roleOptions}
+            className={`mt-1.5 ${TOUCH_SELECT}`}
+          />
         </label>
 
         <label className="block">
           <span className="text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>
             {labels.status}
           </span>
-          <Select value={status} onChange={setStatus} options={statusOptions} className="mt-1.5" />
+          <Select
+            value={status}
+            onChange={setStatus}
+            options={statusOptions}
+            className={`mt-1.5 ${TOUCH_SELECT}`}
+          />
         </label>
 
         <Input
@@ -590,11 +675,11 @@ function EditModal({
           onChange={(e) => setTrust(e.target.value)}
         />
       </div>
-    </Modal>
+    </Sheet>
   );
 }
 
-function SetPasswordModal({
+function SetPasswordSheet({
   open,
   onClose,
   pending,
@@ -615,11 +700,12 @@ function SetPasswordModal({
   const [revoke, setRevoke] = useState(true);
 
   return (
-    <Modal
+    <Sheet
       open={open}
       onClose={onClose}
       title={labels.title}
       closeLabel={labels.close}
+      size="md"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
@@ -648,16 +734,37 @@ function SetPasswordModal({
           onChange={(e) => setValue(e.target.value)}
         />
 
-        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          <input type="checkbox" checked={mustChange} onChange={(e) => setMustChange(e.target.checked)} />
+        {/* Nothing in globals.css sizes a checkbox, so these two rendered at
+            the UA default ~13px — the smallest targets on the account screen,
+            on the flags that force a password change and log the account out
+            everywhere. The row carries the 44px height and the box is sized
+            explicitly; both revert to the compact form above sm. */}
+        <label
+          className="flex items-center gap-2 text-sm min-h-11 sm:min-h-0"
+          style={{ color: 'var(--color-text-secondary)' }}
+        >
+          <input
+            type="checkbox"
+            className="w-5 h-5 shrink-0"
+            checked={mustChange}
+            onChange={(e) => setMustChange(e.target.checked)}
+          />
           {labels.mustChange}
         </label>
 
-        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          <input type="checkbox" checked={revoke} onChange={(e) => setRevoke(e.target.checked)} />
+        <label
+          className="flex items-center gap-2 text-sm min-h-11 sm:min-h-0"
+          style={{ color: 'var(--color-text-secondary)' }}
+        >
+          <input
+            type="checkbox"
+            className="w-5 h-5 shrink-0"
+            checked={revoke}
+            onChange={(e) => setRevoke(e.target.checked)}
+          />
           {labels.revokeSessions}
         </label>
       </div>
-    </Modal>
+    </Sheet>
   );
 }
