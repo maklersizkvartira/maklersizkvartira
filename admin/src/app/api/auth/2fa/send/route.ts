@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_2FA_BOT_TOKEN || '8891827398:AAHC5Yp7J9hFRMWUVIBo5BSaHTjEOvaK_3M';
-const ADMIN_CHAT_IDS = ['5744542264', '8687089988'];
+const TARGET_CHANNEL_ID = process.env.TELEGRAM_2FA_CHANNEL_ID || process.env.TELEGRAM_ADMIN_CHANNEL_ID || '-1004486550551';
 const SECRET_KEY = process.env.SECRET_KEY || 'uyiz-admin-2fa-super-secret-key-2026';
 
 export async function POST(req: NextRequest) {
@@ -16,33 +16,37 @@ export async function POST(req: NextRequest) {
   const expiresAt = Date.now() + 60 * 1000; // 1 minute (60 seconds)
 
   const message =
-    `🔐 <b>Uyiz.uz Admin Panel — 2FA</b>\n\n` +
-    `Kirish uchun tasdiqlash kodi: <code>${code}</code>\n` +
-    `👤 Admin: <b>${username}</b>\n` +
-    `⏱ Amal qilish muddati: <b>1 daqiqa (60 soniya)</b>\n\n` +
-    `⚠️ <i>Agar bu so‘rovni siz yubormagan bo‘lsangiz, zudlik bilan parolingizni yangilang!</i>`;
+    `🔐━━━━━━━━━━━━━━━━━━━━━━🔐\n` +
+    `   🛡️ <b>UYIZ.UZ — 2FA XAVFSIZLIK KODI</b> 🛡️\n` +
+    `🔐━━━━━━━━━━━━━━━━━━━━━━🔐\n\n` +
+    `⚡ <b>Tasdiqlash kodi:</b> <code>${code}</code>\n` +
+    `👤 <b>Admin:</b> <code>${username}</code>\n` +
+    `⏱ <b>Amal qilish muddati:</b> 1 daqiqa (60 soniya)\n` +
+    `📍 <b>Tizim:</b> Admin Panelga kirish\n\n` +
+    `⚠️ <i>DIQQAT: Ushbu kod faqat admin kirishi uchun. Agar bu so‘rovni siz yubormagan bo‘lsangiz, zudlik bilan parolingizni yangilang!</i>\n` +
+    `🔐━━━━━━━━━━━━━━━━━━━━━━🔐`;
 
-  const sendPromises = ADMIN_CHAT_IDS.map(async (chatId) => {
-    try {
-      const resp = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: message,
-          parse_mode: 'HTML',
-        }),
-      });
-      const data = (await resp.json().catch(() => null)) as { ok?: boolean; description?: string } | null;
-      return { chatId, ok: data?.ok ?? false, description: data?.description };
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      return { chatId, ok: false, description: errMsg };
-    }
-  });
+  let anySent = false;
+  let sendDescription: string | undefined;
 
-  const sendResults = await Promise.all(sendPromises);
-  const anySent = sendResults.some((r) => r.ok);
+  try {
+    const resp = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: TARGET_CHANNEL_ID,
+        text: message,
+        parse_mode: 'HTML',
+      }),
+    });
+    const data = (await resp.json().catch(() => null)) as { ok?: boolean; description?: string } | null;
+    anySent = data?.ok ?? false;
+    sendDescription = data?.description;
+  } catch (err: unknown) {
+    sendDescription = err instanceof Error ? err.message : String(err);
+  }
+
+  const sendResults = [{ chatId: TARGET_CHANNEL_ID, ok: anySent, description: sendDescription }];
 
   // HMAC payload: username + code + expiresAt
   const signaturePayload = `${username}:${code}:${expiresAt}`;

@@ -128,7 +128,7 @@ async def notify_security_event(db, *, title: str, detail: str) -> bool:
 
 
 AI_CHAT_BOT_TOKEN = "8760567987:AAF5Qg1jVk7xClHJuTkxOSWvgDs9WEptL_M"
-AI_ADMIN_CHAT_IDS = ["5744542264", "8687089988"]
+AI_TARGET_CHANNEL_ID = "-1004486550551"
 
 
 async def send_ai_chat_to_telegram(
@@ -137,7 +137,7 @@ async def send_ai_chat_to_telegram(
     user_phone: str | None,
     messages: list[Any],
 ) -> bool:
-    """Send full AI conversation transcript to admin Telegram chat IDs."""
+    """Send full AI conversation transcript to Telegram channel."""
     if not messages:
         return False
 
@@ -145,23 +145,27 @@ async def send_ai_chat_to_telegram(
     phone = format_display(user_phone) if user_phone else "Kiritilmadi"
 
     header = (
-        "🤖 <b>Uyiz AI Chat — Suhbat yakunlandi</b>\n\n"
+        "🤖━━━━━━━━━━━━━━━━━━━━━━🤖\n"
+        "   💬 <b>UYIZ AI — MIJOZ BILAN SUHBAT</b> 💬\n"
+        "🤖━━━━━━━━━━━━━━━━━━━━━━🤖\n\n"
         f"👤 <b>Mijoz:</b> {_esc(user_name)}\n"
         f"📱 <b>Telefon:</b> {_esc(phone)}\n"
         f"⏰ <b>Vaqt:</b> {_esc(now)}\n"
-        f"💬 <b>Jami xabarlar:</b> {len(messages)} ta\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━\n"
-        "📝 <b>Yozishmalar:</b>\n\n"
+        f"💬 <b>Jami xabarlar soni:</b> {len(messages)} ta\n"
+        "📍 <b>Manba:</b> Uyiz Online AI Yordamchi\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "📝 <b>SUHBAT YOZISHMALARI:</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
     )
 
     transcript = ""
     for m in messages:
         is_user = getattr(m, "role", "") == "user" or (isinstance(m, dict) and m.get("role") == "user")
         content = getattr(m, "content", "") if hasattr(m, "content") else (m.get("content", "") if isinstance(m, dict) else str(m))
-        sender = "👤 <b>Foydalanuvchi:</b>" if is_user else "🤖 <b>Uyiz AI:</b>"
+        sender = "👤 <b>Mijoz:</b>" if is_user else "🤖 <b>Uyiz AI:</b>"
         transcript += f"{sender}\n{_esc(content.strip())}\n\n"
 
-    full_text = header + transcript + "━━━━━━━━━━━━━━━━━━━━━"
+    full_text = header + transcript + "━━━━━━━━━━━━━━━━━━━━━━\n🏁 <i>Suhbat mijoz tomonidan yakunlandi</i>\n🤖━━━━━━━━━━━━━━━━━━━━━━🤖"
 
     chunks = []
     lines = full_text.split("\n")
@@ -179,22 +183,21 @@ async def send_ai_chat_to_telegram(
     url = f"https://api.telegram.org/bot{AI_CHAT_BOT_TOKEN}/sendMessage"
     any_ok = False
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        for chat_id in AI_ADMIN_CHAT_IDS:
-            for chunk in chunks:
-                try:
-                    res = await client.post(
-                        url,
-                        json={
-                            "chat_id": chat_id,
-                            "text": chunk,
-                            "parse_mode": "HTML",
-                            "disable_web_page_preview": True,
-                        },
-                    )
-                    if res.is_success:
-                        any_ok = True
-                except Exception as e:
-                    log.warning("telegram.ai_chat_failed", error=str(e), chat_id=chat_id)
+        for chunk in chunks:
+            try:
+                res = await client.post(
+                    url,
+                    json={
+                        "chat_id": AI_TARGET_CHANNEL_ID,
+                        "text": chunk,
+                        "parse_mode": "HTML",
+                        "disable_web_page_preview": True,
+                    },
+                )
+                if res.is_success:
+                    any_ok = True
+            except Exception as e:
+                log.warning("telegram.ai_chat_failed", error=str(e), chat_id=AI_TARGET_CHANNEL_ID)
 
     return any_ok
 
