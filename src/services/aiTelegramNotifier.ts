@@ -69,26 +69,32 @@ export async function sendAiChatToTelegram(params: SendAiChatParams): Promise<vo
   const clientPhone = userPhone?.trim() || 'Kiritilmagan';
 
   const header =
-    `🤖━━━━━━━━━━━━━━━━━━━━━━🤖\n` +
-    `   💬 <b>UYIZ AI — MIJOZ BILAN SUHBAT</b> 💬\n` +
-    `🤖━━━━━━━━━━━━━━━━━━━━━━🤖\n\n` +
+    `🤖 <b>UYIZ AI — MIJOZ BILAN SUHBAT</b>\n\n` +
     `👤 <b>Mijoz:</b> ${escapeHtml(clientName)}\n` +
-    `📱 <b>Telefon:</b> ${escapeHtml(clientPhone)}\n` +
-    `⏰ <b>Vaqt:</b> ${escapeHtml(now)}\n` +
-    `💬 <b>Jami xabarlar soni:</b> ${log.length} ta\n` +
-    `📍 <b>Manba:</b> Uyiz Online AI Yordamchi\n\n` +
-    `━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `📝 <b>SUHBAT YOZISHMALARI:</b>\n` +
-    `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    `📱 <b>Tel:</b> ${escapeHtml(clientPhone)} • ⏰ ${escapeHtml(now)}\n` +
+    `💬 <b>Xabarlar soni:</b> ${log.length} ta\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━\n` +
+    `📝 <b>Qisqa yozishmalar:</b>\n\n`;
+
+  const compactText = (text: string, maxLen: number): string => {
+    const cleaned = text.trim().replace(/\s+/g, ' ');
+    if (cleaned.length <= maxLen) return cleaned;
+    const parts = cleaned.slice(0, maxLen).split(' ');
+    if (parts.length > 1) parts.pop();
+    return parts.join(' ') + '...';
+  };
 
   let transcript = '';
   for (const msg of log) {
     const isUser = msg.from === 'me';
-    const sender = isUser ? '👤 <b>Mijoz:</b>' : '🤖 <b>Uyiz AI:</b>';
-    transcript += `${sender}\n${escapeHtml(msg.text.trim())}\n\n`;
+    if (isUser) {
+      transcript += `👤 <b>Mijoz:</b> ${escapeHtml(compactText(msg.text, 280))}\n`;
+    } else {
+      transcript += `🤖 <b>AI:</b> ${escapeHtml(compactText(msg.text, 180))}\n\n`;
+    }
   }
 
-  const fullMessage = header + transcript + `━━━━━━━━━━━━━━━━━━━━━━\n🏁 <i>Suhbat mijoz tomonidan yakunlandi</i>\n🤖━━━━━━━━━━━━━━━━━━━━━━🤖`;
+  const fullMessage = header + transcript.trimEnd() + `\n━━━━━━━━━━━━━━━━━━━━━\n🏁 <i>Suhbat yakunlandi</i>`;
   const messageChunks = chunkMessage(fullMessage);
 
   for (const chunk of messageChunks) {

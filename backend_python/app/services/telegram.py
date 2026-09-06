@@ -131,13 +131,21 @@ AI_CHAT_BOT_TOKEN = "8760567987:AAF5Qg1jVk7xClHJuTkxOSWvgDs9WEptL_M"
 AI_TARGET_CHANNEL_ID = "-1004486550551"
 
 
+def _compact_text(text: str, max_len: int = 180) -> str:
+    cleaned = " ".join(text.strip().split())
+    if len(cleaned) <= max_len:
+        return cleaned
+    parts = cleaned[:max_len].rsplit(" ", 1)
+    return (parts[0] if len(parts) > 1 else cleaned[:max_len]) + "..."
+
+
 async def send_ai_chat_to_telegram(
     *,
     user_name: str,
     user_phone: str | None,
     messages: list[Any],
 ) -> bool:
-    """Send full AI conversation transcript to Telegram channel."""
+    """Send compact AI conversation transcript to Telegram channel."""
     if not messages:
         return False
 
@@ -145,27 +153,26 @@ async def send_ai_chat_to_telegram(
     phone = format_display(user_phone) if user_phone else "Kiritilmadi"
 
     header = (
-        "🤖━━━━━━━━━━━━━━━━━━━━━━🤖\n"
-        "   💬 <b>UYIZ AI — MIJOZ BILAN SUHBAT</b> 💬\n"
-        "🤖━━━━━━━━━━━━━━━━━━━━━━🤖\n\n"
+        "🤖 <b>UYIZ AI — MIJOZ BILAN SUHBAT</b>\n\n"
         f"👤 <b>Mijoz:</b> {_esc(user_name)}\n"
-        f"📱 <b>Telefon:</b> {_esc(phone)}\n"
-        f"⏰ <b>Vaqt:</b> {_esc(now)}\n"
-        f"💬 <b>Jami xabarlar soni:</b> {len(messages)} ta\n"
-        "📍 <b>Manba:</b> Uyiz Online AI Yordamchi\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n"
-        "📝 <b>SUHBAT YOZISHMALARI:</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"📱 <b>Tel:</b> {_esc(phone)} • ⏰ {_esc(now)}\n"
+        f"💬 <b>Xabarlar soni:</b> {len(messages)} ta\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━\n"
+        "📝 <b>Qisqa yozishmalar:</b>\n\n"
     )
 
     transcript = ""
     for m in messages:
         is_user = getattr(m, "role", "") == "user" or (isinstance(m, dict) and m.get("role") == "user")
-        content = getattr(m, "content", "") if hasattr(m, "content") else (m.get("content", "") if isinstance(m, dict) else str(m))
-        sender = "👤 <b>Mijoz:</b>" if is_user else "🤖 <b>Uyiz AI:</b>"
-        transcript += f"{sender}\n{_esc(content.strip())}\n\n"
+        raw_content = getattr(m, "content", "") if hasattr(m, "content") else (m.get("content", "") if isinstance(m, dict) else str(m))
+        if is_user:
+            clean_content = _compact_text(raw_content, max_len=280)
+            transcript += f"👤 <b>Mijoz:</b> {_esc(clean_content)}\n"
+        else:
+            clean_content = _compact_text(raw_content, max_len=180)
+            transcript += f"🤖 <b>AI:</b> {_esc(clean_content)}\n\n"
 
-    full_text = header + transcript + "━━━━━━━━━━━━━━━━━━━━━━\n🏁 <i>Suhbat mijoz tomonidan yakunlandi</i>\n🤖━━━━━━━━━━━━━━━━━━━━━━🤖"
+    full_text = header + transcript.rstrip() + "\n━━━━━━━━━━━━━━━━━━━━━\n🏁 <i>Suhbat yakunlandi</i>"
 
     chunks = []
     lines = full_text.split("\n")
