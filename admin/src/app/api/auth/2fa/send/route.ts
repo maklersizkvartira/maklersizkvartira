@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   const expiresAt = Date.now() + 60 * 1000; // 1 minute (60 seconds)
 
   const message =
-    `🔐 <b>Maklersiz.uz Admin Panel — 2FA</b>\n\n` +
+    `🔐 <b>Uyiz.uz Admin Panel — 2FA</b>\n\n` +
     `Kirish uchun tasdiqlash kodi: <code>${code}</code>\n` +
     `👤 Admin: <b>${username}</b>\n` +
     `⏱ Amal qilish muddati: <b>1 daqiqa (60 soniya)</b>\n\n` +

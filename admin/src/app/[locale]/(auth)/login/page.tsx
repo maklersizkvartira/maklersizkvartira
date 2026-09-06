@@ -17,7 +17,6 @@ import {
   KeyRound,
   RefreshCw,
   Clock,
-  Smartphone,
   AlertCircle,
 } from 'lucide-react';
 
@@ -53,7 +52,6 @@ export default function LoginPage() {
   const [isVerifying2FA, setIsVerifying2FA] = useState(false);
   const [isResending2FA, setIsResending2FA] = useState(false);
   const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
-  const [telegramWarning, setTelegramWarning] = useState<string | null>(null);
 
   const codeInputRef = useRef<HTMLInputElement>(null);
 
@@ -158,12 +156,6 @@ export default function LoginPage() {
         throw new Error(sendData.error || '2FA kodini yuborishda xatolik yuz berdi');
       }
 
-      if (sendData.sentToTelegram === false) {
-        setTelegramWarning('Telegramda @uyiz_2fa_bot botiga kirib Start tugmasini bosing.');
-      } else {
-        setTelegramWarning(null);
-      }
-
       // 3. Move to 2FA step
       setStep('2FA');
       setTwoFactorCode('');
@@ -203,11 +195,6 @@ export default function LoginPage() {
       } else {
         setTwoFactorTimer(60);
         setTwoFactorCode('');
-        if (data.sentToTelegram === false) {
-          setTelegramWarning('Telegramda @uyiz_2fa_bot botiga kirib Start tugmasini bosing.');
-        } else {
-          setTelegramWarning(null);
-        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -494,58 +481,6 @@ export default function LoginPage() {
           {/* STEP 2: 2FA Verification */}
           {step === '2FA' && (
             <form onSubmit={handle2FASubmit} className="space-y-4" noValidate>
-              {/* Account badge */}
-              <div
-                className="p-3 rounded-2xl flex items-center justify-between text-xs"
-                style={{
-                  background: 'var(--color-surface-hover)',
-                  border: '1px solid var(--color-border)',
-                }}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div
-                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                    style={{ background: 'var(--accent-subtle)', color: 'var(--accent)' }}
-                  >
-                    <Smartphone size={14} />
-                  </div>
-                  <div className="truncate">
-                    <span className="text-[11px] block font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                      Telegram orqali yuborildi
-                    </span>
-                    <span className="font-bold truncate block" style={{ color: 'var(--color-text-primary)' }}>
-                      {cleanUsername}
-                    </span>
-                  </div>
-                </div>
-
-                <span
-                  className="px-2.5 py-1 rounded-md text-[11px] font-mono font-bold"
-                  style={{
-                    background: 'var(--accent-subtle)',
-                    color: 'var(--accent)',
-                    border: '1px solid var(--accent-border)',
-                  }}
-                >
-                  @uyiz_2fa_bot
-                </span>
-              </div>
-
-              {/* Warning if bot not started */}
-              {telegramWarning && (
-                <div
-                  className="p-3 rounded-xl text-xs leading-relaxed flex items-start gap-2"
-                  style={{
-                    background: 'var(--color-warning-bg)',
-                    border: '1px solid var(--color-warning-border)',
-                    color: 'var(--color-warning)',
-                  }}
-                >
-                  <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                  <span>{telegramWarning}</span>
-                </div>
-              )}
-
               {/* 2FA Error Alert */}
               {twoFactorError && (
                 <div

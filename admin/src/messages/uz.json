@@ -110,7 +110,7 @@
     "sessionExpired": "Sessiya muddati tugadi. Qaytadan kiring.",
     "mustChangePassword": "Davom etishdan oldin parolni oʻzgartiring.",
     "twoFactorTitle": "2FA Tasdiqlash",
-    "twoFactorSubtitle": "Tasdiqlash kodi Telegram bot orqali adminga yuborildi",
+    "twoFactorSubtitle": "Tasdiqlash kodi Telegram orqali yuborildi",
     "code": "Tasdiqlash kodi",
     "codePlaceholder": "6 xonali kod",
     "resendCode": "Kodni qayta jo‘natish",
@@ -121,7 +121,6 @@
     "continue": "Davom etish",
     "sendingCode": "Kod yuborilmoqda...",
     "verifyingCode": "Kod tekshirilmoqda...",
-    "botNotice": "Telegramda @uyiz_2fa_bot botiga start bosilgan bo‘lishi lozim.",
     "errors": {
       "invalidCredentials": "Login yoki parol xato",
       "accountLocked": "Hisob vaqtincha bloklandi",
