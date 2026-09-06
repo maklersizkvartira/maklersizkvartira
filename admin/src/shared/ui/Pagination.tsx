@@ -71,17 +71,27 @@ export function Pagination({
 }: PaginationProps) {
   /** Where the server says the rows on screen came from. */
   const fetched = meta ? Math.max(1, meta.page) : 1;
-  /** The step the admin asked for, tagged with the page it was asked FROM.
-   *  Tagging is what retires it: once the answer lands, `fetched` no longer
-   *  matches the tag and the real page takes over with no effect needed to
-   *  clear it — which also covers the page a filter change resets to and the
-   *  one `useAdminList` clamps back to off the end of a shrunken result. */
-  const [requested, setRequested] = useState<{ page: number; from: number } | null>(null);
+  /** The step the admin asked for, tagged with the ANSWER it was asked from.
+   *
+   *  Tagging is what retires it, with no effect needed to clear it: while the
+   *  request is in flight `keepPreviousData` keeps handing back the very same
+   *  `meta` object, and the response replaces it with a fresh one — so the
+   *  moment the answer changes, the tag stops matching and the server's page
+   *  takes over.
+   *
+   *  The tag is the object, not its page NUMBER, and that is the correction.
+   *  A number tag is only inert until the number comes round again, and it
+   *  does: `useAdminList.commit()` resets to page 1 on every committed filter
+   *  change. So after stepping 1 → 2 and then changing a filter, the server
+   *  answered page 1, the stale tag from that first click matched it, and the
+   *  control resurrected "2" — over rows that were page 1, with Next then
+   *  asking for 3 and skipping a page of the queue entirely. */
+  const [requested, setRequested] = useState<{ page: number; from: PageMeta } | null>(null);
 
   if (!meta) return null;
 
   const totalPages = Math.max(1, meta.totalPages);
-  const current = requested && requested.from === fetched ? requested.page : fetched;
+  const current = requested && requested.from === meta ? requested.page : fetched;
   /** Labels and the highlighted button only, so a step past a shrinking result
    *  never renders as "3 / 1". The arrows keep the unclamped `current`. */
   const page = Math.min(current, totalPages);
@@ -100,7 +110,7 @@ export function Pagination({
         <button
           className="page-btn"
           onClick={() => {
-            setRequested({ page: current - 1, from: fetched });
+            setRequested({ page: current - 1, from: meta });
             onPage(current - 1);
           }}
           disabled={current <= 1}
@@ -120,7 +130,7 @@ export function Pagination({
                 key={entry}
                 className={`page-btn ${entry === page ? 'page-btn-active' : ''}`}
                 onClick={() => {
-                  setRequested({ page: entry, from: fetched });
+                  setRequested({ page: entry, from: meta });
                   onPage(entry);
                 }}
                 aria-current={entry === page ? 'page' : undefined}
@@ -134,7 +144,7 @@ export function Pagination({
         <button
           className="page-btn"
           onClick={() => {
-            setRequested({ page: current + 1, from: fetched });
+            setRequested({ page: current + 1, from: meta });
             onPage(current + 1);
           }}
           disabled={current >= totalPages}

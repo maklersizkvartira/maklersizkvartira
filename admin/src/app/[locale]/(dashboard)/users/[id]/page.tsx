@@ -183,11 +183,16 @@ export default function UserDetailPage() {
     onSuccess: () => {
       toast.success(c('success'));
       void queryClient.invalidateQueries({ queryKey: ['users'] });
-      // Gone, not changed: invalidating would refetch a 404 into a page that
-      // is unmounting. Dropping it is also what stops a Back navigation
-      // re-rendering the deleted account's profile, audit log and sessions
-      // from a cache written seconds ago and therefore not yet stale.
-      queryClient.removeQueries({ queryKey: ['user', id] });
+      // `['user', id]` is deliberately left alone.
+      //
+      // Invalidating it would refetch a 404 into a page that is unmounting,
+      // which is why it is not invalidated — but REMOVING it here did the same
+      // damage by another route. This page's own `useQuery` for that key is
+      // still mounted and subscribed at this moment: the mutation settling
+      // forces a render, the observer finds its cache entry gone, and it
+      // refetches the account that has just been deleted. `router.replace`
+      // then unmounts the page mid-flight and drops its history entry, so
+      // there is no Back to protect against either.
       // The account left totalUsers and whichever role/status cohort it was
       // counted in — same reasoning as the patch above.
       void queryClient.invalidateQueries({ queryKey: ['stats'] });
@@ -369,7 +374,15 @@ export default function UserDetailPage() {
                         // before — with the reveal button already replaced by
                         // the code block, and a second reveal costing another
                         // CRITICAL audit row.
-                        if (!navigator.clipboard) throw new Error('clipboard-unavailable');
+                        // Thrown without a message on purpose. The catch
+                        // below passes `error.message` straight into the
+                        // toast body, and a developer token in English is not
+                        // a sentence to show an administrator on the one
+                        // screen where the clipboard is most likely to be
+                        // blocked — an in-app browser, or any insecure
+                        // context. Empty means the toast keeps its translated
+                        // title and drops the second line entirely.
+                        if (!navigator.clipboard) throw new Error();
                         await navigator.clipboard.writeText(revealed.password);
                         toast.success(c('copied'));
                       } catch (error) {
