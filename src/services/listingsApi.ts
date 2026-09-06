@@ -97,11 +97,22 @@ export interface TopRequest {
   createdAt: string;
 }
 
-/** Drops empty values so the query string carries only real filters. */
+/**
+ * Drops empty values so the query string carries only real filters.
+ *
+ * `'ALL'` is the client's sentinel for "this filter is off", and dropping it
+ * is right for every filter but one. `dealType` is the exception, and it was
+ * an expensive one: the server's `deal_type` genuinely accepts `"ALL"` and
+ * skips the WHERE for it, but its *default* is RENT — so a caller asking for
+ * both got the key deleted here and rentals back, with nothing anywhere
+ * saying the question had been changed. The map arrives unfiltered through
+ * this path, so the exception has to be by key, not by value.
+ */
 function toQuery(query: ListingQuery): Record<string, string | number | boolean> {
   const output: Record<string, string | number | boolean> = {};
   for (const [key, value] of Object.entries(query)) {
-    if (value === undefined || value === null || value === '' || value === 'ALL') continue;
+    if (value === undefined || value === null || value === '') continue;
+    if (value === 'ALL' && key !== 'dealType') continue;
     output[key] = value as string | number | boolean;
   }
   return output;

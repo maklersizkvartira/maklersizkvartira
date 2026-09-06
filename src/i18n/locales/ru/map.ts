@@ -9,6 +9,8 @@ export const map = {
     title: 'Поиск на карте',
     subtitle: 'Найдите квартиру по расположению',
     counter: 'На карте {count} объявлений',
+    filtersCta: 'Фильтры',
+    resetAll: 'Сбросить всё',
     listCta: 'Открыть списком',
   },
 
@@ -20,8 +22,12 @@ export const map = {
     district: 'Район',
     rooms: 'Комнаты',
     currency: 'Валюта',
+    currencyAuto: 'Как в объявлении',
     currencyUzs: 'Сум',
     currencyUsd: 'Доллар',
+    currencyHint:
+      'По умолчанию каждое объявление показано в той валюте, которую указал владелец. '
+      + 'Если выбрать сум или доллар, все цены будут пересчитаны.',
   },
 
   /** Районы Ташкента — названия берутся из `data/mockLocations`. */
@@ -49,8 +55,14 @@ export const map = {
   },
 
   marker: {
-    priceMillion: '{value} млн',
+    priceMillion: '{value} млн сум',
     label: '{title} — {price}',
+    groupLabel: 'По этому адресу {count} объявлений',
+  },
+
+  group: {
+    title: 'Объявления по этому адресу',
+    subtitle: 'Здесь {count} объявлений. Выберите нужное.',
   },
 
   panel: {

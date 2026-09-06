@@ -10,6 +10,8 @@ export const map = {
     subtitle: 'Kvartirani joylashuvi bo‘yicha toping',
     counter: 'Xaritada {count} ta e’lon',
     listCta: 'Ro‘yxat ko‘rinishida ko‘rish',
+    filtersCta: 'Filtrlar',
+    resetAll: 'Hammasini tozalash',
   },
 
   search: {
@@ -20,8 +22,18 @@ export const map = {
     district: 'Tuman',
     rooms: 'Xonalar',
     currency: 'Valyuta',
+    /**
+     * Uchinchi holat, va sukut bo‘yicha tanlangani — e’lon qanday
+     * valyutada joylashtirilgan bo‘lsa, xaritada ham shunday ko‘rinadi.
+     * Ilgari “So‘m” o‘zi bosilgan turardi va $1 000 lik kvartira
+     * “12.7 mln” bo‘lib chiqardi — hech kim rozi bo‘lmagan raqam.
+     */
+    currencyAuto: 'Aslida',
     currencyUzs: 'So‘m',
     currencyUsd: 'Dollar',
+    currencyHint:
+      'Sukut bo‘yicha har bir e’lon uy egasi ko‘rsatgan valyutada chiqadi. '
+      + 'So‘m yoki dollarni tanlasangiz, barcha narxlar shu valyutaga o‘tkaziladi.',
   },
 
   /** Toshkent tumanlari — nomlar `data/mockLocations` dan olinadi. */
@@ -49,8 +61,18 @@ export const map = {
   },
 
   marker: {
-    priceMillion: '{value} mln',
+    // The unit belongs on the pin. A bare "12.7 mln" next to a "$1 000"
+    // leaves half the map's prices to inference — and when the viewer has
+    // explicitly asked for so'm, not one pin was saying so'm.
+    priceMillion: '{value} mln so‘m',
     label: '{title} — {price}',
+    // What a pin reads out when several listings stand on the same spot.
+    groupLabel: 'Shu manzilda {count} ta e’lon',
+  },
+
+  group: {
+    title: 'Shu manzildagi e’lonlar',
+    subtitle: 'Bir joyda {count} ta e’lon bor. Kerakligini tanlang.',
   },
 
   panel: {

@@ -379,13 +379,26 @@ export const ListingCard: React.FC<ListingCardProps> = ({
 
   const body = (
     <div className={`flex min-w-0 flex-1 flex-col gap-1.5 ${isList ? 'p-3' : 'p-3.5 sm:p-4'}`}>
-      <div className="flex items-start justify-between gap-2">
+      {/* `flex-wrap`, and the number itself never breaks.
+
+          This card was written for the catalogue's one-column phone layout;
+          the home page puts it in a two-column grid, where each card is about
+          178px wide and its content box about 150px. A so'm price at 16px in
+          the 900 weight is ~124px of that, the trust badge takes ~34px more,
+          and the row does not fit — so every so'm-priced listing on the home
+          page broke its price across two lines, mid-number. Wrapping the
+          BADGE onto the next line instead keeps the one thing the card exists
+          to say readable in one piece. Dollar listings, which are most of the
+          catalogue today, are unaffected either way. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
         <p className="text-base sm:text-lg font-black leading-tight text-content">
           {/* The listing's own currency, not a converted one. A price set in
               dollars is a dollar price — rewriting it into so'm at today's
               rate would restate the owner's terms as something they never
               said, and would change on its own overnight. */}
-          {formatPrice(listing.price, listing.currency)}
+          <span className="whitespace-nowrap">
+            {formatPrice(listing.price, listing.currency)}
+          </span>
           {/* Only a rental is priced by the month. On a sale the same number
               is the whole property, and "/oyiga" beside it would read as a
               600-million-so'm monthly rent. */}

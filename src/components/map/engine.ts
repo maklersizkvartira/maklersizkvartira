@@ -198,10 +198,39 @@ interface YandexMap21 {
   converter: { globalToPage(global: [number, number]): [number, number] };
   container: { getOffset(): [number, number] };
   getZoom(): number;
-  setBounds(bounds: [LatLng, LatLng], options?: Record<string, unknown>): void;
+  setZoom(zoom: number, options?: Record<string, unknown>): void;
+  /**
+   * Returns one of Yandex's own promises, not a native one — `then` is the
+   * only member of it this file uses, so it is the only member declared.
+   * `fitTo` needs it: with `duration` set, `setBounds` animates, so the zoom
+   * cannot be read back on the next line.
+   */
+  setBounds(
+    bounds: [LatLng, LatLng],
+    options?: Record<string, unknown>,
+  ): { then(onDone: () => void, onFail: () => void): unknown };
   setCenter(center: LatLng, zoom?: number, options?: Record<string, unknown>): void;
   destroy(): void;
 }
+
+/**
+ * How far a "frame these results" is allowed to go, and how much room it
+ * leaves around the outermost pin.
+ *
+ * Shared by both engines, because they had drifted and the drift was the bug:
+ * Leaflet clamped at 15 and Yandex — the engine almost every visitor actually
+ * gets — clamped at nothing. So searching a district with two matches a
+ * hundred metres apart zoomed the map to a single courtyard with no street
+ * names on it, which reads as "the search is broken" rather than as "here are
+ * your two results". A single result collapsed the box to a point and went to
+ * maximum zoom.
+ *
+ * The margin matters for the same reason it does in a print layout: without
+ * it the outermost pins land exactly on the viewport edge, and since a bubble
+ * is drawn upwards from its point, its top half is cut off.
+ */
+const FIT_MAX_ZOOM = 15;
+const FIT_PADDING = 56;
 
 /**
  * Yandex's own cartography, left alone.
@@ -360,13 +389,31 @@ async function createYandex(
       if (positions.length === 0) return;
       const lats = positions.map((p) => p[0]);
       const lngs = positions.map((p) => p[1]);
-      map.setBounds(
-        [
-          [Math.min(...lats), Math.min(...lngs)],
-          [Math.max(...lats), Math.max(...lngs)],
-        ],
-        { checkZoomRange: true, duration: 400 },
-      );
+      // Clamped after the animation, not before it. `setBounds` has no
+      // maxZoom of its own, and with `duration` set it resolves later — so
+      // reading `getZoom()` on the next line returns the zoom the map was at
+      // before the move, and the clamp never fires.
+      //
+      // Only on fulfilment. A rejection means a newer fit interrupted this
+      // one, and forcing a zoom then would fight the move that superseded it.
+      map
+        .setBounds(
+          [
+            [Math.min(...lats), Math.min(...lngs)],
+            [Math.max(...lats), Math.max(...lngs)],
+          ],
+          {
+            checkZoomRange: true,
+            duration: 400,
+            zoomMargin: [FIT_PADDING, FIT_PADDING, FIT_PADDING, FIT_PADDING],
+          },
+        )
+        .then(
+          () => {
+            if (map.getZoom() > FIT_MAX_ZOOM) map.setZoom(FIT_MAX_ZOOM, { duration: 200 });
+          },
+          () => undefined,
+        );
     },
 
     flyTo(position, zoom) {
@@ -416,9 +463,16 @@ const LEAFLET_THEME_CSS = `
 }
 .leaflet-control-attribution a { color: var(--color-brand-text); }
 
-/* Premium Dark Mode Map tiles: deep slate/navy asphalt with zero watermarks */
-.leaflet-container.dark-theme .leaflet-tile-pane,
-[data-theme="dark"] .leaflet-container .leaflet-tile-pane {
+/* Premium Dark Mode Map tiles: deep slate/navy asphalt with zero watermarks.
+
+   One selector, not two. The second arm keyed off a data-theme attribute that
+   nothing in this app ever sets — ThemeProvider toggles a dark CLASS on
+   <html> — so it matched nothing and only made the rule look like it had a
+   fallback. The dark-theme class is put on the container by applyTheme below,
+   which is the arm that has always done the work.
+
+   No backticks in here: this whole stylesheet is a JS template literal. */
+.leaflet-container.dark-theme .leaflet-tile-pane {
   filter: brightness(0.58) invert(1) contrast(2.4) hue-rotate(200deg) saturate(0.3) brightness(0.8);
 }
 `;
@@ -519,7 +573,10 @@ async function createLeaflet(
 
     fitTo(positions) {
       if (positions.length === 0) return;
-      map.fitBounds(positions, { padding: [56, 56], maxZoom: 15 });
+      map.fitBounds(positions, {
+        padding: [FIT_PADDING, FIT_PADDING],
+        maxZoom: FIT_MAX_ZOOM,
+      });
     },
 
     flyTo(position, zoom) {

@@ -9,6 +9,8 @@ export const map = {
     title: 'Search on the map',
     subtitle: 'Find an apartment by location',
     counter: '{count} listings on the map',
+    filtersCta: 'Filters',
+    resetAll: 'Clear everything',
     listCta: 'Open the list view',
   },
 
@@ -20,8 +22,12 @@ export const map = {
     district: 'District',
     rooms: 'Rooms',
     currency: 'Currency',
+    currencyAuto: 'As listed',
     currencyUzs: 'So‘m',
     currencyUsd: 'Dollar',
+    currencyHint:
+      'By default every listing is shown in the currency its owner set. '
+      + 'Pick so‘m or dollars to convert all of the prices instead.',
   },
 
   /** Tashkent districts — names come from `data/mockLocations`. */
@@ -49,8 +55,14 @@ export const map = {
   },
 
   marker: {
-    priceMillion: '{value}M',
+    priceMillion: '{value}M UZS',
     label: '{title} — {price}',
+    groupLabel: '{count} listings at this address',
+  },
+
+  group: {
+    title: 'Listings at this address',
+    subtitle: 'There are {count} listings here. Pick the one you want.',
   },
 
   panel: {

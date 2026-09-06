@@ -75,6 +75,13 @@ export const listings = {
     minAreaPlaceholder: '30',
     maxAreaPlaceholder: '120',
 
+    // The trust floor, as three named steps rather than a slider. A number
+    // between 0 and 100 means nothing to a searcher; "verified" does.
+    trustTitle: 'Trust level',
+    trustAny: 'Any',
+    trustMid: 'Medium and above',
+    trustHigh: 'High only',
+
     roomsTitle: 'Number of rooms',
     amenitiesTitle: 'Amenities',
     locationTitle: 'Location',

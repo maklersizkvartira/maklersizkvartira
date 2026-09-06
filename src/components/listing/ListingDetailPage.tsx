@@ -131,6 +131,7 @@ export const ListingDetailPage: React.FC = () => {
   const favoriteIds = useAppStore((state) => state.favoriteIds);
   const toggleFavorite = useAppStore((state) => state.toggleFavorite);
   const setCurrentView = useAppStore((state) => state.setCurrentView);
+  const setMapCarryFilters = useAppStore((state) => state.setMapCarryFilters);
   const setShowAuth = useAppStore((state) => state.setShowAuth);
   const removeListing = useAppStore((state) => state.removeListing);
   const recordView = useAppStore((state) => state.recordView);
@@ -793,7 +794,13 @@ export const ListingDetailPage: React.FC = () => {
               </h2>
               <button
                 type="button"
-                onClick={() => setCurrentView('MAP', listing.id)}
+                // Carries, like the catalogue's button: this opens the map to
+                // look at THIS listing, and a map that had just reset itself to
+                // everything would not be showing what was asked for.
+                onClick={() => {
+                  setMapCarryFilters(true);
+                  setCurrentView('MAP', listing.id);
+                }}
                 className="rounded-xl border border-line bg-brand-soft px-3.5 py-1.5 text-xs font-bold text-brand-text transition-colors hover:bg-brand-soft-2"
               >
                 {t('listings.detail.viewOnMap')}

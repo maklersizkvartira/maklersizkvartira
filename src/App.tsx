@@ -434,7 +434,25 @@ export const App: React.FC = () => {
 
       {currentView !== 'CHAT' && !bare && <Footer />}
       {!bare && <BottomNav />}
-      {currentView !== 'CHAT' && !bare && <AiMascot />}
+      {/* Not on the map, and not in the chat.
+
+          The launcher is `position: fixed; bottom: 6rem; right: 1rem` at
+          z-40, and on a phone that is exactly where the map's own zoom
+          controls are: the map surface ends 64px plus the home indicator above
+          the viewport, and both engines draw their zoom bar in the bottom
+          right of it, from roughly 74px to 138px up. The launcher covers the
+          lower half of that, so a tap meant for "zoom out" opened the
+          assistant instead — on the one screen where zooming IS the primary
+          interaction. It also sat over the map provider's attribution, which
+          both Yandex and OpenStreetMap require to stay visible.
+
+          Moving it was tried and does not survive: anchoring it higher runs it
+          off the top of a landscape map (which is ~260px tall), and the other
+          corner belongs to the locate-me button. The assistant is one tap away
+          from every other screen, including the catalogue the map links to on
+          every one of its states, so this costs an entry point on one view and
+          buys back a control the view cannot work without. */}
+      {currentView !== 'CHAT' && currentView !== 'MAP' && !bare && <AiMascot />}
       {/*
         Rendered from the shell, not from the page that earned it. The sign-in
         page navigates away the instant the session is adopted, so a welcome

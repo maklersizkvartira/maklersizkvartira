@@ -32,11 +32,6 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Flower2,
-  GraduationCap,
-  Handshake,
-  Home,
-  Landmark,
   LayoutGrid,
   List as ListIcon,
   Loader2,
@@ -46,11 +41,7 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
-  Sofa,
   Sparkles,
-  TrainFront,
-  TrendingDown,
-  Users,
   X,
 } from 'lucide-react';
 
@@ -60,6 +51,7 @@ import {
   quickFilterState,
   useAppStore,
   railFor,
+  CATALOGUE_PAGE_SIZE,
   type Filters,
   type QuickFilterId,
 } from '../../stores/useAppStore';
@@ -68,47 +60,20 @@ import { hubLinks } from '../../seo/links';
 import { Button, SelectInput, TextInput } from '../ui/Field';
 import { Chip, ChipRow } from '../ui/Chip';
 import { Segmented } from '../ui/Segmented';
+import { NumberFilter } from '../ui/NumberFilter';
 import { Sheet } from '../ui/Sheet';
 import { LinkGroups } from '../seo/blocks';
 import { HEADER_STICKY_TOP } from '../layout/headerMetrics';
 import { ListingCard, ListingCardSkeleton } from './ListingCard';
+// The rail's labels and glyphs. Extracted from this file when the map's
+// filter sheet grew the same rail — two copies is how one search ends up
+// with two names.
+import { QUICK_META } from './quickFilterMeta';
 
 const TASHKENT_DISTRICTS = [
   'Chilonzor', 'Yunusobod', 'Mirobod', 'Yakkasaroy', 'Sergeli', 'Uchtepa',
   'Olmazor', 'Yashnobod', 'Shayxontohur', "Mirzo Ulug'bek", 'Bektemir', 'Yangihayot',
 ];
-
-/**
- * The chip rail's presentation. What each id *means* is the store's business.
- *
- * The glyphs are the ones `home/QuickCategories.tsx` and `layout/Header.tsx`
- * give the same categories, because the icon is the only thing that survives
- * a horizontally scrolled rail where the labels are clipped: a visitor who
- * taps the flower-marked "Qizlarga" tile on the home page must land on a chip
- * wearing that same flower. This table had picked its own, so three
- * neighbouring chips shared one `Users` and five categories changed shape on
- * the way here. (The three tables are still three tables; only Header's
- * `Venus` for `qizlarga` remains out of step, and it lives in another file.)
- */
-const QUICK_META: Record<
-  QuickFilterId,
-  { labelKey: TranslationKey; icon: React.ComponentType<{ className?: string }> }
-> = {
-  // 'all' is the rail's own entry and has no tile or menu item to match.
-  all: { labelKey: 'listings.filters.quick.all', icon: LayoutGrid },
-  roommate: { labelKey: 'listings.filters.quick.roommate', icon: Handshake },
-  student: { labelKey: 'listings.filters.quick.student', icon: GraduationCap },
-  family: { labelKey: 'listings.filters.quick.family', icon: Users },
-  metro: { labelKey: 'listings.filters.quick.metro', icon: TrainFront },
-  qizlarga: { labelKey: 'listings.filters.quick.qizlarga', icon: Flower2 },
-  komfort: { labelKey: 'listings.filters.quick.komfort', icon: Sofa },
-  center: { labelKey: 'listings.filters.quick.center', icon: Landmark },
-  // The chip rail keeps a line glyph: the home cards' painted
-  // illustrations are unreadable at the 16px a chip gives them.
-  hovli: { labelKey: 'listings.filters.quick.hovli', icon: Home },
-  budget: { labelKey: 'listings.filters.quick.budget', icon: TrendingDown },
-  premium: { labelKey: 'listings.filters.quick.premium', icon: ShieldCheck },
-};
 
 /**
  * What the backend's `ListingFilters` will accept.
@@ -153,94 +118,6 @@ const AMENITIES: Array<{ key: string; labelKey: TranslationKey }> = [
   { key: 'petsAllowed', labelKey: 'listings.amenities.petsAllowed' },
 ];
 
-/** Empty box, empty filter — `Number('')` is 0, which is a real minimum. */
-function toNumberOrNull(value: string): number | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-/** Price and area have different ceilings, so the bound travels with the field. */
-function clampToRange(value: number | null, max: number): number | null {
-  if (value === null) return null;
-  return Math.min(Math.max(value, 0), max);
-}
-
-/**
- * A number box that commits on a pause rather than on every keystroke.
- *
- * `setFilters` fires a list request, so binding one of these straight to the
- * store would put a query on the wire for every digit of "3000000". The
- * store's sequencing makes that harmless, not free.
- */
-const NumberFilter: React.FC<{
-  label: string;
-  placeholder: string;
-  value: number | null;
-  max: number;
-  onCommit: (value: number | null) => void;
-  step?: number;
-}> = ({ label, placeholder, value, max, onCommit, step }) => {
-  const [draft, setDraft] = useState(value === null ? '' : String(value));
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Follows the store when it moves on its own — "clear all", a quick filter,
-  // a search arriving from the home page — but never while a keystroke of the
-  // visitor's is still waiting to be committed.
-  useEffect(() => {
-    if (timer.current) return;
-    setDraft(value === null ? '' : String(value));
-  }, [value]);
-
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-  }, []);
-
-  /**
-   * Blur is what saves the last digits.
-   *
-   * These boxes live inside the filter sheet, and `<Sheet>` renders null when
-   * it closes — so tapping "Show N results" 200ms after the last keystroke
-   * unmounted the field and the cleanup above cancelled the pending commit
-   * instead of running it. Pointer-down on the footer button, Escape and a
-   * drag dismissal all blur the focused field first, so committing here
-   * catches every one of them. The unmount cleanup stays a pure cancel: this
-   * component also goes away when the whole page is torn down by a
-   * navigation, and firing a filter write plus a list request on the way out
-   * of a page the visitor has already left is not a save, it is a leak.
-   */
-  const flush = () => {
-    if (!timer.current) return;
-    clearTimeout(timer.current);
-    timer.current = null;
-    onCommit(clampToRange(toNumberOrNull(draft), max));
-  };
-
-  return (
-    <TextInput
-      type="number"
-      inputMode="numeric"
-      min={0}
-      max={max}
-      step={step}
-      aria-label={label}
-      placeholder={placeholder}
-      value={draft}
-      onBlur={flush}
-      onChange={(event) => {
-        const next = event.target.value;
-        setDraft(next);
-        if (timer.current) clearTimeout(timer.current);
-        timer.current = setTimeout(() => {
-          timer.current = null;
-          onCommit(clampToRange(toNumberOrNull(next), max));
-        }, 400);
-      }}
-    />
-  );
-};
-
 export const ListingsPage: React.FC = () => {
   const { t, formatNumber } = useTranslation();
   const language = useAppStore((state) => state.language);
@@ -256,11 +133,13 @@ export const ListingsPage: React.FC = () => {
   const setFilters = useAppStore((state) => state.setFilters);
   const resetFilters = useAppStore((state) => state.resetFilters);
   const activeFilterCount = useAppStore((state) => state.activeFilterCount);
+  const setPageSize = useAppStore((state) => state.setPageSize);
   const fetchListings = useAppStore((state) => state.fetchListings);
   const listingsAreCurrent = useAppStore((state) => state.listingsAreCurrent);
   const hasMore = useAppStore((state) => state.hasMoreListings);
   const fetchFeatured = useAppStore((state) => state.fetchFeatured);
   const setCurrentView = useAppStore((state) => state.setCurrentView);
+  const setMapCarryFilters = useAppStore((state) => state.setMapCarryFilters);
   const currentUser = useAppStore((state) => state.currentUser);
   const setShowAuth = useAppStore((state) => state.setShowAuth);
 
@@ -284,7 +163,20 @@ export const ListingsPage: React.FC = () => {
   useEffect(() => {
     if (requested.current) return;
     requested.current = true;
-    if (!listingsAreCurrent()) void fetchListings({ page: 1 });
+
+    // Take the page size back from the map, which raises it to a hundred so
+    // every pin is drawn. A hundred cards is a different trade: here a short
+    // first page is a faster first paint and "load more" says what it does.
+    setPageSize(CATALOGUE_PAGE_SIZE);
+
+    // And take the deal type back to one side. 'ALL' is the map's neutral
+    // state and it has no control on this page — the segmented below offers
+    // exactly two options — so arriving from the map with it set would paint
+    // a control with neither half selected and no way to reach the third. The
+    // price range and "cheapest first" cannot span both kinds of price
+    // anyway; that is the reason there are only two options here.
+    if (filters.dealType === 'ALL') setFilters({ dealType: 'RENT' });
+    else if (!listingsAreCurrent()) void fetchListings({ page: 1 });
     void fetchFeatured();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -695,7 +587,15 @@ export const ListingsPage: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => setCurrentView('MAP')}
+                // The one route into the map that MEANS "carry my search
+                // across". Everything else that opens the map — the tab bar,
+                // the header, the footer, a typed URL — deliberately does not
+                // set this, so the map opens on everything there. The map
+                // itself consumes and clears the flag on arrival.
+                onClick={() => {
+                  setMapCarryFilters(true);
+                  setCurrentView('MAP');
+                }}
                 aria-label={t('common.action.seeOnMap')}
                 className="press flex h-12 w-12 shrink-0 items-center justify-center gap-2 rounded-2xl bg-surface-2 text-sm font-bold text-muted transition-colors hover:text-content sm:w-auto sm:px-4"
               >

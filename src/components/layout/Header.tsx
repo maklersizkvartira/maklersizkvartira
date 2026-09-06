@@ -724,7 +724,16 @@ export const Header: React.FC = () => {
    * the defaults — because reset-then-patch fires two list requests.
    */
   const openCategory = (id: HeaderCategory['id']) => {
-    setFilters(quickFilterState(id));
+    // Both of `quickFilterState`'s optional arguments have to be supplied, and
+    // omitting them was not a shortcut — it was the two defaults firing. The
+    // header is mounted on every route, so a visitor browsing properties for
+    // sale who opened a category was thrown back to rentals with no control
+    // moving under their finger, and their typed search was discarded in the
+    // same call. Read through `getState()` rather than a subscription: the
+    // header would otherwise re-render on every keystroke of a debounced
+    // search happening on a page below it.
+    const { search, dealType } = useAppStore.getState().filters;
+    setFilters(quickFilterState(id, search, dealType), { quickFilter: id });
     setCurrentView('LISTINGS');
     closeMenus();
   };

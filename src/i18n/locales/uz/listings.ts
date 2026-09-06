@@ -75,6 +75,13 @@ export const listings = {
     minAreaPlaceholder: '30',
     maxAreaPlaceholder: '120',
 
+    // The trust floor, as three named steps rather than a slider. A number
+    // between 0 and 100 means nothing to a searcher; "tasdiqlangan" does.
+    trustTitle: 'Ishonch darajasi',
+    trustAny: 'Har qanday',
+    trustMid: 'O‘rtacha va yuqori',
+    trustHigh: 'Faqat yuqori',
+
     roomsTitle: 'Xonalar soni',
     amenitiesTitle: 'Qulayliklar',
     locationTitle: 'Joylashuv',

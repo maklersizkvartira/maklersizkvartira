@@ -33,3 +33,32 @@ export const HEADER_CLEARANCE = 'pt-[65px]';
  * beneath it. Measured from the viewport, not from the padded `<main>`.
  */
 export const HEADER_STICKY_TOP = 'top-[65px]';
+
+/**
+ * The height of a screen that fills the viewport under the fixed header.
+ *
+ * `dvh`, not `vh`, and this file is the reason it is worth stating: `vh` is
+ * the *largest* the viewport ever gets on a phone, so a `100vh` surface is
+ * sixty to a hundred pixels taller than the screen for as long as the browser's
+ * address bar is showing — and on a map, whose whole bottom edge is where the
+ * floating controls live, those pixels are simply off-screen and the map eats
+ * the swipe that would have scrolled them back.
+ *
+ * 65px is `HEADER_H` plus its border, the same number `HEADER_CLEARANCE` pads
+ * by. The map used to subtract 3.5rem here and 5.5rem at `sm`, so it overhung
+ * by 9px on a phone and left 23px of dead canvas on a laptop.
+ */
+export const VIEWPORT_UNDER_HEADER_H = 'h-[calc(100dvh-65px)]';
+
+/**
+ * What a full-bleed screen pads by so the fixed BottomNav does not cover it.
+ *
+ * The nav is `position: fixed; bottom: 0; z-index: 80` and `lg:hidden`, and
+ * nothing that fills the viewport reserved room for it — so on every phone the
+ * map's locate-me button and both engines' zoom controls were drawn underneath
+ * it and every tap on them hit a navigation tab instead. 48px of row plus the
+ * `pb-safe-plus` gutter is ~61px; 4rem leaves a little daylight, and the inset
+ * is added on top for the home indicator.
+ */
+export const BOTTOM_NAV_CLEARANCE =
+  'pb-[calc(env(safe-area-inset-bottom,0px)+4rem)] lg:pb-0';

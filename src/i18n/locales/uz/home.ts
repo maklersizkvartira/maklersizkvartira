@@ -112,10 +112,16 @@ export const home = {
     badge: 'Tavsiya',
     title: 'E’lonlar',
     titleVIP: 'Top va VIP E’lonlar',
-    subtitle: 'Eng so’nggi va ishonchli uylar',
-    subtitleVIP: 'Saytimiz orqali yuqoriga ko’tarilgan ishonchli uylar',
+    subtitle: 'Eng so‘nggi va ishonchli uylar',
+    subtitleVIP: 'Saytimiz orqali yuqoriga ko‘tarilgan ishonchli uylar',
     viewAll: 'Barchasi',
-    listLabel: 'Tavsiya etilgan e’lonlar',
+    listLabel: 'E’lonlar ro‘yxati',
+    count: '{count} ta e’lon',
+    // Not "ro'yxatdan o'ting". The button under this line loads the next
+    // page and works perfectly well without an account; the Russian and the
+    // English strings said so, and only the Uzbek one asked for a signup that
+    // buys the reader nothing.
+    loadMoreHint: 'Barcha e’lonlarni ko‘rish uchun katalogni oching',
     empty: 'Hozircha e’lonlar yo‘q.',
     emptyCta: 'E’lon joylash',
     error: 'E’lonlarni yuklab bo‘lmadi.',

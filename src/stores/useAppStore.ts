@@ -42,7 +42,7 @@ import {
 } from '../services/http';
 import { trackEvent } from '../services/analytics';
 import { isAutomatedAgent } from '../services/crawler';
-import { ListingsApi, type ListingQuery } from '../services/listingsApi';
+import { ListingsApi, MetaApi, type ListingQuery } from '../services/listingsApi';
 import { chatApi } from '../services/chatApi';
 import type { Listing, SignupRole } from '../types';
 import { canPublishListings } from '../types/roles';
@@ -77,16 +77,24 @@ export interface Filters {
   minArea: number | null;
   propertyType: string;
   /**
-   * Renting or buying — the first thing a search decides, and the only filter
-   * here with no 'ALL'.
+   * Renting or buying — the first thing a search decides.
    *
-   * The two cannot share a result list. A month's rent and a purchase price
+   * The two cannot share a *catalogue*. A month's rent and a purchase price
    * are three orders of magnitude apart, so any price range wide enough to
    * hold both is useless for either, and "cheapest first" would put every
-   * rental above every sale. Every other filter on this screen means something
-   * different on each side of it.
+   * rental above every sale. Every other filter on that screen means something
+   * different on each side of it, which is why the catalogue offers exactly
+   * two segments and defaults to RENT.
+   *
+   * 'ALL' exists for the one screen where none of that reasoning holds: the
+   * map. A pin is a location, not a row in a price-sorted list, so there is
+   * nothing there for the three orders of magnitude to break — and arriving
+   * at a map that has silently hidden every property for sale is worse than
+   * arriving at one showing everything. The map sets it; the catalogue never
+   * does, and `DEFAULT_FILTERS` stays RENT so every prerendered page and every
+   * cached bundle keeps asking the question it was written for.
    */
-  dealType: 'RENT' | 'SALE';
+  dealType: 'RENT' | 'SALE' | 'ALL';
   rentalType: 'ALL' | 'FULL' | 'ROOMMATE';
   /** 'ALL' is the sentinel; 'GIRLS'/'BOYS' also match rooms left open to anyone. */
   roommateGender: 'ALL' | 'GIRLS' | 'BOYS';
@@ -102,6 +110,22 @@ export interface Filters {
   sortBy: ListingQuery['sortBy'];
   amenities: string[];
 }
+
+/**
+ * How many rows one listings request asks for.
+ *
+ * `MAX_PAGE_SIZE` is the server's own ceiling (`page_size: int = Field(ge=1,
+ * le=100)`), and it rejects rather than clamps: asking for 101 is a 422 that
+ * renders as a red error card, not a shorter page. So it is enforced here.
+ *
+ * The catalogue takes the smaller page because there a short first page is a
+ * faster first paint and "load more" is an honest control. The map takes the
+ * whole hundred, because a map that is holding back pins the visitor cannot
+ * know about is not a smaller map, it is a wrong one.
+ */
+export const MAX_PAGE_SIZE = 100;
+export const CATALOGUE_PAGE_SIZE = 24;
+export const MAP_PAGE_SIZE = MAX_PAGE_SIZE;
 
 /** 'ALL' is the sentinel; the label comes from `common.filters.all`. */
 export const DEFAULT_FILTERS: Filters = {
@@ -224,16 +248,25 @@ export function quickFilterState(
   search = '',
   dealType: Filters['dealType'] = DEFAULT_FILTERS.dealType,
 ): Filters {
+  // A rent-only chip cannot be a sale, and cannot be "both" either. `railFor`
+  // already drops these from any rail that is not purely rentals rather than
+  // let them return nothing; a caller carrying the deal type across must not
+  // be able to reintroduce the combination the rail exists to prevent.
+  const deal = RENT_ONLY_CHIPS.includes(id) ? 'RENT' : dealType;
   const state: Filters = {
     ...DEFAULT_FILTERS,
     ...QUICK_FILTER_DELTAS[id],
     search,
-    dealType,
+    dealType: deal,
   };
   // "Arzonroq" is a comparison, not a number, and the number it stands for is
   // three orders of magnitude apart on the two sides. Carried through here so
   // there is still exactly one definition of what each chip means.
-  if (dealType === 'SALE' && id === 'budget') {
+  //
+  // 'ALL' takes the sale ceiling too: a rent ceiling of three million matches
+  // no property for sale anywhere, so on an everything-search the rent figure
+  // would quietly turn "cheaper" into "rentals only".
+  if (deal !== 'RENT' && id === 'budget') {
     state.maxPrice = BUDGET_CEILING_SALE;
   }
   return state;
@@ -252,9 +285,16 @@ const BUDGET_CEILING_SALE = 700_000_000;
  */
 const RENT_ONLY_CHIPS: readonly QuickFilterId[] = ['student', 'family', 'qizlarga', 'roommate'];
 
-/** The rail for one side of the catalogue. */
+/**
+ * The rail for one side of the catalogue.
+ *
+ * `=== 'RENT'` rather than `!== 'SALE'`: the union grew a third member for the
+ * map, and the old test handed 'ALL' the whole rent-only rail — so a chip like
+ * "Qizlarga" would have narrowed an everything-search down to shared rooms and
+ * silently dropped every property for sale from it.
+ */
 export function railFor(dealType: Filters['dealType']): readonly QuickFilterId[] {
-  if (dealType !== 'SALE') return QUICK_FILTER_RAIL;
+  if (dealType === 'RENT') return QUICK_FILTER_RAIL;
   return QUICK_FILTER_RAIL.filter((id) => !RENT_ONLY_CHIPS.includes(id));
 }
 
@@ -340,8 +380,18 @@ interface AppState {
    */
   language: Language;
   setLanguage: (language: Language) => void;
-  currency: 'UZS' | 'USD';
-  setCurrency: (currency: 'UZS' | 'USD') => void;
+  /**
+   * The currency the viewer asked every price to be shown in, or null.
+   *
+   * Null is the default and it is not "so'm by another name": it means the
+   * viewer has not asked, so a listing is shown in the currency its owner
+   * actually quoted — which is what the catalogue card and the detail page
+   * have always done. Defaulting this to 'UZS' made the map the one screen
+   * that rewrote a $1,000 flat into "12.7 mln", a number nobody had agreed
+   * to and one that moves overnight with the exchange rate.
+   */
+  currency: 'UZS' | 'USD' | null;
+  setCurrency: (currency: 'UZS' | 'USD' | null) => void;
   fxRate: number;
   /** Fetch the live rate; falls back to the placeholder on any failure. */
   loadFxRate: () => Promise<void>;
@@ -359,6 +409,23 @@ interface AppState {
     listingId?: string | null,
     conversationId?: string | null,
   ) => void;
+  /**
+   * One-shot: the next arrival at the map keeps the filters that are standing.
+   *
+   * The map used to work this out for itself, by asking whether any filter was
+   * on. That cannot distinguish the two arrivals it needs to tell apart —
+   * "Xaritada ko'rish", pressed from a catalogue search the visitor built by
+   * hand, and the Xarita tab in the bottom bar, which means "show me the
+   * map" — because in both cases filters may be standing. So a category tile
+   * tapped on the home page, an SEO landing page, a question answered by the
+   * assistant, or simply having chosen Sotuv earlier all left the map opening
+   * pre-filtered, with everything else hidden and nothing saying why.
+   *
+   * Carrying is now stated by the caller. Nothing sets it, so nothing carries;
+   * the two places that mean it set it, and the map consumes it on arrival.
+   */
+  mapCarryFilters: boolean;
+  setMapCarryFilters: (value: boolean) => void;
   /** Navigates to a path, pushing (or replacing) a history entry. */
   navigate: (path: string, options?: { replace?: boolean }) => void;
   /**
@@ -382,7 +449,22 @@ interface AppState {
   favoriteIds: Set<string>;
   totalCount: number;
   page: number;
+  /**
+   * How many rows one page holds. The server's ceiling is 100 and it is a
+   * rejection, not a clamp — 101 comes back a 422 and renders as an error
+   * card — so `setPageSize` bounds it rather than trusting the caller.
+   */
   pageSize: number;
+  /**
+   * Ask for a different page size, and refetch if it actually changed.
+   *
+   * The map needs this: twenty-four pins with a "load more" button above them
+   * is a map that is lying about where the listings are, and a visitor has no
+   * way to know the ones they cannot see exist. The catalogue keeps the
+   * smaller page, because there a short first page is a faster first paint
+   * and "load more" says exactly what it does.
+   */
+  setPageSize: (pageSize: number) => void;
   /**
    * Whether the server says another page exists.
    *
@@ -547,10 +629,15 @@ function toQuery(filters: Filters, page: number, pageSize: number): ListingQuery
     minArea: filters.minArea ?? undefined,
     propertyType: filters.propertyType !== 'ALL' ? filters.propertyType : undefined,
     dealType: filters.dealType,
-    rentalType: filters.rentalType,
+    // Mapped here rather than left to the wire layer to strip. Those two
+    // relied on `toQuery` deleting the literal 'ALL' *and* on the server's
+    // own default happening to be "ALL" as well — correct by coincidence, and
+    // silently wrong the day either end changes its mind. Every sentinel on
+    // this object is now dropped in the same place, by the same rule.
+    rentalType: filters.rentalType !== 'ALL' ? filters.rentalType : undefined,
     roommateGender:
       filters.roommateGender !== 'ALL' ? filters.roommateGender : undefined,
-    audience: filters.audience,
+    audience: filters.audience !== 'ALL' ? filters.audience : undefined,
     sellerType: filters.sellerType !== 'ALL' ? filters.sellerType : undefined,
     onlyVerified: filters.onlyVerified || undefined,
     minTrustScore: filters.minTrustScore || undefined,
@@ -570,13 +657,21 @@ function toQuery(filters: Filters, page: number, pageSize: number): ListingQuery
  * belong to a search the visitor has left". Without it the mount fetch threw
  * away every page `load more` had accumulated.
  *
- * `page`/`pageSize` are pinned to 0 because they are not part of *which*
- * search this is, and the amenity list is sorted because tapping the same two
- * chips in the other order is the same query.
+ * `page` is pinned to 0 because it is not part of *which* search this is, and
+ * the amenity list is sorted because tapping the same two chips in the other
+ * order is the same query.
+ *
+ * `pageSize` is NOT pinned, and that is the correction. It used to be, on the
+ * reasoning that it does not change which listings match — true, but it
+ * changes how many of them the store is holding, and `listingsAreCurrent` is
+ * the only thing that decides whether a page trusts what is already there. So
+ * the map, which wants every pin, would arrive after the catalogue, find rows
+ * answering its exact filters, skip its fetch, and draw twenty-four pins onto
+ * a map whose counter said there were more.
  */
-function filterSignature(filters: Filters): string {
+function filterSignature(filters: Filters, pageSize: number): string {
   return JSON.stringify(
-    toQuery({ ...filters, amenities: [...filters.amenities].sort() }, 0, 0),
+    toQuery({ ...filters, amenities: [...filters.amenities].sort() }, 0, pageSize),
   );
 }
 
@@ -786,7 +881,7 @@ const store = createStore<AppState>((set, get) => ({
       void AuthApi.updateProfile({ language }).catch(() => undefined);
     }
   },
-  currency: 'UZS',
+  currency: null,
   setCurrency: (currency) => set({ currency }),
   /**
    * UZS per 1 USD, replaced by the live rate as soon as `loadFxRate` answers.
@@ -800,10 +895,16 @@ const store = createStore<AppState>((set, get) => ({
   fxRate: 12700,
   loadFxRate: async () => {
     try {
-      const { rate } = await http.get<{ base: string; quote: string; rate: number }>(
-        '/meta/fx-rate',
-        { anonymous: true },
-      );
+      // `MetaApi.fxRate`, not a second hand-written reader.
+      //
+      // There was one here, and it destructured `{ rate }` off the top level
+      // of a body shaped `{ status, data: { base, quote, rate } }`. That is
+      // `undefined`, the guard below rejected it, and the placeholder stood —
+      // for every session, on every device, since the day the endpoint was
+      // written. The site has been quoting a rate 7.5% off the Central Bank's
+      // and reporting no error at all, because the only symptom of this bug
+      // is a number that still looks like a number.
+      const rate = await MetaApi.fxRate();
       // Guarded rather than trusted. A zero or a negative would divide every
       // price on the site into nonsense, and the placeholder is far better
       // than that.
@@ -844,6 +945,9 @@ const store = createStore<AppState>((set, get) => ({
       // count standing until the next one succeeds.
     }
   },
+
+  mapCarryFilters: false,
+  setMapCarryFilters: (value) => set({ mapCarryFilters: value }),
 
   setCurrentView: (view, listingId, conversationId) => {
     // The id is scoped to the detail view. Leaving it set across navigations
@@ -945,7 +1049,18 @@ const store = createStore<AppState>((set, get) => ({
   favoriteIds: new Set<string>(),
   totalCount: 0,
   page: 1,
-  pageSize: 24,
+  pageSize: CATALOGUE_PAGE_SIZE,
+  /**
+   * Sets the size and nothing else — deliberately no refetch.
+   *
+   * `filterSignature` now carries the page size, so a page that changes it
+   * finds `listingsAreCurrent()` already false and fetches through its own
+   * mount effect. Firing a request from here as well would put two page-1
+   * requests on the wire for one arrival, and the store's sequencing would
+   * spend the first one only to abort it.
+   */
+  setPageSize: (pageSize) =>
+    set({ pageSize: Math.min(MAX_PAGE_SIZE, Math.max(1, Math.trunc(pageSize))) }),
   hasMoreListings: false,
   listingsKey: null,
   listingsLoading: false,
@@ -969,7 +1084,7 @@ const store = createStore<AppState>((set, get) => ({
     listingsAbort = controller;
     const requestedFilters = get().filters;
     const query = toQuery(requestedFilters, page, get().pageSize);
-    const signature = filterSignature(requestedFilters);
+    const signature = filterSignature(requestedFilters, get().pageSize);
 
     set({ listingsLoading: true, listingsAppending: append, listingsError: null });
     try {
@@ -1018,7 +1133,10 @@ const store = createStore<AppState>((set, get) => ({
 
   listingsAreCurrent: () => {
     const state = get();
-    return state.listings.length > 0 && state.listingsKey === filterSignature(state.filters);
+    return (
+      state.listings.length > 0 &&
+      state.listingsKey === filterSignature(state.filters, state.pageSize)
+    );
   },
 
   fetchFeatured: async () => {

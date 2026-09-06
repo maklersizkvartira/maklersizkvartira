@@ -975,14 +975,19 @@ input[type='number'] {
   appearance: textfield;
 }
 
-/* There is deliberately no `.header-search-input` rule here.
-
-   A `<form role="search">` with a `type="search"` input lived in the top bar
-   for one release and needed a WebKit `::-webkit-search-cancel-button` reset;
-   the field is gone (the catalogue's sticky bar owns search, the home page
-   opens its own modal) and the reset went with it rather than being left
-   behind as a selector matching nothing. If a search input ever returns to
-   the chrome, note the rule it had: it set `appearance` and never `display`,
-   because this stylesheet is unlayered while Tailwind's utilities sit in
-   `@layer utilities`, so a `display` here silently beats a `hidden`/`lg:flex`
-   on the same element. */
+/* WebKit draws its own clear button inside every `type="search"` field, and
+   both the map's search box and the catalogue's have a themed ✕ of their own
+   sitting in the same corner. The result was two crosses side by side, the
+   native one grey and unthemed, and the one a thumb is most likely to hit is
+   the one that clears through a different code path — ours cancels the
+   pending debounce, WebKit's does not, so the map stayed filtered for most of
+   a second after the box looked empty.
+   `appearance`, never `display`: this stylesheet is unlayered while Tailwind's
+   utilities sit in `@layer utilities`, so a `display` here silently beats a
+   `hidden`/`lg:flex` on the same element. */
+input[type='search']::-webkit-search-cancel-button,
+input[type='search']::-webkit-search-decoration,
+input[type='search']::-webkit-search-results-button,
+input[type='search']::-webkit-search-results-decoration {
+  appearance: none;
+}

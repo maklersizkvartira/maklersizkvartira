@@ -14,7 +14,7 @@
  * here too.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BarChart3,
   ChevronDown,
@@ -26,6 +26,7 @@ import {
 
 import { useTranslation, type TranslationKey } from '../../i18n';
 import { UZBEKISTAN_REGIONS } from '../../data/mockLocations';
+import { ListingsApi } from '../../services/listingsApi';
 import { useAppStore } from '../../stores/useAppStore';
 import { Button } from '../ui/Field';
 
@@ -47,27 +48,69 @@ interface TrustStat {
 export const TrustStats: React.FC = () => {
   const { t, formatNumber } = useTranslation();
 
-  const totalCount = useAppStore((state) => state.totalCount);
   const featured = useAppStore((state) => state.featured);
-  const loading = useAppStore((state) => state.listingsLoading);
-  const error = useAppStore((state) => state.listingsError);
-  const fetchListings = useAppStore((state) => state.fetchListings);
   const fetchFeatured = useAppStore((state) => state.fetchFeatured);
 
   const [isExpanded, setIsExpanded] = useState(false);
+  /**
+   * How many listings are live, counted by this panel for itself.
+   *
+   * It used to read the store's `totalCount` and, when that was zero, call the
+   * store's `fetchListings`. Both were wrong, in two different ways.
+   *
+   * The call: `fetchListings` writes the shared `listings` array and shares one
+   * abort controller with the catalogue and the map. AIRecommended's docblock
+   * one component away says in as many words that the home page must not do
+   * this — and this panel, on the same screen, did.
+   *
+   * The number: that action sends `DEFAULT_FILTERS`, whose `dealType` is RENT.
+   * So the tile headlined "N ta faol e'lon" counted rentals only, while the
+   * grid above it — which asks for RENT and SALE — printed a different total on
+   * the same screen. Only one of the two could be right, and the more prominent
+   * one was the one under-counting.
+   *
+   * A page-size of 1 because nothing here reads the rows: this asks the server
+   * for a count, and says so.
+   */
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const requested = useRef(false);
+  const alive = useRef(true);
+
+  const loadCount = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const result = await ListingsApi.list({ dealType: 'ALL', page: 1, pageSize: 1 });
+      if (!alive.current) return;
+      setTotalCount(result?.totalCount ?? 0);
+    } catch {
+      if (!alive.current) return;
+      setError(true);
+    } finally {
+      if (alive.current) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
 
   // The home page may render before anything has queried the catalogue; ask
   // once so the tiles have real figures instead of zeroes.
   useEffect(() => {
     if (requested.current) return;
     requested.current = true;
-    if (totalCount === 0) void fetchListings({ page: 1 });
+    void loadCount();
     if (!featured || featured.length === 0) void fetchFeatured();
-  }, [totalCount, featured?.length, fetchListings, fetchFeatured]);
+  }, [featured?.length, fetchFeatured, loadCount]);
 
   const retry = () => {
-    void fetchListings({ page: 1 });
+    void loadCount();
     void fetchFeatured();
   };
 

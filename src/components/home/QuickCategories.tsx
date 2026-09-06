@@ -4,7 +4,7 @@
  * Clean white cards with pastel-tinted icon containers and concise 1-word titles.
  */
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { ChevronRight } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
@@ -102,51 +102,36 @@ const CATEGORIES: HomeCategory[] = [
 ];
 
 export const QuickCategories: React.FC = () => {
-  const { language } = useTranslation();
+  const { t, language } = useTranslation();
   const haptics = useHaptics();
   const setFilters = useAppStore((state) => state.setFilters);
   const setCurrentView = useAppStore((state) => state.setCurrentView);
   const scrollRef = useRef<HTMLUListElement>(null);
-  const [isPaused, setIsPaused] = useState(false);
-  const pauseTimeoutRef = useRef<number | null>(null);
 
-  const resumeAfterDelay = () => {
-    if (pauseTimeoutRef.current) {
-      window.clearTimeout(pauseTimeoutRef.current);
-    }
-    pauseTimeoutRef.current = window.setTimeout(() => {
-      setIsPaused(false);
-    }, 4000);
-  };
-
-  useEffect(() => {
-    if (isPaused) return;
-
-    const interval = window.setInterval(() => {
-      const el = scrollRef.current;
-      if (!el) return;
-
-      const firstChild = el.querySelector('li') as HTMLElement | null;
-      const cardWidth = firstChild ? firstChild.offsetWidth : 92;
-      const gap = 12;
-      const scrollStep = (cardWidth + gap) * 2;
-
-      const maxScroll = el.scrollWidth - el.clientWidth;
-      if (maxScroll <= 0) return;
-
-      if (el.scrollLeft + scrollStep >= maxScroll - 8) {
-        el.scrollTo({ left: 0, behavior: 'smooth' });
-      } else {
-        el.scrollBy({ left: scrollStep, behavior: 'smooth' });
-      }
-    }, 3000);
-
-    return () => window.clearInterval(interval);
-  }, [isPaused]);
+  /*
+   * The rail used to scroll itself, two cards every three seconds.
+   *
+   * It is the first thing above the fold on a phone, and the pause it offered
+   * did not work there: `onMouseEnter` never fires on a touch screen, and the
+   * touch pause expired by itself four seconds later — so a reader who had
+   * stopped the rail to read a card had it move again while they were still
+   * reading, and a thumb resting on a tile got a different tile under it. It
+   * ignored `prefers-reduced-motion` as well.
+   *
+   * That is WCAG 2.2.2 (Pause, Stop, Hide) failed twice over, and it is the
+   * exact behaviour the listings rail one component away had removed for the
+   * same reasons. The rail is swipeable and has a scroll button; nothing here
+   * needed to move on its own.
+   */
 
   const openCategory = (id: HomeCategory['id']) => {
     haptics.select();
-    setFilters(quickFilterState(id));
+    // See the identical call in Header.tsx: `quickFilterState` carries the
+    // live search and deal type across on purpose, and calling it bare fires
+    // both defaults instead — silently resetting the deal type and throwing
+    // away whatever the visitor had typed.
+    const { search, dealType } = useAppStore.getState().filters;
+    setFilters(quickFilterState(id, search, dealType), { quickFilter: id });
     setCurrentView('LISTINGS');
   };
 
@@ -162,13 +147,6 @@ export const QuickCategories: React.FC = () => {
     <div className="relative w-full">
       <ul
         ref={scrollRef}
-        onMouseEnter={() => setIsPaused(true)}
-        onMouseLeave={() => setIsPaused(false)}
-        onTouchStart={() => {
-          setIsPaused(true);
-          if (pauseTimeoutRef.current) window.clearTimeout(pauseTimeoutRef.current);
-        }}
-        onTouchEnd={resumeAfterDelay}
         className="flex items-center gap-2.5 sm:gap-3 overflow-x-auto py-4 -my-3 hide-scrollbar snap-x snap-mandatory justify-start lg:justify-center w-full px-1 scroll-smooth"
       >
         {CATEGORIES.map((category, index) => {
@@ -237,12 +215,18 @@ export const QuickCategories: React.FC = () => {
         })}
       </ul>
 
-      {/* Floating right scroll button for mobile */}
+      {/* The phone-only nudge to the right of the rail.
+
+          Three things were wrong with it: the label was hardcoded English on a
+          site whose default language is Uzbek, the target was 28px on the one
+          device it is drawn for, and the border was a raw palette literal with
+          no dark-mode counterpart, so it stayed light-grey against the dark
+          surface. The glyph keeps its size; the touch target grows around it. */}
       <button
         type="button"
         onClick={scrollRight}
-        aria-label="Scroll categories right"
-        className="absolute -right-1 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white/95 dark:bg-surface shadow-md text-slate-700 dark:text-content hover:bg-white hover:scale-105 active:scale-95 transition-all z-10 md:hidden border border-slate-200/60"
+        aria-label={t('common.a11y.scrollRight')}
+        className="press absolute -right-1 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-line bg-surface text-content shadow-md transition-transform active:scale-95 md:hidden"
       >
         <ChevronRight className="h-4 w-4" aria-hidden="true" />
       </button>

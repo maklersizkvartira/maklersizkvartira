@@ -99,6 +99,20 @@ export interface SearchModalProps {
   onClose: () => void;
 }
 
+/**
+ * The store's deal type, as a two-sided control can express it.
+ *
+ * The map has a third state — 'ALL', showing rentals and sales together —
+ * which is coherent on a map and not here: this sheet commits into the
+ * catalogue, whose price range and "cheapest first" cannot span two kinds of
+ * price three orders of magnitude apart. Seeding the segmented control with
+ * 'ALL' would leave neither pill pressed and no way to reach the missing
+ * option, so a visitor arriving from the map met a control that looked broken.
+ */
+function twoSided(dealType: Filters['dealType']): 'RENT' | 'SALE' {
+  return dealType === 'SALE' ? 'SALE' : 'RENT';
+}
+
 export const SearchModal: React.FC<SearchModalProps> = ({ open, onClose }) => {
   const { t } = useTranslation();
 
@@ -106,7 +120,10 @@ export const SearchModal: React.FC<SearchModalProps> = ({ open, onClose }) => {
   const setFilters = useAppStore((state) => state.setFilters);
   const setCurrentView = useAppStore((state) => state.setCurrentView);
 
-  const [draft, setDraft] = useState<Filters>(() => ({ ...filters }));
+  const [draft, setDraft] = useState<Filters>(() => ({
+    ...filters,
+    dealType: twoSided(filters.dealType),
+  }));
   const [showAdvanced, setShowAdvanced] = useState(
     () =>
       filters.minPrice !== null ||
@@ -124,7 +141,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ open, onClose }) => {
    */
   useEffect(() => {
     if (!open) return;
-    setDraft({ ...filters });
+    setDraft({ ...filters, dealType: twoSided(filters.dealType) });
     setShowAdvanced(
       filters.minPrice !== null ||
         filters.maxPrice !== null ||
