@@ -13,7 +13,16 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, ChevronRight, MessageSquare, RotateCcw, Send, Sparkles, X } from 'lucide-react';
+import {
+  Check,
+  ChevronRight,
+  Headset,
+  MessageSquare,
+  RotateCcw,
+  Send,
+  Sparkles,
+  X,
+} from 'lucide-react';
 
 import { useTranslation, type TranslationKey } from '../../i18n';
 import { AssistantApi } from '../../services/listingsApi';
@@ -33,13 +42,21 @@ const RENTAL_TYPES = ['ALL', 'FULL', 'ROOMMATE'] as const;
 
 interface ChatMessage {
   id: number;
-  from: 'ai' | 'me';
+  /** `admin` is a person from the team who has taken the conversation over. */
+  from: 'ai' | 'me' | 'admin';
   text: string;
   listings?: Listing[];
   /** Tool names the assistant ran that changed something, e.g. `add_favorite`. */
   actions?: string[];
   /** Waiting on a yes/no about something irreversible. */
   awaitingConfirmation?: boolean;
+  /**
+   * Written here rather than by the server — the greeting and the three
+   * failure notices. The background poll counts server-backed rows only, so a
+   * bubble the transcript on the server has never contained must not be
+   * counted among them or every later poll arrives one message short.
+   */
+  local?: boolean;
 }
 
 /**
@@ -50,6 +67,7 @@ const ACTION_LABELS: Record<string, TranslationKey> = {
   add_favorite: 'assistant.chat.actions.addFavorite',
   remove_favorite: 'assistant.chat.actions.removeFavorite',
   request_support_callback: 'assistant.chat.actions.requestSupportCallback',
+  capture_lead: 'assistant.chat.actions.captureLead',
   my_listings: 'assistant.chat.actions.myListings',
   listing_performance: 'assistant.chat.actions.listingPerformance',
   list_favorites: 'assistant.chat.actions.listFavorites',
@@ -82,6 +100,21 @@ function asOneOf<T extends string>(value: unknown, allowed: readonly T[]): T | u
   return typeof value === 'string' && (allowed as readonly string[]).includes(value)
     ? (value as T)
     : undefined;
+}
+
+/**
+ * Wire role to bubble author.
+ *
+ * The transcript used to fold everything that was not `user` into the AI
+ * bubble, which was harmless while the server only ever sent two roles. Now
+ * that an operator can answer in the same thread, that fold would put a
+ * person's words behind the machine's avatar — the one attribution this
+ * component must never get wrong.
+ */
+function roleToFrom(role: string): ChatMessage['from'] {
+  if (role === 'user') return 'me';
+  if (role === 'admin') return 'admin';
+  return 'ai';
 }
 
 /**
@@ -135,9 +168,25 @@ export const AiMascot: React.FC = () => {
   const [sending, setSending] = useState(false);
   const [quota, setQuota] = useState<{ limit: number; remaining: number } | null>(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  // Someone from the team is now answering this thread by hand. The
+  // composer deliberately stays enabled: the visitor has to keep writing,
+  // they are simply writing to a person instead of to the model.
+  const [handover, setHandover] = useState<{ active: boolean; operator: string | null }>({
+    active: false,
+    operator: null,
+  });
 
   const logEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  /**
+   * How many messages in `log` came from the server's transcript.
+   *
+   * Not `log.length`. The greeting is written here and the server has never
+   * heard of it, so the two numbers differ from the very first render — a
+   * poll that compared lengths would either replay the whole history or never
+   * fire at all, depending on which way the difference fell.
+   */
+  const seenRef = useRef(0);
 
   // A limit of 0 is the server saying this account has no ceiling. Read
   // literally it would mean "0 requests left" and lock the box shut.
@@ -155,6 +204,7 @@ export const AiMascot: React.FC = () => {
       text: currentUser?.name
         ? t('assistant.chat.welcomeNamed', { name: currentUser.name })
         : t('assistant.chat.welcome'),
+      local: true,
     }),
     [currentUser?.name, t],
   );
@@ -171,11 +221,12 @@ export const AiMascot: React.FC = () => {
             history.messages.length > 0
               ? history.messages.map((entry) => ({
                   id: ++messageSequence,
-                  from: entry.role === 'user' ? ('me' as const) : ('ai' as const),
+                  from: roleToFrom(entry.role),
                   text: entry.content,
                 }))
               : [welcome()],
           );
+          seenRef.current = history.messages.length;
           setPhase('ready');
           return;
         } catch {
@@ -205,6 +256,52 @@ export const AiMascot: React.FC = () => {
   useEffect(() => {
     if (open && phase === 'ready') inputRef.current?.focus();
   }, [open, phase]);
+
+  /**
+   * Pull in anything the visitor did not cause.
+   *
+   * Once an operator takes the thread over in the admin panel their replies
+   * arrive out of band, so the panel has to re-read the transcript on its own.
+   * Four things this loop must not do, each of which the surrounding code
+   * makes easy to get wrong:
+   *
+   *  - it appends and never replaces. `history.messages` carries only role,
+   *    content and a timestamp, so writing the mapped array over `log` would
+   *    silently delete every listing card, every action badge and every
+   *    Ha/Yo‘q button pair already rendered underneath a bubble.
+   *  - it counts through `seenRef`, not `log.length`, because the greeting is
+   *    ours and the server's transcript never contains it.
+   *  - it stands down while a send is in flight. `sendText` appends the
+   *    visitor's bubble optimistically, before the server has the message; a
+   *    tick landing inside that window shows it to them twice.
+   *  - it reads the session key per tick. `endConversation` clears the key
+   *    while an interval can still be scheduled, and a closure over the old
+   *    one would keep fetching a conversation the visitor has ended.
+   */
+  useEffect(() => {
+    if (!open || phase !== 'ready') return undefined;
+    const intervalId = setInterval(async () => {
+      if (sending) return;
+      if (document.visibilityState !== 'visible') return;
+      const sessionKey = readStoredSession();
+      if (!sessionKey) return;
+      try {
+        const history = await AssistantApi.history(sessionKey);
+        setQuota({ limit: history.limit, remaining: history.remaining });
+        if (history.messages.length <= seenRef.current) return;
+        const fresh = history.messages.slice(seenRef.current).map((entry) => ({
+          id: ++messageSequence,
+          from: roleToFrom(entry.role),
+          text: entry.content,
+        }));
+        seenRef.current = history.messages.length;
+        setLog((previous) => [...previous, ...fresh]);
+      } catch {
+        /* a background refresh that fails changes nothing on screen */
+      }
+    }, 5000);
+    return () => clearInterval(intervalId);
+  }, [open, phase, sending]);
 
   // Escape closes the confirmation first, then the panel — the usual layering.
   useEffect(() => {
@@ -243,11 +340,23 @@ export const AiMascot: React.FC = () => {
       setQuota({ limit: response.limit, remaining: response.remaining });
 
       if (response.status === 'limit_reached') {
-        append({ from: 'ai', text: t('assistant.chat.limitReached') });
+        append({ from: 'ai', text: t('assistant.chat.limitReached'), local: true });
         return;
       }
       if (response.status !== 'success') {
-        append({ from: 'ai', text: t('assistant.chat.replyFailed') });
+        append({ from: 'ai', text: t('assistant.chat.replyFailed'), local: true });
+        return;
+      }
+
+      setHandover({
+        active: response.handledByHuman === true,
+        operator: response.operatorName ?? null,
+      });
+      // A taken-over turn is stored and left there: the model does not answer
+      // it, so `reply` is empty. Appending it anyway puts a blank bubble on
+      // screen for every message the visitor sends to a person.
+      if (response.handledByHuman && !response.reply) {
+        seenRef.current += 1;
         return;
       }
 
@@ -258,6 +367,9 @@ export const AiMascot: React.FC = () => {
         actions: response.actions?.length ? response.actions : undefined,
         awaitingConfirmation: response.awaitingConfirmation ?? false,
       });
+      // The visitor's turn and the reply are both on the server now; the poll
+      // must start counting after them, not read them back as new.
+      seenRef.current += 2;
 
       if (response.need) {
         const patch = toFilterPatch(response.need);
@@ -270,6 +382,7 @@ export const AiMascot: React.FC = () => {
           error instanceof ApiError && error.isNetwork
             ? t('assistant.chat.networkFailed')
             : t('assistant.chat.replyFailed'),
+        local: true,
       });
     } finally {
       setSending(false);
@@ -315,6 +428,8 @@ export const AiMascot: React.FC = () => {
     writeStoredSession(null);
     setLog([]);
     setQuota(null);
+    setHandover({ active: false, operator: null });
+    seenRef.current = 0;
     setPhase('idle');
   };
 
@@ -489,21 +604,45 @@ export const AiMascot: React.FC = () => {
                 key={message.id}
                 className={`flex ${message.from === 'me' ? 'justify-end' : 'justify-start'}`}
               >
-                {message.from === 'ai' && (
-                  <div className="mr-2.5 mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-brand/30 bg-brand text-on-brand font-black text-[10px] tracking-wider sm:h-8 sm:w-8 sm:text-xs">
-                    AI
+                {message.from !== 'me' && (
+                  <div
+                    className={`mr-2.5 mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-black text-[10px] tracking-wider sm:h-8 sm:w-8 sm:text-xs ${
+                      message.from === 'admin'
+                        ? 'border border-info/30 bg-info text-white'
+                        : 'border border-brand/30 bg-brand text-on-brand'
+                    }`}
+                  >
+                    {message.from === 'admin' ? (
+                      <Headset className="h-3.5 w-3.5" aria-hidden="true" />
+                    ) : (
+                      'AI'
+                    )}
                   </div>
                 )}
                 <div
                   className={`max-w-[88%] rounded-2xl p-3.5 text-sm leading-relaxed wrap-break-word sm:p-4 sm:text-base ${
                     message.from === 'me'
                       ? 'rounded-tr-sm bg-brand font-medium text-on-brand'
-                      : 'rounded-tl-sm border border-line bg-surface-2 text-content'
+                      : message.from === 'admin'
+                        ? 'rounded-tl-sm border border-info/40 bg-info-soft text-content'
+                        : 'rounded-tl-sm border border-line bg-surface-2 text-content'
                   }`}
                 >
                   <span className="sr-only">
-                    {message.from === 'me' ? t('assistant.chat.you') : t('assistant.mascot.name')}
+                    {message.from === 'me'
+                      ? t('assistant.chat.you')
+                      : message.from === 'admin'
+                        ? t('assistant.chat.operator')
+                        : t('assistant.mascot.name')}
                   </span>
+                  {/* Named in the open, not only to a screen reader. Whether
+                      the answer came from a person or from the model is the
+                      one thing about it the visitor is owed on sight. */}
+                  {message.from === 'admin' && (
+                    <p className="mb-1 text-[11px] font-bold text-info">
+                      {t('assistant.chat.operator')}
+                    </p>
+                  )}
                   <div className="whitespace-pre-line wrap-break-word">{message.text}</div>
 
                   {/* An action the assistant took is shown as a fact, not left
@@ -608,6 +747,16 @@ export const AiMascot: React.FC = () => {
           {!limitReached && metered && quota && quota.remaining <= 2 && (
             <p className="shrink-0 border-t border-line bg-warning-soft px-4 py-2 text-[11px] font-semibold text-warning">
               {t('assistant.chat.quotaWarning', { count: quota.remaining })}
+            </p>
+          )}
+
+          {/* The composer below stays enabled on purpose — the visitor is
+              now talking to a person and has to be able to answer them. */}
+          {handover.active && (
+            <p className="shrink-0 border-t border-line bg-info-soft px-4 py-2 text-[11px] font-semibold text-info">
+              {handover.operator
+                ? t('assistant.chat.handoverNamed', { name: handover.operator })
+                : t('assistant.chat.handover')}
             </p>
           )}
 

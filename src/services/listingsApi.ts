@@ -305,18 +305,40 @@ export const AssistantApi = {
        * action is held server-side until the next message answers it.
        */
       awaitingConfirmation?: boolean;
+      /**
+       * An operator has taken this conversation over from the admin desk, so
+       * the model is no longer answering it. `reply` is `''` on such a turn:
+       * the server stored the visitor's message and stopped there, and the
+       * operator's own answer arrives through the history poll instead.
+       * Appending a bubble for the empty reply would put a blank box on
+       * screen every time the visitor writes to a person.
+       */
+      handledByHuman?: boolean;
+      /**
+       * The operator's name, for the handover banner. Null when the account
+       * has none recorded — the banner falls back to naming the team.
+       */
+      operatorName?: string | null;
       sessionKey: string;
       used: number;
       limit: number;
       remaining: number;
     }>('/smart/assistant', { sessionKey, message, userName }),
 
-  history: (sessionKey: string) =>
+  // `signal` is here for the chat widget's background poll: the widget
+  // re-reads the transcript every few seconds while the panel is open, and a
+  // request left in flight after the panel closes resolves into a component
+  // that is no longer listening.
+  history: (sessionKey: string, options?: { signal?: AbortSignal }) =>
     http.get<{
+      /** `admin` appears once an operator has taken the conversation over. */
       messages: Array<{ role: string; content: string; createdAt: string }>;
       limit: number;
       remaining: number;
-    }>('/smart/assistant/history', { query: { session_key: sessionKey } }),
+    }>('/smart/assistant/history', {
+      query: { session_key: sessionKey },
+      signal: options?.signal,
+    }),
 
   close: (sessionKey: string, userName?: string, userPhone?: string) =>
     http.post<{ status: string }>('/smart/assistant/close', {

@@ -28,6 +28,10 @@ export const assistant = {
       + 'soni, byudjet. Mos e’lonlarni bazadan saralab beraman.',
     log: 'Suhbat tarixi',
     you: 'Siz',
+    /** Suhbatni AI dan olib ketgan jonli operator. Mashina emas, odam. */
+    operator: 'Uyiz jamoasi',
+    handover: 'Suhbatga jamoamiz xodimi qo‘shildi. Endi u sizga javob beradi.',
+    handoverNamed: 'Suhbatga {name} qo‘shildi. Endi u sizga javob beradi.',
     inputLabel: 'Uyiz AI ga xabar',
     inputPlaceholder: 'Chilonzordan 3 mlnga...',
     inputThinking: 'Uyiz AI o‘ylamoqda...',
@@ -48,6 +52,7 @@ export const assistant = {
       addFavorite: 'Sevimlilarga qo‘shildi',
       removeFavorite: 'Sevimlilardan olindi',
       requestSupportCallback: 'So‘rovingiz qo‘llab-quvvatlash xizmatiga yuborildi',
+      captureLead: 'Ma’lumotlaringiz jamoaga yuborildi',
       myListings: 'E’lonlaringiz ochildi',
       listingPerformance: 'E’lon statistikasi hisoblandi',
       listFavorites: 'Sevimlilar ochildi',
