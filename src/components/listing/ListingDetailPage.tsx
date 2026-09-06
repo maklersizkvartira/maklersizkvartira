@@ -429,6 +429,17 @@ export const ListingDetailPage: React.FC = () => {
   // no question about who pays the utilities. The API clears the last two,
   // so this is about not rendering rows that would all read "no".
   const forSale = isForSale(listing);
+  // Whether the map could show this listing at all. `latitude`/`longitude` are
+  // plain numbers with no null in them, so a listing that was never geocoded
+  // carries 0/0 — and the map drops exactly those, plus any non-finite pair,
+  // before it draws a pin, then counts them in its "listings with no location"
+  // notice. "Xaritada ko'rish" on one of those opens a map the flat is not on
+  // and cannot be put on, so the button is not offered; the address, region
+  // and district below already say where the place is.
+  const hasCoordinates =
+    Number.isFinite(listing.latitude) &&
+    Number.isFinite(listing.longitude) &&
+    (listing.latitude !== 0 || listing.longitude !== 0);
   const joinedDate = listing.owner?.joinedDate;
   const joinedLabel =
     joinedDate && !Number.isNaN(new Date(joinedDate).getTime()) ? formatDate(joinedDate) : null;
@@ -792,19 +803,37 @@ export const ListingDetailPage: React.FC = () => {
                 <MapPin className="h-5 w-5 text-brand" aria-hidden="true" />
                 {t('listings.detail.locationTitle')}
               </h2>
-              <button
-                type="button"
-                // Carries, like the catalogue's button: this opens the map to
-                // look at THIS listing, and a map that had just reset itself to
-                // everything would not be showing what was asked for.
-                onClick={() => {
-                  setMapCarryFilters(true);
-                  setCurrentView('MAP', listing.id);
-                }}
-                className="rounded-xl border border-line bg-brand-soft px-3.5 py-1.5 text-xs font-bold text-brand-text transition-colors hover:bg-brand-soft-2"
-              >
-                {t('listings.detail.viewOnMap')}
-              </button>
+              {hasCoordinates && (
+                <button
+                  type="button"
+                  // Carries, like the catalogue's button: this opens the map to
+                  // look at THIS listing, and a map that had just reset itself
+                  // to everything would not be showing what was asked for — a
+                  // pin tap and then "Xaritada ko'rish" has to come back to the
+                  // map it came from.
+                  //
+                  // Except across the one filter that can hide the very listing
+                  // the button was pressed to see. `dealType` is not a
+                  // narrowing, it is which catalogue is being read, and it gets
+                  // committed by things nobody thinks of as a filter: a
+                  // home-page category tile, an SEO landing page, the Sotuv tab
+                  // opened ten minutes ago. Carried over a listing of the other
+                  // kind it draws every pin except the one asked for, and the
+                  // button reads as broken. Handing the map a cold arrival
+                  // instead makes it commit its own neutral state — everything,
+                  // both deal types — in one fetch, so this listing's pin is
+                  // certainly among the ones drawn.
+                  onClick={() => {
+                    const { dealType } = useAppStore.getState().filters;
+                    const shown = dealType === 'ALL' || dealType === (forSale ? 'SALE' : 'RENT');
+                    setMapCarryFilters(shown);
+                    setCurrentView('MAP', listing.id);
+                  }}
+                  className="rounded-xl border border-line bg-brand-soft px-3.5 py-1.5 text-xs font-bold text-brand-text transition-colors hover:bg-brand-soft-2"
+                >
+                  {t('listings.detail.viewOnMap')}
+                </button>
+              )}
             </div>
 
             <div className="space-y-2 rounded-xl border border-line bg-surface-2 p-4">

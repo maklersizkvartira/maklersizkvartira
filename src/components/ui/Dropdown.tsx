@@ -46,6 +46,58 @@ export interface DropdownProps {
   'aria-label'?: string;
 }
 
+/**
+ * The tallest the open list is ever allowed to be.
+ *
+ * It was `max-h-80` on the element, which is the same number written where the
+ * measuring code below cannot see it. Both halves have to agree or the list
+ * opens into space it does not fit in.
+ */
+const MAX_LIST_HEIGHT = 320;
+
+/**
+ * The shortest.
+ *
+ * Without a floor, a control wedged against the bottom of a sheet measures
+ * twenty usable pixels and renders a list nothing can be picked out of. Below
+ * this the list is allowed to overhang its container and scroll internally
+ * instead, which is the better of the two degradations.
+ */
+const MIN_LIST_HEIGHT = 160;
+
+/** `mt-1`/`mb-1` plus air, so the list never sits flush against the clip. */
+const LIST_GAP = 8;
+
+/**
+ * The box that actually clips the list, which on a phone is almost never the
+ * window.
+ *
+ * Every one of these dropdowns lives inside the filter Sheet, whose body is
+ * `overflow-y-auto` and about 440px tall on a 360x640 phone. Measuring
+ * `window.innerHeight` said there was room for all 320px of the list, the sheet
+ * then cut two thirds of it off, and the only way to reach the hidden options
+ * was to scroll the sheet — which the outside-pointerdown listener reads as a
+ * tap outside and answers by closing the list. Tapping 'Tuman' and being unable
+ * to pick a district is a large part of "filtrlarni bosganda bug chiqadi".
+ *
+ * Walking up to the first scrolling or clipping ancestor finds the sheet body
+ * when there is one and `#root` (which is `overflow-x: hidden`) when there is
+ * not, and clamping to the viewport makes the second case degrade back to the
+ * window on its own.
+ */
+function clipBox(node: HTMLElement | null): { top: number; bottom: number } {
+  let element = node?.parentElement ?? null;
+  while (element) {
+    const { overflowX, overflowY } = getComputedStyle(element);
+    if (/auto|scroll|hidden|clip/.test(`${overflowY} ${overflowX}`)) {
+      const box = element.getBoundingClientRect();
+      return { top: Math.max(box.top, 0), bottom: Math.min(box.bottom, window.innerHeight) };
+    }
+    element = element.parentElement;
+  }
+  return { top: 0, bottom: window.innerHeight };
+}
+
 /** Flatten `<option>` / `<optgroup>` children into a list we can render. */
 function collect(children: React.ReactNode, group?: string): Item[] {
   const items: Item[] = [];
@@ -102,6 +154,10 @@ export const Dropdown: React.FC<DropdownProps> = ({
   // Opening upwards when there is no room below is the difference between a
   // usable control near the bottom of a form and one whose list is offscreen.
   const [dropUp, setDropUp] = useState(false);
+  // How tall the list may actually be here, in pixels. Measured rather than
+  // capped by a class, because the room a control has depends on what encloses
+  // it, and inside a sheet that is a few hundred pixels, not a viewport.
+  const [listMax, setListMax] = useState(MAX_LIST_HEIGHT);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -109,15 +165,35 @@ export const Dropdown: React.FC<DropdownProps> = ({
 
   const close = useCallback(() => setOpen(false), []);
 
+  /**
+   * Decide which way the list opens and how tall it may be.
+   *
+   * The old test asked the window two separate questions — "is there less than
+   * 320 below" and "is there more than 320 above" — and a control with room for
+   * neither answered no to the second, so it opened downwards into the clip
+   * anyway. Comparing the two sides against each other flips only when up is
+   * genuinely the better side, and the measured cap then makes whichever side
+   * was chosen fit: a 272px list of sort options with 204px of room becomes a
+   * 204px list that scrolls, instead of six options of which two are reachable.
+   */
+  const measure = useCallback(() => {
+    const root = rootRef.current;
+    const rect = root?.getBoundingClientRect();
+    if (!rect) return;
+    const box = clipBox(root);
+    const below = box.bottom - rect.bottom - LIST_GAP;
+    const above = rect.top - box.top - LIST_GAP;
+    const up = below < Math.min(MAX_LIST_HEIGHT, above);
+    setDropUp(up);
+    setListMax(Math.max(MIN_LIST_HEIGHT, Math.min(MAX_LIST_HEIGHT, up ? above : below)));
+  }, []);
+
   const openList = useCallback(() => {
     if (disabled) return;
-    const rect = rootRef.current?.getBoundingClientRect();
-    // 320 matches `max-h-80` on the list below; a threshold left behind at the
-    // old height opens downwards into space the list no longer fits in.
-    if (rect) setDropUp(window.innerHeight - rect.bottom < 320 && rect.top > 320);
+    measure();
     setActive(Math.max(items.findIndex((item) => item.value === value), 0));
     setOpen(true);
-  }, [disabled, items, value]);
+  }, [disabled, items, measure, value]);
 
   const commit = useCallback(
     (index: number) => {
@@ -141,11 +217,32 @@ export const Dropdown: React.FC<DropdownProps> = ({
     return () => document.removeEventListener('pointerdown', onPointer, true);
   }, [open, close]);
 
-  // Keep the highlighted row in view while arrowing through a long list.
+  // A rotation, or the on-screen keyboard opening, moves the box the list was
+  // measured against — and it was measured once, at open.
   useEffect(() => {
     if (!open) return;
-    const node = listRef.current?.querySelector<HTMLElement>('[data-active="true"]');
-    node?.scrollIntoView({ block: 'nearest' });
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [open, measure]);
+
+  // Keep the highlighted row in view while arrowing through a long list.
+  //
+  // Scrolled by hand rather than with `scrollIntoView({ block: 'nearest' })`,
+  // which scrolls *every* scroll ancestor: inside the filter sheet, opening a
+  // dropdown scrolled the sheet body under the reader's finger, and it did it
+  // right after `measure` had recorded where the button was, so the list was
+  // then placed against a position the control no longer had.
+  useEffect(() => {
+    if (!open) return;
+    const list = listRef.current;
+    const node = list?.querySelector<HTMLElement>('[data-active="true"]');
+    if (!list || !node) return;
+    const top = node.offsetTop;
+    const bottom = top + node.offsetHeight;
+    if (top < list.scrollTop) list.scrollTop = top;
+    else if (bottom > list.scrollTop + list.clientHeight) {
+      list.scrollTop = bottom - list.clientHeight;
+    }
   }, [open, active]);
 
   const step = (delta: number) => {
@@ -173,6 +270,13 @@ export const Dropdown: React.FC<DropdownProps> = ({
     switch (event.key) {
       case 'Escape':
         event.preventDefault();
+        // And it stops here. Without this the same press went on to the filter
+        // sheet's own document listener, so backing out of an open district
+        // list also closed the whole sheet and lost the reader's place in it —
+        // layered surfaces are expected to peel one layer per press. The
+        // `!open` guard above is what keeps a *closed* dropdown from swallowing
+        // the press the sheet is waiting for.
+        event.stopPropagation();
         close();
         return;
       case 'ArrowDown':
@@ -264,14 +368,18 @@ export const Dropdown: React.FC<DropdownProps> = ({
           role="listbox"
           aria-labelledby={buttonId}
           tabIndex={-1}
-          // Taller than it was, because the rows are taller than they were:
-          // at `max-h-64` the 44px rows showed five options where the old
-          // 36px ones showed seven.
+          // The height comes from `measure`, not from a `max-h-*` class. It
+          // used to be `max-h-80`, and a class cannot know that this particular
+          // control sits 60px above the bottom of a sheet. It also cannot be
+          // both: `cn` merges Tailwind classes against each other, never
+          // against an inline style, so a `max-h-80` left here would simply win
+          // and cap the list back at 320.
           className={cn(
-            'absolute z-50 max-h-80 w-full overscroll-contain overflow-auto rounded-xl',
+            'absolute z-50 w-full overscroll-contain overflow-auto rounded-xl',
             'border border-line bg-surface p-1 shadow-2xl',
             dropUp ? 'bottom-full mb-1' : 'top-full mt-1',
           )}
+          style={{ maxHeight: listMax }}
         >
           {items.map((item, index) => {
             const heading = item.group && item.group !== lastGroup ? item.group : null;

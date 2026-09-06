@@ -313,9 +313,6 @@ export const ListingCard: React.FC<ListingCardProps> = ({
       <button
         type="button"
         onClick={handleFavorite}
-        // The card root is a `role="button"` with its own key handler, so
-        // without this a Space press on the heart also opened the listing.
-        onKeyDown={(event) => event.stopPropagation()}
         aria-label={isFavorite ? t('common.action.unfavorite') : t('common.action.favorite')}
         aria-pressed={isFavorite}
         /* 44px under `sm`, where the pointer is a finger, and the original
@@ -350,7 +347,6 @@ export const ListingCard: React.FC<ListingCardProps> = ({
                 event.stopPropagation();
                 setSlide(index);
               }}
-              onKeyDown={(event) => event.stopPropagation()}
               aria-label={t('listings.card.photoDot', { index: index + 1 })}
               aria-current={index === activeSlide}
               /* The dot stays 6px; the button around it is a thumb.
@@ -537,20 +533,36 @@ export const ListingCard: React.FC<ListingCardProps> = ({
   );
 
   return (
+    /*
+      An <article>, and only an <article>.
+
+      It used to be `role="button" tabIndex={0}` around a real <a>, the
+      favourite button and up to five photo dots — interactive content nested
+      inside a control, which is invalid, and which made every card announce
+      itself twice: a stop reading "button, <title>", then a stop reading
+      "link, <title>" for the same flat. Eight stops per card on a grid of
+      twenty is a keyboard path roughly twice as long as the page needs.
+
+      The tile stays clickable — `onClick` and `cursor-pointer` are the pointer
+      affordance and were never the problem. The link inside the <h3> is the
+      one thing that opens the listing from a keyboard, and the tile takes the
+      highlight the fake button used to imply when it does.
+
+      `has-[:focus-visible]`, not `focus-within`: `:focus-within` matches a
+      plain `:focus`, and on Android — the device most of this site is read on
+      — tapping a link focuses it and leaves it focused. Every card a thumb
+      touched would have kept a blue ring around it until something else was
+      tapped, which reads as "this one is selected" on a grid where nothing is.
+      `:focus-visible` is the browser's own answer to exactly that question.
+
+      A `ring` rather than an `outline` because the root is `overflow-hidden`,
+      which clips an inset outline and cannot clip a box-shadow.
+    */
     <article
       onClick={open}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          open();
-        }
-      }}
-      role="button"
-      tabIndex={0}
-      aria-label={listing.title}
       className={`group press-sm cursor-pointer overflow-hidden rounded-2xl border bg-surface shadow-card
         transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised
-        focus-visible:outline-none
+        has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand
         ${promoted ? 'border-warning/40 ring-1 ring-warning/20' : 'border-line'}
         ${isList ? 'flex h-36 sm:h-44' : 'flex h-full flex-col'}`}
     >

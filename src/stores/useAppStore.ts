@@ -1218,10 +1218,35 @@ const store = createStore<AppState>((set, get) => ({
   removeListing: async (listingId) => {
     try {
       await ListingsApi.remove(listingId);
-      set((state) => ({
-        listings: state.listings.filter((item) => item.id !== listingId),
-        myListings: state.myListings.filter((item) => item.id !== listingId),
-      }));
+      set((state) => {
+        // Only decrement when the row was part of the answer this count
+        // describes. A delete from the owner dashboard for a listing the
+        // current filters never matched must not move the catalogue's total.
+        const wasListed = state.listings.some((item) => item.id === listingId);
+        const nextFavoriteIds = new Set(state.favoriteIds);
+        nextFavoriteIds.delete(listingId);
+        return {
+          listings: state.listings.filter((item) => item.id !== listingId),
+          myListings: state.myListings.filter((item) => item.id !== listingId),
+          // `featured` is not cosmetic here: the catalogue builds its VIP rail
+          // out of the featured rows that are NOT in `listings`, so taking the
+          // row out of one array and leaving it in the other is what made a
+          // just-deleted listing reappear in the promoted rail and open a
+          // detail page that 404s.
+          featured: state.featured.filter((item) => item.id !== listingId),
+          favorites: state.favorites.filter((item) => item.id !== listingId),
+          favoriteIds: nextFavoriteIds,
+          totalCount: Math.max(0, state.totalCount - (wasListed ? 1 : 0)),
+          // `listingsKey` is deliberately untouched. The rows still answer
+          // these filters, and nulling it would make the next mount refetch
+          // page 1 over every page `load more` had accumulated — the exact
+          // thing `filterSignature` exists to prevent. If the deleted row sat
+          // on a page that was never loaded, `wasListed` is false and the
+          // total stays one high until the server settles it; a count that
+          // legitimately exceeds the rows on screen is invisible, and a
+          // catalogue that resets itself on every delete is not.
+        };
+      });
       get().pushToast('layout.toast.listingDeleted', 'success');
     } catch {
       get().pushToast('common.error.generic', 'error');
@@ -1242,7 +1267,23 @@ const store = createStore<AppState>((set, get) => ({
   // -- Filters -------------------------------------------------------------
   filters: { ...DEFAULT_FILTERS },
   setFilters: (patch, options = {}) => {
-    set((state) => ({ filters: { ...state.filters, ...patch }, page: 1 }));
+    set((state) => {
+      const filters = { ...state.filters, ...patch };
+      // A property for sale cannot have utilities included in the price, and
+      // both ends already say so: the create wizard hides the question on the
+      // Sotuv side and the API forces the flag false on every SALE row. So the
+      // chip and Sotuv together are a query guaranteed to answer with nothing
+      // — and on the map, whose neutral deal type is 'ALL', switching to Sotuv
+      // with the chip still standing would empty the screen with the control
+      // that caused it scrolled out of sight. Dropping the chip with the tab is
+      // the honest half of that pair.
+      if (filters.dealType === 'SALE' && filters.amenities.includes('utilitiesIncluded')) {
+        filters.amenities = filters.amenities.filter(
+          (amenity) => amenity !== 'utilitiesIncluded',
+        );
+      }
+      return { filters, page: 1 };
+    });
     void get().fetchListings({ page: 1 });
 
     // A typed query and a tapped filter chip are different intents and belong

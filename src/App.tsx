@@ -79,6 +79,22 @@ const CHROMELESS: ReadonlySet<ViewState> = new Set<ViewState>([
 ]);
 
 /**
+ * Views sized to fill the screen exactly, which a footer underneath turns into
+ * a two-viewport scroll.
+ *
+ * The map is the one that hurt. Its surface is already a whole viewport tall,
+ * so a four-column link footer below it meant that a swipe anywhere that is
+ * not the canvas — the filter bar, the chips row, the gutter beside the map —
+ * scrolled the locate-me button, the zoom controls and the bottom half of the
+ * map off the screen, on the one view where those controls are the interaction.
+ * The chat is the same shape for the same reason.
+ *
+ * Not the same thing as CHROMELESS: both of these keep the header and the tab
+ * bar, and the map reserves room for the tab bar deliberately.
+ */
+const FOOTERLESS: ReadonlySet<ViewState> = new Set<ViewState>(['CHAT', 'MAP']);
+
+/**
  * Views that write their own `<head>`, because it depends on data they load —
  * a listing's title, or whether a facet turned out to be empty. Everything
  * else is described well enough by its route alone.
@@ -310,6 +326,18 @@ export const App: React.FC = () => {
   const bare = CHROMELESS.has(currentView);
 
   /**
+   * Whether this route is meant to be exactly one screen tall.
+   *
+   * Same set as FOOTERLESS plus the auth screens, and it is the second half of
+   * the same fix: taking the footer off the map leaves the shell's own
+   * `min-h-screen` as the remaining scroll source, and on iOS Safari `100vh`
+   * is the *large* viewport — taller than the visible one by the height of the
+   * URL bar. The map itself is `100dvh`, so the surplus renders as a band of
+   * bare canvas under it and the page still scrolls by 60-90px.
+   */
+  const fullViewport = bare || FOOTERLESS.has(currentView);
+
+  /**
    * What the transition wrapper is keyed on — the view, except that the three
    * auth routes share one key.
    *
@@ -363,14 +391,19 @@ export const App: React.FC = () => {
 
   return (
     <div
-      // `100dvh` on the chromeless routes, `100vh` everywhere else. On iOS
-      // Safari with the URL bar showing, `min-h-screen` makes the document
-      // taller than the visual viewport by the height of that bar — invisible
-      // on a page that scrolls anyway, and the one thing you notice on a
-      // centred sign-in form, which then is not centred and drifts as the bar
-      // hides.
+      // `100dvh` on the routes that own the whole screen, `100vh` everywhere
+      // else. On iOS Safari with the URL bar showing, `min-h-screen` makes the
+      // document taller than the visual viewport by the height of that bar —
+      // invisible on a page that scrolls anyway, and the one thing you notice
+      // on a centred sign-in form, which then is not centred and drifts as the
+      // bar hides, or on the map, which is `100dvh` itself and would sit above
+      // a band of bare canvas that scrolls into view for no reason.
+      //
+      // Both are complete literal class strings and must stay that way:
+      // Tailwind v4 scans source text, so a name assembled from a variable
+      // generates no CSS at all.
       className={`flex flex-col bg-canvas text-content ${
-        bare ? 'min-h-[100dvh]' : 'min-h-screen'
+        fullViewport ? 'min-h-[100dvh]' : 'min-h-screen'
       }`}
     >
       {!bare && <Header />}
@@ -432,7 +465,7 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {currentView !== 'CHAT' && !bare && <Footer />}
+      {!FOOTERLESS.has(currentView) && !bare && <Footer />}
       {!bare && <BottomNav />}
       {/* Not on the map, and not in the chat.
 

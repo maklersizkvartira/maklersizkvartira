@@ -149,11 +149,21 @@ const SORT_OPTIONS: { value: NonNullable<Filters['sortBy']>; labelKey: string }[
 ];
 
 /**
- * The ceiling the API enforces, in so'm — `min_price`/`max_price` are declared
- * `le=1_000_000_000`, and anything above it is a 422 that empties the map for
- * a red card that says nothing about why.
+ * The ceilings the price boxes clamp to, in so'm. The catalogue's pair, under
+ * the catalogue's names, so there is one vocabulary across the two screens.
+ *
+ * One number served both here, and it was the renting one — a billion so'm is
+ * about $79,000, which is below the price of an ordinary Tashkent flat. On the
+ * Sotuv side that made the ceiling box rewrite anything the visitor typed
+ * above it: `NumberFilter` clamps, commits the clamped figure and then resyncs
+ * the box to it, so the digits vanished under the caret and the map silently
+ * dropped every sale above a billion.
+ *
+ * The API bounds both at `MAX_SALE_UZS` (100 bln, `schemas/listing.py`), so
+ * neither of these is a 422.
  */
-const MAX_PRICE = 1_000_000_000;
+const MAX_RENT_PRICE = 1_000_000_000;
+const MAX_SALE_PRICE = 100_000_000_000;
 const MAX_AREA = 10_000;
 
 /** The server has no `maxSearch`; it rejects a longer query outright. */
@@ -233,9 +243,16 @@ function meMarkerHtml(): string {
  * flats in one building is the ordinary case here, not an edge case.
  */
 function markerHtml(priceText: string, extra = 0, selected = false): string {
+  // The shadow is on the pill, not on the marker.
+  //
+  // It was `filter: drop-shadow(…)` on the wrapper, which is a filter pass per
+  // pin per repaint — a hundred of them on a phone, on every frame of every
+  // pan. A `box-shadow` on the rounded bubble is the same shadow at a fraction
+  // of the cost; all it gives up is the shadow under the 5px pointer triangle,
+  // which nobody has ever looked for.
   const bubble = selected
     ? 'background: var(--color-brand); color: #ffffff; border-color: var(--color-brand); transform: scale(1.12); box-shadow: 0 4px 14px rgba(20, 71, 230, 0.45); font-weight: 900;'
-    : 'background: var(--color-surface); color: var(--color-brand-text); border-color: var(--color-brand);';
+    : 'background: var(--color-surface); color: var(--color-brand-text); border-color: var(--color-brand); box-shadow: 0 4px 10px rgb(0 0 0 / 0.25);';
   const tip = selected ? 'var(--color-brand)' : 'var(--color-surface)';
   const badge =
     extra > 0
@@ -244,9 +261,25 @@ function markerHtml(priceText: string, extra = 0, selected = false): string {
                       padding:0 5px;font-size:10px;line-height:16px;">+${extra}</span>`
       : '';
 
+  // No transitions on either box. Both engines rebuild every marker from
+  // scratch whenever this markup changes, so a transition on an element that
+  // has only just been created has nothing to animate from — they were paying
+  // for a property watch on a hundred nodes and buying nothing with it.
+  //
+  // The transparent span is the tap target. The pill itself is about 23px
+  // tall, on a map where it is the only thing meant to be pressed and where a
+  // miss pans the view or opens the neighbouring flat. It is absolutely
+  // positioned, so it adds nothing to the marker's box — which is what both
+  // engines anchor by, Yandex through `translate(-50%,-100%)` and Leaflet
+  // through `iconAnchor` — and every pin stays exactly on its coordinate.
+  // It grows DOWNWARDS, over the tip and past the point itself, because that
+  // is where a thumb aims; upwards it would be stealing taps from the pin
+  // above. `width:100%` keeps it no wider than its own pill, with a floor for
+  // the narrow "$700" case.
   return `
-    <div class="flex flex-col items-center transition-transform" style="filter: drop-shadow(0 4px 10px rgb(0 0 0 / 0.25)); z-index: ${selected ? 99 : 1};">
-      <div class="whitespace-nowrap rounded-2xl border px-2.5 py-1 text-[11px] font-black transition-all" style="${bubble}">
+    <div class="flex flex-col items-center" style="position:relative;z-index:${selected ? 99 : 1};">
+      <span aria-hidden="true" style="position:absolute;left:50%;top:0;width:100%;min-width:48px;height:44px;transform:translateX(-50%);"></span>
+      <div class="whitespace-nowrap rounded-2xl border px-2.5 py-1 text-[11px] font-black" style="${bubble}">
         ${escapeHtml(priceText)}${badge}
       </div>
       <div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid ${tip};margin-top:-1px;"></div>
@@ -809,6 +842,23 @@ export const MapView: React.FC = () => {
     );
   }, []);
 
+  /**
+   * The districts to offer, plus whatever is actually selected.
+   *
+   * A district can be set from somewhere that never touched the region — the
+   * assistant answers "Samarqandda" with a district and an 'ALL' region — and
+   * `districtsFor('ALL')` is Tashkent's twelve. The value was then absent from
+   * its own list, so the control rendered an em-dash: it read as "nothing
+   * selected" while the map was filtered down to one district, and opening it
+   * to check replaced the value with whatever was tapped.
+   */
+  const districtOptions = useMemo(() => {
+    const list = districtsFor(filters.region);
+    return filters.district !== 'ALL' && !list.includes(filters.district)
+      ? [filters.district, ...list]
+      : list;
+  }, [filters.region, filters.district]);
+
   const districtLabel = useCallback(
     (name: string) => {
       const meta = DISTRICT_BY_NAME.get(normalizeName(name));
@@ -831,6 +881,17 @@ export const MapView: React.FC = () => {
    */
   const dealTypeFiltered = filters.dealType !== 'ALL';
   const filterCount = activeFilterCount() + (dealTypeFiltered ? 1 : 0);
+
+  /**
+   * Which ceiling the price boxes clamp to.
+   *
+   * `'ALL'` takes the sale one, which is the store's own rule for the same
+   * question (`quickFilterState`, "a rent ceiling … would quietly turn
+   * 'cheaper' into 'rentals only'"). It matters more here than anywhere: 'ALL'
+   * is where a cold visitor lands, so giving it the rent ceiling would leave
+   * the defect standing on the map's own default tab.
+   */
+  const maxPrice = filters.dealType === 'RENT' ? MAX_RENT_PRICE : MAX_SALE_PRICE;
 
   /**
    * Back to a completely unfiltered map, in one tap.
@@ -1008,7 +1069,10 @@ export const MapView: React.FC = () => {
     const known = AMENITIES.find((amenity) => amenity.key === key);
     applied.push({
       id: `amenity:${key}`,
-      label: known ? t(known.labelKey as never) : key,
+      // The searcher's wording, exactly as the chip in the sheet uses it —
+      // a chip in this row is the same filter said a second time, so it must
+      // not be said in the owner's words.
+      label: known ? t(known.listingLabelKey as never) : key,
       clear: () =>
         setFilters({ amenities: filters.amenities.filter((entry) => entry !== key) }),
     });
@@ -1158,8 +1222,16 @@ export const MapView: React.FC = () => {
               {filterCount > 0 && (
                 // The number, not a dot. It is how a visitor staring at an
                 // unexpectedly empty map works out how much is filtered away.
+                //
+                // `text-canvas`, not `text-white`. `--color-danger` is red-600
+                // in light mode and the much lighter red-400 in dark, because
+                // 71 of its ~85 uses are foreground — and white on red-400 is
+                // 2.8:1, so the one thing on this screen that says how much has
+                // been filtered away was the least readable thing on it. The
+                // canvas token tracks the theme: near-white on the light red,
+                // near-black on the dark one, 4.6:1 and 7:1.
                 <span
-                  className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-black tabular-nums text-white"
+                  className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-black tabular-nums text-canvas"
                   aria-hidden="true"
                 >
                   {filterCount}
@@ -1200,7 +1272,14 @@ export const MapView: React.FC = () => {
             // against rents matches no sale, so carrying it across would empty
             // the map on the first tap; the rental-only questions cannot be
             // asked of a sale at all.
-            onChange={(dealType) =>
+            onChange={(dealType) => {
+              // A tap on the segment that is already pressed is not a change,
+              // and `Segmented` reports it as one. Without this guard the
+              // companion reset below ran on it — so re-tapping "Barchasi",
+              // which people do constantly on a phone, silently threw away the
+              // visitor's price range and fired a fresh request for the set
+              // that was already on screen.
+              if (dealType === filters.dealType) return;
               setFilters({
                 dealType,
                 rentalType: 'ALL',
@@ -1208,8 +1287,20 @@ export const MapView: React.FC = () => {
                 audience: 'ALL',
                 minPrice: null,
                 maxPrice: null,
-              })
-            }
+                // Utilities go with them, on the sale side only. The wizard
+                // forces the flag false on every property for sale, so a chip
+                // ticked while renting would empty the Sotuv map — and the
+                // chip that set it is not drawn there, so there would be
+                // nothing on screen to untick.
+                ...(dealType === 'SALE'
+                  ? {
+                      amenities: filters.amenities.filter(
+                        (key) => key !== 'utilitiesIncluded',
+                      ),
+                    }
+                  : {}),
+              });
+            }}
             options={[
               { value: 'ALL', label: t('common.filters.all') },
               { value: 'RENT', label: t('common.dealType.rent') },
@@ -1221,26 +1312,52 @@ export const MapView: React.FC = () => {
               it. Drawn only while something is on, because otherwise it is a
               row of a phone's screen spent saying nothing. */}
           {applied.length > 0 && (
-            <ChipRow label={t('common.filters.applied', { count: applied.length })}>
-              {applied.map((entry) => (
-                <Chip
-                  key={entry.id}
-                  size="sm"
-                  tone="neutral"
-                  selected
-                  label={entry.label}
-                  onClick={entry.clear}
-                  onRemove={entry.clear}
-                  removeLabel={`${t('common.action.clear')}: ${entry.label}`}
-                />
-              ))}
-              <Chip
-                size="sm"
-                label={t('map.page.resetAll')}
-                icon={RefreshCw}
+            <div className="flex items-center gap-2">
+              {/* Hand-rolled rather than `ChipRow`, which bleeds to the screen
+                  edges with `-mx-4 px-4`. As a flex child beside the reset
+                  button that negative margin would push the row 16px past its
+                  parent on each side and shove the "pinned" control back off
+                  the right edge — the exact failure this replaces. */}
+              <div
+                role="group"
+                aria-label={t('common.filters.applied', { count: applied.length })}
+                className="hide-scrollbar flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-x-visible"
+              >
+                {applied.map((entry) => (
+                  <Chip
+                    key={entry.id}
+                    size="sm"
+                    tone="neutral"
+                    selected
+                    label={entry.label}
+                    onClick={entry.clear}
+                    onRemove={entry.clear}
+                    removeLabel={`${t('common.action.clear')}: ${entry.label}`}
+                    // The search chip's label is whatever the visitor typed,
+                    // and without a cap one long query is the whole row.
+                    className="max-w-[60vw] sm:max-w-xs"
+                  />
+                ))}
+              </div>
+              {/* Outside the scroller, as the catalogue does it. As the last
+                  child of a horizontally scrolling row this was past the right
+                  edge of a phone the moment three or four filters were on — so
+                  the one control that answers "why is my map nearly empty" had
+                  to be found by swiping a row whose scrollbar is hidden.
+                  Dashed and unfilled so it does not read as one more filter
+                  that happens to be switched off; the label folds away below
+                  400px, where 160px of "Hammasini tozalash" would be stealing
+                  the space from the chips it sits beside. */}
+              <button
+                type="button"
                 onClick={clearEverything}
-              />
-            </ChipRow>
+                aria-label={t('map.page.resetAll')}
+                className="press flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-dashed border-line-2 px-3 text-[11px] font-bold text-muted transition-colors hover:border-danger/50 hover:text-danger"
+              >
+                <RefreshCw className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span className="hidden xs:inline">{t('map.page.resetAll')}</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -1361,7 +1478,7 @@ export const MapView: React.FC = () => {
                 className="w-full"
               >
                 <option value="ALL">{t('common.filters.all')}</option>
-                {districtsFor(filters.region).map((district) => (
+                {districtOptions.map((district) => (
                   <option key={district} value={district}>
                     {districtLabel(district)}
                   </option>
@@ -1536,7 +1653,7 @@ export const MapView: React.FC = () => {
                     : 'listings.filters.minPricePlaceholder',
                 )}
                 value={filters.minPrice}
-                max={MAX_PRICE}
+                max={maxPrice}
                 step={filters.dealType === 'SALE' ? 10_000_000 : 500_000}
                 onCommit={(minPrice) => setFilters({ minPrice })}
               />
@@ -1548,7 +1665,7 @@ export const MapView: React.FC = () => {
                     : 'listings.filters.maxPricePlaceholder',
                 )}
                 value={filters.maxPrice}
-                max={MAX_PRICE}
+                max={maxPrice}
                 step={filters.dealType === 'SALE' ? 10_000_000 : 500_000}
                 onCommit={(maxPrice) => setFilters({ maxPrice })}
               />
@@ -1602,11 +1719,26 @@ export const MapView: React.FC = () => {
             <legend className="mb-2 text-xs font-black uppercase tracking-wide text-subtle">
               {t('listings.filters.amenitiesTitle')}
             </legend>
+            {/* `listingLabelKey`, not `labelKey`. The table carries both on
+                purpose (see data/amenities.ts): `owner.create.amenities.*` is
+                the question put to an owner filling the form — "Kommunal
+                to'lov narxga kiradi", a nine-syllable sentence inside a pill —
+                and `listings.amenities.*` is the statement made to a searcher.
+                A searcher is who is reading this sheet, and it is the wording
+                they will see again on the listing they open, which reads the
+                same table.
+
+                Utilities are dropped on the Sotuv side, mirroring the wizard:
+                it forces the flag false on every property for sale, so the
+                chip could only ever return an empty map there. */}
             <div className="flex flex-wrap gap-2">
-              {AMENITIES.map((amenity) => (
+              {AMENITIES.filter(
+                (amenity) =>
+                  !(filters.dealType === 'SALE' && amenity.key === 'utilitiesIncluded'),
+              ).map((amenity) => (
                 <Chip
                   key={amenity.key}
-                  label={t(amenity.labelKey as never)}
+                  label={t(amenity.listingLabelKey as never)}
                   icon={amenity.Icon}
                   selected={filters.amenities.includes(amenity.key)}
                   onClick={() => toggleAmenity(amenity.key)}
@@ -1799,8 +1931,47 @@ export const MapView: React.FC = () => {
                 map" over a filter matching 213 of them let a visitor who panned
                 the district conclude those were all of them. */}
             <div className="pointer-events-none absolute left-3 top-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-col items-start gap-2 sm:left-4 sm:top-4">
+              {/* The load spinner queues in this stack rather than floating in
+                  the top centre of the map.
+
+                  It used to be its own `left-1/2 top-4 z-20` overlay, which on
+                  a 390px screen is x=96..294 against a counter running x=12..166
+                  — a 70px overlap at the same z-index, won by whichever came
+                  later in the DOM. So the count of what is on the map was
+                  covered by the spinner at exactly the moment the visitor was
+                  watching it to see the count change. In the stack it cannot
+                  overlap the counter, the "load more" button or the
+                  coordinates pill, and it needs no z-index of its own.
+
+                  `listings.length === 0` used to be part of this test, which
+                  meant the pill appeared on the very first load and never
+                  again. Every filter change after that showed the previous,
+                  now-wrong pins for the whole round trip with nothing saying
+                  anything was happening — the control highlighted instantly,
+                  the map disagreed with it for a couple of seconds, and then
+                  everything jumped. `!listingsAppending` keeps it off during
+                  "load more", which has its own spinner on its own button. */}
+              {mapStatus === 'ready' && listingsLoading && !listingsAppending && (
+                <div
+                  className="rounded-full border border-line bg-surface px-4 py-2 shadow-card"
+                  role="status"
+                >
+                  <span className="flex items-center gap-2 text-xs font-bold text-muted">
+                    <span
+                      className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-brand border-t-transparent"
+                      aria-hidden="true"
+                    />
+                    {t('map.state.loadingListings')}
+                  </span>
+                </div>
+              )}
+
+              {/* Opaque, and no `backdrop-blur`. A blurred backdrop over a map
+                  is a backdrop the compositor has to re-blur on every frame of
+                  every pan — the most expensive thing on the screen, for an
+                  effect nobody can see through 95% opacity anyway. */}
               <p
-                className="pointer-events-auto rounded-full border border-line bg-surface/95 px-3 py-1.5 text-[11px] font-bold text-muted shadow-card backdrop-blur"
+                className="pointer-events-auto rounded-full border border-line bg-surface px-3 py-1.5 text-[11px] font-bold text-muted shadow-card"
                 aria-live="polite"
               >
                 {t('map.page.counter', { count: formatNumber(mapped.length) })}
@@ -1832,7 +2003,7 @@ export const MapView: React.FC = () => {
               {/* Listings the owner never placed on the map. Said here rather
                   than in the control bar, for the same reason as the counter. */}
               {missingCoordinates > 0 && mapped.length > 0 && (
-                <p className="pointer-events-auto rounded-full border border-line bg-surface/95 px-3 py-1.5 text-[11px] text-subtle shadow-card backdrop-blur">
+                <p className="pointer-events-auto rounded-full border border-line bg-surface px-3 py-1.5 text-[11px] text-subtle shadow-card">
                   {t('map.state.noCoordinates', { count: formatNumber(missingCoordinates) })}
                 </p>
               )}
@@ -1903,31 +2074,13 @@ export const MapView: React.FC = () => {
               </div>
             )}
 
-            {/* `listings.length === 0` used to be part of this test, which
-                meant the pill appeared on the very first load and never again.
-                Every filter change after that showed the previous, now-wrong
-                pins for the whole round trip with nothing saying anything was
-                happening — the control highlighted instantly, the map
-                disagreed with it for a couple of seconds, and then everything
-                jumped. `!listingsAppending` keeps it off during "load more",
-                which has its own spinner on its own button. */}
-            {mapStatus === 'ready' && listingsLoading && !listingsAppending && (
-              <div
-                className="absolute left-1/2 top-4 z-20 -translate-x-1/2 rounded-full border border-line bg-surface px-4 py-2 shadow-card"
-                role="status"
-              >
-                <span className="flex items-center gap-2 text-xs font-bold text-muted">
-                  <span
-                    className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-brand border-t-transparent"
-                    aria-hidden="true"
-                  />
-                  {t('map.state.loadingListings')}
-                </span>
-              </div>
-            )}
-
+            {/* Centred, not pinned to the top. At `top-4` this card is 358px
+                wide on a 390px screen and covered the counter outright — and
+                it holds real buttons, so it cannot simply join the
+                `pointer-events-none` stack on the left. `z-30` is a declared
+                layer rather than DOM-order luck. */}
             {mapStatus === 'ready' && listingsError && listings.length === 0 && (
-              <div className="absolute left-1/2 top-4 z-20 w-[min(24rem,calc(100%-2rem))] -translate-x-1/2 rounded-2xl border border-danger/30 bg-surface p-4 text-center shadow-raised">
+              <div className="absolute left-1/2 top-1/2 z-30 w-[min(24rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-danger/30 bg-surface p-4 text-center shadow-raised">
                 <p className="text-sm font-bold text-danger">
                   {t('map.state.listingsError.title')}
                 </p>
@@ -1946,8 +2099,9 @@ export const MapView: React.FC = () => {
               </div>
             )}
 
+            {/* Centred for the same reason as the error card above it. */}
             {mapStatus === 'ready' && (showEmpty || showNoMapped) && (
-              <div className="absolute left-1/2 top-4 z-20 w-[min(24rem,calc(100%-2rem))] -translate-x-1/2 rounded-2xl border border-line bg-surface p-4 text-center shadow-raised">
+              <div className="absolute left-1/2 top-1/2 z-30 w-[min(24rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-line bg-surface p-4 text-center shadow-raised">
                 <p className="text-sm font-black text-content">
                   {showEmpty ? t('map.state.empty.title') : t('map.state.noMapped.title')}
                 </p>

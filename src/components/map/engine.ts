@@ -196,7 +196,13 @@ interface YandexMap21 {
   /** Used to place our own markers — see the overlay in `createYandex`. */
   options: { get(name: 'projection'): YandexProjection21 };
   converter: { globalToPage(global: [number, number]): [number, number] };
-  container: { getOffset(): [number, number] };
+  /**
+   * `fitToViewport` is declared rather than cast at the call site, because a
+   * cast is how a method that does not exist gets called anyway. It re-reads
+   * the container's size; see the ResizeObserver in `createYandex` for why a
+   * map on a phone needs telling.
+   */
+  container: { getOffset(): [number, number]; fitToViewport(): void };
   getZoom(): number;
   setZoom(zoom: number, options?: Record<string, unknown>): void;
   /**
@@ -252,6 +258,36 @@ const FIT_PADDING = 56;
  */
 const YANDEX_THEME_CSS = `
 .uyiz-ymap { background: var(--color-surface-2); font: inherit; }
+
+/* A thumb-sized target on the two controls a visitor reaches for most.
+
+   Yandex's zoom buttons are about 28px, on a screen where everything else we
+   draw is 44. They cannot simply be grown: 2.1 positions each button
+   absolutely inside a fixed-height wrapper with its own per-button offsets,
+   so a taller button either overlaps its neighbour or is clipped by the box
+   around it. A transparent pad is out of flow, so it moves nothing and can
+   break no layout, and a tap that lands on it lands on the button.
+
+   Plus grows upwards and minus downwards, away from each other. A pad
+   centred on each button would have the two overlap in the middle, and half
+   of "+" quietly answering "−" is worse than the miss it was meant to fix.
+
+   No build number in the selector. "ymaps-2-1-79-" is Yandex's, and the 79
+   increments whenever they ship — a rule pinned to it stops matching in
+   silence, which is the same class of failure as the 2.1/v3 key above. */
+.uyiz-ymap [class*="-zoom__plus"],
+.uyiz-ymap [class*="-zoom__minus"] { overflow: visible; }
+.uyiz-ymap [class*="-zoom__plus"]::after,
+.uyiz-ymap [class*="-zoom__minus"]::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translateX(-50%);
+}
+.uyiz-ymap [class*="-zoom__plus"]::after { bottom: 0; }
+.uyiz-ymap [class*="-zoom__minus"]::after { top: 0; }
 `;
 
 function injectYandexTheme(): void {
@@ -341,6 +377,18 @@ async function createYandex(
 
   let pins: { element: HTMLElement; position: LatLng }[] = [];
 
+  /**
+   * Put every pin over its coordinate, with a transform.
+   *
+   * This wrote `left` and `top`, and on a phone that was the whole cost of a
+   * drag: both are layout properties, so a hundred absolutely positioned
+   * bubbles forced a full layout pass on every frame of every pan. A
+   * transform is handled by the compositor — same pixels, no layout.
+   *
+   * The `-50%/-100%` half of the transform is the anchoring and has to stay
+   * exactly as it was: a bubble points at its coordinate from above, so it is
+   * drawn up and to the left of the point it belongs to.
+   */
   const placePins = () => {
     if (pins.length === 0) return;
     const projection = map.options.get('projection');
@@ -350,14 +398,55 @@ async function createYandex(
       const page = map.converter.globalToPage(
         projection.toGlobalPixels(pin.position, zoom),
       );
-      pin.element.style.left = `${page[0] - offset[0]}px`;
-      pin.element.style.top = `${page[1] - offset[1]}px`;
+      pin.element.style.transform =
+        `translate3d(${page[0] - offset[0]}px, ${page[1] - offset[1]}px, 0)` +
+        ' translate(-50%, -100%)';
+    });
+  };
+
+  /**
+   * One reposition per frame, however many events asked for it.
+   *
+   * `actiontick` fires on every animation frame of a pan or a zoom, and it is
+   * not alone: `boundschange` lands inside the same frame during a drag. So
+   * the work below was being done two or three times for one frame's worth of
+   * movement. Coalescing through `requestAnimationFrame` also puts it where
+   * the browser was going to paint anyway, instead of between paints.
+   */
+  let frame = 0;
+  const schedulePins = () => {
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      placePins();
     });
   };
 
   // Every way the viewport can move. `actiontick` is what keeps the pins with
   // the tiles *during* a drag rather than snapping to place when it ends.
-  map.events.add(['boundschange', 'actionend', 'actiontick', 'sizechange'], placePins);
+  map.events.add(['boundschange', 'actionend', 'actiontick', 'sizechange'], schedulePins);
+
+  /**
+   * The container changes size constantly on a phone, and Yandex is not told.
+   *
+   * The map is `calc(100dvh - …)` tall, and `dvh` moves every single time the
+   * browser's address bar hides or shows, plus on every rotation. 2.1 keeps
+   * the pixel size it was built at and scales its tile layer to fill whatever
+   * the container has become — which is precisely what "the map is blurry"
+   * looks like — and the pins, projected against the old size, drift off
+   * their buildings with it.
+   *
+   * `fitToViewport` re-reads the container; the reposition after it puts the
+   * pins back on the coordinates they were always meant to be on.
+   */
+  const resizeObserver =
+    typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(() => {
+          map.container.fitToViewport();
+          placePins();
+        });
+  resizeObserver?.observe(element);
 
   return {
     provider: 'yandex',
@@ -378,7 +467,13 @@ async function createYandex(
         // The overlay ignores the pointer so the map can still be dragged
         // through it; each marker takes it back for itself.
         element.style.pointerEvents = 'auto';
-        element.style.transform = 'translate(-50%, -100%)';
+        // The offsets stay at zero and never change again: `placePins` moves
+        // the marker with a transform. They have to be written down, though —
+        // an absolutely positioned element with `auto` offsets falls back to
+        // where it would have been in flow, which inside this overlay means
+        // every marker stacked below the one before it.
+        element.style.left = '0';
+        element.style.top = '0';
         overlay.appendChild(element);
         return { element, position: entry.position };
       });
@@ -425,6 +520,12 @@ async function createYandex(
     },
 
     destroy() {
+      // Both of these outlive the map if they are not stopped here: a pending
+      // frame would reposition pins on a destroyed map, and the observer
+      // would keep a torn-down engine alive for as long as the element is.
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      resizeObserver?.disconnect();
       pins = [];
       overlay.remove();
       element.classList.remove('uyiz-ymap');
@@ -457,6 +558,28 @@ const LEAFLET_THEME_CSS = `
   border-bottom-color: var(--color-line);
 }
 .leaflet-bar a:hover { background: var(--color-surface-2); }
+
+/* 44px, including on the device that needs it.
+
+   Leaflet's own buttons are 26px, and 30px under .leaflet-touch — a class it
+   puts on the container of every touch device, at a specificity a bare
+   .leaflet-bar a cannot beat. So the second selector is not redundant:
+   without it this rule loses on exactly the phones it was written for, and
+   the zoom controls stay the two smallest targets on a screen where
+   everything else is 44px. 22px is Leaflet's own touch size for the glyph;
+   anything smaller is a downgrade on that device.
+
+   No backticks in here either — see the note further down. */
+.leaflet-bar a,
+.leaflet-touch .leaflet-bar a {
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+}
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out,
+.leaflet-touch .leaflet-control-zoom-in,
+.leaflet-touch .leaflet-control-zoom-out { font-size: 22px; }
 .leaflet-control-attribution {
   background: color-mix(in srgb, var(--color-surface) 85%, transparent);
   color: var(--color-muted);
@@ -507,6 +630,22 @@ async function createLeaflet(
 
   const map = leaflet.map(element, { zoomControl: false }).setView(options.center, options.zoom);
   map.invalidateSize();
+
+  /**
+   * The same gap the Yandex path has, and the same reason.
+   *
+   * Leaflet re-measures on a *window* resize; it is not told when its own
+   * container changes size under it. On a phone that is the common case, not
+   * the rare one — the surface is `calc(100dvh - …)` and `dvh` moves every
+   * time the address bar hides or shows — and until it is told, Leaflet keeps
+   * drawing at the size it was built at: the tile layer is scaled to fit,
+   * which reads as a blurry map, and the markers sit off their coordinates.
+   */
+  const resizeObserver =
+    typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(() => map.invalidateSize());
+  resizeObserver?.observe(element);
 
   let tiles: any = null;
   const applyTiles = (dark: boolean) => {
@@ -588,6 +727,7 @@ async function createLeaflet(
     },
 
     destroy() {
+      resizeObserver?.disconnect();
       markers.forEach((marker) => marker.remove());
       markers = [];
       map.remove();

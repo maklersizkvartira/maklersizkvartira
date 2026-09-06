@@ -30,7 +30,15 @@
   /* Text */
   --color-content: #0f172a;
   --color-muted: #475569;
-  --color-subtle: #94a3b8;
+  /* The faintest text role still has to be read. #94a3b8 was 2.5:1 on white —
+     a flat WCAG AA failure — and this token is not decoration: it draws the
+     map's "listings with no location" pill, the two-line hint under the
+     so'm/dollar switch, every filter legend and, through the `::placeholder`
+     rule below, the text inside every empty input on the site. In daylight on
+     a phone the honest disclosures were the least readable thing on screen.
+     Measured against the three light surfaces it actually lands on rather than
+     against white alone: 5.43 on surface, 4.95 on surface-2, 5.10 on canvas. */
+  --color-subtle: #5b6b82;
   --color-content-inverse: #f8fafc;
 
   /* Lines */
@@ -86,7 +94,12 @@
 
   --color-content: #e8eef9;
   --color-muted: #9fb0c9;
-  --color-subtle: #6b7d99;
+  /* The same AA floor as the light token, and the same reason. #6b7d99 read
+     3.9:1 on surface-2, so the dark theme failed on the busiest surface of the
+     three. Lifted just far enough — 5.90 on surface, 5.41 on surface-2, 6.46
+     on canvas — and no further: a value any lighter closes the gap to `muted`
+     and the two roles stop being distinguishable. */
+  --color-subtle: #8496b1;
   --color-content-inverse: #0f172a;
 
   --color-line: #253248;

@@ -41,6 +41,18 @@ export interface ListingQuery {
   airConditioning?: boolean;
   washingMachine?: boolean;
   petsAllowed?: boolean;
+  /**
+   * The seventh amenity, and the one this interface did not carry for as long
+   * as the chip existed. The store turns every selected chip straight into a
+   * field of the same name and spreads it onto the query object, and a spread
+   * is exempt from the excess-property check — so a key nothing here declares
+   * still travelled, and for months it was a chip that lit up, incremented the
+   * badge, drew a removable pill above the map and changed nothing, because
+   * the server's filter model had six amenities and the map offered seven.
+   * This interface is the only written record of what the API accepts, so an
+   * amenity missing from it is a filter nobody can see is missing.
+   */
+  utilitiesIncluded?: boolean;
   sortBy?: 'RECOMMENDED' | 'NEWEST' | 'PRICE_LOW' | 'PRICE_HIGH' | 'TRUST' | 'POPULAR';
   page?: number;
   pageSize?: number;
@@ -98,21 +110,48 @@ export interface TopRequest {
 }
 
 /**
- * Drops empty values so the query string carries only real filters.
+ * Fields whose value `'ALL'` is the client's sentinel for "this filter is off".
  *
- * `'ALL'` is the client's sentinel for "this filter is off", and dropping it
- * is right for every filter but one. `dealType` is the exception, and it was
- * an expensive one: the server's `deal_type` genuinely accepts `"ALL"` and
- * skips the WHERE for it, but its *default* is RENT — so a caller asking for
- * both got the key deleted here and rentals back, with nothing anywhere
- * saying the question had been changed. The map arrives unfiltered through
- * this path, so the exception has to be by key, not by value.
+ * Named rather than inferred, because the same four characters mean three
+ * different things on this object and only a key can tell them apart.
+ *
+ * `dealType` is absent because 'ALL' there is a real request: the server's
+ * `deal_type` accepts `"ALL"` and skips the WHERE for it, but its *default* is
+ * RENT — so a caller asking for both once got the key deleted here and rentals
+ * back, with nothing anywhere saying the question had been changed. The map
+ * arrives through this path.
+ *
+ * `search` is absent for the opposite reason: its content is the visitor's own
+ * words, and a visitor's word must never be read as one of ours. Typing `ALL`
+ * into the map's search box deleted the parameter while the chip row and the
+ * filter badge went on claiming the search was applied.
+ *
+ * `propertyType`, `roommateGender` and `sellerType` are the load-bearing
+ * entries: their server enums have no 'ALL' member at all, so a caller passing
+ * it would get a 422 and an empty screen rather than a silently wide one. The
+ * other four are plain strings server-side and are safe here only because
+ * every control that writes them is a dropdown whose neutral option is
+ * literally 'ALL'. The day one of them becomes a text box it comes out of this
+ * set, the same way `search` did.
  */
+const SENTINEL_KEYS = new Set([
+  'region',
+  'district',
+  'metroStation',
+  'universityName',
+  'propertyType',
+  'rentalType',
+  'roommateGender',
+  'audience',
+  'sellerType',
+]);
+
+/** Drops empty values and off-sentinels so the query carries only real filters. */
 function toQuery(query: ListingQuery): Record<string, string | number | boolean> {
   const output: Record<string, string | number | boolean> = {};
   for (const [key, value] of Object.entries(query)) {
     if (value === undefined || value === null || value === '') continue;
-    if (value === 'ALL' && key !== 'dealType') continue;
+    if (value === 'ALL' && SENTINEL_KEYS.has(key)) continue;
     output[key] = value as string | number | boolean;
   }
   return output;
