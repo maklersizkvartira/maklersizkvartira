@@ -279,6 +279,10 @@ export const AssistantApi = {
       remaining: number;
     }>('/smart/assistant/history', { query: { session_key: sessionKey } }),
 
-  close: (sessionKey: string) =>
-    http.post<{ status: string }>('/smart/assistant/close', { sessionKey }),
+  close: (sessionKey: string, userName?: string, userPhone?: string) =>
+    http.post<{ status: string }>('/smart/assistant/close', {
+      sessionKey,
+      userName,
+      userPhone,
+    }),
 };

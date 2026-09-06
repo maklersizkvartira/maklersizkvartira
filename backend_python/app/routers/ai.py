@@ -53,6 +53,8 @@ class AssistantRequest(CamelModel):
 
 class CloseRequest(CamelModel):
     session_key: Annotated[str, PField(min_length=MIN_SESSION_KEY_LENGTH, max_length=64)]
+    user_name: str | None = PField(default=None, max_length=120)
+    user_phone: str | None = PField(default=None, max_length=64)
 
 
 class SessionResponse(CamelModel):
@@ -543,17 +545,20 @@ async def close_assistant(
     # The conversation is retained, not deleted: the admin panel needs the
     # history, and destroying it on an unauthenticated request was a way to
     # erase evidence of abuse.
+    client_name = (viewer.name if viewer else payload.user_name) or "Mehmon (Noma’lum foydalanuvchi)"
+    client_phone = viewer.phone if viewer else payload.user_phone
+
     # Send full chat transcript to Telegram bot for the admins
     await send_ai_chat_to_telegram(
-        user_name=(viewer.name if viewer else "Noma'lum mijoz"),
-        user_phone=(viewer.phone if viewer else None),
+        user_name=client_name,
+        user_phone=client_phone,
         messages=messages,
     )
 
     await send_chat_summary(
         db,
-        user_name=(viewer.name if viewer else "Noma'lum mijoz"),
-        user_phone=(viewer.phone if viewer else None),
+        user_name=client_name,
+        user_phone=client_phone,
         intent=intent,
         summary=summary,
         message_count=len(messages),
