@@ -21,13 +21,24 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { createMapEngine } from './engine';
 import type { LatLng, MapEngine } from './engine';
-import { List, LocateFixed, MapPin, Search, X } from 'lucide-react';
+import {
+  ChevronRight,
+  Image as ImageIcon,
+  List,
+  LocateFixed,
+  MapPin,
+  Search,
+  ShieldCheck,
+  Train,
+  X,
+} from 'lucide-react';
 
 import { UZBEKISTAN_REGIONS } from '../../data/mockLocations';
 import { useTranslation } from '../../i18n';
 import { useAppStore } from '../../stores/useAppStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import type { Listing } from '../../types';
+import { isForSale } from '../../types/deal';
 import { Button, SelectInput } from '../ui/Field';
 
 // ---------------------------------------------------------------------------
@@ -120,18 +131,15 @@ function meMarkerHtml(): string {
   `;
 }
 
-function markerHtml(priceText: string): string {
-  // No selected state any more: a pin is tapped and the page changes, so
-  // there is never a moment where one pin is "the open one".
-  const selected = false;
+function markerHtml(priceText: string, selected: boolean = false): string {
   const bubble = selected
-    ? 'background: var(--color-brand); color: var(--color-on-brand); border-color: var(--color-brand);'
+    ? 'background: var(--color-brand); color: #ffffff; border-color: var(--color-brand); transform: scale(1.12); box-shadow: 0 4px 14px rgba(20, 71, 230, 0.45); font-weight: 900;'
     : 'background: var(--color-surface); color: var(--color-brand-text); border-color: var(--color-brand);';
   const tip = selected ? 'var(--color-brand)' : 'var(--color-surface)';
 
   return `
-    <div class="flex flex-col items-center" style="filter: drop-shadow(0 4px 10px rgb(0 0 0 / 0.25));">
-      <div class="whitespace-nowrap rounded-2xl border px-2.5 py-1 text-[11px] font-black" style="${bubble}">
+    <div class="flex flex-col items-center transition-transform" style="filter: drop-shadow(0 4px 10px rgb(0 0 0 / 0.25)); z-index: ${selected ? 99 : 1};">
+      <div class="whitespace-nowrap rounded-2xl border px-2.5 py-1 text-[11px] font-black transition-all" style="${bubble}">
         ${escapeHtml(priceText)}
       </div>
       <div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid ${tip};margin-top:-1px;"></div>
@@ -169,6 +177,12 @@ export const MapView: React.FC = () => {
   // the old attempt down and builds a fresh one rather than layering a second
   // map onto the same element.
   const [retryToken, setRetryToken] = useState(0);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
+
   const [searchDraft, setSearchDraft] = useState(filters.search);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -210,6 +224,26 @@ export const MapView: React.FC = () => {
         })),
     [listings],
   );
+
+  const selected = useMemo(
+    () => (selectedId ? listings.find((listing) => listing.id === selectedId) ?? null : null),
+    [listings, selectedId],
+  );
+
+  useEffect(() => {
+    if (selectedId && !mapped.some((entry) => entry.listing.id === selectedId)) {
+      setSelectedId(null);
+    }
+  }, [mapped, selectedId]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelectedId(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedId]);
 
   const missingCoordinates = listings.length - mapped.length;
 
@@ -298,6 +332,16 @@ export const MapView: React.FC = () => {
     if (mapStatus === 'ready') engineRef.current?.setTheme(isDark);
   }, [mapStatus, isDark]);
 
+  // Clicking empty area on the map closes the preview card
+  useEffect(() => {
+    if (mapStatus !== 'ready') return;
+    const engine = engineRef.current;
+    if (!engine) return;
+    engine.onClick(() => {
+      setSelectedId(null);
+    });
+  }, [mapStatus]);
+
   // Markers.
   useEffect(() => {
     if (mapStatus !== 'ready') return;
@@ -309,10 +353,11 @@ export const MapView: React.FC = () => {
     // would simply erase the other.
     const pins = mapped.map(({ listing, position }) => {
       const price = badgePrice(listing);
+      const isSelected = listing.id === selectedId;
       return {
         id: listing.id,
         position,
-        html: markerHtml(price),
+        html: markerHtml(price, isSelected),
         label: t('map.marker.label', { title: listing.title, price }),
       };
     });
@@ -327,20 +372,21 @@ export const MapView: React.FC = () => {
 
     engine.setMarkers(
       pins,
-      // A pin is a link. Tapping the price opens that listing, with nothing
-      // in between — which is the whole job of a price on a map.
-      //
-      // There used to be a preview card here first: tap a pin, read a summary,
-      // then press a button to actually go. Two taps and a small target for
-      // something a visitor had already decided on by the time they aimed at
-      // the pin. The summary is the listing page, one tap earlier.
       (id) => {
         // The visitor's own pin is not a listing and opens nothing.
         if (id === ME_MARKER_ID) return;
-        setCurrentView('LISTING_DETAIL', id);
+        // Tapping the pin that is already selected opens full listing details.
+        // The first tap shows the preview card.
+        if (id === selectedIdRef.current) {
+          setCurrentView('LISTING_DETAIL', id);
+          return;
+        }
+        setSelectedId(id);
+        const hit = mapped.find((entry) => entry.listing.id === id);
+        if (hit) engineRef.current?.panTo(hit.position);
       },
     );
-  }, [mapStatus, mapped, badgePrice, me, t]);
+  }, [mapStatus, mapped, badgePrice, me, t, selectedId, setCurrentView]);
 
   // Frame the results when the result set itself changes — not when the user
   // merely selects a pin, which would yank the viewport away from them.
@@ -680,7 +726,9 @@ export const MapView: React.FC = () => {
                 disabled={meBusy}
                 aria-label={t('map.me.cta')}
                 title={t('map.me.cta')}
-                className="press absolute bottom-6 left-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface text-brand shadow-raised transition-colors hover:bg-surface-2 disabled:opacity-60 sm:left-6"
+                className={`press absolute z-30 flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface text-brand shadow-raised transition-all hover:bg-surface-2 disabled:opacity-60 ${
+                  selected ? 'bottom-56 left-4 sm:bottom-6 sm:left-6' : 'bottom-6 left-4 sm:left-6'
+                }`}
               >
                 {meBusy ? (
                   <span
@@ -784,6 +832,109 @@ export const MapView: React.FC = () => {
                       {t('map.page.listCta')}
                     </Button>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* ------------------------------------------------------------ */}
+            {/* Selected listing preview card                                 */}
+            {/* ------------------------------------------------------------ */}
+            {selected && (
+              <div
+                role="dialog"
+                aria-label={selected.title}
+                onClick={(e) => e.stopPropagation()}
+                className="rise-in absolute bottom-20 left-3 right-3 z-40 rounded-2xl border border-line bg-surface p-4 shadow-raised sm:bottom-6 sm:left-20 sm:right-auto sm:w-[390px] sm:max-w-md"
+              >
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(null)}
+                  aria-label={t('map.panel.close')}
+                  className="absolute right-2.5 top-2.5 z-10 rounded-full p-1.5 text-subtle transition-colors hover:bg-surface-3 hover:text-content"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('LISTING_DETAIL', selected.id)}
+                  className="press w-full text-left"
+                >
+                  <div className="flex items-start gap-3.5">
+                    <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-line bg-surface-2">
+                      {selected.images?.[0] ? (
+                        <img
+                          src={selected.images[0]}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-subtle">
+                          <ImageIcon className="h-6 w-6" aria-hidden="true" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="flex items-center gap-1 text-xs font-bold text-brand-text">
+                        <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                        <span className="truncate">
+                          {selected.address ||
+                            [districtLabel(selected.district), selected.region]
+                              .filter(Boolean)
+                              .join(', ')}
+                        </span>
+                      </p>
+
+                      <h3 className="line-clamp-1 text-sm font-black text-content">
+                        {selected.title}
+                      </h3>
+
+                      <p className="text-xs text-muted">
+                        {t('listings.card.roomsAndArea', {
+                          rooms: selected.rooms,
+                          area: selected.area,
+                        })}
+                      </p>
+
+                      {selected.metroStation && (
+                        <p className="flex items-center gap-1 truncate text-xs font-semibold text-muted">
+                          <Train className="h-3 w-3 shrink-0 text-brand" aria-hidden="true" />
+                          <span className="truncate">
+                            {t('map.panel.metro', { station: selected.metroStation })}
+                          </span>
+                        </p>
+                      )}
+
+                      <p className="pt-1 text-base font-black text-content">
+                        {fullPrice(selected)}
+                        {!isForSale(selected) && (
+                          <span className="ml-1 text-xs font-semibold text-subtle">
+                            {t('listings.card.perMonth')}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
+                <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3">
+                  <span className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-muted">
+                    <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-brand" aria-hidden="true" />
+                    <span className="truncate">
+                      {selected.owner?.name || t('common.role.owner')}
+                    </span>
+                  </span>
+
+                  <Button
+                    className="shrink-0 px-3.5 py-1.5 text-xs font-bold"
+                    onClick={() => setCurrentView('LISTING_DETAIL', selected.id)}
+                  >
+                    {t('common.action.details')}
+                    <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </Button>
                 </div>
               </div>
             )}
