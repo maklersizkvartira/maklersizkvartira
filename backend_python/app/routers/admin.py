@@ -18,7 +18,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Header, Query, Request
 from pydantic import BaseModel
-from sqlalchemy import String, and_, cast, func, or_, select
+from sqlalchemy import String, and_, cast, func, or_, select, true, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -2167,40 +2167,92 @@ async def admin_list_support_conversations(
     admin: RequireModerator,
     status: str | None = None,
     search: str | None = None,
+    limit: int | None = Query(default=None, ge=1, le=500),
 ) -> dict:
-    """List customer support threads for the admin panel."""
-    stmt = (
-        select(SupportConversation)
-        .options(
-            selectinload(SupportConversation.user),
-            selectinload(SupportConversation.messages),
+    """List customer support threads for the admin panel.
+
+    Every open operator tab re-reads this every few seconds, so nothing in it
+    may grow with the support history. It used to eager-load every message of
+    every conversation and then count and slice them in Python: one poll
+    dragged the whole `support_messages` table into the process to produce one
+    integer and one 160-character snippet per thread, and the cost of that grew
+    with every message ever sent while the response stayed small enough that
+    nothing looked wrong. Both values are aggregates now.
+
+    `search` moved into the WHERE for the same reason. Filtered in Python after
+    the load, it would have been applied *after* the cap below, so an operator
+    would page over unfiltered threads and be told "no such customer" about a
+    customer who is simply further down the queue.
+    """
+    unread_count = (
+        select(func.count())
+        .select_from(SupportMessage)
+        .where(
+            SupportMessage.conversation_id == SupportConversation.id,
+            SupportMessage.sender_type == "USER",
+            SupportMessage.read_at.is_(None),
         )
+        .scalar_subquery()
+    )
+    # The snippet needs the row itself rather than an aggregate, so it comes
+    # from a lateral that stops at the newest message. `created_at DESC` is the
+    # relationship's own `order_by` read backwards (models/chat.py), so this is
+    # still the message the eager load used to end on.
+    newest = (
+        select(
+            SupportMessage.text.label("text"),
+            SupportMessage.created_at.label("created_at"),
+            SupportMessage.sender_type.label("sender_type"),
+        )
+        .where(SupportMessage.conversation_id == SupportConversation.id)
+        .order_by(SupportMessage.created_at.desc())
+        .limit(1)
+        .lateral("newest_message")
+    )
+
+    stmt = (
+        select(
+            SupportConversation,
+            unread_count.label("unread_count"),
+            newest.c.text,
+            newest.c.created_at,
+            newest.c.sender_type,
+        )
+        .select_from(SupportConversation)
+        .outerjoin(newest, true())
+        .options(selectinload(SupportConversation.user))
         .order_by(SupportConversation.updated_at.desc())
     )
     if status and status.upper() in ("OPEN", "RESOLVED"):
         stmt = stmt.where(SupportConversation.status == status.upper())
+    if search:
+        pattern = f"%{search.strip()}%"
+        # An inner join, deliberately: the Python filter this replaces compared
+        # the query against "" for a thread whose user row was gone, which
+        # never matched either.
+        stmt = stmt.join(User, User.id == SupportConversation.user_id).where(
+            or_(User.name.ilike(pattern), User.phone.ilike(pattern))
+        )
 
-    results = list((await db.execute(stmt)).unique().scalars().all())
+    # Last, after the filters, and opt-in like the thread endpoint's. The panel
+    # renders this as one bare array with no paging control and sends neither
+    # `limit` nor `search`, so a default ceiling would quietly hide the oldest
+    # threads from the only view of the queue there is — with nothing on screen
+    # to say a queue of 240 was being shown as 200. It becomes a ceiling the day
+    # the panel grows a control that can ask for the rest.
+    if limit:
+        stmt = stmt.limit(limit)
 
     out: list[SupportConversationOut] = []
-    for conv in results:
-        if search:
-            q = search.lower().strip()
-            user_name = (conv.user.name if conv.user else "").lower()
-            user_phone = (conv.user.phone if conv.user else "").lower()
-            if q not in user_name and q not in user_phone:
-                continue
-
+    for conv, unread, last_text, last_at, last_sender in (
+        await db.execute(stmt)
+    ).all():
         item = SupportConversationOut.model_validate(conv)
-        unread = sum(
-            1 for m in conv.messages if m.sender_type == "USER" and m.read_at is None
-        )
-        item.unread_count = unread
-        if conv.messages:
-            last = conv.messages[-1]
-            item.last_message = last.text[:160]
-            item.last_message_at = last.created_at
-            item.last_message_sender = last.sender_type
+        item.unread_count = int(unread or 0)
+        if last_text is not None:
+            item.last_message = last_text[:160]
+            item.last_message_at = last_at
+            item.last_message_sender = last_sender
         out.append(item)
     return _ok([item.model_dump(mode="json") for item in out])
 
@@ -2210,32 +2262,82 @@ async def admin_get_support_messages(
     user_id: uuid.UUID,
     db: DbSession,
     admin: RequireModerator,
+    limit: int | None = Query(default=None, ge=1, le=500),
 ) -> dict:
-    """Get the support conversation thread and mark user messages as read."""
+    """Get the support conversation thread and mark user messages as read.
+
+    The open thread is re-read every couple of seconds while the operator has
+    it on screen, so a caller that only needs the tail can ask for the newest
+    `limit` messages instead of the whole history — a thread running for months
+    would otherwise be re-serialised in full on every single pass.
+
+    Opt-in, and that matters: the panel sends no `limit` today, and its poll
+    reconciles by comparing the ids it already holds against the ids that come
+    back. A default cap would have silently handed it a window of the thread,
+    so every message older than the window would look to that merge like a
+    message the server had dropped. The cap becomes the default the day the
+    panel asks for a window and knows what to do with one.
+    """
     stmt = (
         select(SupportConversation)
-        .options(
-            selectinload(SupportConversation.user),
-            selectinload(SupportConversation.messages),
-        )
+        .options(selectinload(SupportConversation.user))
         .where(SupportConversation.user_id == user_id)
     )
-    conv = (await db.execute(stmt)).unique().scalar_one_or_none()
+    conv = (await db.execute(stmt)).scalar_one_or_none()
     if not conv:
         raise NotFound("conversation_not_found")
 
-    # Mark user messages as read
-    marked = False
-    for msg in conv.messages:
-        if msg.sender_type == "USER" and msg.read_at is None:
-            msg.read_at = msg.created_at
-            marked = True
-    if marked:
+    # Mark user messages as read. One UPDATE where a Python loop used to walk
+    # the entire loaded thread and commit a write on every poll that found an
+    # unread message; `read_at = created_at` is the value that loop wrote, kept
+    # so the marks keep meaning the same thing. It runs before the SELECT below
+    # so the rows that come back already carry the new marks.
+    marked = await db.execute(
+        update(SupportMessage)
+        .where(
+            SupportMessage.conversation_id == conv.id,
+            SupportMessage.sender_type == "USER",
+            SupportMessage.read_at.is_(None),
+        )
+        .values(read_at=SupportMessage.created_at)
+        .execution_options(synchronize_session=False)
+    )
+    if marked.rowcount:
         await db.commit()
 
-    out = SupportConversationDetailOut.model_validate(conv)
-    if conv.messages:
-        last = conv.messages[-1]
+    # Newest first, so the cap keeps the tail of the thread, then reversed back
+    # into the order the panel renders.
+    messages = list(
+        (
+            await db.execute(
+                (
+                    select(SupportMessage)
+                    .where(SupportMessage.conversation_id == conv.id)
+                    .order_by(SupportMessage.created_at.desc())
+                ).limit(limit)
+                if limit
+                else (
+                    select(SupportMessage)
+                    .where(SupportMessage.conversation_id == conv.id)
+                    .order_by(SupportMessage.created_at.desc())
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    messages.reverse()
+
+    # Built from the list schema and then handed its messages: validating the
+    # detail schema straight off the ORM row would read `conv.messages`, and
+    # that relationship is no longer loaded — an implicit lazy load inside an
+    # async request raises instead of quietly emitting the query.
+    out = SupportConversationDetailOut(
+        **SupportConversationOut.model_validate(conv).model_dump(),
+        messages=[SupportMessageOut.model_validate(msg) for msg in messages],
+    )
+    if messages:
+        last = messages[-1]
         out.last_message = last.text[:160]
         out.last_message_at = last.created_at
         out.last_message_sender = last.sender_type
@@ -2288,13 +2390,10 @@ async def admin_update_support_status(
     """Update support conversation status (OPEN or RESOLVED)."""
     stmt = (
         select(SupportConversation)
-        .options(
-            selectinload(SupportConversation.user),
-            selectinload(SupportConversation.messages),
-        )
+        .options(selectinload(SupportConversation.user))
         .where(SupportConversation.user_id == user_id)
     )
-    conv = (await db.execute(stmt)).unique().scalar_one_or_none()
+    conv = (await db.execute(stmt)).scalar_one_or_none()
     if not conv:
         raise NotFound("conversation_not_found")
 

@@ -29,6 +29,7 @@ from app.core.deps import DbSession
 from app.models.enums import DealType
 from app.models.listing import Listing
 from app.schemas.listing import ListingFilters
+from app.services import fx
 from app.services.listings import apply_filters, visible_clause
 
 router = APIRouter(tags=["seo"])
@@ -174,8 +175,18 @@ async def sitemap_listings(db: DbSession) -> Response:
 #: only here to stop an unbounded query string from growing the SELECT list.
 MAX_BUDGET_CEILINGS = 8
 
+#: The budget tallies are counted at a slightly expensive dollar, so a budget
+#: page in the sitemap is a subset of what the grid will show. Even on the live
+#: rate the two are taken at different moments — the count at build time, the
+#: grid when the crawler arrives — and the two errors are not symmetric. An
+#: undercount only leaves a page out of the sitemap, where it stays on the site
+#: and returns on the next build; an overcount publishes a page that then
+#: renders `noindex`, which Search Console files as "Submitted URL marked
+#: noindex", an error. So the counts lean the harmless way.
+BUDGET_RATE_MARGIN = 1.05
 
-def _facet_clause(**filters: Any) -> ColumnElement[bool]:
+
+def _facet_clause(rate: float, **filters: Any) -> ColumnElement[bool]:
     """The catalogue's own predicate for a landing page's filters.
 
     Read off ``apply_filters`` rather than restated here. STUDENT and FAMILY
@@ -185,13 +196,16 @@ def _facet_clause(**filters: Any) -> ColumnElement[bool]:
     is a worse outcome than never pruning at all. Going through the real filter
     also means the count and the grid the visitor lands on cannot disagree.
     """
-    # The static rate, deliberately, and it is never used: the rate reaches
-    # `apply_filters` only through the price bounds, and a landing page's
-    # facets are geography, category and audience — never a price. Fetching
-    # the live one would mean making this helper and its callers async for a
-    # value that cannot affect the result.
+    # The rate is handed in rather than read from settings, because it is not
+    # inert here: `arzon-ijara` passes a `max_price`, and `apply_filters`
+    # compares that ceiling against a USD listing's price multiplied by
+    # whatever rate it is given. Counted at the static 12 700 while the grid
+    # behind the page filters at the Central Bank's figure, a USD listing whose
+    # so'm value straddles the ceiling is counted on one side of it and shown
+    # on the other — the disagreement the docstring above promises cannot
+    # happen. The helper stays synchronous: it gains a float, not an await.
     clause = apply_filters(
-        select(Listing.id), ListingFilters(**filters), settings.USD_TO_UZS_RATE
+        select(Listing.id), ListingFilters(**filters), rate
     ).whereclause
     return true() if clause is None else clause
 
@@ -246,6 +260,11 @@ async def seo_facets(
     ceilings = sorted({value for value in (budget or []) if value > 0})[
         :MAX_BUDGET_CEILINGS
     ]
+
+    # The same rate `list_public` filters with, taken once for every tally
+    # below. It costs nothing: `fx` caches for an hour, never raises, and this
+    # endpoint is read once per deploy by `scripts/generate-sitemap.mjs`.
+    rate = await fx.usd_to_uzs()
 
     # Rentals only, in every count on this endpoint. Each landing page these
     # numbers gate is a rental page — `_landing_clause` builds its predicate
@@ -306,8 +325,15 @@ async def seo_facets(
             await db.execute(
                 select(
                     column,
-                    _tally(_facet_clause(rental_type="ROOMMATE")),
-                    *(_tally(_facet_clause(max_price=ceiling)) for ceiling in ceilings),
+                    _tally(_facet_clause(rate, rental_type="ROOMMATE")),
+                    *(
+                        _tally(
+                            _facet_clause(
+                                rate * BUDGET_RATE_MARGIN, max_price=ceiling
+                            )
+                        )
+                        for ceiling in ceilings
+                    ),
                 )
                 .where(and_(visible_clause(), column.isnot(None)))
                 .group_by(column)
@@ -336,12 +362,15 @@ async def seo_facets(
         await db.execute(
             select(
                 func.count(),
-                _tally(_facet_clause(rental_type="ROOMMATE")),
-                _tally(_facet_clause(audience="STUDENT")),
+                _tally(_facet_clause(rate, rental_type="ROOMMATE")),
+                _tally(_facet_clause(rate, audience="STUDENT")),
                 # Both halves of the category's filters, not just the audience:
                 # the page shows the intersection, so the count has to as well.
-                _tally(_facet_clause(audience="FAMILY", rental_type="FULL")),
-                *(_tally(_facet_clause(max_price=ceiling)) for ceiling in ceilings),
+                _tally(_facet_clause(rate, audience="FAMILY", rental_type="FULL")),
+                *(
+                    _tally(_facet_clause(rate * BUDGET_RATE_MARGIN, max_price=ceiling))
+                    for ceiling in ceilings
+                ),
             )
             .select_from(Listing)
             .where(visible_clause())
