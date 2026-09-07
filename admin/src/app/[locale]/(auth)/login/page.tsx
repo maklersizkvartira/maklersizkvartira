@@ -123,7 +123,8 @@ export default function LoginPage() {
 
   const isCountingDown = isThrottled && remaining > 0;
   const isCredsValid = cleanUsername.length > 0 && password.trim().length > 0;
-  const canSubmitCreds = isCredsValid && !isCheckingCredentials && !isCountingDown;
+  // isLoggingIn belongs here since step 1 can now sign in directly (see the 2FA skip below).
+  const canSubmitCreds = isCredsValid && !isCheckingCredentials && !isCountingDown && !isLoggingIn;
 
   /* ── Step 1: Submit Credentials & Send 2FA ────────────────────────────── */
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
@@ -149,11 +150,35 @@ export default function LoginPage() {
       const sendData = (await sendRes.json().catch(() => ({}))) as {
         ok?: boolean;
         sentToTelegram?: boolean;
+        twoFactorRequired?: boolean;
         error?: string;
       };
 
       if (!sendData.ok) {
         throw new Error(sendData.error || '2FA kodini yuborishda xatolik yuz berdi');
+      }
+
+      // 2a. The second factor stands aside when it cannot be delivered.
+      // On 06.09.2026 the /api/auth/2fa/send route stopped shipping hardcoded Telegram
+      // credentials as fallbacks (their signing key was public, so the challenge cookie
+      // could be forged) and began failing closed instead. Nothing was configured in
+      // Vercel, so every admin was thrown out here at step 1 — locked out of the one
+      // panel from which the factor could ever be reconfigured. A factor that cannot
+      // reach the operator must never be the thing that keeps them out, so when the
+      // route reports twoFactorRequired === false (not configured, or the send failed)
+      // we skip step 2 and sign in with the credentials the backend just verified.
+      // This is a degradation, not a hole: 2FA here is defence in depth, and the real
+      // gate is the backend token issuer — doLogin below still has to get past it with
+      // this username and password before any session exists.
+      if (sendData.twoFactorRequired === false) {
+        // Loud in the log, because nothing on this screen survives the redirect that
+        // follows a successful login and the operator must not assume 2FA is live.
+        console.error(
+          '[auth] 2FA YETKAZILMADI — ikkinchi bosqich o‘tkazib yuborildi. Telegram sozlamalari (TELEGRAM_2FA_BOT_TOKEN / TELEGRAM_2FA_CHANNEL_ID / SECRET_KEY) tiklanmaguncha panel faqat login va parol bilan himoyalangan.',
+          sendData.error ?? '',
+        );
+        doLogin({ username: cleanUsername, password });
+        return;
       }
 
       // 3. Move to 2FA step
@@ -187,8 +212,22 @@ export default function LoginPage() {
       const data = (await res.json().catch(() => ({}))) as {
         ok?: boolean;
         sentToTelegram?: boolean;
+        twoFactorRequired?: boolean;
         error?: string;
       };
+
+      // Same reason as step 1: if delivery has died since the first send (configuration
+      // pulled, Telegram refusing), restarting the timer would park the operator at
+      // step 2 waiting for a code nobody can send — the lockout again, one step later.
+      // Stand aside and finish the sign-in the credentials already earned.
+      if (data.ok && data.twoFactorRequired === false) {
+        console.error(
+          '[auth] 2FA qayta yuborilmadi — ikkinchi bosqich o‘tkazib yuborildi. Telegram sozlamalarini tiklang.',
+          data.error ?? '',
+        );
+        doLogin({ username: cleanUsername, password });
+        return;
+      }
 
       if (!data.ok) {
         setTwoFactorError(data.error || 'Kodni qayta jo‘natishda xatolik yuz berdi');
@@ -457,7 +496,7 @@ export default function LoginPage() {
                     border: canSubmitCreds ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
                   }}
                 >
-                  {isCheckingCredentials ? (
+                  {isCheckingCredentials || isLoggingIn ? (
                     <>
                       <span
                         className="inline-block w-4 h-4 border-2 rounded-full shrink-0 animate-spin"
