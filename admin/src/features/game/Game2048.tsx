@@ -133,6 +133,8 @@ export function Game2048() {
           // ignore
         }
       }
+
+      sound.init();
       setMuted(sound.isMuted());
     }
   }, []);
@@ -364,7 +366,7 @@ export function Game2048() {
     setHistory((prev) => prev.slice(0, -1));
     setUndos((prev) => prev - 1);
     setAiAdvice(null);
-    sound.playMove();
+    sound.playUndo();
   }, [history, undos, gameOver]);
 
   // Request AI Advice
@@ -512,9 +514,17 @@ export function Game2048() {
           {/* Sound Toggle */}
           <button
             type="button"
-            onClick={() => setMuted(sound.toggleMute())}
+            onClick={() => {
+              const nextMuted = sound.toggleMute();
+              setMuted(nextMuted);
+            }}
             title={muted ? 'Ovozni yoqish' : 'Ovozni o‘chirish'}
-            className="p-2.5 rounded-2xl bg-surface-2 border border-line hover:bg-surface-hover transition-colors text-muted hover:text-content"
+            className="p-2.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-center"
+            style={{
+              color: !muted ? 'var(--accent)' : 'var(--color-text-muted)',
+              borderColor: !muted ? 'var(--accent-border)' : 'var(--color-border)',
+              background: !muted ? 'var(--accent-subtle)' : 'var(--color-surface-2)',
+            }}
           >
             {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
