@@ -209,16 +209,12 @@ async def send_ai_chat_to_telegram(
     user_name: str,
     user_phone: str | None,
     messages: list[Any],
+    intent: dict[str, Any] | None = None,
 ) -> bool:
     """Send compact AI conversation transcript to Telegram channel."""
     if not messages:
         return False
 
-    # This was the only send in the module that ever worked, because its bot
-    # token and channel id were written into the source two lines above it -
-    # which also meant rotating a leaked token was a code change, and meant
-    # every other notification in here failed silently against an unset .env.
-    # Both now come from settings, and both fall back to the operations pair.
     token = settings.telegram_ai_bot_token
     chat_id = settings.telegram_ai_chat_id
     if not token or not chat_id:
@@ -228,13 +224,25 @@ async def send_ai_chat_to_telegram(
     now = datetime.now(TASHKENT).strftime("%d.%m.%Y %H:%M")
     phone = format_display(user_phone) if user_phone else "Kiritilmadi"
 
+    criteria_parts = []
+    if intent:
+        if intent.get("district"):
+            criteria_parts.append(f"📍 <b>Tuman:</b> {_esc(intent['district'])}")
+        if intent.get("rooms"):
+            criteria_parts.append(f"🏠 <b>Xonalar:</b> {_esc(intent['rooms'])}")
+        if intent.get("maxPrice"):
+            criteria_parts.append(f"💰 <b>Narx:</b> {int(intent['maxPrice']):,} so'm".replace(",", " "))
+    criteria_block = ("\n" + "\n".join(criteria_parts) + "\n") if criteria_parts else "\n"
+
     header = (
-        "🤖 <b>UYIZ AI — MIJOZ BILAN SUHBAT</b>\n\n"
+        "🤖 <b>UYIZ AI — SUHBAT YAKUNLANDI</b>\n\n"
         f"👤 <b>Mijoz:</b> {_esc(user_name)}\n"
-        f"📱 <b>Tel:</b> {_esc(phone)} • ⏰ {_esc(now)}\n"
-        f"💬 <b>Xabarlar soni:</b> {len(messages)} ta\n\n"
+        f"📱 <b>Telefon:</b> {_esc(phone)}\n"
+        f"⏰ <b>Vaqt:</b> {_esc(now)}\n"
+        f"💬 <b>Xabarlar:</b> {len(messages)} ta"
+        f"{criteria_block}\n"
         "━━━━━━━━━━━━━━━━━━━━━\n"
-        "📝 <b>Qisqa yozishmalar:</b>\n\n"
+        "📝 <b>Yozishmalar:</b>\n\n"
     )
 
     transcript = ""

@@ -676,20 +676,23 @@ async def close_assistant(
     client_phone = viewer.phone if viewer else payload.user_phone
 
     # Send full chat transcript to Telegram bot for the admins
-    await send_ai_chat_to_telegram(
+    delivered = await send_ai_chat_to_telegram(
         user_name=client_name,
         user_phone=client_phone,
         messages=messages,
+        intent=intent,
     )
 
-    await send_chat_summary(
-        db,
-        user_name=client_name,
-        user_phone=client_phone,
-        intent=intent,
-        summary=summary,
-        message_count=len(messages),
-    )
+    # If transcript was not delivered, send summary as fallback so the lead is never lost
+    if not delivered:
+        await send_chat_summary(
+            db,
+            user_name=client_name,
+            user_phone=client_phone,
+            intent=intent,
+            summary=summary,
+            message_count=len(messages),
+        )
     await audit_log.record(
         db,
         AuditAction.AI_CHAT_CLOSED,

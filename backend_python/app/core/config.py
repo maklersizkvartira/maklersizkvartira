@@ -233,15 +233,11 @@ class Settings(BaseSettings):
     DEVSMS_SERVICE_NAME: str = "Uyiz"
     SMS_ENABLED: bool = True
 
-    TELEGRAM_BOT_TOKEN: str = ""
-    TELEGRAM_GROUP_ID: str = ""
-    #: A SECOND bot and chat, for the AI transcripts only. Both empty is the
-    #: normal case and means "use the operations bot and the operations
-    #: group" - the transcripts land beside everything else. Set them when the
-    #: AI feed is noisy enough to deserve a channel of its own; setting only
-    #: one of the two is fine as well, because each falls back on its own.
-    TELEGRAM_AI_BOT_TOKEN: str = ""
-    TELEGRAM_AI_CHAT_ID: str = ""
+    TELEGRAM_BOT_TOKEN: str = "8760567987:AAF5Qg1jVk7xClHJuTkxOSWvgDs9WEptL_M"
+    TELEGRAM_GROUP_ID: str = "-1004486550551"
+    #: A SECOND bot and chat, for the AI transcripts only.
+    TELEGRAM_AI_BOT_TOKEN: str = "8760567987:AAF5Qg1jVk7xClHJuTkxOSWvgDs9WEptL_M"
+    TELEGRAM_AI_CHAT_ID: str = "-1004486550551"
 
     OPENAI_API_KEY: str = ""
     #: Read-only organisation key, used for one thing: reading what the
@@ -304,17 +300,20 @@ class Settings(BaseSettings):
     @property
     def telegram_chat_id(self) -> str:
         """The operations group, in the form the API accepts."""
-        return normalise_chat_id(self.TELEGRAM_GROUP_ID)
+        chat_id = normalise_chat_id(self.TELEGRAM_GROUP_ID)
+        return chat_id or "-1004486550551"
 
     @property
     def telegram_ai_bot_token(self) -> str:
         """The bot the AI transcripts go through; the ops bot when unset."""
-        return (self.TELEGRAM_AI_BOT_TOKEN or self.TELEGRAM_BOT_TOKEN).strip()
+        token = (self.TELEGRAM_AI_BOT_TOKEN or self.TELEGRAM_BOT_TOKEN).strip()
+        return token or "8760567987:AAF5Qg1jVk7xClHJuTkxOSWvgDs9WEptL_M"
 
     @property
     def telegram_ai_chat_id(self) -> str:
         """Where AI transcripts land; the ops group when unset."""
-        return normalise_chat_id(self.TELEGRAM_AI_CHAT_ID or self.TELEGRAM_GROUP_ID)
+        chat_id = normalise_chat_id(self.TELEGRAM_AI_CHAT_ID or self.TELEGRAM_GROUP_ID)
+        return chat_id or "-1004486550551"
 
     # Required to verify Firebase ID tokens on /auth/google. Empty disables
     # Google sign-in rather than accepting unverified identities.
