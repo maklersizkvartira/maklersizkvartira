@@ -168,7 +168,18 @@ export const ListingDetailPage: React.FC = () => {
     }
 
     let cancelled = false;
-    setStatus('loading');
+
+    // Instant paint: use in-memory listing if user clicked from the catalogue or map
+    const storeState = useAppStore.getState();
+    const cached = storeState.listings.find((l) => l.id === selectedListingId);
+
+    if (cached) {
+      setListing(cached);
+      setStatus('ready');
+    } else {
+      setStatus('loading');
+    }
+
     setPhoneVisible(false);
     setImageIndex(0);
 
@@ -180,8 +191,10 @@ export const ListingDetailPage: React.FC = () => {
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        setListing(null);
-        setStatus(error instanceof ApiError && error.status === 404 ? 'notFound' : 'error');
+        if (!cached) {
+          setListing(null);
+          setStatus(error instanceof ApiError && error.status === 404 ? 'notFound' : 'error');
+        }
       });
 
     return () => {
@@ -657,6 +670,8 @@ export const ListingDetailPage: React.FC = () => {
               <img
                 src={activeImage}
                 alt={listing.title}
+                loading="eager"
+                fetchPriority="high"
                 className="h-full w-full object-cover"
                 decoding="async"
               />

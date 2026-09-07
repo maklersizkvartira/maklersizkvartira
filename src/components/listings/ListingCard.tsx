@@ -234,9 +234,13 @@ export const ListingCard: React.FC<ListingCardProps> = ({
   const hasPhoto = images.length > 0 && failedSlides.size < images.length;
   const activeSlide = Math.min(slide, Math.max(images.length - 1, 0));
 
+  const [hasInteracted, setHasInteracted] = useState(false);
+
   const media = (
     <div
       ref={mediaRef}
+      onMouseEnter={() => setHasInteracted(true)}
+      onTouchStart={() => setHasInteracted(true)}
       className={cn(
         'relative shrink-0 overflow-hidden bg-surface-2',
         isList ? 'h-full w-36 sm:w-52' : 'aspect-[4/3] w-full',
@@ -248,8 +252,13 @@ export const ListingCard: React.FC<ListingCardProps> = ({
            and `transition-transform` keeps only one of them — and the one that
            lost was the zoom. */
         <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-105">
-          {images.map((src, index) =>
-            failedSlides.has(index) ? null : (
+          {images.map((src, index) => {
+            if (failedSlides.has(index)) return null;
+            // Primary slide 0 renders immediately. Secondary slides load only when active or hovered.
+            const shouldRender = index === 0 || index === activeSlide || hasInteracted;
+            if (!shouldRender) return null;
+
+            return (
               <img
                 key={`${listing.id}-${index}`}
                 src={src}
@@ -273,8 +282,8 @@ export const ListingCard: React.FC<ListingCardProps> = ({
                   index === activeSlide ? 'opacity-100' : 'opacity-0',
                 )}
               />
-            ),
-          )}
+            );
+          })}
         </div>
       ) : (
         <div className="flex h-full w-full items-center justify-center text-subtle">

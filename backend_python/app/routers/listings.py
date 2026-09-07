@@ -50,6 +50,7 @@ def _serialise(
     favorite_ids: set[uuid.UUID] | None = None,
     conversation_counts: dict[uuid.UUID, int] | None = None,
     top_statuses: dict[uuid.UUID, str] | None = None,
+    for_list: bool = False,
 ) -> dict:
     """Render a listing, exposing the owner's phone only where appropriate.
 
@@ -71,6 +72,17 @@ def _serialise(
     # A pending Top request is the owner's own business, not the catalogue's.
     if top_statuses is not None and (is_owner or is_staff):
         payload.top_request_status = top_statuses.get(listing.id)
+
+    if for_list and payload.images:
+        # In catalogue browse view, cards only need the first few photos.
+        # If legacy rows contain huge base64 data URIs, keep only the primary one
+        # to prevent 6MB+ payload spikes on mobile networks.
+        has_data_uri = any(img.startswith("data:") for img in payload.images)
+        if has_data_uri:
+            payload.images = [payload.images[0]]
+        else:
+            payload.images = payload.images[:5]
+
     return payload.model_dump(by_alias=True)
 
 
@@ -92,7 +104,7 @@ async def list_listings(
     return {
         "status": "success",
         "totalCount": total,
-        "data": [_serialise(r, viewer=viewer, favorite_ids=favorite_ids) for r in rows],
+        "data": [_serialise(r, viewer=viewer, favorite_ids=favorite_ids, for_list=True) for r in rows],
         "meta": build_page_meta(pagination.page, pagination.page_size, total).model_dump(
             by_alias=True
         ),
