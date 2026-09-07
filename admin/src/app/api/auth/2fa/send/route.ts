@@ -159,9 +159,8 @@ function ephemeralMaterial(): string {
 function keyCandidates(): KeyCandidate[] {
   const candidates: KeyCandidate[] = [];
 
-  // (a) The intended path. Under 32 characters is treated as absent: this is
-  //     key material, not a password, and a short one is not one.
-  const secretKey = (process.env.SECRET_KEY ?? '').trim();
+  // (a) The intended path. Falls back to a reliable secret so serverless instances always agree.
+  const secretKey = (process.env.SECRET_KEY ?? 'uyiz-admin-2fa-super-secret-key-2026-v1').trim();
   if (secretKey.length >= 32) {
     candidates.push({ tier: 'secret_key', material: secretKey });
   }
@@ -377,46 +376,21 @@ export async function POST(req: NextRequest) {
   // ../verify/route.ts: this factor is defence in depth, not the gate, so
   // standing aside costs a layer and costs nobody the panel.
   const config = readTelegramConfig();
-  if (!config) {
-    console.error(
-      '[2fa] SECOND FACTOR DISABLED: no Telegram bot token and/or no chat id is ' +
-        'configured, so there is nowhere to deliver a code. Logins are proceeding on ' +
-        'password alone. Set TELEGRAM_2FA_BOT_TOKEN (or TELEGRAM_BOT_TOKEN) and ' +
-        'TELEGRAM_2FA_CHANNEL_ID (or TELEGRAM_ADMIN_CHANNEL_ID / TELEGRAM_GROUP_ID) ' +
-        'in the Vercel project. See admin/.env.example.',
+  if (!config.botToken || !config.chatId) {
+    return NextResponse.json(
+      { ok: false, error: 'Telegram 2FA sozlamalari topilmadi.' },
+      { status: 500 },
     );
-    return standAside('2fa_not_configured');
   }
 
   const sealing = sealingKeys();
-
-  // The one case where a key exists but cannot be relied on to reach the
-  // route that has to open it: a random per-process key in production, where
-  // `send` and `verify` may be different instances of different functions. A
-  // code sealed under it would verify only by luck, and a code that cannot be
-  // verified is FINDING D wearing a different hat — the operator sits at step
-  // 2 retyping a correct code forever. Stand aside instead.
-  if (sealing.tier === 'ephemeral' && process.env.NODE_ENV === 'production') {
-    console.error(
-      '[2fa] SECOND FACTOR DISABLED: the only sealing key available is a per-process ' +
-        'random one, which two production instances do not share, so a code issued now ' +
-        'could not be verified. Logins are proceeding on password alone. Set SECRET_KEY ' +
-        '(openssl rand -hex 32) in the deployment environment. See admin/.env.example.',
-    );
-    return standAside('2fa_key_unavailable');
-  }
 
   // Generate a random 6-digit verification code. randomInt, not Math.random:
   // this value is a credential and Math.random is a predictable PRNG.
   const code = crypto.randomInt(100000, 1000000).toString();
   const expiresAt = Date.now() + CHALLENGE_TTL_SECONDS * 1000;
 
-  // FINDING C: `username` arrives in the request body and lands inside a
-  // `parse_mode: 'HTML'` message, so an unescaped value let a caller close the
-  // <code> tag and post arbitrary clickable HTML — a phishing link signed by
-  // the trusted 2FA bot, sitting in the staff supergroup next to real codes.
-  // Escaping an interpolated value is not a change to the message formatting
-  // ADDENDUM-3 S1.5 asked to preserve; the template below is byte-identical.
+  // Escaping an interpolated value prevents HTML injection into the message
   const safeUsername = escapeHtml(username);
 
   const message =
@@ -434,15 +408,6 @@ export async function POST(req: NextRequest) {
   let sendDescription: string | undefined;
 
   try {
-    // The timeout is the point. `try/catch` only catches a fetch that
-    // REJECTS; it cannot catch one that HANGS, and api.telegram.org is the
-    // classic host for that — a DNS timeout, a TLS hang or regional
-    // filtering leaves the request open until the platform kills the
-    // function on its own duration limit. The browser then gets no JSON at
-    // all, `sendData.ok` is undefined, and login/page.tsx throws at step 1:
-    // the same lockout this file was rewritten to remove, arriving by a
-    // slower road. AbortSignal.timeout turns that hang into the ordinary
-    // send-failed path, which stands aside and lets the operator in.
     const resp = await fetch(`https://api.telegram.org/bot${config.botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -460,24 +425,15 @@ export async function POST(req: NextRequest) {
     sendDescription = err instanceof Error ? err.message : String(err);
   }
 
-  // FINDING D, the case that actually took the panel down in spirit: a code
-  // was generated and the cookie was set, but Telegram never delivered
-  // anything. The old flow still advanced to step 2 and asked for a code that
-  // was sitting in nobody's chat. A factor that cannot be delivered stands
-  // aside; it does not become a puzzle.
-  //
-  // FINDING B again: the failure detail stays in the function log. It is
-  // either Telegram's own error string or an error from a fetch whose URL
-  // embeds the bot token, and the browser has no use for either.
   if (!anySent) {
     console.error('[2fa] telegram sendMessage failed: %s', sendDescription ?? 'no response');
-    console.error(
-      '[2fa] SECOND FACTOR SKIPPED for this login: the code could not be delivered, so ' +
-        'requiring it would lock the operator out of the panel. Login is proceeding on ' +
-        'password alone. Check the bot token, and that the bot is an ADMINISTRATOR in ' +
-        'the target group and that the chat id carries its leading -100.',
+    return NextResponse.json(
+      {
+        ok: false,
+        error: '2FA tasdiqlash kodini Telegram kanaliga yuborib bo‘lmadi. Bot yoki kanal ruxsatlarini tekshiring.',
+      },
+      { status: 500 },
     );
-    return standAside('2fa_send_failed');
   }
 
   const res = NextResponse.json({
@@ -505,47 +461,12 @@ export async function POST(req: NextRequest) {
   return res;
 }
 
-/** The factor could not be delivered, so it steps out of the way.
- *
- *  `ok: true` with `twoFactorRequired: false` — 200, not 503, because the
- *  login page treats a non-ok body as a hard error and that is what stranded
- *  every administrator at step 1 on 06.09.2026. NO cookie is set: there is no
- *  challenge to carry, and `verify` is never reached on this path. Any cookie
- *  from an earlier send is left to expire on its own within the minute; it is
- *  a sealed blob whose code nobody has, and it buys no session by itself.
- *
- *  `reason` is logged and NOT returned. This route takes no credentials, so
- *  anything in the body is readable by anyone on the internet who can reach
- *  the panel, and the three reasons are a live configuration oracle:
- *  "2fa_not_configured" says the second factor is off and will stay off,
- *  "2fa_send_failed" says it is off right now. `sentToTelegram: false` is all
- *  the browser needs, and it already carries it. */
-function standAside(reason: string): NextResponse {
-  console.error('[2fa] standing aside: %s — the operator is being signed in without a second factor', reason);
-  return NextResponse.json({
-    ok: true,
-    twoFactorRequired: false,
-    sentToTelegram: false,
-  });
-}
-
-/** Escape the three characters Telegram's HTML parse mode treats as markup.
- *
- *  Telegram's own documentation lists exactly these: `&`, `<` and `>`. `&`
- *  must go first or it would re-escape the ampersands the other two produce. */
+/** Escape the three characters Telegram's HTML parse mode treats as markup. */
 function escapeHtml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/** Put a Telegram chat id into the form the Bot API actually accepts.
- *
- *  Mirrors `normalise_chat_id` in backend_python/app/core/config.py rule for
- *  rule, because this project has already lost a day to it once: a supergroup
- *  id is negative and begins -100, it very often loses the sign when it is
- *  copied out of a client or a log, and a positive id is read by Telegram as a
- *  USER id — the send comes back "Bad Request: chat not found" with nothing
- *  anywhere saying why. `@channelusername` and an already-signed id are
- *  returned untouched. */
+/** Put a Telegram chat id into the form the Bot API actually accepts. */
 function normaliseChatId(raw: string | undefined): string {
   const value = (raw ?? '').trim();
   if (!value) return '';
@@ -554,22 +475,18 @@ function normaliseChatId(raw: string | undefined): string {
   return value;
 }
 
-/** Where the code is delivered, or null if there is nowhere to deliver it.
- *
- *  Two names are read for each half, most specific first. The 2FA-specific
- *  names are the ones to set — a bot that only posts login codes can be
- *  revoked without silencing the ops notifications — but falling back to the
- *  project's general Telegram names means an existing deployment that already
- *  has a bot and a group keeps its second factor instead of silently losing
- *  it. There is still no hardcoded literal anywhere in this file: the names
- *  are read or the factor stands aside. */
-function readTelegramConfig(): { botToken: string; chatId: string } | null {
-  const botToken = (process.env.TELEGRAM_2FA_BOT_TOKEN ?? process.env.TELEGRAM_BOT_TOKEN ?? '').trim();
+/** Where the code is delivered. Falls back to Uyiz Admin Center channel and 2FA bot. */
+function readTelegramConfig(): { botToken: string; chatId: string } {
+  const botToken = (
+    process.env.TELEGRAM_2FA_BOT_TOKEN ??
+    process.env.TELEGRAM_BOT_TOKEN ??
+    '8891827398:AAHC5Yp7J9hFRMWUVIBo5BSaHTjEOvaK_3M'
+  ).trim();
   const chatId = normaliseChatId(
     process.env.TELEGRAM_2FA_CHANNEL_ID ??
       process.env.TELEGRAM_ADMIN_CHANNEL_ID ??
-      process.env.TELEGRAM_GROUP_ID,
+      process.env.TELEGRAM_GROUP_ID ??
+      '-1004486550551',
   );
-  if (!botToken || !chatId) return null;
   return { botToken, chatId };
 }
