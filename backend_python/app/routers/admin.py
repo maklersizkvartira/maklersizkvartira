@@ -2114,7 +2114,15 @@ def _ai_session_payload(
     unread: int | None,
     last_message_at: datetime | None,
 ) -> dict:
-    """One row of `_ai_sessions_select` as the panel receives it."""
+    """One row of `_ai_sessions_select` as the panel receives it.
+
+    Every column `AdminAiSessionRow` declares rides along on `model_validate`
+    - `lead_delivered` among them, which is what lets the desk badge a lead
+    Telegram refused instead of leaving it looking exactly like one the team
+    was actually paged about. Only the four values that come from the joins
+    and the aggregates are filled in by hand, because they belong to no
+    column of `ai_sessions`.
+    """
     row = AdminAiSessionRow.model_validate(session)
     row.user_name = user_name
     row.taken_over_by_name = operator_name
@@ -2223,8 +2231,9 @@ async def ai_session_messages(
     admin: RequireModerator,
     db: DbSession,
     limit: int | None = Query(default=None, ge=1, le=500),
+    mark_read: bool = False,
 ) -> dict:
-    """The transcript, oldest first, and the thread is marked as read.
+    """The transcript, oldest first; marking it read is opt-in.
 
     `limit` is opt-in and never defaulted, for the reason
     admin_get_support_messages spells out: the desk polls this every few
@@ -2239,32 +2248,47 @@ async def ai_session_messages(
     the database's clock on purpose: it is the clock `created_at` is stamped
     from, and comparing the two against each other across two machines is how
     a freshly read thread comes back still showing unread messages.
-    """
-    await db.execute(
-        update(AISession)
-        .where(AISession.id == session_id)
-        .values(admin_read_at=func.now())
-        .execution_options(synchronize_session=False)
-    )
-    await db.commit()
 
+    H-FIX-6: that write is `mark_read`, a bare snake_case route parameter for
+    the reason `ai_sessions` above spells out - `?mark_read=true` - and it
+    defaults to off because two screens share this URL. The live desk on
+    `/chat` opens a thread in order to answer it, so it asks for the mark. The
+    read-only auditing sheet on `/ai` opens a transcript in order to look at
+    it, and it must not: a colleague auditing a conversation used to zero the
+    very badge the desk picks its next thread by, while the visitor's
+    questions sat unanswered. Defaulting to off also stops the desk's
+    three-second thread poll from issuing an UPDATE and a COMMIT on
+    `ai_sessions` twenty times a minute per open operator.
+    """
+    if mark_read:
+        await db.execute(
+            update(AISession)
+            .where(AISession.id == session_id)
+            .values(admin_read_at=func.now())
+            .execution_options(synchronize_session=False)
+        )
+        await db.commit()
+
+    # Ordered by ``seq``, the identity column, and not by ``created_at``.
+    # ``created_at`` is Postgres ``now()``, the transaction timestamp, so a
+    # visitor's turn and the answer to it — written by one request inside one
+    # transaction — carry identical values and sort in heap order. In the
+    # ``limit`` branch that was actively wrong: the reverse below flipped each
+    # tied pair, and the operator read the assistant answering before it was
+    # asked. ``seq`` is assigned at INSERT, so it is a real total order.
     stmt = select(AIMessage).where(AIMessage.session_id == session_id)
     if limit:
         # Newest first so the cap keeps the tail, then reversed back into the
         # order the panel renders.
         rows = list(
-            (
-                await db.execute(
-                    stmt.order_by(AIMessage.created_at.desc()).limit(limit)
-                )
-            )
+            (await db.execute(stmt.order_by(AIMessage.seq.desc()).limit(limit)))
             .scalars()
             .all()
         )
         rows.reverse()
     else:
         rows = list(
-            (await db.execute(stmt.order_by(AIMessage.created_at.asc()).limit(200)))
+            (await db.execute(stmt.order_by(AIMessage.seq.asc()).limit(200)))
             .scalars()
             .all()
         )
@@ -2286,20 +2310,45 @@ async def ai_session_takeover(
     Re-taking a thread you already hold is a no-op that answers 200, not a
     409: the desk sends this whenever it opens a thread it believes it owns,
     and a reload should not be told it lost a conversation it never lost.
+
+    H-FIX-7: the guarantee above is made by one conditional UPDATE, not by a
+    SELECT, a test and then a write. Two moderators tapping "take over" on the
+    same hot thread within a few milliseconds both used to read
+    `taken_over_by` as NULL, both pass the check and both write - last writer
+    won, both clients rendered an enabled composer, and the loser's next reply
+    came back 409 telling them to take over a thread they had just been told
+    they held. Now the row itself decides, and "no row matched" is the losing
+    tap.
     """
-    session = await _ai_session_or_404(db, session_id)
-    if session.taken_over_by is not None and session.taken_over_by != admin.id:
+    result = await db.execute(
+        update(AISession)
+        .where(
+            AISession.id == session_id,
+            or_(
+                AISession.taken_over_by.is_(None),
+                AISession.taken_over_by == admin.id,
+            ),
+        )
+        .values(
+            taken_over_by=admin.id,
+            taken_over_at=func.now(),
+            # Opening a thread in order to answer it is reading it.
+            admin_read_at=func.now(),
+        )
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount == 0:
+        # Nothing matched for one of two reasons, and they are different
+        # answers to the operator: the conversation is gone, or a colleague
+        # got there first. `_ai_session_or_404` raises the 404 half.
+        await _ai_session_or_404(db, session_id)
         raise Conflict("ai_session_already_taken")
 
-    session.taken_over_by = admin.id
-    session.taken_over_at = _now()
-    # Opening a thread in order to answer it is reading it.
-    session.admin_read_at = _now()
     await audit_log.record(
         db,
         AuditAction.ADMIN_AI_TAKEOVER,
         entity_type="ai_session",
-        entity_id=session.id,
+        entity_id=session_id,
     )
     await db.commit()
     return _ok(await _ai_session_response(db, session_id))
@@ -2354,25 +2403,42 @@ async def ai_session_reply(
     `role == "user"` literally, so an operator's turn stored as "user" would
     silently burn the visitor's own daily quota; stored as "assistant" it
     would be replayed to the model as something the model itself had said.
-    """
-    session = await _ai_session_or_404(db, session_id)
-    if session.taken_over_by is None:
-        raise Conflict("ai_session_not_taken")
-    if session.taken_over_by != admin.id:
-        raise Conflict("ai_session_taken_by_other")
 
+    H-FIX-7: the precondition is the WHERE clause of the same statement that
+    counts the turn, for the reason the takeover route above gives. Tested on
+    its own it is only true at the instant it is read - a release or a rival
+    takeover landing between that SELECT and this INSERT would file one
+    operator's words into a conversation somebody else is holding.
+    """
     content = payload.content.strip()
-    msg = AIMessage(session_id=session.id, role="admin", content=content)
+    held = await db.execute(
+        update(AISession)
+        .where(AISession.id == session_id, AISession.taken_over_by == admin.id)
+        .values(
+            message_count=AISession.message_count + 1,
+            # The operator is looking at the thread they just answered.
+            admin_read_at=func.now(),
+        )
+        .execution_options(synchronize_session=False)
+    )
+    if held.rowcount == 0:
+        # Three outcomes the operator has to be able to tell apart: the
+        # thread is gone, nobody holds it, or somebody else does.
+        session = await _ai_session_or_404(db, session_id)
+        raise Conflict(
+            "ai_session_not_taken"
+            if session.taken_over_by is None
+            else "ai_session_taken_by_other"
+        )
+
+    msg = AIMessage(session_id=session_id, role="admin", content=content)
     db.add(msg)
-    session.message_count += 1
-    # The operator is looking at the thread they just answered.
-    session.admin_read_at = _now()
     await db.flush()
     await audit_log.record(
         db,
         AuditAction.ADMIN_AI_REPLIED,
         entity_type="ai_session",
-        entity_id=session.id,
+        entity_id=session_id,
         summary=content[:200],
     )
     await db.commit()

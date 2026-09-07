@@ -320,6 +320,11 @@ class AdminAiSessionRow(ORMCamelModel):
     lead_phone: str | None = None
     lead_note: str | None = None
     lead_captured_at: datetime | None = None
+    #: NULL when no lead was captured, True when Telegram accepted it, False
+    #: when it was recorded but never reached the team (L-FIX-1). The panel
+    #: shows the False case as a warning pill, because an undelivered lead is
+    #: the one row on this list that needs a person to do something.
+    lead_delivered: bool | None = None
     #: Filled by hand after model_validate, exactly like user_name above.
     taken_over_by_name: str | None = None
     unread_count: int = 0

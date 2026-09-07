@@ -65,6 +65,20 @@ def _parse(payload: Any) -> float | None:
     return rate
 
 
+def cached_rate() -> float:
+    """The last rate fetched, or the configured fallback. Never blocks.
+
+    ``parse_intent`` runs synchronously on a request thread and cannot await
+    the bank. It does not need to: the agent loop calls :func:`usd_to_uzs`
+    earlier in the same turn, so by the time a budget is parsed the cache is
+    warm, and on a cold process the configured fallback is exactly the number
+    this module already falls back to.
+    """
+    if _cached is not None:
+        return _cached[0]
+    return float(settings.USD_TO_UZS_RATE)
+
+
 async def usd_to_uzs() -> float:
     """UZS per 1 USD. Never raises, never returns zero."""
     global _cached

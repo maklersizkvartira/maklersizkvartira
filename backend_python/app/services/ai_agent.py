@@ -60,8 +60,8 @@ _TIMEOUT = httpx.Timeout(25.0, connect=5.0)
 #: summary instead, so a long conversation costs a bounded number of tokens.
 RECENT_TURNS = 8
 
-#: Hard ceiling on one reply. The chat bubble is a bubble, not a document.
-MAX_REPLY_CHARS = 1200
+#: Hard ceiling on one reply. A chat bubble on a phone, not a document.
+MAX_REPLY_CHARS = 700
 
 
 @dataclass(slots=True)
@@ -153,10 +153,11 @@ def build_system_prompt(
     )
 
     return f"""You are Uyiz AI, the AI assistant of Uyiz (uyiz.uz) — an \
-apartment and room rental marketplace in Uzbekistan. Private owners and \
-professional real-estate agents both publish listings here, and renters \
-contact whoever published a listing directly. Publishing a listing is free, \
-browsing and getting in touch are free, and Uyiz takes no cut of the rent.
+apartment, room and property marketplace in Uzbekistan, where homes are both \
+rented out and sold. Private owners and professional real-estate agents both \
+publish listings here, and renters contact whoever published a listing \
+directly. Publishing a listing is free, browsing and getting in touch are \
+free, and Uyiz takes no cut of the rent.
 
 Every listing carries a reliability percentage. It starts full and falls only
 when somebody reports the listing and an administrator confirms that report.
@@ -208,6 +209,21 @@ station, university, property type, floor area, furnished, parking, internet,
 air conditioning, washing machine, pets, roommate gender, verified publishers,
 and the sort order. Pass everything they actually said. A criterion you leave
 out is one they asked for and silently will not get.
+
+A budget is the one criterion people feel. If nothing is inside it, say the
+number back to them in the currency they used and say plainly that nothing at
+that price exists in what they asked for — then show the closest thing above it
+and name the gap. Never quietly widen a budget and never show listings over it
+without saying so. If you could not read a number they clearly stated, ask them
+to repeat it rather than searching without it.
+
+Renting and buying are different questions. Read which one they are asking and
+pass `deal_type` accordingly: SALE the moment they talk about buying, RENT
+otherwise. A sale price is the whole property and a rent price is one month, so
+never compare the two in the same breath, and never offer a rental to somebody
+who asked to buy. A budget that is ordinary for one is impossible for the other
+— if what they said only makes sense on the other side of that line, say so.
+If it is genuinely ambiguous, ask. Once.
 
 # WHAT UYIZ GIVES YOU
 When someone asks what Uyiz is or what makes it worth using, name three
@@ -339,12 +355,17 @@ You are an experienced local rental consultant: someone who has walked these
 districts, knows what a commute from Sergeli actually costs in the morning,
 and says so. Warm, direct, unhurried — never a form, never a search engine.
 
-Up to six sentences, under 900 characters, and shorter whenever shorter is
-enough. Never pad: an answer that decides something beats a longer one that
-lists options. The listing cards appear under your message with photos and
-prices, so do not repeat what they already show, never paste a table, and
-never dump a bulleted list of fields. Vary how you open; do not start every
-turn the same way. Do not put an exclamation mark after their name."""
+Three sentences. Four at the very most, and only when a real decision needs
+the fourth. Under 400 characters. The listing cards under your message already
+show the photo, the district, the rooms and the price — repeating any of that
+in prose is the single commonest way this assistant becomes tiring to read.
+Name the one you would look at first and why, in one clause. Do not list. Do
+not summarise what you just did. Do not close with an offer of further help
+unless you are actually asking something.
+
+Never paste a table and never dump a bulleted list of fields. Vary how you
+open; do not start every turn the same way. Do not put an exclamation mark
+after their name."""
 
 
 # ---------------------------------------------------------------------------
@@ -551,12 +572,34 @@ async def run_turn(
     # fallback below it has no session of its own.
     tuning = await ai_settings.load(db)
 
+    # Everything the visitor themself has typed, and nothing else. Two guards
+    # in ``ai_tools`` are built on this and neither could run without it:
+    # ``_is_the_visitors_own_number`` (L-FIX-3) refuses a phone number the
+    # model lifted out of a listing description rather than being given by the
+    # person in the chat, and it fails closed, so a caller that passes nothing
+    # captures no leads at all.
+    #
+    # ``message`` belongs in here as much as ``history`` does. It is this
+    # turn's message and has not been read back from the database yet, and the
+    # commonest lead by far is somebody typing their number and the model
+    # calling ``capture_lead`` in the same turn — fed only the history, the
+    # guard would refuse precisely the case it exists to allow.
+    #
+    # Only ``user`` rows. An operator's turn arrives here relabelled as an
+    # assistant message (``ai.py`` does that so the Chat Completions API
+    # accepts it), and an operator writing the office number into the thread
+    # is not the visitor offering their own.
+    visitor_said = tuple(
+        str(m.get("content") or "") for m in history if m.get("role") == "user"
+    ) + (message,)
+
     ctx = ToolContext(
         db=db,
         viewer=viewer,
         language=language,
         session=session,
         shown_ids=list(shown_ids),
+        visitor_messages=visitor_said,
     )
     recent, summary = _history_messages(history)
     system = build_system_prompt(

@@ -12,6 +12,7 @@ without spending money and accepting a different answer every run.
 from __future__ import annotations
 
 import json
+import time
 import types
 import uuid
 
@@ -19,7 +20,7 @@ import pytest
 
 from app.core.config import settings
 from app.models.enums import UserRole
-from app.services import ai_agent
+from app.services import ai_agent, fx
 
 
 @pytest.fixture(autouse=True)
@@ -547,3 +548,48 @@ async def test_consent_does_not_carry_to_a_second_action_in_the_same_turn(
         "arguments": {"listing_ref": 1},
     }
     assert "remove_favorite" not in outcome.actions
+
+
+# ---------------------------------------------------------------------------
+# The budget the visitor actually stated
+# ---------------------------------------------------------------------------
+async def test_a_dollar_budget_is_converted_by_the_server(scripted, monkeypatch):
+    """"1500$ ga uy kere" means 1500 dollars, and the server does the sum.
+
+    The model is told to pass the number it heard and name the currency, so
+    the one thing that must be true here is that the search ran on so'm the
+    server computed at the live rate -- not on the digits 1500, which as a
+    so'm ceiling matches nothing, and not on a rate the model invented. This
+    asserts on the intent the search actually received rather than on
+    anything the model said about it.
+    """
+    rate = 12_345.0
+    monkeypatch.setattr(fx, "_cached", (rate, time.monotonic()))
+    seen: list = []
+
+    async def fake_search(db, intent, *, limit=5):
+        seen.append(intent)
+        return [_listing()], "EXACT", "Chilonzor", 1
+
+    monkeypatch.setattr(ai_agent.ai_tools.uyiz_ai, "search_for_intent", fake_search)
+    scripted(
+        _wants(
+            "search_listings",
+            {"district": "Chilonzor", "max_price": 1500, "price_currency": "USD"},
+        ),
+        _assistant("Chilonzorda 1500$ gacha bitta variant bor."),
+    )
+
+    outcome = await ai_agent.run_turn(
+        db=None, viewer=None, session=_session(),
+        message="Chilonzorda 1500$ ga uy kere",
+        history=[], language="uz", user_name=None, is_first_turn=False, shown_ids=[],
+    )
+
+    assert len(seen) == 1, "the search never ran"
+    assert seen[0].max_price == round(1500 * rate)
+    # The failure this guards: the digits passed straight through as so'm.
+    assert seen[0].max_price != 1500
+    # And the reply layer still knows which currency to say the number in.
+    assert seen[0].price_was_usd is True
+    assert outcome.last_search["maxPrice"] == round(1500 * rate)

@@ -52,8 +52,14 @@ def normalise_chat_id(raw: str | None) -> str:
 
 
 class Settings(BaseSettings):
+    #: Load order matters and is the reverse of what it reads like:
+    #: pydantic-settings applies these left to right and the LAST file wins.
+    #: The repo root holds the site's Vite env, so with ``(".env", "../.env")``
+    #: a stray DATABASE_URL or TELEGRAM_GROUP_ID up there silently overrode the
+    #: backend's own. Backend-first here means ``backend_python/.env`` is
+    #: authoritative and the root file only fills in what it does not define.
     model_config = SettingsConfigDict(
-        env_file=(".env", "../.env"),
+        env_file=("../.env", ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,

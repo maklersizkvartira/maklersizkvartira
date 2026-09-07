@@ -53,7 +53,10 @@ from app.data.locations import (
     METRO_STATIONS,
     REGIONS,
 )
-from app.services import ai_settings
+# The plausibility ceiling a budget is judged against is the catalogue's own,
+# so a number the assistant accepts can never be one the listings page 422s on.
+from app.schemas.listing import MAX_SALE_UZS
+from app.services import ai_settings, fx
 
 log = structlog.get_logger(__name__)
 
@@ -77,47 +80,6 @@ VALID_KINDS: frozenset[str] = frozenset(
         "SMALLTALK", "OFFTOPIC",
     )
 )
-
-_RAW_TASHKENT_ADJACENCY: dict[str, tuple[str, ...]] = {
-    "Chilonzor": ("Uchtepa", "Yakkasaroy", "Sergeli", "Olmazor"),
-    "Yunusobod": ("Mirzo Ulugʻbek", "Shayxontohur", "Olmazor"),
-    "Mirobod": ("Yakkasaroy", "Yashnobod", "Mirzo Ulugʻbek"),
-    "Yakkasaroy": ("Mirobod", "Chilonzor", "Shayxontohur"),
-    "Sergeli": ("Chilonzor", "Yangihayot", "Bektemir"),
-    "Uchtepa": ("Chilonzor", "Olmazor", "Shayxontohur"),
-    "Olmazor": ("Uchtepa", "Yunusobod", "Shayxontohur"),
-    "Yashnobod": ("Mirobod", "Mirzo Ulugʻbek", "Bektemir"),
-    "Shayxontohur": ("Olmazor", "Uchtepa", "Yakkasaroy", "Yunusobod"),
-    "Mirzo Ulugʻbek": ("Yunusobod", "Mirobod", "Yashnobod"),
-    "Bektemir": ("Yashnobod", "Sergeli"),
-    "Yangihayot": ("Sergeli", "Chilonzor"),
-}
-
-
-def _validated_adjacency() -> dict[str, tuple[str, ...]]:
-    """Fail loudly if a district name here is not one a listing can carry.
-
-    The map is hand-written and the canonical names come from the listing
-    form, so the two drift: "Mirzo Ulug'bek" with an ASCII apostrophe looks
-    right and matches nothing, and the only symptom is a nearby search that
-    quietly returns no rows.
-    """
-    city = set(REGIONS["Toshkent shahri"])
-    unknown = {
-        name
-        for district, neighbours in _RAW_TASHKENT_ADJACENCY.items()
-        for name in (district, *neighbours)
-        if name not in city
-    }
-    if unknown:
-        raise RuntimeError(
-            "Tashkent adjacency names not in the canonical district list: "
-            + ", ".join(sorted(unknown))
-        )
-    return dict(_RAW_TASHKENT_ADJACENCY)
-
-
-_TASHKENT_ADJACENCY = _validated_adjacency()
 
 TASHKENT_DISTRICTS: tuple[str, ...] = REGIONS["Toshkent shahri"]
 
@@ -294,34 +256,393 @@ def region_of(district: str | None) -> str | None:
     return DISTRICT_TO_REGION.get(district) if district else None
 
 
-def nearby_districts(district: str | None) -> tuple[str, ...]:
-    """Where to look when the requested district has nothing.
-
-    Tashkent city has a hand-written adjacency map because "the next district
-    over" is a real, walkable distinction there. Everywhere else the useful
-    fallback is simply the rest of the province.
-    """
-    if not district:
-        return ()
-    if district in _TASHKENT_ADJACENCY:
-        return _TASHKENT_ADJACENCY[district]
-    region = DISTRICT_TO_REGION.get(district)
-    if not region:
-        return ()
-    return tuple(d for d in REGIONS[region] if d != district)
-
-
 _ROOMS = re.compile(
     r"(\d+)\s*(?:\+\s*)?(?:xona|xonali|honali|комнат\w*|комн|room|rooms|bedroom)",
     re.IGNORECASE,
 )
-_MILLION = re.compile(
-    r"(\d+(?:[.,]\d+)?)\s*(?:mln|млн|million|миллион|m\b)", re.IGNORECASE
-)
-_THOUSAND_USD = re.compile(r"\$\s*(\d{2,5})|(\d{2,5})\s*(?:usd|dollar|доллар)", re.IGNORECASE)
-_BARE_PRICE = re.compile(r"(\d[\d\s.,]{5,})")
 
-USD_TO_UZS = 12_700
+
+# ---------------------------------------------------------------------------
+# Money
+# ---------------------------------------------------------------------------
+# Three regexes used to share this job — ``_USD_PRICE``, ``_SUM_PRICE`` and
+# ``_BARE_PRICE`` — and two rounds of patching them failed. Alternation with
+# character classes is the wrong tool: ``[\d\s.,]{1,9}`` glues any nearby
+# digit run onto the amount (D1), ``m\b`` reads a floor area as millions of
+# so'm (D2), and neither pattern can see that "ming" and "dollar" belong to
+# the same number (D3). What replaces them is one tokeniser and one
+# interpreter, so every reading goes through the same eight rules.
+@dataclass(slots=True)
+class MoneyReading:
+    """What a message says about price, if anything.
+
+    Separate from SearchIntent because a message can state a range, and
+    because "no number here" and "a number I refused to believe" are
+    different answers that the caller has to be able to tell apart.
+    """
+    min_uzs: float | None = None
+    max_uzs: float | None = None
+    was_usd: bool = False
+    #: Set when a number was found and deliberately discarded — a phone
+    #: number, a date, an area, something outside the plausible range. The
+    #: assistant uses this to ask rather than to search on nothing.
+    rejected: bool = False
+
+
+#: One money-shaped token: an optional leading currency mark, a number that
+#: may group its thousands, an optional scale word, and an optional trailing
+#: currency mark.
+#:
+#: The lookarounds are the whole point. The pattern this replaces used
+#: ``[\d\s.,]{1,9}`` for the number, which glued any nearby digit run onto the
+#: amount: "05.09.2025, 400$" parsed as a 25.7-billion-so'm budget, and a
+#: phone number parsed as 998 billion. A number here may not touch another
+#: digit, and a thousands group must be exactly three digits.
+#:
+#: The separator set is space, NBSP, comma AND stop, because that is what
+#: people paste. Accepting only the two spaces meant "1,500$", "$1.500",
+#: "1.500.000 so'm" and "12,000,000" produced no budget at all, so the
+#: visitor was answered with the recent-listings catalogue — the exact
+#: symptom this file exists to remove, and a regression against the parser
+#: this one replaced, which read all three spellings of 1500 alike.
+#:
+#: Comma and stop are ambiguous: here they group thousands, elsewhere they
+#: are the decimal point, and no pattern can know which was meant. The rule
+#: chosen is length. A separator with exactly three digits after it GROUPS,
+#: so "1.500" and "1,500" are both fifteen hundred — a pasted price, which
+#: is what this shape almost always is on a housing message, and what the
+#: parser before last did with it. A separator with one or two digits after
+#: it is a DECIMAL, so "1.5" is one and a half and "1500.50" is fifteen
+#: hundred and a half. The cost is that a "1.500" meant as one and a half
+#: hundred cannot be written; nobody writes that.
+_MONEY = re.compile(
+    r"(?<![\w\d.,])"
+    r"(?:(?P<pre>\$|usd|dollar|доллар)\s*)?"
+    r"(?P<num>\d{1,3}(?:[ \u00a0.,]\d{3})+(?:[.,]\d{1,2})?"
+    r"|\d+(?:[.,]\d{1,2})?)"
+    r"\s*"
+    r"(?P<scale>mlrd|milliard|млрд|миллиард|mln|million|млн|миллион|"
+    r"ming|минг|тысяч|тыс|thousand)?"
+    r"\s*"
+    r"(?P<post>\$|usd|usd\.|dollar|dollarga|доллар|у\.?\s?е\.?|y\.?\s?e\.?|"
+    r"ue|so'm|som|sum|сум|сўм|uzs)?"
+    r"(?![\d])",
+    re.IGNORECASE,
+)
+
+_SCALES = {
+    "mlrd": 1_000_000_000, "milliard": 1_000_000_000,
+    "млрд": 1_000_000_000, "миллиард": 1_000_000_000,
+    "mln": 1_000_000, "million": 1_000_000,
+    "млн": 1_000_000, "миллион": 1_000_000,
+    "ming": 1_000, "минг": 1_000, "тысяч": 1_000, "тыс": 1_000,
+    "thousand": 1_000,
+}
+
+_USD_MARKS = {"$", "usd", "usd.", "dollar", "dollarga", "доллар",
+              "у.е", "у.е.", "уе", "у е", "y.e", "y.e.", "ye", "y e", "ue"}
+
+#: A written date. Every digit inside one belongs to the date, not to a
+#: budget: "05.09.2025, 400$" is four hundred dollars on the fifth of
+#: September, and the pattern this file used to carry read it as 25.7 billion
+#: so'm. (D1)
+_DATE_SPAN = re.compile(r"\d{1,2}[./]\d{1,2}[./]\d{2,4}")
+
+#: What a number turns out to be measuring when it is not measuring money: a
+#: floor area, a plot, a year, a room count, a floor. "80 m kv" was read as an
+#: 80-million-so'm budget nobody stated, because "m" used to be a scale word.
+#: It is not one any more — it was only ever there for "80 m" and it cost far
+#: more than it earned. (D2)
+#:
+#: A bare "ga" is deliberately NOT in this list, though it is the Uzbek word
+#: for hectare. On a housing message it is overwhelmingly the dative ending
+#: on a price instead: the message that started all of this was "1500$ ga uy
+#: kere", and "3 000 000 ga uy kere" is an ordinary way to state a so'm
+#: budget. Reading that "ga" as hectares deleted the budget and dropped the
+#: visitor into the recent-listings fallback. The spelled-out "gektar" and
+#: the abbreviation "gk" still count, and a land search writes one of those.
+_MEASUREMENT_TAIL = re.compile(
+    r"\s*-?\s*(?:m2|m²|kv|kvadrat|кв|sotix|gektar|gk\b|yil|yilda|xona|qavat|etaj|%)",
+    re.IGNORECASE,
+)
+
+#: "1500$ dan 2000$ gacha" is a range, and the number marked "gacha" is the
+#: one the visitor will not go above. Reading the floor as the ceiling threw
+#: away the entire upper half of what they said they would pay. (D9)
+_CEILING_MARK = re.compile(
+    r"\s*(?:gacha\s+bo['‘’ʻ`]?lgan|gacha|до|up\s+to|max)\b", re.IGNORECASE
+)
+_FLOOR_MARK = re.compile(
+    r"\s*(?:dan\s+boshlab|dan|от|from|min|kamida)\b", re.IGNORECASE
+)
+
+#: Two amounts joined by nothing but a hyphen are the two ends of one range,
+#: and the currency on such a range is written once — at either end.
+#: "$1500-2000" and "1500-2000$" both mean fifteen hundred to two thousand
+#: dollars. Without this the unmarked end was read as so'm, fell under
+#: MIN_PLAUSIBLE_BUDGET, was discarded, and the range collapsed to whichever
+#: end carried the mark: "$1500-2000" came back with a ceiling of 1500, the
+#: floor, throwing away the whole upper half of the stated budget the way D9
+#: did. A scale word written once ("2-3 mln so'm") is the same shape and is
+#: carried the same way.
+_RANGE_JOIN = re.compile(r"\s*[-–—]\s*")
+
+
+#: Under this a "budget" is almost certainly a misparse: a house number, a
+#: floor, a year. Filtering the catalogue on 2024 so'm returns nothing at all,
+#: which fails the visitor the same way ignoring the number outright did — they
+#: are shown a result set that answers no question they asked.
+MIN_PLAUSIBLE_BUDGET = 100_000
+
+#: And over this it is a phone number or a date read as money. The ceiling is
+#: ``MAX_SALE_UZS`` on purpose: a budget the assistant accepts is mirrored
+#: into the listings page behind the chat, and ``ListingFilters`` 422s on
+#: anything above it — which blanked the grid rather than showing a result.
+#: (D12)
+MAX_PLAUSIBLE_BUDGET = MAX_SALE_UZS
+
+
+def _is_usd_mark(mark: str) -> bool:
+    """Is this captured currency mark a dollar one?
+
+    Written out rather than a bare set lookup because "у.е." is typed with
+    and without its stops and with and without a space, and because the Latin
+    "y.e" / "ye" / "ue" an Uzbek keyboard produces is the same word. Missing
+    those was the same class of miss as the original "1500$" bug. (D10)
+    """
+    cleaned = mark.strip().lower()
+    if not cleaned:
+        return False
+    return cleaned in _USD_MARKS or re.sub(r"[.\s]", "", cleaned) in _USD_MARKS
+
+
+#: A trailing decimal fraction: a separator with one or two digits after it
+#: and nothing beyond. Three digits after it is a thousands group instead —
+#: see the ambiguity note on ``_MONEY``.
+_FRACTION_TAIL = re.compile(r"[.,](\d{1,2})$")
+
+
+def _number_value(raw: str) -> float:
+    """The number a money token spells, whichever separators it used.
+
+    Splitting the fraction off FIRST is what makes "1.500" fifteen hundred
+    and "1500.50" fifteen hundred and a half out of the same two characters:
+    only a separator with one or two digits behind it and nothing after it is
+    a decimal point, and every other separator is grouping and is thrown
+    away. The strip-every-non-digit reading this replaces made 150 050 out
+    of "1500.50", and the space-only reading that replaced THAT made nothing
+    at all out of "1,500$".
+    """
+    fraction = ""
+    tail = _FRACTION_TAIL.search(raw)
+    if tail:
+        fraction = tail.group(1)
+        raw = raw[: tail.start()]
+    whole = re.sub(r"[ \u00a0.,]", "", raw)
+    return float(f"{whole}.{fraction}") if fraction else float(whole)
+
+
+def _range_marker(text: str, end: int) -> str | None:
+    """Which bound the words after a number make it, if they make it either.
+
+    "gacha" and "до" mark the number before them as a ceiling; "dan" and
+    "от" mark it as a floor. Without this a stated range was read as a
+    single number and the top half of the budget was thrown away. (D9)
+    """
+    if _CEILING_MARK.match(text, end):
+        return "max"
+    if _FLOOR_MARK.match(text, end):
+        return "min"
+    return None
+
+
+def _marks_shared_across_ranges(
+    text: str, matches: list[re.Match[str]]
+) -> list[tuple[bool, str]]:
+    """The currency and scale each token counts as, ranges included.
+
+    A hyphen range states its currency once: "$1500-2000" and "1500-2000$"
+    are the same budget, and so are "2-3 mln so'm" and "2 mln - 3 mln so'm".
+    Read token by token, the unmarked end was so'm, so 2000 so'm fell under
+    MIN_PLAUSIBLE_BUDGET, was discarded, and the range collapsed to its floor
+    — a stated ceiling of 2000 dollars came back as 1500. Two tokens with
+    nothing but a hyphen between them are one range, and the mark from either
+    end applies to both.
+    """
+    marks = [
+        (
+            _is_usd_mark(m.group("pre") or "") or _is_usd_mark(m.group("post") or ""),
+            (m.group("scale") or "").lower(),
+        )
+        for m in matches
+    ]
+    for index in range(len(matches) - 1):
+        left, right = matches[index], matches[index + 1]
+        if not _RANGE_JOIN.fullmatch(text, left.end(), right.start()):
+            continue
+        usd = marks[index][0] or marks[index + 1][0]
+        scale = marks[index][1] or marks[index + 1][1]
+        marks[index] = (usd, marks[index][1] or scale)
+        marks[index + 1] = (usd, marks[index + 1][1] or scale)
+    return marks
+
+
+def parse_money(text: str) -> MoneyReading:
+    """Every money-shaped token in a message, interpreted as one budget.
+
+    The eight rules below are applied in this order to each token, and the
+    order is load-bearing: a date is thrown out before its digits can be
+    valued, and the currency is settled before the plausibility window is
+    applied, because $1500 and 1500 so'm are not the same number.
+
+    Rule 5 is the one that matters most. A scale word and a currency word
+    *combine*: "200 ming dollar" is two hundred thousand dollars, not a
+    200 000-so'm ceiling, and "2 ming dollar" is a budget rather than nothing
+    at all. That is the originally reported bug — a visitor typed a dollar
+    budget and was shown the whole catalogue — surviving in the phrasing
+    ordinary Uzbek actually uses. (D3)
+    """
+    reading = MoneyReading()
+    if not text:
+        return reading
+
+    dates = [span.span() for span in _DATE_SPAN.finditer(text)]
+    rate = fx.cached_rate()
+    # (value in so'm, was it stated in dollars, "min" / "max" / None)
+    found: list[tuple[float, bool, str | None]] = []
+    discarded = False
+
+    matches = list(_MONEY.finditer(text))
+    marks = _marks_shared_across_ranges(text, matches)
+
+    for match, (usd, scale_word) in zip(matches, marks):
+        start, end = match.span()
+        pre, post = match.group("pre") or "", match.group("post") or ""
+        # Deliberately the token's OWN marks, not the shared ones: what
+        # rule 2 asks is whether anything on this number says it is money,
+        # and a currency borrowed from across a hyphen must not be allowed
+        # to turn a nine-digit phone number into a budget.
+        spelled_out = bool(match.group("scale")) or bool(pre) or bool(post)
+
+        # 1. A date is not a budget.
+        if any(begin <= start < finish for begin, finish in dates):
+            discarded = True
+            continue
+
+        # 2. A phone number is not a budget: nine digits or more with nothing
+        #    naming a currency or a scale is somebody's number, not their
+        #    ceiling. "998 90 123 45 67" used to parse as 998 billion so'm.
+        digits_only = re.sub(r"\D", "", match.group("num"))
+        if len(digits_only) >= 9 and not spelled_out:
+            discarded = True
+            continue
+
+        # 3. A measurement is not a budget. This used to be skipped for any
+        #    token carrying a scale word or a currency mark, to keep "3 mln ga
+        #    uy kere" out of the hectare branch — but that let the whole guard
+        #    off for "100 ming kv.m yer", which came back as a 100 000-so'm
+        #    budget nobody stated, which is D2 again. The dative is handled
+        #    where it belongs now, by "ga" not being a measurement word.
+        if _MEASUREMENT_TAIL.match(text, end):
+            discarded = True
+            continue
+
+        # 4. Value. Spaces, commas and stops all group thousands; only a
+        #    separator with one or two digits after it and nothing beyond is a
+        #    decimal point, so "1,500$" is fifteen hundred dollars and
+        #    "1500.50$" is fifteen hundred and a half. See ``_number_value``.
+        try:
+            value = _number_value(match.group("num"))
+        except ValueError:  # pragma: no cover - the pattern cannot produce this
+            continue
+        # 5. A scale word and a currency word combine.
+        value *= _SCALES.get(scale_word, 1)
+
+        # 6. Convert. The rate is the live one, cached; never a constant.
+        uzs = value * rate if usd else value
+
+        # 7. Plausibility, applied to the converted number so both currencies
+        #    are judged by the same window.
+        if not MIN_PLAUSIBLE_BUDGET <= uzs <= MAX_PLAUSIBLE_BUDGET:
+            discarded = True
+            continue
+
+        found.append((float(round(uzs)), usd, _range_marker(text, end)))
+
+    # 8. Range. A marked number is a bound; two unmarked numbers are the two
+    #    ends of one; a single unmarked number is a ceiling, because a stated
+    #    budget is a maximum and that is what people mean by it.
+    chosen: list[tuple[float, bool, str | None]] = []
+    ceilings = [item for item in found if item[2] == "max"]
+    floors = [item for item in found if item[2] == "min"]
+    if ceilings or floors:
+        if ceilings:
+            top = max(ceilings, key=lambda item: item[0])
+            reading.max_uzs = top[0]
+            chosen.append(top)
+        if floors:
+            bottom = min(floors, key=lambda item: item[0])
+            reading.min_uzs = bottom[0]
+            chosen.append(bottom)
+    elif len(found) >= 2:
+        ordered = sorted(found, key=lambda item: item[0])
+        reading.min_uzs, reading.max_uzs = ordered[0][0], ordered[-1][0]
+        chosen = [ordered[0], ordered[-1]]
+    elif found:
+        reading.max_uzs = found[0][0]
+        chosen = [found[0]]
+
+    if (
+        reading.min_uzs is not None
+        and reading.max_uzs is not None
+        and reading.min_uzs > reading.max_uzs
+    ):
+        reading.min_uzs, reading.max_uzs = reading.max_uzs, reading.min_uzs
+
+    reading.was_usd = any(item[1] for item in chosen)
+    # Only when nothing survived: the flag exists so the assistant can ask
+    # instead of searching on nothing, and a message that also carries a
+    # perfectly good budget ("telefonim 90 123 45 67, 500$ gacha") is not a
+    # message to go back and ask about.
+    reading.rejected = discarded and not found
+    return reading
+
+
+#: Buying rather than renting, in the visitor's own words. A rental is not a
+#: cheaper sale: the price is one month in one case and the whole property in
+#: the other, and there is no deposit on a sale.
+_SALE_HINT = re.compile(
+    r"\bsotib\s*ol|\bsotuvdagi|\bsotiladigan|\bsotiladi|\bsotuv|\bxarid"
+    r"|купить|покупк|продаж|\bbuy\b|for\s+sale|purchase",
+    re.IGNORECASE,
+)
+
+#: An explicit rental word. It wins a tie with the sale words above, because
+#: the catalogue is still mostly rentals and a message that uses "sotib" in
+#: passing is far more often somebody looking to rent.
+#:
+#: Anchored, and the Uzbek suffixes spelled out, because the unanchored
+#: version matched inside "ijarasiz" — "without renting" — and turned an
+#: explicit purchase into a rental search. "ijaraga" and "ijarani" are the
+#: same word and must still match; "ijarasiz" must not. (D-FIX-1)
+_RENT_HINT = re.compile(
+    r"\b(?:ijara(?:ga|da|dan|ni|si|lik|dagi)?|arenda\w*|аренд\w*|снять"
+    r"|rent(?:al)?)\b",
+    re.IGNORECASE,
+)
+
+#: A hint with one of these in the three words after it is not a hint: "ijara
+#: emas" says the opposite of "ijara", and reading it as a rental hint sent a
+#: buyer to the rental catalogue. (D-FIX-1)
+_NEGATED_AFTER = re.compile(r"(?:\s+\S+){0,2}\s+(?:emas|не|not)\b", re.IGNORECASE)
+
+
+def _unnegated(pattern: re.Pattern[str], text: str) -> re.Match[str] | None:
+    """The first match of ``pattern`` that the words after it do not deny."""
+    for match in pattern.finditer(text):
+        if not _NEGATED_AFTER.match(text, match.end()):
+            return match
+    return None
 
 _STUDENT_HINT = re.compile(r"talaba|student|yotoqxona|студент|общежит", re.IGNORECASE)
 _FAMILY_HINT = re.compile(r"oila|oilaviy|bolali|семь|семей|family", re.IGNORECASE)
@@ -412,8 +733,22 @@ class SearchIntent:
     rooms: int | None = None
     min_price: float | None = None
     max_price: float | None = None
+    #: Whether the budget above was stated in dollars. The reply says the number
+    #: back in the currency it was heard in — telling someone who said "$1500"
+    #: that we looked under 19 050 000 so'm reads as a different question being
+    #: answered.
+    price_was_usd: bool = False
     audience: str = "ALL"
     rental_type: str = "ALL"
+    #: RENT, SALE or ALL. A hard partition rather than a criterion: it is passed
+    #: to the pooled read and never relaxed, because a flat to rent is not a
+    #: worse match for someone buying — it is a different question entirely.
+    deal_type: str = "RENT"
+    #: Whether deal_type above was stated by the visitor rather than defaulted.
+    #: Without this, merge_intents cannot tell an explicit "ijara" from the
+    #: default and lets a misclassifying model turn a renter's search into a
+    #: sale-only one.
+    deal_type_stated: bool = False
 
     # Preferences, in the same order the ladder drops them.
     metro_station: str | None = None
@@ -442,6 +777,12 @@ class SearchIntent:
     #: Filled by :func:`search_for_intent`; the reply says them out loud, so
     #: a widened result is never presented as an exact one.
     dropped: list[str] = field(default_factory=list)
+    #: How many publicly visible rows exist in the scope that was pooled —
+    #: the whole catalogue for the deal type asked about, which is the only
+    #: thing the read still partitions on (S-FIX-2). ``list_public``
+    #: computes it whether or not anybody reads it, so reading it is free and
+    #: discarding it was one wasted aggregate per chat turn. (R-FIX-5)
+    total_in_scope: int = 0
     #: Per-listing match report, keyed by ``str(listing.id)``, filled by
     #: :func:`search_for_intent` for the rows it returns. Deliberately absent
     #: from :meth:`as_dict` — it describes results, not the request, and
@@ -455,11 +796,20 @@ class SearchIntent:
     def stated_criteria(self) -> list[str]:
         """The criterion keys the visitor actually gave, in reading order.
 
-        ``region`` is absent on purpose: it is derived from the district
-        rather than asked for, so naming it back would be describing our own
-        bookkeeping rather than their request.
+        ``region`` counts only when no district is known. Named on its own it
+        is the whole of what they said — "Qashqadaryoda uy kere" used to leave
+        ``has_criteria`` False, and the turn answered a question about
+        Qashqadaryo with Tashkent flats and no warning (R-FIX-2). Alongside a
+        district it is derived rather than asked for — ``ai_tools`` fills it
+        in from ``region_of(district)``, so it is not a second thing the
+        visitor said — and the district is the finer place of the two. Scoring
+        both would double-weight one stated place at six points, and would
+        score a miss against every listing saved with a NULL region, which is
+        the row S-FIX-2 exists to keep visible.
         """
         keys: list[str] = []
+        if self.region and not self.district:
+            keys.append("region")
         if self.district:
             keys.append("district")
         if self.metro_station:
@@ -495,6 +845,8 @@ class SearchIntent:
     def label_for(self, key: str, language: str) -> str:
         """One criterion, in words the visitor would recognise."""
         words = _CRITERIA_WORDS.get(language, _CRITERIA_WORDS["uz"])
+        if key == "region":
+            return words["region"].format(value=self.region)
         if key == "district":
             return words["district"].format(value=self.district)
         if key == "metro_station":
@@ -546,8 +898,10 @@ class SearchIntent:
             "minArea": self.min_area,
             "minPrice": self.min_price,
             "maxPrice": self.max_price,
+            "priceWasUsd": self.price_was_usd,
             "audience": self.audience,
             "rentalType": self.rental_type,
+            "dealType": self.deal_type,
             "roommateGender": self.roommate_gender,
             "furnished": self.furnished,
             "parking": self.parking,
@@ -564,6 +918,7 @@ class SearchIntent:
 
 _CRITERIA_WORDS: dict[str, dict[str, str]] = {
     "uz": {
+        "region": "{value}",
         "district": "{value} tumani",
         "metro": "{value} metrosi yaqinida",
         "university": "{value} yaqinida",
@@ -584,6 +939,7 @@ _CRITERIA_WORDS: dict[str, dict[str, str]] = {
         "only_verified": "tasdiqlangan e’lon egalari",
     },
     "ru": {
+        "region": "{value}",
         "district": "район {value}",
         "metro": "рядом с метро {value}",
         "university": "рядом с {value}",
@@ -604,6 +960,7 @@ _CRITERIA_WORDS: dict[str, dict[str, str]] = {
         "only_verified": "только проверенные авторы",
     },
     "en": {
+        "region": "{value}",
         "district": "{value} district",
         "metro": "near {value} metro",
         "university": "near {value}",
@@ -655,11 +1012,22 @@ SORT_ORDERS: frozenset[str] = frozenset(
     ("RECOMMENDED", "NEWEST", "PRICE_LOW", "PRICE_HIGH", "TRUST", "POPULAR")
 )
 
+#: Renting, buying, or both. Deliberately not one of the weighted criteria
+#: below: see :attr:`SearchIntent.deal_type` for why it is a partition of the
+#: catalogue and never something a search is allowed to relax.
+DEAL_TYPES: frozenset[str] = frozenset({"RENT", "SALE", "ALL"})
+
 #: How many publicly visible rows are pulled into memory to be scored. The
 #: catalogue is hundreds of rentals, not tens of thousands, and listings.py:83
 #: already declares a per-row CASE conversion free at this size. One pooled
 #: read is 2 SQL statements; the ladder it replaces cost up to 22 per turn.
-POOL_LIMIT: int = 300
+#: Raised from 300 when ``region`` stopped being an SQL filter: the pool is
+#: the whole catalogue for one deal type now rather than a single province of
+#: it, so the same number of rows would have covered a smaller share of what
+#: there is to score. ``search_for_intent`` says so out loud when the read
+#: comes back full, because a silent truncation reads as "we looked at
+#: everything". (S-FIX-2)
+POOL_LIMIT: int = 500
 
 #: A row must satisfy at least one stated criterion to be offered. The user's
 #: rule: one match is a result, zero is not.
@@ -670,6 +1038,9 @@ MIN_SCORE: int = 1
 #: keys SearchIntent.stated_criteria() can return — any key missing here
 #: scores 1, so a new criterion degrades gracefully instead of vanishing.
 CRITERION_WEIGHTS: dict[str, int] = {
+    # A province carries the same weight as a district: it is a place, and it
+    # is the only place a visitor who named one has given us. (R-FIX-2)
+    "region": 3,
     "district": 3,
     "rooms": 3,
     "max_price": 3,
@@ -723,28 +1094,27 @@ def parse_intent(message: str) -> SearchIntent:
         except ValueError:
             pass
 
-    million = _MILLION.search(text)
-    usd = _THOUSAND_USD.search(text)
-    if million:
-        try:
-            amount = float(million.group(1).replace(",", "."))
-            # A stated budget is an upper bound with a little headroom: someone
-            # who says "3 mln" will still look at 3.2.
-            intent.max_price = round(amount * 1_000_000 * 1.25)
-        except ValueError:
-            pass
-    elif usd:
-        raw = usd.group(1) or usd.group(2)
-        try:
-            intent.max_price = round(float(raw) * USD_TO_UZS * 1.25)
-        except (TypeError, ValueError):
-            pass
-    else:
-        bare = _BARE_PRICE.search(text)
-        if bare:
-            digits = re.sub(r"\D", "", bare.group(1))
-            if len(digits) >= 6:
-                intent.max_price = round(int(digits) * 1.25)
+    # A budget, in whatever shape it was written. One tokeniser and one
+    # interpreter live in parse_money, so the deterministic path and the tool
+    # path cannot read the same sentence two different ways — and nothing here
+    # is inflated: the "* 1.25" every branch used to end in stays deleted, so
+    # somebody who says 1500$ is no longer shown flats at 1875$.
+    money = parse_money(text)
+    intent.min_price = money.min_uzs
+    intent.max_price = money.max_uzs
+    intent.price_was_usd = money.was_usd
+
+    # Renting or buying, on folded text: the apostrophes and the glued-on
+    # case endings are what hide "sotib ol" inside "sotib olmoqchiman". Rent
+    # is checked first so that it wins a tie, and a hint the next few words
+    # deny ("ijara emas") is not a hint at all.
+    folded = " ".join(_fold(text).split())
+    if _unnegated(_RENT_HINT, folded):
+        intent.deal_type = "RENT"
+        intent.deal_type_stated = True
+    elif _unnegated(_SALE_HINT, folded):
+        intent.deal_type = "SALE"
+        intent.deal_type_stated = True
 
     if _STUDENT_HINT.search(text):
         intent.audience = "STUDENT"
@@ -922,9 +1292,13 @@ asked for and will not get.
   minPrice  — a floor on the price, when they say they want at least a
               certain level. Usually null.
   maxPrice  — the visitor's budget ceiling in Uzbek so'm. Convert "3 mln" to
-              3000000 and "$300" to {USD_TO_UZS * 300}. null if not stated.
+              3000000. Leave it null when they said it in dollars: do not do
+              exchange arithmetic, the server converts those at the live rate.
+              null if not stated.
   audience  — "STUDENT", "FAMILY" or "ALL".
   rentalType— "ROOMMATE" if they want to share, otherwise "ALL".
+  dealType  — RENT when they want to rent, SALE when they want to buy, ALL
+              only when they explicitly want both. Default RENT.
   roommateGender — "BOYS", "GIRLS" or "ANY", when sharing and they say so.
   furnished, parking, internet, airConditioning, washingMachine,
   petsAllowed — true only when they ask for it. Never false: the catalogue
@@ -981,7 +1355,8 @@ Reply with JSON only:
 {{"kind": "...", "district": null, "region": null, "metroStation": null,
   "universityName": null, "propertyType": null, "rooms": null,
   "minArea": null, "minPrice": null, "maxPrice": null, "audience": "ALL",
-  "rentalType": "ALL", "roommateGender": null, "furnished": null,
+  "rentalType": "ALL", "dealType": "RENT", "roommateGender": null,
+  "furnished": null,
   "parking": null, "internet": null, "airConditioning": null,
   "washingMachine": null, "petsAllowed": null, "onlyVerified": false,
   "sortBy": "RECOMMENDED", "userName": null, "answer": "..."}}"""
@@ -1188,6 +1563,10 @@ async def understand(
         max_price=_safe_float(data.get("maxPrice")),
         audience=str(data.get("audience") or "ALL").upper(),
         rental_type=str(data.get("rentalType") or "ALL").upper(),
+        # Never the model's own invention: an unknown value reaching
+        # ListingFilters is a validation error, and a validation error on a
+        # chat turn is an empty reply.
+        deal_type=_safe_choice(data.get("dealType"), DEAL_TYPES) or "RENT",
         roommate_gender=_safe_choice(data.get("roommateGender"), ROOMMATE_GENDERS),
         # Only a true is a filter. The catalogue has no "must not have" clause,
         # so a false would either do nothing or, worse, be read as one.
@@ -1278,6 +1657,21 @@ def _safe_float(value: Any) -> float | None:
         return None
 
 
+def _safe_money(value: Any) -> float | None:
+    """A price. The ceiling is MAX_SALE_UZS, not _safe_float's 1e9.
+
+    schemas/listing.py:379 widened ListingFilters to 100 000 000 000 because
+    "a billion so'm is under the price of an ordinary Tashkent flat". This
+    helper was never widened with it, so a correctly-stated purchase budget
+    was thrown away before it reached the filter.
+    """
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        return None
+    return result if 0 < result <= MAX_SALE_UZS else None
+
+
 def _safe_area(value: Any) -> float | None:
     """A floor area the catalogue will accept. ``ListingFilters`` caps it at
     10 000 m², and a value it rejects is a validation error on a chat turn."""
@@ -1345,8 +1739,24 @@ def merge_intents(parsed: SearchIntent, llm: SearchIntent | None) -> SearchInten
         rooms=parsed.rooms or llm.rooms,
         min_price=parsed.min_price or llm.min_price,
         max_price=parsed.max_price or llm.max_price,
+        # The flag belongs to the budget it describes. Saying "$1500" back as
+        # 19 050 000 so'm answers a different question from the one asked, and
+        # the reply layer has nothing else to go on: the number on the intent
+        # is in so'm by the time anybody reads it. A stated floor carries the
+        # currency just as a ceiling does. (M3)
+        price_was_usd=(
+            parsed.price_was_usd
+            if (parsed.max_price or parsed.min_price)
+            else llm.price_was_usd
+        ),
         audience=parsed.audience if parsed.audience != "ALL" else llm.audience,
         rental_type=parsed.rental_type if parsed.rental_type != "ALL" else llm.rental_type,
+        # "RENT" is both the default and a thing people say, so the string
+        # alone cannot tell the two apart — and while it could not, a model
+        # that misread "ijara" as buying turned a renter's search into a
+        # sale-only one. The flag is the difference. (D-FIX-1)
+        deal_type=parsed.deal_type if parsed.deal_type_stated else (llm.deal_type or "RENT"),
+        deal_type_stated=parsed.deal_type_stated,
         metro_station=parsed.metro_station or llm.metro_station,
         university_name=parsed.university_name or llm.university_name,
         property_type=parsed.property_type or llm.property_type,
@@ -1430,6 +1840,17 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "uz": "{district} tumanida hozircha mos e’lon yo‘q ekan. Shu sababli yaqin atrofdagi tumanlardan {count} ta variant topdim.",
         "ru": "В районе {district} сейчас ничего подходящего нет, поэтому я нашёл {count} вариантов в соседних районах.",
         "en": "There is nothing suitable in {district} right now, so I found {count} options in the neighbouring districts.",
+    },
+    #: Used whenever the widened search can name where it ended up. Both
+    #: districts have to appear: the one with nothing in it is the one they
+    #: asked about, and the one the results are in is the thing they most
+    #: need to know before opening a card. Naming only one of them produced
+    #: "there is nothing in Chilonzor" printed directly above a Chilonzor
+    #: listing, which reads as the assistant contradicting itself.
+    "nearby_named": {
+        "uz": "{district} tumanida hozircha mos e’lon yo‘q ekan. Shu sababli yaqin atrofdan — {found} tumanidan {count} ta variant topdim.",
+        "ru": "В районе {district} сейчас ничего подходящего нет, поэтому я нашёл {count} вариантов рядом — в районе {found}.",
+        "en": "There is nothing suitable in {district} right now, so I found {count} options nearby, in {found}.",
     },
     "empty": {
         "uz": "Afsuski, hozir bu shartlarga mos e’lon yo‘q. Byudjetni biroz oshirsangiz yoki qo‘shni tumanni ko‘rsangiz, variantlar ko‘payadi.",
@@ -1556,11 +1977,26 @@ def build_fallback_reply(
 
     # A search branch. Any answer the model produced comes before the results.
     lead = f"{answer} " if answer else ""
-    # What the rows actually satisfy is what was asked for MINUS what the
-    # ladder gave up. Listing a dropped criterion as one the results match
-    # contradicts the very next sentence, which says it was relaxed.
-    given_up = set(intent.dropped)
-    kept = [key for key in intent.stated_criteria() if key not in given_up]
+    # What the results satisfy, read off the BEST row rather than off the set
+    # of all of them.
+    #
+    # ``intent.dropped`` names only the criteria that NO returned row meets,
+    # so subtracting it leaves every criterion that merely one row happens to
+    # meet — and the reply then tells the visitor that all {count} of these
+    # match on "Chilonzor tumani, 2 xonali" while printing a Chilonzor
+    # three-room and a Samarqand two-room underneath it. The ranking already
+    # decided which row is the answer, and the relaxation label is read from
+    # that same row, so the sentence describing it must be too.
+    #
+    # ``intent.matches`` is insertion-ordered by rank, so the first entry is
+    # the row the reply is really about. It is empty on the branches that
+    # never searched, which is why the old computation stays as the fallback.
+    best = next(iter(intent.matches.values()), None)
+    if best is not None:
+        kept = list(best["matched"])
+    else:
+        given_up = set(intent.dropped)
+        kept = [key for key in intent.stated_criteria() if key not in given_up]
     # Long criteria lists read as a recital rather than a sentence, and the
     # visitor already knows what they asked for; the first few are what makes
     # the reply feel like it understood them.
@@ -1575,8 +2011,19 @@ def build_fallback_reply(
     if not count:
         return intro + lead + _pick("empty", language)
     if relaxation == "NEARBY" and intent.district:
+        # The {district} slot is the one with NOTHING in it — the template
+        # reads "there is nothing suitable in {district} right now". That is
+        # the district they ASKED for, never ``searched_district``, which
+        # since the pooled rewrite means the district the results turned out
+        # to be in. Passing that here printed "there is nothing in Chilonzor"
+        # directly above a Chilonzor listing, to a visitor who had asked
+        # about Bektemir.
+        if searched_district and searched_district != intent.district:
+            return intro + lead + _pick("nearby_named", language).format(
+                district=intent.district, found=searched_district, count=count
+            ) + gave_up
         return intro + lead + _pick("nearby", language).format(
-            district=searched_district or intent.district, count=count
+            district=intent.district, count=count
         ) + gave_up
     if relaxation == "PARTIAL" and criteria:
         return intro + lead + _pick("partial", language).format(
@@ -1639,6 +2086,13 @@ def criterion_matches(row: Any, key: str, intent: SearchIntent, rate: float) -> 
     # every "up to 5 mln" ceiling and fails every "from 1 mln" floor.
     price = row.price * rate if row.currency == "USD" else row.price
 
+    if key == "region":
+        # apply_filters:107. Only ever reached for a visitor who named a
+        # province and no district — see SearchIntent.stated_criteria — but
+        # reached for the whole catalogue now that the pool is not filtered on
+        # region, which is what puts the Qashqadaryo rows above the Tashkent
+        # ones instead of merely hiding the Tashkent ones. (S-FIX-2)
+        return _matches_like(row.region, intent.region)
     if key == "district":
         # apply_filters:107 also skips the filter for the literal "Barchasi".
         # ``normalise_district`` only ever yields a canonical district name, so
@@ -1664,8 +2118,12 @@ def criterion_matches(row: Any, key: str, intent: SearchIntent, rate: float) -> 
         return intent.max_price is not None and price <= intent.max_price
     if key == "audience":
         if intent.audience == "STUDENT":
+            # ``is not None`` and not ``bool``: apply_filters:148 tests
+            # ``university_name.isnot(None)``, and a listing saved with an
+            # empty string from a cleared form field is admitted by the SQL
+            # and would be scored a miss by anything stricter. (R-FIX-4)
             return (
-                bool(row.university_name)
+                row.university_name is not None
                 or bool(row.is_roommate)
                 or row.district in listing_service._STUDENT_DISTRICTS
             )
@@ -1675,6 +2133,13 @@ def criterion_matches(row: Any, key: str, intent: SearchIntent, rate: float) -> 
     if key == "rental_type":
         return bool(row.is_roommate) is (intent.rental_type == "ROOMMATE")
     if key == "roommate_gender":
+        if intent.roommate_gender == "ANY":
+            # apply_filters:138 skips the clause entirely for ANY, so ANY is
+            # not a filter at all. Requiring ``is_roommate`` here scored every
+            # ordinary whole-flat listing zero and cut it on MIN_SCORE — the
+            # scorer rejecting rows the SQL would have admitted, which is the
+            # exact divergence this function exists to prevent. (R-FIX-4)
+            return True
         # apply_filters:138-146: the NULL arm only makes sense once the row is
         # known to be a roommate offer, because NULL is also what every listing
         # that is not one carries.
@@ -1729,19 +2194,32 @@ async def search_for_intent(
     of them it meets and which it does not.
 
     The rule this encodes is the product's own: a visitor who states four
-    conditions would rather see the place that meets one of them, told plainly
-    which one, than an empty screen. So nothing is filtered away here for
-    failing a preference. A pool of publicly visible rows is read once, every
-    row is scored against every stated criterion in Python, and anything
-    scoring at least ``MIN_SCORE`` is offered, best first.
+    conditions would rather see the place that meets three of them than the
+    place that meets one, *even when the one it meets is the district*. So
+    there is no ladder of places any more. One pool is read, every row in it
+    is scored against every stated criterion, and the ranking is allowed to
+    cross a district boundary.
 
-    What the SQL still does is *place*, and only place: a district is a
-    different kind of criterion from a washing machine, because "somewhere
-    else entirely" is not what they asked for. So the pool is drawn from the
-    named district first, then the region around it, then the whole catalogue,
-    and the first of those three that yields a scoring row wins. That is three
-    statements at worst; the criterion-by-criterion ladder it replaces cost up
-    to twenty-two and could still come back empty.
+    That is what the ladder could not do (R-FIX-1). It filtered the pool on
+    district in SQL and stopped at the first tier that produced any scoring
+    row, so a three-criterion match one district over was never scored at all
+    while a one-criterion match in the named district was presented as the
+    answer. The contract's own worked example was unreachable through it.
+
+    ``district`` still carries weight 3, so a row in the district they named
+    beats a neighbour on otherwise equal terms — which is the honest version
+    of what the ladder was trying to express. ``region`` is weight 3 for the
+    same reason and by the same means: it was the last place gate left in SQL
+    after the district one came off, and leaving it there hid every listing
+    published without a province and emptied the screen for a province with no
+    stock. Scored instead of filtered, it orders the pool without excluding
+    anything from it. (S-FIX-2)
+
+    A row that misses nothing answers the question that was asked, so when any
+    row does, only those rows come back and the result is EXACT. Otherwise the
+    label is read off the top-ranked row. Deciding it from every shown row at
+    once is what made the plainest search on the site deny the listing printed
+    underneath the denial. (S-FIX-1)
     """
     from app.schemas.listing import ListingFilters
     from app.services import fx
@@ -1759,65 +2237,88 @@ async def search_for_intent(
     # was given — and because the score sort below is stable, this ordering is
     # what survives inside each band of equally-matching rows.
     sort_by = intent.sort_by if intent.sort_by in SORT_ORDERS else "RECOMMENDED"
-
-    async def read(place: dict[str, Any], size: int) -> tuple[list[Any], int]:
-        # ``deal_type`` is deliberately never passed: its "RENT" default is
-        # what keeps purchase prices out of a rental result list, where they
-        # would be three orders of magnitude larger than everything around
-        # them. ListingFilters is a CamelModel with extra="forbid", so a
-        # mistyped keyword here would be a 500 on a chat turn, not a warning.
-        filters = ListingFilters(sort_by=sort_by, **place)
-        return await listing_service.list_public(db, filters, offset=0, limit=size)
+    deal_type = intent.deal_type if intent.deal_type in DEAL_TYPES else "RENT"
 
     def report(rows: list[Any]) -> dict[str, dict[str, Any]]:
         return {str(row.id): score_listing(row, intent, rate) for row in rows}
 
+    # ``deal_type`` goes on the read and never comes off it. It is a partition
+    # and not a criterion: a rental shown to somebody buying is not a worse
+    # match but the wrong answer, because the price is one month in one case
+    # and the whole property in the other. ListingFilters is a CamelModel with
+    # extra="forbid", so a mistyped keyword here would be a 500 on a chat turn.
+    #
+    # And nothing else goes on it. ``region`` used to, and it was the one
+    # place gate the removal of the district ladder left behind. It is a
+    # criterion, not a partition: ``Listing.region`` is nullable and optional
+    # on create, ``apply_filters`` matches it with ILIKE, and NULL satisfies
+    # no ILIKE — so a listing published through the API, an import or the
+    # admin panel without a province could not be found by any assistant
+    # search, not even in its own district, and a search in a province with no
+    # stock came back with nothing at all, which is exactly what the ``not
+    # kept`` branch below promises can never happen. (S-FIX-2)
+    filters = ListingFilters(sort_by=sort_by, deal_type=deal_type)
+    # Nothing stated means nothing to score against, so there is no reason to
+    # pull five hundred rows in to rank them.
+    size = POOL_LIMIT if intent.has_criteria else limit
+    pool, in_scope = await listing_service.list_public(
+        db, filters, offset=0, limit=size
+    )
+    if size == POOL_LIMIT and len(pool) >= size:
+        # The scoring pool filled its limit, so rows exist that were never
+        # scored and the answer below is the best of a truncated read rather
+        # than the best of the catalogue. Unsaid, that is indistinguishable
+        # from having looked at everything; said, it is the signal to raise
+        # POOL_LIMIT. Not logged on the no-criteria path, where a short read
+        # is the requested page and not a truncation. (S-FIX-2)
+        log.info("uyiz_ai.pool_truncated", limit=size, in_scope=in_scope)
+    # ``list_public`` runs the count whether or not the caller wants it, so
+    # throwing it away bought nothing. It is the honest "how many exist where
+    # we looked". (R-FIX-5)
+    intent.total_in_scope = in_scope
+
     if not intent.has_criteria:
         # Nothing was asked for, so there is nothing to score against: show
         # what the catalogue has, in the order that was requested.
-        rows, total = await read({}, limit)
-        intent.matches = report(rows)
-        return rows, "NONE", None, total
+        intent.matches = report(pool)
+        return pool, "NONE", None, in_scope
 
-    # Place, loosened one step at a time. Tier 1 is the district they named,
-    # tier 2 the region around it, tier 3 the whole catalogue.
-    tiers: list[dict[str, Any]] = [{"district": intent.district, "region": intent.region}]
-    if intent.district:
-        tiers.append({"region": intent.region})
-    # A tier identical to one already listed is a second round trip that can
-    # only return the same rows — and, worse, would be labelled as a widening
-    # when nothing was widened. That is the case for a visitor who named no
-    # place at all: for them tier 1 already is the whole catalogue.
-    if {} not in tiers:
-        tiers.append({})
+    scored = [(row, score_listing(row, intent, rate)) for row in pool]
+    kept = [pair for pair in scored if pair[1]["score"] >= MIN_SCORE]
 
-    won = -1
-    kept: list[tuple[Any, dict[str, Any]]] = []
-    for index, place in enumerate(tiers):
-        pool, _ = await read(place, POOL_LIMIT)
-        scored = [(row, score_listing(row, intent, rate)) for row in pool]
-        surviving = [pair for pair in scored if pair[1]["score"] >= MIN_SCORE]
-        if surviving:
-            kept = surviving
-            won = index
-            break
-
-    if won < 0:
+    if not kept:
         # Not one listing anywhere satisfies even one stated criterion. Show
         # what the platform does have rather than an empty screen, and let the
         # reply say so plainly: an empty list is never returned while any
-        # approved listing exists.
-        rows, total = await read({}, limit)
+        # approved listing exists. Three at most, though — three rows read as
+        # examples and five read as a result list, and handing somebody who
+        # asked for a home at 1500$ a screenful of unrelated flats labelled as
+        # recommendations is the complaint this cap answers.
+        rows = pool[: min(limit, 3)]
         intent.dropped = intent.stated_criteria()
         intent.matches = report(rows)
-        return rows, "ANY", None, total
+        # Nothing matched, so nothing is "matching". The size of the pool
+        # these examples came from is in ``total_in_scope``, where it cannot
+        # be mistaken for a count of answers. (R-FIX-3)
+        return rows, "ANY", None, 0
 
     # Python's sort is stable, so rows of equal weight keep the order
     # ``apply_sort`` gave them and "eng arzon" still means cheapest first. The
-    # second key is the user's rule made explicit: at equal weight, the row
-    # that matches *more* of what they said comes first.
-    ordered = sorted(kept, key=lambda pair: (-pair[1]["score"], -len(pair[1]["matched"])))
-    shown = ordered[:limit]
+    # score is the only key: a second one on how many criteria matched
+    # overrode the sort the visitor actually asked for, which made PRICE_LOW
+    # stop meaning cheapest first among equally-scoring rows. (R-FIX-4)
+    ordered = sorted(kept, key=lambda pair: -pair[1]["score"])
+    # A row that misses nothing is the answer to the question that was asked,
+    # and every near-miss ranked under it is noise beside it. The rule that a
+    # one-criterion match is still a result exists for when there is little
+    # else, not to dilute a good answer — and padding here was also what made
+    # a perfect result announce itself as a failure, because ``relaxation``
+    # was EXACT only when EVERY shown row matched everything. One flawless
+    # Chilonzor 2-room dragged along by any other 2-room in the pool opened
+    # with "Barcha shartlaringizga to'liq mos e'lon topilmadi" printed over a
+    # row scoring 6 out of 6. (S-FIX-1)
+    perfect = [pair for pair in ordered if not pair[1]["missed"]]
+    shown = (perfect or ordered)[:limit]
     rows = [row for row, _ in shown]
     payloads = [payload for _, payload in shown]
 
@@ -1832,17 +2333,34 @@ async def search_for_intent(
         if all(key in payload["missed"] for payload in payloads)
     ]
 
-    if all(not payload["missed"] for payload in payloads):
+    in_named_district = any("district" in payload["matched"] for payload in payloads)
+    # Read off the best row, not off all of them. ``ordered`` is sorted by
+    # score, so every row after the first is a weaker match by construction
+    # and letting the weakest one set the label buried the strongest one.
+    # (S-FIX-1)
+    best_missed = payloads[0]["missed"] if payloads else []
+    if not best_missed:
         relaxation: Relaxation = "EXACT"
-    elif won > 0 and intent.district:
+    elif intent.district and not in_named_district:
+        # They named a district and nothing we are showing is in it. That has
+        # to be said out loud rather than left for the visitor to notice.
         relaxation = "NEARBY"
     else:
         relaxation = "PARTIAL"
 
-    # Tier 1 searched the district they named. Anything below it searched
-    # wider, so the honest answer to "where did you look" is where the best row
-    # actually is.
-    searched_district = intent.district if won == 0 else (rows[0].district if rows else None)
-    # The count of rows that scored, not the size of the pool they were drawn
-    # from — otherwise the reply's "{count} found" stops meaning "matching".
-    return rows, relaxation, searched_district, len(kept)
+    # Where the rows actually are, which is the honest answer to "where did
+    # you look": the district they named when something in it came back, and
+    # otherwise wherever the best row is.
+    searched_district = (
+        intent.district if in_named_district else (rows[0].district if rows else None)
+    )
+    # The count of rows that scored at all, not the size of the pool they were
+    # drawn from. It is a weaker claim than it looks — one criterion out of
+    # four is enough to be counted here — which is why the tool payload sends
+    # ``maxScore`` and the best ``matchPercent`` beside it. (R-FIX-3)
+    #
+    # Except when the answer is the perfect rows, where it counts those. The
+    # model writes "N ta mos e'lon" from this number beside a matchQuality of
+    # EXACT, and every near-miss left out of the result would otherwise be
+    # counted into a claim that they all matched exactly. (S-FIX-1)
+    return rows, relaxation, searched_district, len(perfect or kept)

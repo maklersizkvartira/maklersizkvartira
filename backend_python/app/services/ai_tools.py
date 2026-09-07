@@ -27,6 +27,7 @@ every tool here obeys without exception:
 
 from __future__ import annotations
 
+import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -37,6 +38,7 @@ import structlog
 from app.core import audit as audit_log
 from app.core.phone import format_display, is_valid_phone, normalise_phone
 from app.models.enums import AuditAction, ListingStatus, PUBLISHER_ROLE_VALUES, UserRole
+from app.services import fx
 from app.services import listings as listing_service
 from app.services import uyiz_ai
 
@@ -79,6 +81,20 @@ class ToolContext:
     #: then closing the chat leaves you on a Chilonzor page rather than back
     #: at the unfiltered catalogue.
     last_search: dict[str, Any] | None = None
+    #: Everything the *visitor* has typed this session, oldest first, and
+    #: nothing the model or a listing wrote. Two guards read it and nothing
+    #: else may: :func:`_is_the_visitors_own_number` (L-FIX-3), which refuses
+    #: a phone number lifted out of a listing description rather than given
+    #: by the person in the chat, and :func:`_currency_the_visitor_used`
+    #: (D5), which re-reads the raw sentence when the model passed a price
+    #: without saying which currency it was in.
+    #:
+    #: An empty tuple is not "unknown, so allow": ``run_turn`` populates this
+    #: on every turn, so empty means the caller supplied nothing to check
+    #: against and :func:`_is_the_visitors_own_number` refuses. The default
+    #: exists for the tools that never read the field, and a caller that
+    #: wants to capture a lead has to pass the transcript.
+    visitor_messages: tuple[str, ...] = ()
 
     @property
     def is_owner_account(self) -> bool:
@@ -196,6 +212,134 @@ def _remember(ctx: ToolContext, rows: list[Any]) -> None:
     ctx.shown_ids[:] = [str(row.id) for row in rows][:MAX_REF]
 
 
+def _digits(text: Any) -> str:
+    """Every digit in a string, in order, and nothing else.
+
+    Phone numbers are written a dozen ways — ``+998 90 123 45 67``,
+    ``(90) 123-45-67``, ``998901234567`` — and all of them have to compare
+    equal, so the separators go and the digits stay.
+    """
+    return re.sub(r"\D", "", str(text or ""))
+
+
+def _stated_currency(args: dict[str, Any]) -> str | None:
+    """The currency the model passed, or ``None`` when it passed none.
+
+    Anything that is neither UZS nor USD is refused out loud rather than
+    quietly read as so'm (D5). ``"EUR"`` used to fall straight through the
+    ``currency == "USD"`` test and become a euro budget searched as so'm —
+    a silent factor-of-13,000 error, with no log and no rejection.
+    """
+    raw = args.get("price_currency")
+    if raw is None:
+        return None
+    currency = str(raw).strip().upper()
+    if not currency:
+        return None
+    if currency not in {"UZS", "USD"}:
+        raise ToolError(
+            "price_currency must be UZS or USD. Ask the visitor which they "
+            "meant, then call this again."
+        )
+    return currency
+
+
+def _currency_the_visitor_used(ctx: ToolContext) -> bool | None:
+    """Was the budget stated in dollars? Read from the visitor, not the model.
+
+    The tiebreak for D5: ``price_currency`` cannot be made required in JSON
+    Schema against a sibling, so a model that follows ``max_price``'s "pass
+    1500 for 1500$" and forgets the currency is a real case. Rather than
+    assume, re-read what the visitor actually typed — ``1500$`` says which
+    currency it is no matter what the model chose to forward.
+
+    Returns True for USD, False for so'm, and ``None`` when their own words
+    settle nothing — which is also what an empty ``visitor_messages`` gives.
+    Unlike the phone guard below this one may safely stay open on missing
+    input: it is a tiebreak, and having no opinion means the currency the
+    model passed stands rather than a lead being sent to a stranger.
+    """
+    for text in reversed(ctx.visitor_messages):
+        reading = uyiz_ai.parse_money(str(text))
+        if reading.rejected:
+            continue
+        if reading.max_uzs is not None or reading.min_uzs is not None:
+            return reading.was_usd
+    return None
+
+
+#: Words that make a number in a sentence a *price* rather than a room count,
+#: a floor or a date: the currency marks and the scale words
+#: :data:`uyiz_ai._MONEY` knows, searched over the whole message rather than
+#: token by token. Written out here because the parser's own pattern only
+#: sees a mark that touches its number, and the shape this exists for —
+#: "1500 dan 2000 gacha dollar", the currency written once after the whole
+#: range — puts the word two tokens away from either figure.
+#:
+#: Every alternative is anchored at its start, and the two-letter "у.е." is
+#: anchored at both ends: unanchored, "ye" matched the front of "yer" and
+#: "yetti" and the flag fired on a sentence about a basement. A trailing
+#: anchor is deliberately absent everywhere else, because Uzbek suffixes the
+#: currency — "so'mgacha", "dollarga" — and a word boundary after the "m"
+#: would refuse the commonest spelling of a budget on the site.
+_NAMES_MONEY = re.compile(
+    r"\$|\busd\b|\bdollar|\bдоллар|\bу\.?\s?е\b|\by\.?\s?e\b|\bue\b"
+    r"|\bso['‘’ʻ`]?m|\bsum\b|\bсум|\bсўм|\buzs\b"
+    r"|\bming\b|\bминг\b|\bmln\b|\bmillion|\bмлн\b|\bмиллион"
+    r"|\bmlrd\b|\bmilliard|\bмлрд\b|\bмиллиард|\bтыс|\bthousand\b",
+    re.IGNORECASE,
+)
+
+
+def _budget_the_parser_refused(ctx: ToolContext) -> bool:
+    """Did the visitor state a budget this turn that could not be read?
+
+    ``MoneyReading.rejected`` is the parser saying "I found a number and
+    deliberately did not believe it" — a phone number, a date, an area, a
+    figure outside the plausible window — and it is a different answer from
+    "no number was mentioned". Until this it had no reader outside
+    :func:`_currency_the_visitor_used`, so the two arrived at the search
+    identically: with no budget. The assistant then searched on nothing and
+    narrated the result as though the visitor's budget had been honoured.
+
+    Only this turn's message is read. An older refusal has already been asked
+    about, and re-raising it every turn turns one clarifying question into a
+    loop the visitor cannot leave.
+
+    ``rejected`` alone is far too broad to key on, and that is the trap here:
+    ``parse_money("Chilonzorda 2 xonali kvartira")`` is rejected, because the
+    room count is a number it found and refused. Keyed on that, the commonest
+    sentence on the site would have the assistant asking every visitor to
+    repeat a budget they never stated. So the message must also *name* money
+    — a currency or a scale word — for the refusal to mean a budget was
+    lost rather than an ordinary number correctly ignored.
+    """
+    if not ctx.visitor_messages:
+        return False
+    text = str(ctx.visitor_messages[-1])
+    if not uyiz_ai.parse_money(text).rejected:
+        return False
+    return bool(_NAMES_MONEY.search(text))
+
+
+def _plausible_budget(uzs: float | None) -> float | None:
+    """Drop a converted budget the search could not honestly have meant.
+
+    The window :func:`uyiz_ai.parse_money` applies, applied here too so the
+    deterministic path and the tool path cannot give one visitor two
+    different answers (D5). Below the floor is a number that was never a
+    budget — 1500 read as so'm because the currency went missing. Above the
+    ceiling is a number ``ListingFilters`` would 422 on, so a search that
+    accepted it could never be mirrored into the listings page behind the
+    chat.
+    """
+    if uzs is None:
+        return None
+    if uyiz_ai.MIN_PLAUSIBLE_BUDGET <= uzs <= uyiz_ai.MAX_PLAUSIBLE_BUDGET:
+        return uzs
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Tenant-side tools
 # ---------------------------------------------------------------------------
@@ -207,6 +351,84 @@ async def _search_listings(ctx: ToolContext, args: dict[str, Any]) -> dict[str, 
     districts — behaves identically whether the agent or the older two-pass
     path asked for it.
     """
+    # The model is not asked to do exchange arithmetic. It reports what it
+    # heard and the server converts at the live rate, because a model that
+    # converts at a rate it invented produces a budget nobody stated — which
+    # is how a $1500 search came back with the whole catalogue in it.
+    # ``_safe_money`` and not ``_safe_float``: the latter caps at 1e9, which
+    # silently discarded every purchase budget of a billion so'm or more on
+    # the very path that added SALE searching (D6). ListingFilters was
+    # widened to MAX_SALE_UZS precisely because a billion so'm is under the
+    # price of an ordinary Tashkent flat.
+    max_price = uyiz_ai._safe_money(args.get("max_price"))
+    min_price = uyiz_ai._safe_money(args.get("min_price"))
+
+    #: Things the model has to be told about the budget it just passed. They
+    #: are appended to the payload's ``note`` at the end, after the
+    #: no-criteria branch has had its say, so neither can erase the other.
+    budget_notes: list[str] = []
+
+    currency = _stated_currency(args)
+    has_price = max_price is not None or min_price is not None
+    if has_price and currency is None:
+        # D5. A price with no currency is not assumed. The visitor's own
+        # sentence is re-read first, and only when that says nothing does
+        # this fall back to so'm — out loud, so the reply confirms it rather
+        # than searching a thirteen-thousandth of the stated budget in
+        # silence.
+        heard_usd = _currency_the_visitor_used(ctx)
+        if heard_usd is None:
+            currency = "UZS"
+            budget_notes.append(
+                "The currency of this budget was NOT stated and the visitor's "
+                "own words did not settle it, so it was read as so'm. Confirm "
+                "the currency with them in your reply before treating the "
+                "budget as agreed."
+            )
+        else:
+            currency = "USD" if heard_usd else "UZS"
+
+    # Fetched at most once per turn, and only when there is a dollar figure to
+    # convert — ``usd_to_uzs`` goes to the Central Bank on a cold cache and a
+    # so'm-only search has no business paying for that.
+    rate: float | None = None
+    if has_price and currency == "USD":
+        rate = await fx.usd_to_uzs()
+        if max_price is not None:
+            max_price = round(max_price * rate)
+        if min_price is not None:
+            min_price = round(min_price * rate)
+
+    # The same plausibility window ``parse_money`` applies, applied to the
+    # converted number (D5). Without it the two halves of one fix disagreed:
+    # the parser refused a 1500-so'm ceiling and the tool path searched on it.
+    kept_max, kept_min = _plausible_budget(max_price), _plausible_budget(min_price)
+    # Measured against what the *model passed*, not against what survived
+    # ``_safe_money``. A figure above MAX_SALE_UZS, or one that is not a
+    # number at all, never reaches ``_plausible_budget`` — it was already
+    # None — and a budget dropped without a word is how a search on nothing
+    # gets narrated back as a search on the visitor's budget.
+    if (args.get("max_price") is not None and kept_max is None) or (
+        args.get("min_price") is not None and kept_min is None
+    ):
+        budget_notes.append(
+            "A price was passed that is not a believable housing budget once "
+            "converted to so'm, so it was DROPPED and not searched on. Ask the "
+            "visitor to state their budget and its currency again, and do not "
+            "describe these results as fitting a budget."
+        )
+    max_price, min_price = kept_max, kept_min
+
+    # The reply says the budget back in the currency it was heard in:
+    # answering "1500$ ga uy kere" with a figure in so'm reads as a different
+    # question being answered. Computed after the drop above, so a budget
+    # nothing survived of cannot still claim to have been stated in dollars.
+    price_was_usd = currency == "USD" and (
+        max_price is not None or min_price is not None
+    )
+    # The conversion has to land before the constructor, not on the finished
+    # intent: as_dict() is mirrored into the SPA's filter store and has to
+    # carry the so'm number the search actually ran on.
     intent = uyiz_ai.SearchIntent(
         district=uyiz_ai.normalise_district(args.get("district")),
         region=uyiz_ai.normalise_region(args.get("region")),
@@ -219,8 +441,13 @@ async def _search_listings(ctx: ToolContext, args: dict[str, Any]) -> dict[str, 
         ),
         rooms=uyiz_ai._safe_int(args.get("rooms")),
         min_area=uyiz_ai._safe_area(args.get("min_area")),
-        min_price=uyiz_ai._safe_float(args.get("min_price")),
-        max_price=uyiz_ai._safe_float(args.get("max_price")),
+        min_price=min_price,
+        max_price=max_price,
+        price_was_usd=price_was_usd,
+        # A hard partition, not a criterion: a rental is not a worse match
+        # for somebody buying, it is the wrong question answered.
+        deal_type=uyiz_ai._safe_choice(args.get("deal_type"), uyiz_ai.DEAL_TYPES)
+        or "RENT",
         audience=str(args.get("audience") or "ALL").upper(),
         rental_type=str(args.get("rental_type") or "ALL").upper(),
         roommate_gender=uyiz_ai._safe_choice(
@@ -274,9 +501,24 @@ async def _search_listings(ctx: ToolContext, args: dict[str, Any]) -> dict[str, 
             }
         listings.append(brief)
 
-    return {
+    # R-FIX-3. ``totalMatching`` counts every row that scored at all, not
+    # every row that matched everything, and the payload used to give the
+    # model no way to tell those apart — so "12 apartments matching your
+    # criteria" was written about twelve rows whose best score was 3 out of
+    # 12. These two numbers are what make the count readable.
+    reports = [intent.matches.get(str(row.id)) or {} for row in rows]
+    max_score = max((report.get("maxScore") or 0 for report in reports), default=0)
+    best_percent = max(
+        (report.get("matchPercent") or 0 for report in reports), default=0
+    )
+
+    payload: dict[str, Any] = {
         "count": len(rows),
         "totalMatching": total,
+        # The weight of everything the visitor stated, and how close the best
+        # returned row came to it. See the comment above.
+        "maxScore": max_score,
+        "bestMatchPercent": best_percent,
         # How far the search had to loosen. The model must say this out loud
         # rather than presenting a widened result as an exact one.
         "matchQuality": relaxation,
@@ -290,9 +532,72 @@ async def _search_listings(ctx: ToolContext, args: dict[str, Any]) -> dict[str, 
             "These are the only rows that exist for this search. Do not "
             "mention any apartment that is not in this list. If "
             "droppedCriteria is not empty, tell the visitor which of their "
-            "conditions was relaxed."
+            "conditions was relaxed. totalMatching counts rows that matched "
+            "AT LEAST ONE criterion, not rows that matched all of them — "
+            "never call it 'N apartments matching what you asked for' unless "
+            "bestMatchPercent is 100."
         ),
     }
+
+    # A search with nothing to search on is not a recommendation. This is the
+    # exact turn that went wrong in production: a budget written "1500$" was
+    # dropped by the parser, no criterion survived, and the model presented
+    # the recent-listings fallback as apartments picked for the visitor.
+    if not intent.has_criteria:
+        payload["note"] = (
+            "The visitor gave NO criterion this search could use, so these are "
+            "simply recent listings, not recommendations and not an answer to "
+            "anything they said. Say that plainly in one clause, then ask ONE "
+            "short question covering district, rooms and budget together. Never "
+            "describe these rows as matching what they asked for."
+        )
+
+    # M3/D7. ``price_was_usd`` was write-only until this block: nothing
+    # anywhere read it, so the prompt rule "say the number back to them in
+    # the currency they used" had no data behind it and the model had to
+    # re-derive the currency from the raw message — which is exactly the
+    # model-does-arithmetic failure the price_currency parameter exists to
+    # remove. label_for() renders so'm unconditionally, so without this the
+    # visitor who wrote "1500$" reads "19.1 mln so'm gacha" back.
+    if intent.max_price is not None:
+        # Set above whenever a dollar figure was converted; the fallback is
+        # the same cached number that conversion would have used.
+        rate = rate or fx.cached_rate()
+        payload["budget"] = {
+            "statedCurrency": "USD" if intent.price_was_usd else "UZS",
+            "maxUzs": intent.max_price,
+            "maxAsStated": round(intent.max_price / rate) if intent.price_was_usd and intent.max_price else intent.max_price,
+            "note": "Say the budget back in statedCurrency, using maxAsStated. Never quote so'm to someone who said dollars.",
+        }
+
+    # The other half of ``MoneyReading.rejected``. A budget the parser refused
+    # reaches the search looking exactly like a budget nobody mentioned, and
+    # the model cannot tell those apart from the payload alone — so it
+    # answers a visitor who did state a price with rows chosen without one,
+    # and says nothing about the number it lost. Gated on the search having
+    # ended up with no budget at all: if the model read the sentence better
+    # than the parser did and passed a real ceiling, there is nothing to ask
+    # about.
+    if (
+        intent.max_price is None
+        and intent.min_price is None
+        and _budget_the_parser_refused(ctx)
+    ):
+        payload["budgetUnreadable"] = True
+        budget_notes.append(
+            "The visitor's last message names money, but the figure in it "
+            "could not be read as a budget, so this search ran with NO budget "
+            "at all. Ask them to repeat the amount and its currency in digits. Do "
+            "not search on nothing, and do not describe these rows as "
+            "fitting their budget."
+        )
+
+    # Appended rather than assigned, so neither the no-criteria note above nor
+    # a currency warning can silently replace the other.
+    if budget_notes:
+        payload["note"] = " ".join([payload["note"], *budget_notes])
+
+    return payload
 
 
 async def _get_listing_details(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
@@ -639,12 +944,18 @@ async def _request_callback(ctx: ToolContext, args: dict[str, Any]) -> dict[str,
     return {
         "recorded": True,
         "phone": format_display(phone),
-        # Whether Telegram accepted it changes nothing for the visitor: the
-        # request is in the audit log either way and support works from both.
+        # The request is in the audit log either way, but what the visitor is
+        # told is not the same in both cases — L-FIX-1's rule, applied to the
+        # other tool that promises a human will ring back. A rejected send
+        # means nobody was paged, so nothing may promise a call "shortly".
         "deliveredToTeam": delivered,
         "sayToVisitor": (
             "Confirm warmly that the number is saved and that support will "
             "call shortly, and thank them. One sentence."
+            if delivered
+            else "Confirm warmly that the number is saved and that the team "
+            "will look at it and get back to them, and thank them. Do NOT "
+            "promise a call time. One sentence."
         ),
     }
 
@@ -671,6 +982,79 @@ LEAD_CONFIRMATION: dict[str, str] = {
     ),
 }
 
+#: The same promise, minus the part that was not kept (L-FIX-1). When
+#: Telegram refuses the send — "chat not found" after the group id loses its
+#: leading minus, "Unauthorized" after a token rotation — nobody has been
+#: paged, and telling the visitor support will be in touch *shortly* is this
+#: entire workstream's original production failure converted into a false
+#: promise: they stop looking, nobody calls, and the only trace is one log
+#: line. The details really are saved on the session and in the audit log, so
+#: this wording says exactly that and commits to no timeframe.
+LEAD_CONFIRMATION_UNDELIVERED: dict[str, str] = {
+    "uz": (
+        "Ma'lumotlaringizni saqlab qo'ydik. Jamoamiz ularni ko'rib chiqib siz "
+        "bilan bog'lanadi. Murojaatingiz uchun rahmat!"
+    ),
+    "ru": (
+        "Мы сохранили ваши данные. Наша команда рассмотрит их и свяжется с "
+        "вами. Спасибо за обращение!"
+    ),
+    "en": (
+        "We've saved your details. Our team will review them and get in touch "
+        "with you. Thank you for reaching out!"
+    ),
+}
+
+
+def _lead_sentence(language: str, delivered: bool) -> str:
+    """The exact words the visitor hears about the lead they just gave.
+
+    Which of the two tables it comes from is the whole of L-FIX-1: the
+    sentence promising a callback is only allowed to be said when a human was
+    actually paged.
+    """
+    table = LEAD_CONFIRMATION if delivered else LEAD_CONFIRMATION_UNDELIVERED
+    return table[language if language in table else "uz"]
+
+
+def _is_the_visitors_own_number(ctx: ToolContext, phone: str) -> bool:
+    """Did this number come from the person in the chat? (L-FIX-3)
+
+    Listing titles and descriptions are fed to the model, so a landlord's
+    number typed into a description can be lifted straight out of the context
+    and paged as though the visitor had offered it. Then a stranger gets a
+    support call about a flat they never advertised for, and the visitor who
+    actually wanted one is never called. This module's own docstring says
+    permission is checked here and not in the prompt; this is that rule
+    applied to whose number it is.
+
+    The comparison is on digits alone — people type "90 123 45 67" and the
+    normalised form is "998901234567", so the national nine digits are what
+    must appear somewhere in something the visitor typed.
+
+    This fails **closed**, and that is the whole of the round-3 fix. The first
+    version returned True on an empty ``visitor_messages`` on the grounds that
+    "the caller supplied nothing" is not evidence of theft — and since
+    ``run_turn`` was in a file nobody was allowed to edit that round, it never
+    supplied anything, so the guard was live in the source and dead in
+    production and the landlord's number went through exactly as before. A
+    guard that a caller can switch off by forgetting an argument is not a
+    guard. ``run_turn`` passes the transcript now; anything else that wants to
+    capture a lead has to as well, and until it does it captures none.
+
+    The one exemption is a signed-in visitor's own account number: "use the
+    number you already have" is a real request, made by someone who has
+    already proved they own that number, and it is answerable without them
+    ever typing it into the chat.
+    """
+    tail = _digits(phone)[-9:]
+    if not tail:
+        return False
+    viewer_phone = getattr(ctx.viewer, "phone", None) if ctx.viewer else None
+    if viewer_phone and _digits(viewer_phone).endswith(tail):
+        return True
+    return any(tail in _digits(text) for text in ctx.visitor_messages)
+
 
 async def _capture_lead(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
     """Take the visitor's details and hand them to the support team.
@@ -683,6 +1067,12 @@ async def _capture_lead(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any
 
     The details are written onto the session as well as sent, so a Telegram
     outage does not lose the lead — the admin panel reads the same columns.
+
+    Calling it twice is normal and means two different things. The same number
+    again is the same lead and is confirmed without paging anybody a second
+    time; a different number is a correction, which pages the team again and
+    carries the number it replaces with it, because the session has room for
+    one lead and a bare overwrite left a real person uncontactable.
     """
     raw = str(args.get("phone") or "").strip()
     if not raw:
@@ -697,9 +1087,53 @@ async def _capture_lead(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any
         )
 
     phone = normalise_phone(raw)
+    if not _is_the_visitors_own_number(ctx, phone):
+        raise ToolError(
+            "That number did not come from the visitor. Ask them to type "
+            "their own number, then call this again."
+        )
+
+    # L-FIX-2. ``run_turn`` executes every entry in ``tool_calls``, so one
+    # assistant message carrying two capture_lead calls used to page the team
+    # twice for one person — and the second page lands while an operator is
+    # already dialling the first. The same number in the same session is the
+    # same lead, so it is confirmed again and sent no further.
+    already_at = getattr(ctx.session, "lead_captured_at", None)
+    previous_phone = getattr(ctx.session, "lead_phone", None)
+    if already_at and _digits(previous_phone) == _digits(phone):
+        # ``None`` means the column predates L-FIX-1 and nothing is known, so
+        # the first send is assumed to have gone through — the same
+        # assumption every lead captured before this change was answered on.
+        was_delivered = getattr(ctx.session, "lead_delivered", None) is not False
+        return {
+            "recorded": True,
+            "alreadyRecorded": True,
+            "name": getattr(ctx.session, "lead_name", None) or "",
+            "phone": format_display(phone),
+            "deliveredToTeam": was_delivered,
+            "sayToVisitor": _lead_sentence(ctx.language, was_delivered),
+        }
+
+    # L-FIX-2, the other half. A second, *different* number in one session is
+    # a correction — the first was mistyped, or the visitor gave a relative's
+    # number and then their own. It used to overwrite the four lead columns
+    # and page again with nothing to link the two, so the desk got two
+    # identical-looking enquiries a second apart and the replaced person
+    # existed nowhere an operator could read: the session holds one lead and
+    # the audit row carried no phone at all. So the correction is additive —
+    # the earlier lead goes into the note and into the audit trail, and the
+    # second page says which number it replaces.
+    correcting = bool(already_at and previous_phone)
+    previous_name = (getattr(ctx.session, "lead_name", None) or "") if correcting else ""
+
     name = str(args.get("name") or "").strip()[:120] or (
         ctx.viewer.name if ctx.viewer else ""
     )
+    if not name and correcting:
+        # A correction is the same person with a new number. Refusing it for
+        # want of a name the model already sent this session is how a
+        # corrected number ends up reaching nobody.
+        name = previous_name
     if not name:
         raise ToolError(
             "This visitor is not signed in, so a name is required too. Ask "
@@ -707,6 +1141,22 @@ async def _capture_lead(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any
             "phone number."
         )
     note = str(args.get("note") or "")[:400]
+
+    if correcting:
+        # Uzbek, and loud, because it is read by the operations group and not
+        # by the visitor. ``send_lead_notification`` renders the note into the
+        # page, which is the only way to label a correction as one without
+        # reaching into ``telegram.py``.
+        replaced = format_display(previous_phone)
+        heading = f"‼️ TUZATISH: avvalgi raqam {replaced}"
+        if previous_name and previous_name != name:
+            heading += f" ({previous_name})"
+        heading += " o'rniga shu raqam berildi."
+        previous_note = getattr(ctx.session, "lead_note", None) or ""
+        # Newest first, so the 400-character column truncates the oldest tail
+        # of a chain of corrections rather than the correction in hand. The
+        # audit trail is the record that never truncates.
+        note = " | ".join(p for p in (heading, note, previous_note) if p)[:400]
 
     ctx.session.lead_name = name
     ctx.session.lead_phone = phone
@@ -720,7 +1170,14 @@ async def _capture_lead(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any
         entity_type="ai_session",
         entity_id=ctx.session.id,
         summary=name,
-        meta={"registered": ctx.viewer is not None},
+        # The phone goes in the row (L-FIX-2). The session carries one lead
+        # and a correction replaces it, so without this the first of two
+        # numbers was recoverable from nowhere at all.
+        meta={
+            "registered": ctx.viewer is not None,
+            "phone": format_display(phone),
+            **({"correctionOf": format_display(previous_phone)} if correcting else {}),
+        },
     )
 
     from app.services.telegram import send_lead_notification
@@ -736,16 +1193,39 @@ async def _capture_lead(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any
         intent=ctx.session.last_intent or {},
     )
 
+    # Written down rather than only logged (L-FIX-1). An undelivered lead is
+    # invisible until somebody greps the logs, and the whole point of the
+    # column is that the operator desk can show it as a warning and act on it.
+    ctx.session.lead_delivered = delivered
+    if not delivered:
+        # Error, not warning: nobody has been paged, a visitor has been told
+        # their details are with us, and that is an incident rather than a
+        # note. Telegram's own diagnostic ("chat not found", "Unauthorized")
+        # is logged by ``telegram.send_message``, which is the layer that has
+        # the string; this line is what ties it to a session and a lead.
+        log.error(
+            "ai_lead.not_delivered",
+            session=ctx.session.session_key[:12],
+            phone=format_display(phone),
+            detail="see the telegram.failed event for Telegram's own reason",
+        )
+
     return {
         "recorded": True,
         "name": name,
         "phone": format_display(phone),
-        # Whether Telegram accepted it changes nothing for the visitor: the
-        # lead is on the session and in the audit log either way.
+        # The lead is on the session and in the audit log either way — but
+        # what the visitor is *told* is not the same in both cases, because a
+        # callback nobody was paged for is a promise the company cannot keep.
         "deliveredToTeam": delivered,
-        "sayToVisitor": LEAD_CONFIRMATION[
-            ctx.language if ctx.language in LEAD_CONFIRMATION else "uz"
-        ],
+        # So the model can say "we'll use the new number" instead of thanking
+        # them a second time as though this were a fresh enquiry.
+        **(
+            {"corrected": True, "correctedFrom": format_display(previous_phone)}
+            if correcting
+            else {}
+        ),
+        "sayToVisitor": _lead_sentence(ctx.language, delivered),
     }
 
 
@@ -798,8 +1278,37 @@ _register(Tool(
         "property_type": {"type": "string", "enum": ["APARTMENT", "HOUSE", "ROOM", "STUDIO", "DORMITORY"]},
         "rooms": {"type": "integer", "minimum": 1, "maximum": 20},
         "min_area": {"type": "number", "description": "Floor area in m². Only when they stated a MINIMUM; there is no maximum-area filter."},
-        "min_price": {"type": "number", "description": "Price floor in Uzbek so'm. Rarely needed."},
-        "max_price": {"type": "number", "description": "Budget ceiling in Uzbek so'm. Convert dollars before passing."},
+        "min_price": {"type": "number", "description": "Price floor, as the NUMBER THEY SAID, in the same currency as max_price. Rarely needed."},
+        "max_price": {
+            "type": "number",
+            "description": (
+                "The budget ceiling, as the NUMBER THEY SAID. Do not convert it "
+                "and do not do arithmetic on it — pass 1500 for \"1500$\" and "
+                "3000000 for \"3 mln so'm\", and use price_currency to say which "
+                "it was."
+            ),
+        },
+        "price_currency": {
+            "type": "string",
+            "enum": ["UZS", "USD"],
+            "description": (
+                "The currency the visitor stated the budget in. USD for $, usd, "
+                "dollar, доллар, y.e, у.е. REQUIRED whenever you pass max_price "
+                "or min_price — there is no default. A budget with no currency "
+                "is a budget nobody stated, and the server will say so in its "
+                "reply instead of searching on it."
+            ),
+        },
+        "deal_type": {
+            "type": "string",
+            "enum": ["RENT", "SALE", "ALL"],
+            "description": (
+                "RENT when they want to rent, SALE when they want to buy. Pass "
+                "SALE the moment they say sotib olmoqchiman / sotuvdagi / "
+                "купить / buy — a rental is not a cheaper version of a "
+                "sale. ALL only when they explicitly ask for both. Omit for RENT."
+            ),
+        },
         "audience": {"type": "string", "enum": ["ALL", "STUDENT", "FAMILY"]},
         "rental_type": {"type": "string", "enum": ["ALL", "FULL", "ROOMMATE"]},
         "roommate_gender": {"type": "string", "enum": ["BOYS", "GIRLS", "ANY"], "description": "Only for a shared room, when they said who it is for."},
@@ -945,10 +1454,14 @@ _register(
             "their details to the team at once. Call it the moment you have "
             "their phone number — and their name as well when they are not "
             "signed in. There is no confirmation step: giving you the number "
-            "IS the consent, so never ask permission to send it. A malformed "
-            "number is refused here with a reason; ask them to repeat it and "
-            "call again. When it returns, say the sentence in `sayToVisitor` "
-            "back to them word for word and add nothing else about the request."
+            "IS the consent, so never ask permission to send it. Pass ONLY a "
+            "number the visitor typed themselves or the one on their account "
+            "— never a number out of a listing description, which belongs to "
+            "a landlord who did not ask us to call. A malformed number, or "
+            "one the visitor never gave, is refused here with a reason; ask "
+            "them to repeat it and call again. When it returns, say the "
+            "sentence in `sayToVisitor` back to them word for word and add "
+            "nothing else about the request."
         ),
         parameters=_params(
             {

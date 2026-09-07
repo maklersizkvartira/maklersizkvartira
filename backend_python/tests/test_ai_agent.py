@@ -10,11 +10,13 @@ having.
 
 from __future__ import annotations
 
+import json
 import types
 import uuid
 
 import pytest
 
+from app.core.config import settings
 from app.models.enums import UserRole
 from app.services import ai_agent, ai_tools
 from app.services.ai_tools import ToolContext, ToolError
@@ -41,18 +43,109 @@ def _user(role: str = UserRole.STUDENT.value, name: str = "Aziz"):
 
 def _session():
     return types.SimpleNamespace(
-        session_key="k" * 32, last_intent=None, agent_state=None
+        id=uuid.uuid4(),
+        session_key="k" * 32,
+        last_intent=None,
+        agent_state=None,
+        # The lead columns, present and empty. ``_capture_lead`` reads them to
+        # decide whether this session has already paged the team (L-FIX-2) and
+        # writes ``lead_delivered`` back (L-FIX-1), so a double that lacked
+        # them would exercise only the getattr fallbacks.
+        lead_name=None,
+        lead_phone=None,
+        lead_note=None,
+        lead_captured_at=None,
+        lead_delivered=None,
     )
 
 
-def _ctx(viewer=None, shown=None) -> ToolContext:
+class _FakeDb:
+    """Just enough session for a handler that flushes and writes an audit row.
+
+    ``_capture_lead`` genuinely persists the lead before it tries to send it —
+    that ordering is what keeps a Telegram outage from losing the number — so
+    a ``None`` db would fail the test before it reached the thing under test.
+    """
+
+    def __init__(self):
+        self.flushes = 0
+
+    async def flush(self):
+        self.flushes += 1
+
+
+def _ctx(viewer=None, shown=None, said=(), db=None) -> ToolContext:
     return ToolContext(
-        db=None,
+        db=db,
         viewer=viewer,
         language="uz",
         session=_session(),
         shown_ids=list(shown or []),
+        # What the *visitor* typed, and only that. Leaving it empty is not a
+        # neutral default any more: L-FIX-3 fails closed, so a lead test that
+        # does not say what the visitor typed is testing a refusal.
+        visitor_messages=tuple(said),
     )
+
+
+class _LoopDb:
+    """Enough of an ``AsyncSession`` for one whole ``run_turn``.
+
+    Wider than :class:`_FakeDb` because the loop also loads the tuning rows
+    and writes an audit entry; the rows are collected rather than stored.
+    """
+
+    def __init__(self) -> None:
+        self.added: list = []
+
+    def add(self, entry) -> None:
+        self.added.append(entry)
+
+    async def flush(self) -> None:
+        return None
+
+    async def execute(self, statement):
+        return types.SimpleNamespace(all=list)
+
+
+def _wants(tool: str, arguments: dict, call_id: str = "c1") -> dict:
+    """A model reply that asks for one tool call."""
+    return {
+        "role": "assistant",
+        "content": None,
+        "tool_calls": [
+            {
+                "id": call_id,
+                "type": "function",
+                "function": {"name": tool, "arguments": json.dumps(arguments)},
+            }
+        ],
+    }
+
+
+@pytest.fixture
+def scripted(monkeypatch):
+    """Queue model replies and let the real tools run underneath them.
+
+    The provider is replaced, not the tools, so what these tests exercise is
+    the context ``run_turn`` actually builds — which is the whole of the
+    L-FIX-3 regression: the guard was correct and its only caller never fed
+    it anything to check against.
+    """
+    monkeypatch.setattr(settings, "OPENAI_API_KEY", "test-key")
+    sent: list[dict] = []
+
+    def install(*replies):
+        queue = list(replies)
+
+        async def fake_call(*, model, messages, tools, temperature):
+            sent.append({"messages": list(messages)})
+            return queue.pop(0) if queue else {"role": "assistant", "content": "ok"}
+
+        monkeypatch.setattr(ai_agent, "_call", fake_call)
+        return sent
+
+    return install
 
 
 def _listing(**over):
@@ -184,6 +277,259 @@ def test_user_written_text_reaches_the_model_truncated():
 
 
 # ---------------------------------------------------------------------------
+# The budget, in the words it was said in
+# ---------------------------------------------------------------------------
+def test_the_search_tool_takes_the_currency_it_was_told():
+    """The model reports which currency it heard; it does not convert.
+
+    Without this parameter the only way to express "1500$" is to convert it,
+    and a model converting at a rate it invented produces a budget nobody
+    stated. That is how a $1500 search came back with the whole catalogue in
+    it.
+    """
+    params = ai_tools.TOOLS["search_listings"].parameters["properties"]
+    assert params["price_currency"]["enum"] == ["UZS", "USD"]
+
+
+def test_the_search_tool_can_ask_for_sale_listings():
+    """Buying is a different question, not a wider rental search.
+
+    A sale price is the whole property and a rent price is one month, so a
+    tool that cannot say which one was meant can only answer one of them.
+    """
+    params = ai_tools.TOOLS["search_listings"].parameters["properties"]
+    assert params["deal_type"]["enum"] == ["RENT", "SALE", "ALL"]
+
+
+def test_the_model_is_told_not_to_convert_currency():
+    """The server owns the exchange rate, and the description has to say so.
+
+    A model left to do the arithmetic is the dropped budget arriving by a
+    different road: nothing downstream can tell 1500 dollars from 1500 so'm,
+    and the visitor is shown places at four times what they said.
+    """
+    params = ai_tools.TOOLS["search_listings"].parameters["properties"]
+    assert "Do not convert it" in params["max_price"]["description"]
+
+
+def test_the_currency_parameter_says_it_is_required_with_a_price():
+    """JSON Schema cannot require a field against a sibling, so the words must.
+
+    ``price_currency`` used to say "Defaults to UZS", which invited exactly
+    the call that broke: ``{"max_price": 1500}`` for a visitor who said
+    ``1500$``, read as a 1 500-so'm ceiling (D5). The handler now refuses to
+    assume, and the description has to stop promising that it will.
+    """
+    params = ai_tools.TOOLS["search_listings"].parameters["properties"]
+    description = params["price_currency"]["description"]
+    assert "REQUIRED whenever you pass max_price" in description
+    assert "no default" in description
+
+
+# ---------------------------------------------------------------------------
+# The budget the tool was handed — M2 (D5, D6), M3 (D7), R-FIX-3
+#
+# These drive ``_search_listings`` itself rather than the schema, because the
+# defects here all live in the handler: a currency it was not given, a
+# conversion it did or did not do, a number too small or too large to have
+# been anybody's housing budget. The database is stubbed out; what is being
+# tested is the arithmetic and the refusals in front of it.
+# ---------------------------------------------------------------------------
+_RATE = 12_700.0
+
+
+def _stub_search(monkeypatch, rows=(), relaxation="EXACT", district=None, total=0,
+                 reports=None):
+    """Replace the search with a recorder, and pin the exchange rate.
+
+    Returns a dict that holds the ``SearchIntent`` the handler built, which is
+    where every budget assertion below actually looks: the payload is what the
+    model reads, but the intent is what the search would have run on.
+    """
+    seen: dict = {}
+
+    async def fake_search(db, intent, *, limit=5):
+        seen["intent"] = intent
+        intent.matches = dict(reports or {})
+        return list(rows), relaxation, district, total
+
+    async def fake_rate():
+        return _RATE
+
+    monkeypatch.setattr(ai_tools.uyiz_ai, "search_for_intent", fake_search)
+    monkeypatch.setattr(ai_tools.fx, "usd_to_uzs", fake_rate)
+    monkeypatch.setattr(ai_tools.fx, "cached_rate", lambda: _RATE)
+    return seen
+
+
+def test_an_unknown_currency_is_refused_out_loud_not_read_as_som():
+    """"EUR" used to be a silent factor-of-13,000 error (D5).
+
+    Anything that is not UZS or USD fell straight through the ``== "USD"``
+    test and was searched as so'm, with no log and no rejection. The model can
+    recover from an error — it asks the visitor which they meant — and cannot
+    recover from a wrong answer it was never told about.
+    """
+    with pytest.raises(ToolError) as exc:
+        ai_tools._stated_currency({"price_currency": "EUR"})
+    assert "must be UZS or USD" in str(exc.value)
+
+
+@pytest.mark.parametrize("written", [" usd ", "usd", "Usd", "UZS ", " uzs"])
+def test_a_currency_written_sloppily_is_still_understood(written):
+    """Case and stray whitespace are not a reason to reject a valid currency.
+
+    ``"usd "`` with a trailing space was one of the strings that used to fall
+    through the equality test and become so'm, so the normalisation and the
+    rejection have to be the same step.
+    """
+    assert ai_tools._stated_currency({"price_currency": written}) in {"UZS", "USD"}
+
+
+async def test_a_budget_with_no_currency_is_read_from_what_the_visitor_typed(monkeypatch):
+    """The visitor's own sentence outranks the model's omission (D5).
+
+    A model that follows max_price's "pass 1500 for 1500$" and forgets
+    price_currency is a real call, not a hypothetical. Rather than assume
+    so'm, the handler re-reads what the person actually wrote — "1500$" says
+    which currency it is no matter what the model chose to forward.
+    """
+    seen = _stub_search(monkeypatch)
+    ctx = _ctx(said=["Chilonzorda 1500$ ga uy kere"])
+    await ai_tools._search_listings(ctx, {"district": "Chilonzor", "max_price": 1500})
+
+    intent = seen["intent"]
+    assert intent.max_price == round(1500 * _RATE)
+    assert intent.price_was_usd is True
+
+
+async def test_a_budget_with_no_currency_and_no_clue_is_dropped_and_confessed(monkeypatch):
+    """1500 so'm is not a budget, and searching on it silently is the bug.
+
+    With nothing in the visitor's words to settle it the handler reads the
+    number as so'm — and then the plausibility floor throws it away, because
+    nobody in Uzbekistan rents anything for 1 500 so'm. Both facts go into the
+    note so the reply asks instead of presenting the catalogue as a match.
+    """
+    seen = _stub_search(monkeypatch)
+    payload = await ai_tools._search_listings(_ctx(), {"district": "Chilonzor", "max_price": 1500})
+
+    assert seen["intent"].max_price is None
+    assert seen["intent"].price_was_usd is False
+    assert "Confirm the currency" in payload["note"]
+    assert "DROPPED" in payload["note"]
+
+
+async def test_a_purchase_budget_of_a_billion_survives_the_tool_path(monkeypatch):
+    """D6. ``_safe_float`` capped at 1e9 and ate every real sale budget.
+
+    ``ListingFilters`` was widened to MAX_SALE_UZS precisely because a billion
+    so'm is under the price of an ordinary Tashkent flat, but the helper this
+    path used was never widened with it — so "1.5 mlrd so'mga uy sotib
+    olmoqchiman" arrived correctly from the model and was thrown away here.
+    """
+    seen = _stub_search(monkeypatch)
+    await ai_tools._search_listings(
+        _ctx(),
+        {"max_price": 1_500_000_000, "price_currency": "UZS", "deal_type": "SALE"},
+    )
+    assert seen["intent"].max_price == 1_500_000_000
+    assert seen["intent"].deal_type == "SALE"
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        # Above MAX_SALE_UZS as stated, so ``_safe_money`` drops it...
+        {"max_price": 900_000_000_000, "price_currency": "UZS"},
+        # ...and above it only after conversion, which only the plausibility
+        # window catches. Both have to be confessed, not silently swallowed.
+        {"max_price": 50_000_000, "price_currency": "USD"},
+    ],
+)
+async def test_a_budget_the_listings_page_would_reject_never_reaches_the_search(
+    monkeypatch, args
+):
+    """The ceiling is shared with ``parse_money`` so the two cannot disagree.
+
+    Above MAX_PLAUSIBLE_BUDGET is a number ``ListingFilters`` would 422 on, so
+    a search that accepted it could never be mirrored into the listings page
+    behind the chat — and a ceiling that high matches every row, which is how
+    the whole catalogue gets presented as fitting a budget.
+    """
+    seen = _stub_search(monkeypatch)
+    payload = await ai_tools._search_listings(_ctx(), dict(args))
+    assert seen["intent"].max_price is None
+    assert "not a believable housing budget" in payload["note"]
+
+
+async def test_the_payload_says_the_budget_back_in_the_currency_it_was_heard_in(monkeypatch):
+    """M3/D7. ``price_was_usd`` had no reader, so the prompt rule had no data.
+
+    ``label_for`` renders so'm unconditionally, so without this block the
+    visitor who wrote "1500$" reads "19.1 mln so'm gacha" back — a different
+    question answered — and the model is left re-deriving the currency from
+    the raw message, which is the arithmetic this parameter exists to remove.
+    """
+    _stub_search(monkeypatch, rows=[_listing()])
+    payload = await ai_tools._search_listings(
+        _ctx(), {"district": "Chilonzor", "max_price": 1500, "price_currency": "USD"}
+    )
+
+    assert payload["budget"]["statedCurrency"] == "USD"
+    assert payload["budget"]["maxUzs"] == round(1500 * _RATE)
+    assert payload["budget"]["maxAsStated"] == 1500
+    assert "Never quote so'm" in payload["budget"]["note"]
+
+
+async def test_a_som_budget_is_reported_back_as_som(monkeypatch):
+    """The other half: the block must not turn every budget into dollars."""
+    _stub_search(monkeypatch, rows=[_listing()])
+    payload = await ai_tools._search_listings(
+        _ctx(), {"district": "Chilonzor", "max_price": 3_000_000, "price_currency": "UZS"}
+    )
+    assert payload["budget"]["statedCurrency"] == "UZS"
+    assert payload["budget"]["maxAsStated"] == 3_000_000
+
+
+async def test_a_search_with_no_budget_carries_no_budget_block(monkeypatch):
+    """A key that is present but empty is something the model will narrate."""
+    _stub_search(monkeypatch, rows=[_listing()])
+    payload = await ai_tools._search_listings(_ctx(), {"district": "Chilonzor", "rooms": 2})
+    assert "budget" not in payload
+
+
+async def test_the_payload_lets_the_model_tell_a_weak_match_from_a_strong_one(monkeypatch):
+    """R-FIX-3. ``totalMatching`` counts rows that scored at all.
+
+    The payload used to give the model no way to tell that apart from rows
+    that matched everything, so "12 apartments matching your criteria" was
+    written about twelve rows whose best score was 3 out of 12. maxScore and
+    bestMatchPercent are what make the count readable, and the note says so.
+    """
+    row = _listing()
+    reports = {
+        str(row.id): {
+            "matched": ["district"],
+            "missed": ["rooms", "max_price"],
+            "score": 3,
+            "maxScore": 12,
+            "matchPercent": 25,
+        }
+    }
+    _stub_search(monkeypatch, rows=[row], relaxation="PARTIAL", total=12, reports=reports)
+    payload = await ai_tools._search_listings(
+        _ctx(), {"district": "Chilonzor", "rooms": 2, "max_price": 3_000_000, "price_currency": "UZS"}
+    )
+
+    assert payload["totalMatching"] == 12
+    assert payload["maxScore"] == 12
+    assert payload["bestMatchPercent"] == 25
+    assert "AT LEAST ONE criterion" in payload["note"]
+    assert payload["listings"][0]["match"]["missedLabels"]
+
+
+# ---------------------------------------------------------------------------
 # Owner advice is measured, not imagined
 # ---------------------------------------------------------------------------
 def test_a_complete_listing_gets_no_invented_criticism():
@@ -305,8 +651,9 @@ def test_lead_capture_insists_on_a_number():
 
 async def test_a_guest_lead_without_a_name_is_refused():
     """Support cannot open a conversation with an anonymous number."""
+    ctx = _ctx(said=["raqamim 998901234567"])
     with pytest.raises(ToolError) as exc:
-        await ai_tools._capture_lead(_ctx(), {"phone": "998901234567"})
+        await ai_tools._capture_lead(ctx, {"phone": "998901234567"})
     assert "not signed in" in str(exc.value)
 
 
@@ -328,6 +675,484 @@ def test_the_confirmation_sentence_exists_in_every_language():
     assert "rahmat" in ai_tools.LEAD_CONFIRMATION["uz"]
     assert "Спасибо" in ai_tools.LEAD_CONFIRMATION["ru"]
     assert "Thank you" in ai_tools.LEAD_CONFIRMATION["en"]
+
+
+# ---------------------------------------------------------------------------
+# L-FIX-1 — a promise is only allowed when somebody was actually paged
+#
+# This is the original production failure wearing a different face. Telegram
+# refuses the send, nobody is paged, and the visitor is told support has their
+# details and will call shortly. They stop looking; nobody calls; the only
+# trace is one log line. The rest of the file tests refusals before the send —
+# these test what is said after one that did not happen.
+# ---------------------------------------------------------------------------
+def _stub_telegram(monkeypatch, *, ok: bool, detail: str = ""):
+    """Point the real send at a fake Telegram and count what leaves.
+
+    ``_capture_lead`` goes through ``telegram.send_lead_notification``
+    deliberately, so patching the transport rather than the sender keeps the
+    audit row, the configuration check and the delivery boolean on the path
+    under test. Returns the list of texts that reached ``_post``.
+    """
+    from app.core import audit
+    from app.services import telegram
+
+    sent: list[str] = []
+
+    async def fake_post(*, token, chat_id, text):
+        sent.append(text)
+        return ok, detail
+
+    async def fake_record(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(telegram, "_post", fake_post)
+    monkeypatch.setattr(
+        telegram,
+        "settings",
+        types.SimpleNamespace(
+            TELEGRAM_BOT_TOKEN="1234:test", telegram_chat_id="-1001234567890"
+        ),
+    )
+    monkeypatch.setattr(audit, "record", fake_record)
+    return sent
+
+
+async def test_a_rejected_telegram_send_never_promises_a_callback(monkeypatch):
+    """"chat not found" must not come out as "we will call you shortly".
+
+    Reproduced by making ``_post`` answer exactly what a group id that lost
+    its leading minus answers. The lead is still saved and still audited, so
+    the visitor is told the truth about that and nothing about a timeframe.
+    """
+    _stub_telegram(monkeypatch, ok=False, detail="Bad Request: chat not found")
+    ctx = _ctx(db=_FakeDb(), said=["raqamim 998901234567"])
+
+    result = await ai_tools._capture_lead(ctx, {"phone": "998901234567", "name": "Aziz"})
+
+    assert result["deliveredToTeam"] is False
+    assert result["sayToVisitor"] == ai_tools.LEAD_CONFIRMATION_UNDELIVERED["uz"]
+    assert result["sayToVisitor"] != ai_tools.LEAD_CONFIRMATION["uz"]
+    # Written down, not only logged: the operator desk shows this as a warning
+    # pill, which is the only way an undelivered lead ever gets acted on.
+    assert ctx.session.lead_delivered is False
+    assert ctx.session.lead_phone == "+998901234567"
+
+
+async def test_a_delivered_lead_gets_the_sentence_that_promises_the_call(monkeypatch):
+    """The negative test above must fail for the right reason.
+
+    Without this, ``_lead_sentence`` could return the cautious wording always
+    and the test above would still pass while every visitor was under-served.
+    """
+    sent = _stub_telegram(monkeypatch, ok=True)
+    ctx = _ctx(db=_FakeDb(), said=["raqamim 998901234567"])
+
+    result = await ai_tools._capture_lead(ctx, {"phone": "998901234567", "name": "Aziz"})
+
+    assert result["deliveredToTeam"] is True
+    assert result["sayToVisitor"] == ai_tools.LEAD_CONFIRMATION["uz"]
+    assert ctx.session.lead_delivered is True
+    assert len(sent) == 1
+
+
+def test_the_undelivered_sentence_exists_in_every_language_and_promises_no_time():
+    """It is the fallback for a failure, so a missing language is the failure.
+
+    A language absent from here would fall back to Uzbek for a Russian
+    speaker at the exact moment the conversation has already gone wrong.
+    """
+    assert set(ai_tools.LEAD_CONFIRMATION_UNDELIVERED) == {"uz", "ru", "en"}
+    assert ai_tools.LEAD_CONFIRMATION_UNDELIVERED["uz"] == (
+        "Ma'lumotlaringizni saqlab qo'ydik. Jamoamiz ularni ko'rib chiqib siz "
+        "bilan bog'lanadi. Murojaatingiz uchun rahmat!"
+    )
+    # No wording anywhere in the table may commit to a time, because nothing
+    # downstream is going to keep it.
+    for language, sentence in ai_tools.LEAD_CONFIRMATION_UNDELIVERED.items():
+        for timeframe in ("yaqin orada", "ближайшее время", "shortly"):
+            assert timeframe not in sentence, language
+
+
+@pytest.mark.parametrize("language", ["uz", "ru", "en"])
+def test_the_sentence_chosen_follows_delivery_in_every_language(language):
+    assert ai_tools._lead_sentence(language, True) == ai_tools.LEAD_CONFIRMATION[language]
+    assert (
+        ai_tools._lead_sentence(language, False)
+        == ai_tools.LEAD_CONFIRMATION_UNDELIVERED[language]
+    )
+
+
+# ---------------------------------------------------------------------------
+# L-FIX-2 — one lead per session, not one per tool call
+# ---------------------------------------------------------------------------
+async def test_two_capture_calls_in_one_turn_page_the_team_once(monkeypatch):
+    """``run_turn`` executes every entry in ``tool_calls``.
+
+    One assistant message carrying two ``capture_lead`` calls used to page the
+    team twice for one person, and the second page lands while an operator is
+    already dialling the first. The visitor still gets their confirmation both
+    times — the answer is the same, the notification is not repeated.
+    """
+    sent = _stub_telegram(monkeypatch, ok=True)
+    ctx = _ctx(db=_FakeDb(), said=["raqamim 998901234567"])
+    args = {"phone": "+998 90 123 45 67", "name": "Aziz"}
+
+    first = await ai_tools._capture_lead(ctx, args)
+    second = await ai_tools._capture_lead(ctx, args)
+
+    assert len(sent) == 1
+    assert second["alreadyRecorded"] is True
+    assert second["sayToVisitor"] == first["sayToVisitor"]
+
+
+async def test_a_repeat_of_an_undelivered_lead_repeats_the_cautious_sentence(monkeypatch):
+    """The second call must not quietly upgrade a promise the first refused.
+
+    Returning early is only safe if it returns the *same* answer; a dedupe
+    that defaulted to the optimistic wording would reintroduce L-FIX-1 on the
+    second call of the very turn that failed on the first.
+    """
+    _stub_telegram(monkeypatch, ok=False, detail="Unauthorized")
+    ctx = _ctx(db=_FakeDb(), said=["raqamim 998901234567"])
+    args = {"phone": "998901234567", "name": "Aziz"}
+
+    await ai_tools._capture_lead(ctx, args)
+    second = await ai_tools._capture_lead(ctx, args)
+
+    assert second["deliveredToTeam"] is False
+    assert second["sayToVisitor"] == ai_tools.LEAD_CONFIRMATION_UNDELIVERED["uz"]
+
+
+async def test_a_different_number_in_the_same_session_is_a_new_lead(monkeypatch):
+    """Correcting a mistyped digit is not a duplicate.
+
+    The dedupe is on the number, not on the session, because the commonest
+    reason to call this twice is that the first number was wrong — and that
+    lead has to reach the team.
+    """
+    sent = _stub_telegram(monkeypatch, ok=True)
+    ctx = _ctx(db=_FakeDb(), said=["998901234567 yoq, 998935554433"])
+
+    await ai_tools._capture_lead(ctx, {"phone": "998901234567", "name": "Aziz"})
+    await ai_tools._capture_lead(ctx, {"phone": "998935554433", "name": "Aziz"})
+
+    assert len(sent) == 2
+
+
+# ---------------------------------------------------------------------------
+# L-FIX-3 — the number has to be the visitor's own
+# ---------------------------------------------------------------------------
+async def test_a_number_lifted_from_a_listing_is_not_the_visitors(monkeypatch):
+    """Listing descriptions reach the model, so landlords' numbers do too.
+
+    A landlord's number typed into a description can be picked out of the
+    context and paged as though the visitor had offered it: a stranger gets a
+    support call about a flat they never advertised for, and the person who
+    actually wanted one is never called.
+    """
+    _stub_telegram(monkeypatch, ok=True)
+    ctx = _ctx(db=_FakeDb(), said=["Chilonzorda arzon uy bormi?"])
+
+    with pytest.raises(ToolError) as exc:
+        await ai_tools._capture_lead(ctx, {"phone": "998935554433", "name": "Aziz"})
+    assert "did not come from the visitor" in str(exc.value)
+
+
+@pytest.mark.parametrize(
+    "typed",
+    [
+        "mening raqamim +998 93 555 44 33",
+        "93 555 44 33 ga qo'ng'iroq qiling",
+        "998935554433",
+        "(93) 555-44-33",
+    ],
+)
+async def test_the_number_the_visitor_typed_is_accepted_however_they_spaced_it(
+    monkeypatch, typed
+):
+    """People write a phone number a dozen ways and all of them are the same.
+
+    The comparison is on digits alone for exactly this reason; a guard that
+    demanded one spelling would refuse most real visitors and teach the model
+    to stop calling the tool.
+    """
+    _stub_telegram(monkeypatch, ok=True)
+    ctx = _ctx(db=_FakeDb(), said=["Chilonzorda uy kere", typed])
+
+    result = await ai_tools._capture_lead(ctx, {"phone": "998935554433", "name": "Aziz"})
+    assert result["recorded"] is True
+
+
+async def test_a_signed_in_visitors_own_account_number_is_always_theirs(monkeypatch):
+    """They asked us to use the number on their account, and never typed it.
+
+    Refusing that would break the commonest polite case — "use the number you
+    already have" — so the account number is a second source of truth beside
+    the transcript.
+    """
+    _stub_telegram(monkeypatch, ok=True)
+    ctx = _ctx(viewer=_user(), db=_FakeDb(), said=["iltimos qo'ng'iroq qiling"])
+
+    result = await ai_tools._capture_lead(ctx, {"phone": "998901234567"})
+    assert result["recorded"] is True
+
+
+async def test_a_caller_that_supplied_no_transcript_is_refused_not_trusted(monkeypatch):
+    """The guard fails closed. An empty transcript proves nothing.
+
+    This is the round-3 regression itself: the field defaulted to ``()``,
+    ``run_turn`` never passed it, and "unknown" was read as "fine" — so the
+    guard was live in the source and dead in production, and a landlord's
+    number went through exactly as it had before. Refusing here means that the
+    day somebody adds a second caller and forgets the transcript, lead capture
+    breaks loudly instead of paging strangers quietly.
+    """
+    sent = _stub_telegram(monkeypatch, ok=True)
+    ctx = _ctx(db=_FakeDb())
+    assert ctx.visitor_messages == ()
+
+    with pytest.raises(ToolError) as exc:
+        await ai_tools._capture_lead(ctx, {"phone": "998935554433", "name": "Aziz"})
+    assert "did not come from the visitor" in str(exc.value)
+    assert sent == []
+    assert ctx.session.lead_phone is None
+
+
+async def test_the_account_number_is_the_one_way_past_an_empty_transcript(monkeypatch):
+    """The narrow exemption, written down so it stays narrow.
+
+    "Use the number you already have" is a real and polite request, and the
+    person making it is signed in — their account is a second source of truth
+    beside the transcript. It is the only one: every other number has to have
+    been typed by the visitor.
+    """
+    sent = _stub_telegram(monkeypatch, ok=True)
+    ctx = _ctx(viewer=_user(), db=_FakeDb())
+    assert ctx.visitor_messages == ()
+
+    result = await ai_tools._capture_lead(ctx, {"phone": "998901234567"})
+    assert result["recorded"] is True
+    assert len(sent) == 1
+
+
+# ---------------------------------------------------------------------------
+# L-FIX-3 where it actually broke: the guard is only as good as its caller
+#
+# The rule above was written correctly in round 2 and never once ran in
+# production, because ``run_turn`` — the only place a ToolContext is built
+# outside tests — did not pass the transcript. These three tests are about
+# the wiring rather than the rule.
+# ---------------------------------------------------------------------------
+async def test_run_turn_hands_the_guard_what_the_visitor_typed_this_turn(
+    scripted, monkeypatch
+):
+    """The visitor's own words reach the tools, and only theirs.
+
+    Two things are asserted together because they broke together: the current
+    message has to be in there — it is not in ``history`` yet, and the
+    commonest capture of all is somebody typing their number and the model
+    calling the tool in the same turn — and an operator's turn must not be,
+    since ``ai.py`` relabels those as assistant rows and an operator is not
+    the visitor.
+    """
+    seen: list = []
+    real_execute = ai_tools.execute
+
+    async def spy(ctx, name, args):
+        seen.append(ctx)
+        return await real_execute(ctx, name, args)
+
+    monkeypatch.setattr(ai_agent.ai_tools, "execute", spy)
+    _stub_telegram(monkeypatch, ok=True)
+    scripted(
+        _wants("capture_lead", {"phone": "998935554433", "name": "Aziz"}),
+        {"role": "assistant", "content": "Qabul qilindi."},
+    )
+
+    await ai_agent.run_turn(
+        db=_LoopDb(), viewer=None, session=_session(),
+        message="raqamim +998 93 555 44 33, ismim Aziz",
+        history=[
+            {"role": "user", "content": "Chilonzorda uy bormi?"},
+            {
+                "role": "assistant",
+                "content": "[Uyiz operator]: 998 99 000 11 22 ga qo'ng'iroq qiling",
+            },
+        ],
+        language="uz", user_name=None, is_first_turn=False, shown_ids=[],
+    )
+
+    assert seen, "the tool never ran"
+    assert seen[0].visitor_messages == (
+        "Chilonzorda uy bormi?",
+        "raqamim +998 93 555 44 33, ismim Aziz",
+    )
+
+
+async def test_the_number_typed_in_the_same_turn_is_captured(scripted, monkeypatch):
+    """The commonest lead there is, driven end to end.
+
+    The visitor types their number and the model calls the tool before that
+    message has ever been part of ``history``. A guard fed only the history
+    would refuse exactly this, which is a worse failure than the hole it
+    closes — so it is pinned here and not left to the wiring test above.
+    """
+    sent = _stub_telegram(monkeypatch, ok=True)
+    session = _session()
+    scripted(
+        _wants("capture_lead", {"phone": "998935554433", "name": "Aziz"}),
+        {"role": "assistant", "content": "Qabul qilindi."},
+    )
+
+    outcome = await ai_agent.run_turn(
+        db=_LoopDb(), viewer=None, session=session,
+        message="Menga bog'laning, raqamim 93 555 44 33, ismim Aziz",
+        history=[], language="uz", user_name=None, is_first_turn=False,
+        shown_ids=[],
+    )
+
+    assert "capture_lead" in outcome.actions
+    assert session.lead_phone == "+998935554433"
+    assert len(sent) == 1
+
+
+async def test_a_landlords_number_from_a_listing_never_pages_the_team(
+    scripted, monkeypatch
+):
+    """The attack the reviewer reproduced, run through the real caller.
+
+    A publisher writes their number into a description, the description
+    reaches the model, and the model offers it to ``capture_lead`` as though
+    the visitor had given it. Before the transcript was wired in this paged
+    the team with a stranger's number and wrote it onto the session; now the
+    refusal goes back to the model as a sentence it can act on.
+    """
+    sent = _stub_telegram(monkeypatch, ok=True)
+    session = _session()
+    replies = scripted(
+        _wants("capture_lead", {"phone": "998935554433", "name": "Aziz"}),
+        {"role": "assistant", "content": "Raqamingizni yozib bering."},
+    )
+
+    outcome = await ai_agent.run_turn(
+        db=_LoopDb(), viewer=None, session=session,
+        message="Chilonzorda arzon uy bormi?",
+        history=[], language="uz", user_name=None, is_first_turn=False,
+        shown_ids=[],
+    )
+
+    assert sent == [], "a stranger was paged as the visitor"
+    assert session.lead_phone is None
+    assert "capture_lead" not in outcome.actions
+    tool_replies = [m for m in replies[1]["messages"] if m.get("role") == "tool"]
+    assert "did not come from the visitor" in tool_replies[0]["content"]
+
+
+# ---------------------------------------------------------------------------
+# L-FIX-2, second half — a correction must not destroy the first lead
+#
+# Two calls with different numbers used to overwrite lead_name/lead_phone and
+# page again, and the first person then existed nowhere the panel can read:
+# the session holds one lead, and the audit row carried no phone at all. A
+# second, different number is a correction, and a correction is additive.
+# ---------------------------------------------------------------------------
+def _stub_audit(monkeypatch):
+    """Collect the lead rows ``_capture_lead`` writes.
+
+    Only the lead ones: the Telegram send audits itself as TELEGRAM_NOTIFIED
+    through the same function, and those rows are not what is under test.
+    """
+    from app.core import audit
+    from app.models.enums import AuditAction
+
+    rows: list[dict] = []
+
+    async def fake_record(db, action, **kwargs):
+        if action == AuditAction.AI_LEAD_CAPTURED:
+            rows.append({"action": action, **kwargs})
+
+    monkeypatch.setattr(audit, "record", fake_record)
+    return rows
+
+
+async def test_a_corrected_number_pages_again_and_says_it_is_a_correction(monkeypatch):
+    """The team must not get two leads with no way to tell them apart.
+
+    An operator reading two "YANGI MUROJAAT" pages a second apart dials both,
+    and one of those two people has no idea why. The second page names the
+    number it replaces, so the desk closes the first instead of chasing it.
+    """
+    sent = _stub_telegram(monkeypatch, ok=True)
+    ctx = _ctx(db=_FakeDb(), said=["998901234567 yoq, 998935554433"])
+
+    await ai_tools._capture_lead(ctx, {"phone": "998901234567", "name": "Aziz"})
+    second = await ai_tools._capture_lead(ctx, {"phone": "998935554433", "name": "Aziz"})
+
+    assert len(sent) == 2
+    assert second["corrected"] is True
+    assert second["correctedFrom"] == "+998 90 123 45 67"
+    assert "TUZATISH" in sent[1]
+    assert "+998 90 123 45 67" in sent[1], "the page never named the number it replaces"
+
+
+async def test_the_first_number_survives_the_correction_on_the_session(monkeypatch):
+    """The panel reads four columns; a bare overwrite loses a whole person.
+
+    ``AdminAiSessionRow`` shows lead_name, lead_phone, lead_note and the
+    timestamp, so a second number that simply replaced the first left the
+    first visitor uncontactable from anywhere an operator can look. The note
+    is where the replaced lead goes: it is the one column that can hold it and
+    it is already on the row.
+    """
+    _stub_telegram(monkeypatch, ok=True)
+    ctx = _ctx(db=_FakeDb(), said=["998901234567 yoq, 998935554433"])
+
+    await ai_tools._capture_lead(
+        ctx, {"phone": "998901234567", "name": "Aziz", "note": "Chilonzor, 2 xona"}
+    )
+    await ai_tools._capture_lead(ctx, {"phone": "998935554433", "name": "Aziz"})
+
+    assert ctx.session.lead_phone == "+998935554433"
+    assert "+998 90 123 45 67" in ctx.session.lead_note
+    assert "Chilonzor, 2 xona" in ctx.session.lead_note
+
+
+async def test_both_numbers_are_recoverable_from_the_audit_trail(monkeypatch):
+    """The durable record, since the session only has room for one lead.
+
+    The audit row used to carry the name and nothing else, so a corrected
+    lead was gone from every store the company keeps. Each capture now writes
+    its own phone, and a correction writes the one it replaced beside it.
+    """
+    _stub_telegram(monkeypatch, ok=True)
+    rows = _stub_audit(monkeypatch)
+    ctx = _ctx(db=_FakeDb(), said=["998901234567 yoq, 998935554433"])
+
+    await ai_tools._capture_lead(ctx, {"phone": "998901234567", "name": "Aziz"})
+    await ai_tools._capture_lead(ctx, {"phone": "998935554433", "name": "Aziz"})
+
+    assert [r["meta"]["phone"] for r in rows] == [
+        "+998 90 123 45 67",
+        "+998 93 555 44 33",
+    ]
+    assert rows[1]["meta"]["correctionOf"] == "+998 90 123 45 67"
+
+
+async def test_a_correction_may_reuse_the_name_already_given(monkeypatch):
+    """A corrected number with no name must not be refused.
+
+    The model has already sent the name once this session; making it repeat
+    itself is how a corrected number ends up reaching nobody at all.
+    """
+    sent = _stub_telegram(monkeypatch, ok=True)
+    ctx = _ctx(db=_FakeDb(), said=["998901234567 yoq, 998935554433"])
+
+    await ai_tools._capture_lead(ctx, {"phone": "998901234567", "name": "Aziz"})
+    second = await ai_tools._capture_lead(ctx, {"phone": "998935554433"})
+
+    assert second["name"] == "Aziz"
+    assert len(sent) == 2
 
 
 # ---------------------------------------------------------------------------
@@ -503,6 +1328,53 @@ def test_the_prompt_forbids_asking_permission_before_capturing_a_lead():
         language="uz", viewer=None, user_name=None, is_first_turn=False, summary=None
     )
     assert "Do not ask permission to send it" in prompt
+
+
+def test_the_prompt_separates_renting_from_buying():
+    """A rental is not a cheaper version of a sale.
+
+    Flattened: the prompt is hard-wrapped, so this rule falls across a line
+    break and a literal search would miss a rule that is present.
+    """
+    prompt = " ".join(
+        ai_agent.build_system_prompt(
+            language="uz", viewer=None, user_name=None,
+            is_first_turn=False, summary=None,
+        ).split()
+    )
+    assert "never offer a rental to somebody who asked to buy" in prompt
+
+
+def test_the_prompt_refuses_to_widen_a_budget_silently():
+    """The reported bug: someone asked for a home at 1500$ and got everything.
+
+    Reading the number is the parser's job. This is the other half: when
+    nothing is inside the budget, saying so beats quietly showing what is
+    above it, because a listing over the ceiling presented without comment
+    reads as an answer to a question nobody asked.
+    """
+    prompt = " ".join(
+        ai_agent.build_system_prompt(
+            language="uz", viewer=None, user_name=None,
+            is_first_turn=False, summary=None,
+        ).split()
+    )
+    assert "Never quietly widen a budget" in prompt
+
+
+def test_the_reply_ceiling_is_a_chat_bubble():
+    """"ai juda kop yozvordi" -- the other half of the same report.
+
+    The prompt asks for three sentences; the ceiling is what holds when the
+    model ignores it. A phone screen is a bubble, not a document, and the
+    listing cards underneath already carry the photo, district, rooms and
+    price the prose kept repeating.
+    """
+    prompt = ai_agent.build_system_prompt(
+        language="uz", viewer=None, user_name=None, is_first_turn=False, summary=None
+    )
+    assert ai_agent.MAX_REPLY_CHARS <= 700
+    assert "Under 400 characters" in prompt
 
 
 # ---------------------------------------------------------------------------

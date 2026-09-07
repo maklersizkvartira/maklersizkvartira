@@ -17,7 +17,6 @@ from app.core.rate_limit import enforce
 from app.core.security import generate_token
 from app.models.ai import AIMessage, AISession
 from app.models.enums import AuditAction, UserRole
-from app.models.user import AdminUser
 from app.schemas.common import CamelModel
 from app.schemas.listing import ListingOut
 from app.services import ai_agent
@@ -211,11 +210,13 @@ async def assistant(
         # operator reads this row in the admin chat desk within seconds. The
         # empty ``reply`` is the wire signal for "no bubble" — the widget
         # renders the handover banner instead of an empty AI message.
-        operator_name = (
-            await db.execute(
-                select(AdminUser.full_name).where(AdminUser.id == session.taken_over_by)
-            )
-        ).scalar_one_or_none()
+        #
+        # H-FIX-3: the operator's name is deliberately NOT sent. A staff
+        # member's legal name has no business reaching an anonymous visitor,
+        # and the widget already labels the bubble with the generic
+        # ``assistant.chat.operator`` ("Uyiz jamoasi"). The field is gone from
+        # this response and from ``_finish`` rather than nulled, so nobody can
+        # start reading it again by accident.
         db.add(AIMessage(session_id=session.id, role="user", content=payload.message))
         session.message_count += 1
         await db.flush()
@@ -229,7 +230,6 @@ async def assistant(
             "steps": [],
             "awaitingConfirmation": False,
             "handledByHuman": True,
-            "operatorName": operator_name,
             "sessionKey": session.session_key,
             "used": used + 1,
             "limit": 0 if unlimited else DAILY_LIMIT,
@@ -237,14 +237,35 @@ async def assistant(
             "unlimited": unlimited,
         }
 
-    history_rows = (
-        await db.execute(
-            select(AIMessage)
-            .where(AIMessage.session_id == session.id)
-            .order_by(AIMessage.created_at.asc())
-            .limit(20)
+    # The newest twenty rows, not the oldest twenty (H-FIX-8). This read used
+    # to be ``asc().limit(20)``, which kept rows 1-20 of a long conversation
+    # and threw away everything recent: a thread an operator joined at message
+    # 24 resumed with a window containing no operator turn at all, so the model
+    # cheerfully contradicted what the person had just promised. Ordered
+    # descending in SQL and reversed here, so ``history`` is still oldest-first
+    # for the API.
+    #
+    # Ordered by ``seq`` and not by ``created_at``. ``created_at`` defaults to
+    # Postgres ``now()``, which is the transaction timestamp, so the visitor
+    # row written below and the assistant row written in ``_finish`` — one
+    # transaction — carry identical values. DESC returned each tied pair in
+    # heap order and the ``reversed()`` flipped it, handing the model its own
+    # reply BEFORE the question it answered: 4 of 10 turns inverted in the
+    # reproduction that found this. ``seq`` is an identity column, assigned at
+    # INSERT and not at COMMIT, so it is a real total order and reversing it
+    # is both correct and stable.
+    history_rows = list(
+        reversed(
+            (
+                await db.execute(
+                    select(AIMessage)
+                    .where(AIMessage.session_id == session.id)
+                    .order_by(AIMessage.seq.desc())
+                    .limit(20)
+                )
+            ).scalars().all()
         )
-    ).scalars().all()
+    )
     is_first_turn = len(history_rows) == 0
     # An operator's turn is a real part of the conversation and the model must
     # see it — but "admin" is not a role the Chat Completions API accepts, and
@@ -504,13 +525,14 @@ async def _finish(
             if step.get("label")
         ],
         "awaitingConfirmation": bool(pending),
-        # Every turn that reaches here was written by the model, so these two
-        # are constants — but they are sent on every reply all the same. The
-        # widget reads them to decide whether the handover banner stays up,
-        # and a key that appears only sometimes leaves it stuck on the banner
-        # for the rest of the conversation after an operator hands back.
+        # Every turn that reaches here was written by the model, so this is a
+        # constant — but it is sent on every reply all the same. The widget
+        # reads it to decide whether the handover banner stays up, and a key
+        # that appears only sometimes leaves it stuck on the banner for the
+        # rest of the conversation after an operator hands back. There is no
+        # ``operatorName`` beside it any more (H-FIX-3): the widget labels an
+        # operator's bubble "Uyiz jamoasi" and never learns who wrote it.
         "handledByHuman": False,
-        "operatorName": None,
         "sessionKey": session.session_key,
         "used": used + 1,
         "limit": 0 if unlimited else DAILY_LIMIT,
@@ -533,19 +555,42 @@ async def history(
         await db.execute(select(AISession).where(AISession.session_key == session_key))
     ).scalar_one_or_none()
     if session is None:
-        return {"status": "success", "messages": [], "sessionKey": session_key}
+        # ``handledByHuman`` is spelled out even here. The widget decides the
+        # banner from this key on every poll, and one that is present on some
+        # responses and absent on others is how a banner gets stuck.
+        return {
+            "status": "success",
+            "messages": [],
+            "sessionKey": session_key,
+            "handledByHuman": False,
+        }
 
     if session.user_id is not None and (viewer is None or viewer.id != session.user_id):
         raise Forbidden("forbidden")
 
-    rows = (
-        await db.execute(
-            select(AIMessage)
-            .where(AIMessage.session_id == session.id)
-            .order_by(AIMessage.created_at.asc())
-            .limit(100)
+    # The newest hundred rows, oldest-first — the same shape as the model's
+    # window above, and for the same reason. This was ``asc().limit(100)``,
+    # the oldest hundred, which froze the visitor's own transcript: the
+    # widget's poll decides what is new purely from this array, so once a
+    # session reached 100 rows the array stopped changing and nothing an
+    # operator wrote ever reached the visitor again — while the handover
+    # banner kept telling them a person was answering. That is reachable
+    # exactly when it hurts most, because a thread an operator holds skips the
+    # daily quota and only the 30/hour limiter is left, so an afternoon of
+    # live support crosses a hundred rows. Ordered by ``seq`` so the two rows
+    # of one turn cannot come back reversed.
+    rows = list(
+        reversed(
+            (
+                await db.execute(
+                    select(AIMessage)
+                    .where(AIMessage.session_id == session.id)
+                    .order_by(AIMessage.seq.desc())
+                    .limit(100)
+                )
+            ).scalars().all()
         )
-    ).scalars().all()
+    )
 
     used = await _used_today(db, viewer=viewer, ctx=ctx)
     unlimited = _is_unlimited(viewer)
@@ -554,12 +599,26 @@ async def history(
         "sessionKey": session_key,
         "messages": [
             {
+                # A stable key for the widget's poll (H-FIX-1). It used to
+                # reconcile the transcript by counting rows, which an operator
+                # writing between two polls desynchronised for good; it now
+                # de-duplicates on identity, and a real id is a stronger key
+                # than createdAt+role, which two rows of one turn can share.
+                "id": str(m.id),
                 "role": m.role,
                 "content": m.content,
                 "createdAt": m.created_at.isoformat(),
             }
             for m in rows
         ],
+        # H-FIX-3: the poll is the only thing that runs while a visitor is
+        # reading, so the handover banner has to come from here. Without it the
+        # banner appeared only after the visitor happened to send a message —
+        # they were never told the machine had stopped and a person had taken
+        # over, which is the entire point of the banner. The operator's name is
+        # deliberately absent: an anonymous visitor gets the generic "Uyiz
+        # jamoasi" label, not a staff member's legal name.
+        "handledByHuman": session.taken_over_by is not None,
         "limit": 0 if unlimited else DAILY_LIMIT,
         "remaining": 0 if unlimited else max(0, DAILY_LIMIT - used),
     }
@@ -587,11 +646,14 @@ async def close_assistant(
     if session.taken_over_by is not None:
         return {"status": "success"}
 
+    # ``seq`` rather than ``created_at``: the summary below joins the visitor's
+    # turns in the order they were said, and ``created_at`` cannot tell two
+    # rows of one transaction apart.
     messages = (
         await db.execute(
             select(AIMessage)
             .where(AIMessage.session_id == session.id)
-            .order_by(AIMessage.created_at.asc())
+            .order_by(AIMessage.seq.asc())
             .limit(60)
         )
     ).scalars().all()
