@@ -26,7 +26,6 @@ export const assistant = {
     you: 'You',
     operator: 'Uyiz team',
     handover: 'Someone from our team has joined. They’ll be answering you now.',
-    handoverNamed: '{name} has joined the conversation and will answer you now.',
     inputLabel: 'Message to Uyiz AI',
     inputPlaceholder: 'Chilonzor, up to 3 million...',
     inputThinking: 'Uyiz AI is thinking...',
@@ -58,6 +57,9 @@ export const assistant = {
     viewAllResults: 'View all apartments',
     startFailed: 'Could not start the conversation. Please try again.',
     replyFailed: 'Could not get a reply. Please try again.',
+    /** The message never reached the server — shown on the bubble itself. */
+    notSent: 'Not sent',
+    retrySend: 'Send again',
     networkFailed: 'Network error. Check your internet connection.',
   },
 

@@ -30,8 +30,11 @@ export const assistant = {
     you: 'Siz',
     /** Suhbatni AI dan olib ketgan jonli operator. Mashina emas, odam. */
     operator: 'Uyiz jamoasi',
+    /**
+     * Operator ismi ataylab yo‘q — xodimning haqiqiy ismi noma’lum
+     * mehmonga ko‘rinmasligi kerak (H-FIX-3).
+     */
     handover: 'Suhbatga jamoamiz xodimi qo‘shildi. Endi u sizga javob beradi.',
-    handoverNamed: 'Suhbatga {name} qo‘shildi. Endi u sizga javob beradi.',
     inputLabel: 'Uyiz AI ga xabar',
     inputPlaceholder: 'Chilonzordan 3 mlnga...',
     inputThinking: 'Uyiz AI o‘ylamoqda...',
@@ -64,6 +67,9 @@ export const assistant = {
     viewAllResults: 'Barcha kvartiralarni ko‘rish',
     startFailed: 'Suhbatni boshlab bo‘lmadi. Qayta urinib ko‘ring.',
     replyFailed: 'Javob olib bo‘lmadi. Iltimos, qaytadan urinib ko‘ring.',
+    /** Xabar serverga yetib bormadi — pufakchaning o‘zida ko‘rinadi. */
+    notSent: 'Yuborilmadi',
+    retrySend: 'Qayta yuborish',
     networkFailed: 'Tarmoq xatosi. Internet aloqangizni tekshiring.',
   },
 

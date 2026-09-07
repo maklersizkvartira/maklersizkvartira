@@ -272,6 +272,17 @@ export const AssistantApi = {
       '/smart/assistant/session',
     ),
 
+  /**
+   * One turn of the conversation.
+   *
+   * There is deliberately no client message id in this payload, and adding one
+   * is not a small change: `AssistantRequest` is a `CamelModel`, which is
+   * `extra="forbid"`, so an unrecognised field 422s the whole send rather than
+   * being ignored. The widget's idempotency key therefore stays in the browser
+   * and the duplicate a retry would otherwise cause is settled against
+   * `history` instead — see `planRetry` in AiMascot.tsx. Real server-side
+   * idempotency needs the route and the schema to accept the key first.
+   */
   send: (sessionKey: string, message: string, userName?: string) =>
     http.post<{
       status: string;
@@ -312,13 +323,12 @@ export const AssistantApi = {
        * operator's own answer arrives through the history poll instead.
        * Appending a bubble for the empty reply would put a blank box on
        * screen every time the visitor writes to a person.
+       *
+       * There is deliberately no `operatorName` beside it. The server stopped
+       * sending one: a staff member's legal name has no business reaching an
+       * anonymous visitor, and the banner names the team instead.
        */
       handledByHuman?: boolean;
-      /**
-       * The operator's name, for the handover banner. Null when the account
-       * has none recorded — the banner falls back to naming the team.
-       */
-      operatorName?: string | null;
       sessionKey: string;
       used: number;
       limit: number;
@@ -329,10 +339,41 @@ export const AssistantApi = {
   // re-reads the transcript every few seconds while the panel is open, and a
   // request left in flight after the panel closes resolves into a component
   // that is no longer listening.
+  //
+  // The widget also calls this on demand, without a signal, before it retries
+  // a failed message: `send` is not idempotent server-side, and http.ts aborts
+  // at 20s while a multi-tool turn regularly commits and keeps going, so a
+  // retry that has not checked the transcript first is a duplicated message
+  // in the normal case rather than the exotic one.
   history: (sessionKey: string, options?: { signal?: AbortSignal }) =>
     http.get<{
-      /** `admin` appears once an operator has taken the conversation over. */
-      messages: Array<{ role: string; content: string; createdAt: string }>;
+      messages: Array<{
+        /**
+         * The transcript row's own id, and the only safe way to tell an
+         * already-rendered message from a new one (H-FIX-1).
+         *
+         * The widget used to count: it advanced a cursor by the number of
+         * rows a turn had written and then used that number as an absolute
+         * index into this array. An operator writing between two five-second
+         * polls breaks that by construction — their message was skipped
+         * forever and the visitor's own message was rendered a second time.
+         * Identity does not slide the way a count does.
+         */
+        id: string;
+        /** `admin` appears once an operator has taken the conversation over. */
+        role: string;
+        content: string;
+        createdAt: string;
+      }>;
+      /**
+       * An operator is holding this thread right now.
+       *
+       * It is on the *history* response and not only on `send` because the
+       * banner has to appear while the visitor is reading, not only after
+       * they happen to type something (H-FIX-3). No operator name comes with
+       * it, on purpose — see `send` above.
+       */
+      handledByHuman?: boolean;
       limit: number;
       remaining: number;
     }>('/smart/assistant/history', {
