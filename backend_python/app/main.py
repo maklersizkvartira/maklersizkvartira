@@ -1,4 +1,4 @@
-"""FastAPI application factory."""
+"""FastAPI application factory for Uyiz.uz backend API (v1.0.2)."""
 
 from __future__ import annotations
 
