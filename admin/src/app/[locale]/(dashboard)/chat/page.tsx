@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import {
+  AlertTriangle,
   ArrowLeft,
   Bot,
   Loader2,
@@ -132,6 +133,29 @@ export default function ChatPage() {
 
   const selectedId = selected?.id ?? null;
 
+  /**
+   * Which thread is on screen right now, readable from a mutation callback.
+   *
+   * H-FIX-9: takeover, release and send each resolve a round trip later, and
+   * their callbacks wrote state unconditionally. An operator who moved on to
+   * another conversation while one was in flight was yanked back to the thread
+   * they had left (`setSelected(row)`), or had the reply they had just started
+   * typing in the new one wiped out (`setReply('')`). Every callback below
+   * compares the thread the mutation started on — which is the id it was
+   * called with — against this ref, and touches no state when they differ.
+   *
+   * It is a ref rather than the `selectedId` those callbacks close over
+   * because react-query captures a mutation's options at `mutate()` time: the
+   * `onSuccess` that eventually runs is the one from the render that fired it,
+   * and its `selectedId` is by definition the thread the operator has since
+   * left. Written from an effect, not during render — the commit that changes
+   * the selection lands long before any in-flight request resolves.
+   */
+  const selectedIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
+
   const conversations = useQuery({
     // The filter is in the key, so switching tabs is a different cache entry
     // rather than a refetch that briefly shows the previous tab's rows.
@@ -158,7 +182,17 @@ export default function ChatPage() {
   const messages = useQuery({
     queryKey: ['ai-messages', selectedId],
     queryFn: ({ signal }) =>
-      http.get<AdminAiMessageRow[]>(api.ai.sessionMessages(selectedId!), { signal }),
+      http.get<AdminAiMessageRow[]>(
+        // `mark_read` is opt-in and snake_case — a bare route parameter, so
+        // `markRead` would be dropped by FastAPI and the thread would stay
+        // unread forever. This screen is the one place where opening a
+        // conversation genuinely means an operator has read it, so it is the
+        // one caller that asks for the write; `/ai`'s read-only transcript
+        // sheet leaves it off and no longer zeroes this desk's unread badges
+        // just because someone audited a session (H-FIX-6).
+        api.ai.sessionMessages(selectedId!, { mark_read: true }),
+        { signal },
+      ),
     enabled: selectedId !== null,
     refetchInterval: THREAD_POLL_MS,
     refetchIntervalInBackground: false,
@@ -182,6 +216,13 @@ export default function ChatPage() {
 
   const heldByMe = Boolean(thread?.takenOverBy && thread.takenOverBy === myAdminId);
   const heldByOther = Boolean(thread?.takenOverBy && thread.takenOverBy !== myAdminId);
+
+  /**
+   * The lead on this thread was captured but never reached the Telegram group
+   * (L-FIX-1). Strictly `=== false`: `null` means there is no lead, or the
+   * session predates the column, and neither is a warning.
+   */
+  const leadUndelivered = thread?.leadDelivered === false;
 
   const clock = useMemo(
     () => new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }),
@@ -216,11 +257,15 @@ export default function ChatPage() {
 
   const takeover = useMutation({
     mutationFn: (sessionId: string) => http.post<AdminAiSessionRow>(api.ai.takeover(sessionId)),
-    onSuccess: (row) => {
-      setSelected(row);
+    onSuccess: (row, startedOn) => {
       toast.success(t('takenOver'));
+      // The invalidations run either way — the thread really is ours now and
+      // both lists are stale wherever the operator happens to be looking.
+      // Only the pane state is guarded (H-FIX-9).
       void queryClient.invalidateQueries({ queryKey: ['ai-conversations'] });
       void queryClient.invalidateQueries({ queryKey: ['ai-messages', row.id] });
+      if (selectedIdRef.current !== startedOn) return;
+      setSelected(row);
     },
     onError: (error) => {
       // 409 is another desk getting there first, not a failure of ours. The
@@ -237,11 +282,12 @@ export default function ChatPage() {
 
   const release = useMutation({
     mutationFn: (sessionId: string) => http.post<AdminAiSessionRow>(api.ai.release(sessionId)),
-    onSuccess: (row) => {
-      setSelected(row);
+    onSuccess: (row, startedOn) => {
       toast.success(t('released'));
       void queryClient.invalidateQueries({ queryKey: ['ai-conversations'] });
       void queryClient.invalidateQueries({ queryKey: ['ai-messages', row.id] });
+      if (selectedIdRef.current !== startedOn) return;
+      setSelected(row);
     },
     onError: () => toast.error(c('error')),
   });
@@ -250,8 +296,11 @@ export default function ChatPage() {
     mutationFn: ({ sessionId, content }: { sessionId: string; content: string }) =>
       http.post<AdminAiMessageRow>(api.ai.sendMessage(sessionId), { content }),
     onSuccess: (_message, variables) => {
-      setReply('');
       toast.success(t('sent'));
+      // The composer belongs to whatever thread is open now. Clearing it after
+      // the operator has switched away throws out a reply they are part-way
+      // through writing to somebody else (H-FIX-9).
+      if (selectedIdRef.current === variables.sessionId) setReply('');
       // Invalidated, never appended. With a 3s poll running, an optimistic
       // append has to de-duplicate by id — and the moment that is done by
       // count instead, the local total runs permanently ahead of the server's
@@ -522,6 +571,31 @@ export default function ChatPage() {
                             {formatPhone(row.leadPhone)}
                           </span>
                         )}
+                        {/* L-FIX-1. `leadDelivered === false` — not falsy — is
+                            the only case worth shouting about: null is "no
+                            lead here", false is "the visitor was promised a
+                            call back and the Telegram send failed, so nobody
+                            on the team has been told". Nothing else in the
+                            panel would ever surface that, and an operator
+                            scanning this list is the last line of defence.
+
+                            It sits inside the same flex-wrap strip as the
+                            other pills and truncates rather than growing, so
+                            on a phone it drops onto its own line instead of
+                            widening the row and squeezing the name out. */}
+                        {row.leadDelivered === false && (
+                          <span
+                            className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                            style={{
+                              background: 'var(--color-warning-bg)',
+                              color: 'var(--color-warning)',
+                              border: '1px solid var(--color-warning-border)',
+                            }}
+                          >
+                            <AlertTriangle size={10} className="shrink-0" aria-hidden="true" />
+                            <span className="truncate">{t('leadUndelivered')}</span>
+                          </span>
+                        )}
                       </div>
                     </div>
                   </button>
@@ -657,19 +731,60 @@ export default function ChatPage() {
                   the transcript. */}
               {thread.leadPhone && (
                 <div className="shrink-0 px-3 pt-3 md:px-5">
+                  {/* The whole card turns from green to amber when the lead
+                      never got out (L-FIX-1). A success-coloured card reads as
+                      "handled", which is the opposite of the truth here, and
+                      the operator reading it is the only person who now knows
+                      this visitor is waiting for a call nobody scheduled. */}
                   <div
                     className="rounded-xl p-3"
-                    style={{
-                      background: 'var(--color-success-bg)',
-                      border: '1px solid var(--color-success-border)',
-                    }}
+                    style={
+                      leadUndelivered
+                        ? {
+                            background: 'var(--color-warning-bg)',
+                            border: '1px solid var(--color-warning-border)',
+                          }
+                        : {
+                            background: 'var(--color-success-bg)',
+                            border: '1px solid var(--color-success-border)',
+                          }
+                    }
                   >
-                    <p
-                      className="text-[11px] font-bold uppercase tracking-wide"
-                      style={{ color: 'var(--color-success)' }}
-                    >
-                      {t('leadTitle')}
-                    </p>
+                    {/* flex-wrap, so on a narrow phone the pill drops under
+                        the heading instead of pushing the card sideways. */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p
+                        className="text-[11px] font-bold uppercase tracking-wide"
+                        style={{
+                          color: leadUndelivered
+                            ? 'var(--color-warning)'
+                            : 'var(--color-success)',
+                        }}
+                      >
+                        {t('leadTitle')}
+                      </p>
+                      {leadUndelivered && (
+                        <span
+                          className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                          style={{
+                            background: 'var(--color-surface)',
+                            color: 'var(--color-warning)',
+                            border: '1px solid var(--color-warning-border)',
+                          }}
+                        >
+                          <AlertTriangle size={10} className="shrink-0" aria-hidden="true" />
+                          <span className="truncate">{t('leadUndelivered')}</span>
+                        </span>
+                      )}
+                    </div>
+                    {leadUndelivered && (
+                      <p
+                        className="mt-1.5 text-[11px] font-semibold"
+                        style={{ color: 'var(--color-warning)' }}
+                      >
+                        {t('leadUndeliveredHint')}
+                      </p>
+                    )}
                     <dl
                       className="mt-1.5 space-y-1 text-xs"
                       style={{ color: 'var(--color-text-primary)' }}

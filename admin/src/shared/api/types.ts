@@ -655,6 +655,17 @@ export interface AdminAiSessionRow {
   leadPhone: string | null;
   leadNote: string | null;
   leadCapturedAt: string | null;
+  /**
+   * Whether the captured lead actually reached the Telegram group.
+   *
+   * `null` when no lead was captured, or when the session predates the
+   * column. `false` is the case that matters: the visitor handed over their
+   * number, the assistant promised them a call back, and nobody on the team
+   * was ever told (L-FIX-1). Nothing else in the panel would show it, so
+   * `/chat` renders a warning pill for it — an undelivered lead is the one an
+   * operator most needs to see.
+   */
+  leadDelivered: boolean | null;
   /** Visitor messages since `adminReadAt`. */
   unreadCount: number;
   lastMessageAt: string | null;

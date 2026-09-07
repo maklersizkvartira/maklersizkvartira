@@ -950,6 +950,8 @@
     "leadName": "Имя",
     "leadPhone": "Телефон",
     "leadNote": "Комментарий",
+    "leadUndelivered": "Не отправлено в Telegram",
+    "leadUndeliveredHint": "Эта заявка не дошла до группы. Свяжитесь с клиентом сами.",
     "messages": "Сообщения",
     "started": "Начат",
     "errors": {

@@ -272,9 +272,21 @@ export const api = {
      *  silently ignored by FastAPI and returns an unfiltered 200. */
     sessions: (params?: PaginationParams & { taken_over?: boolean; has_lead?: boolean }) =>
       `/admin/ai/sessions${qs({ ...params })}`,
-    /** `GET`, MODERATOR+. Oldest first; 200 rows unless `limit` is given.
-     *  Marks the thread read. Keyed by AISession.id, NOT sessionKey. */
-    sessionMessages: (sessionId: string, params?: { limit?: number }) =>
+    /**
+     * `GET`, MODERATOR+. Oldest first; 200 rows unless `limit` is given.
+     * Keyed by AISession.id, NOT sessionKey.
+     *
+     * `mark_read` is snake_case because it is a bare route parameter, not part
+     * of a `Depends()` model — spelling it `markRead` would be dropped by
+     * FastAPI without complaint and the thread would never be marked read.
+     *
+     * It defaults to FALSE on purpose (H-FIX-6). The endpoint used to write
+     * `admin_read_at` on every call, and `/ai`'s read-only transcript sheet
+     * calls exactly this route: opening a conversation merely to audit it
+     * zeroed the live desk's unread count and hid work from the operators.
+     * Only `/chat`, where reading really is reading, passes `mark_read: true`.
+     */
+    sessionMessages: (sessionId: string, params?: { limit?: number; mark_read?: boolean }) =>
       `/admin/ai/sessions/${sessionId}/messages${qs({ ...params })}`,
     /** `POST`, MODERATOR+. No body. 409 when another admin holds it. */
     takeover: (sessionId: string) => `/admin/ai/sessions/${sessionId}/takeover`,

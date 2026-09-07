@@ -950,6 +950,8 @@
     "leadName": "Name",
     "leadPhone": "Phone",
     "leadNote": "Note",
+    "leadUndelivered": "Not delivered to Telegram",
+    "leadUndeliveredHint": "This lead never reached the group. Contact the customer yourself.",
     "messages": "Messages",
     "started": "Started",
     "errors": {
