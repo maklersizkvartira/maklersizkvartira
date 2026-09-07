@@ -94,7 +94,8 @@
     "collapse": "Свернуть меню",
     "expand": "Развернуть меню",
     "searchPlaceholder": "Поиск...",
-    "analytics": "Аналитика"
+    "analytics": "Аналитика",
+    "game": "Игра 2048"
   },
   "auth": {
     "signIn": "Войти",

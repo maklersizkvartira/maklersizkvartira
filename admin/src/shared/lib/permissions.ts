@@ -76,6 +76,7 @@ const ROUTE_TABLE = {
    * used to draw them sits on. Nothing here is per-person data.
    */
   '/analytics': 'MODERATOR',
+  '/game': 'MODERATOR',
   '/listings': 'MODERATOR',
   '/reports': 'MODERATOR',
   '/support': 'MODERATOR',

@@ -94,7 +94,8 @@
     "collapse": "Menyuni yigʻish",
     "expand": "Menyuni yoyish",
     "searchPlaceholder": "Qidirish...",
-    "analytics": "Tahlil"
+    "analytics": "Tahlil",
+    "game": "2048 O‘yini"
   },
   "auth": {
     "signIn": "Kirish",
