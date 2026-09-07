@@ -54,6 +54,12 @@ const CHALLENGE_COOKIE = '2fa_challenge';
  *  which is what drives the countdown on the login page. */
 const CHALLENGE_TTL_SECONDS = 60;
 
+/** How long Telegram gets to answer before the second factor gives up on it.
+ *  Well inside any serverless duration limit, and generous for one
+ *  sendMessage: the alternative to a bound here is a hung request that takes
+ *  the whole login with it. */
+const TELEGRAM_TIMEOUT_MS = 6000;
+
 /** A username longer than this is not one of ours — the panel's accounts are
  *  short — and it would be interpolated into a Telegram message and sealed
  *  into a cookie. Refusing it outright (rather than truncating) keeps the
@@ -428,6 +434,15 @@ export async function POST(req: NextRequest) {
   let sendDescription: string | undefined;
 
   try {
+    // The timeout is the point. `try/catch` only catches a fetch that
+    // REJECTS; it cannot catch one that HANGS, and api.telegram.org is the
+    // classic host for that — a DNS timeout, a TLS hang or regional
+    // filtering leaves the request open until the platform kills the
+    // function on its own duration limit. The browser then gets no JSON at
+    // all, `sendData.ok` is undefined, and login/page.tsx throws at step 1:
+    // the same lockout this file was rewritten to remove, arriving by a
+    // slower road. AbortSignal.timeout turns that hang into the ordinary
+    // send-failed path, which stands aside and lets the operator in.
     const resp = await fetch(`https://api.telegram.org/bot${config.botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -436,6 +451,7 @@ export async function POST(req: NextRequest) {
         text: message,
         parse_mode: 'HTML',
       }),
+      signal: AbortSignal.timeout(TELEGRAM_TIMEOUT_MS),
     });
     const data = (await resp.json().catch(() => null)) as { ok?: boolean; description?: string } | null;
     anySent = data?.ok ?? false;
@@ -498,15 +514,18 @@ export async function POST(req: NextRequest) {
  *  from an earlier send is left to expire on its own within the minute; it is
  *  a sealed blob whose code nobody has, and it buys no session by itself.
  *
- *  `reason` is a fixed machine-readable string. The diagnosis lives in the
- *  function log, never in this body — the log can name Telegram's error and
- *  the browser cannot be trusted with it. */
+ *  `reason` is logged and NOT returned. This route takes no credentials, so
+ *  anything in the body is readable by anyone on the internet who can reach
+ *  the panel, and the three reasons are a live configuration oracle:
+ *  "2fa_not_configured" says the second factor is off and will stay off,
+ *  "2fa_send_failed" says it is off right now. `sentToTelegram: false` is all
+ *  the browser needs, and it already carries it. */
 function standAside(reason: string): NextResponse {
+  console.error('[2fa] standing aside: %s — the operator is being signed in without a second factor', reason);
   return NextResponse.json({
     ok: true,
     twoFactorRequired: false,
     sentToTelegram: false,
-    error: reason,
   });
 }
 
