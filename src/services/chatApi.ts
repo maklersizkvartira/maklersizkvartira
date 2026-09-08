@@ -100,5 +100,14 @@ export const chatApi = {
 
   sendSupportMessage: (text: string) =>
     http.post<SupportMessage>('/chat/support/messages', { text }),
+
+  editMessage: (messageId: string, text: string) =>
+    http.patch<ChatMessage>(`/chat/messages/${messageId}`, { text }),
+
+  deleteMessage: (messageId: string) =>
+    http.delete<{ status: string; id: string }>(`/chat/messages/${messageId}`),
+
+  deleteConversation: (conversationId: string) =>
+    http.delete<{ status: string; id: string }>(`/chat/conversations/${conversationId}`),
 };
 

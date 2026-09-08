@@ -75,6 +75,13 @@ export const BottomNav: React.FC = () => {
   const open = (tab: Tab) =>
     requireAuth(() => setCurrentView(tab.view), authTabForView(tab.view));
 
+  const activeConversationId = useAppStore((state) => state.activeConversationId);
+
+  // When inside an active chat thread, hide BottomNav on mobile so the composer is unobstructed
+  if (currentView === 'CHAT' && activeConversationId) {
+    return null;
+  }
+
   return (
     <nav
       aria-label={t('common.a11y.menu')}

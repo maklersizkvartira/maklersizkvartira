@@ -221,7 +221,140 @@ async def send_message(
     await db.commit()
     await db.refresh(msg)
     
+    # Notify recipient device via Web Push if registered
+    recipient_id = str(conversation.owner_id if user.id == conversation.user_id else conversation.user_id)
+    sender_name = getattr(user, "name", None) or "Foydalanuvchi"
+    push_title = "uyiz.uz"
+    push_body = f"{sender_name} sizga xabar yubordi: {payload.text[:80]}"
+    
+    # Send push in background to all recipient devices
+    import asyncio
+    asyncio.create_task(_dispatch_web_push(recipient_id, push_title, push_body, f"/?view=CHAT&conversation={conversation_id}"))
+
     return msg
+
+
+@router.patch("/messages/{message_id}", response_model=ChatMessageOut)
+async def edit_message(
+    message_id: uuid.UUID,
+    payload: ChatMessageCreate,
+    db: DbSession,
+    user: CurrentUser,
+) -> ChatMessageOut:
+    """Edit an existing chat message (only allowed for the original sender)."""
+    msg = (await db.execute(select(ChatMessage).where(ChatMessage.id == message_id))).scalar_one_or_none()
+    if not msg:
+        raise NotFound("message_not_found")
+    if msg.sender_id != user.id:
+        raise BadRequest("not_your_message")
+
+    new_text = payload.text.strip()
+    if not new_text:
+        raise BadRequest("message_empty")
+
+    msg.text = new_text
+    await db.commit()
+    await db.refresh(msg)
+    return msg
+
+
+@router.delete("/messages/{message_id}")
+async def delete_message(
+    message_id: uuid.UUID,
+    db: DbSession,
+    user: CurrentUser,
+) -> dict[str, str]:
+    """Delete a chat message (only allowed for the original sender)."""
+    msg = (await db.execute(select(ChatMessage).where(ChatMessage.id == message_id))).scalar_one_or_none()
+    if not msg:
+        raise NotFound("message_not_found")
+    if msg.sender_id != user.id:
+        raise BadRequest("not_your_message")
+
+    await db.delete(msg)
+    await db.commit()
+    return {"status": "deleted", "id": str(message_id)}
+
+
+@router.delete("/conversations/{conversation_id}")
+async def delete_conversation(
+    conversation_id: uuid.UUID,
+    db: DbSession,
+    user: CurrentUser,
+) -> dict[str, str]:
+    """Delete an entire conversation and all its messages."""
+    conversation = (await db.execute(select(Conversation).where(Conversation.id == conversation_id))).scalar_one_or_none()
+    if not conversation:
+        raise NotFound("conversation_not_found")
+    if conversation.user_id != user.id and conversation.owner_id != user.id:
+        raise BadRequest("not_your_conversation")
+
+    await db.delete(conversation)
+    await db.commit()
+    return {"status": "deleted", "id": str(conversation_id)}
+
+
+class PushSubscriptionIn(BaseModel):
+    endpoint: str
+    p256dh: str | None = None
+    auth: str | None = None
+
+
+# In-memory storage / registry for active device push subscriptions per user
+_user_push_subscriptions: dict[str, list[dict[str, str | None]]] = {}
+
+
+@router.post("/push-subscriptions")
+async def register_push_subscription(
+    payload: PushSubscriptionIn,
+    user: CurrentUser,
+) -> dict[str, str]:
+    """Register device web-push subscription for the user to receive background notifications."""
+    uid = str(user.id)
+    if uid not in _user_push_subscriptions:
+        _user_push_subscriptions[uid] = []
+
+    # Avoid duplicates
+    existing = [s for s in _user_push_subscriptions[uid] if s["endpoint"] == payload.endpoint]
+    if not existing:
+        _user_push_subscriptions[uid].append({
+            "endpoint": payload.endpoint,
+            "p256dh": payload.p256dh,
+            "auth": payload.auth,
+        })
+
+    return {"status": "ok"}
+
+
+async def _dispatch_web_push(user_id: str, title: str, body: str, url: str) -> None:
+    """Send web-push notification to all registered devices for user_id."""
+    subscriptions = _user_push_subscriptions.get(user_id, [])
+    if not subscriptions:
+        return
+    import json
+    import httpx
+
+    payload = json.dumps({
+        "title": title,
+        "body": body,
+        "url": url,
+        "icon": "/logo-org.png",
+        "badge": "/favicon.ico",
+    })
+
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        for sub in list(subscriptions):
+            endpoint = sub.get("endpoint")
+            if not endpoint:
+                continue
+            try:
+                await client.post(
+                    endpoint,
+                    content=payload,
+                    headers={"Content-Type": "application/json", "TTL": "86400"},
+                )
+            except Exception:
+                pass
 
 from pydantic import BaseModel
 

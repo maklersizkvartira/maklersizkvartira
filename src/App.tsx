@@ -24,6 +24,7 @@ import { ListingsPage } from './components/listings/ListingsPage';
 import { AiMascot } from './components/common/AiMascot';
 import { GlobalAINotification } from './components/common/GlobalAINotification';
 import { OfflineDetector } from './components/common/OfflineDetector';
+import { notificationService } from './services/notificationService';
 import { useTranslation } from './i18n';
 import { sessionStore } from './lib/storage';
 import { setSessionExpiredHandler } from './services/http';
@@ -316,6 +317,13 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (guarded) setShowAuth(true, authTabForView(currentView));
   }, [guarded, currentView, setShowAuth]);
+
+  useEffect(() => {
+    void notificationService.registerServiceWorker();
+    if (currentUser) {
+      void notificationService.requestPermissionAndSubscribe();
+    }
+  }, [currentUser]);
 
   /**
    * Whether this route owns the whole screen.
