@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter
+from pydantic import BaseModel
 from sqlalchemy import select, or_, func
 from sqlalchemy.orm import selectinload
 
@@ -356,7 +357,6 @@ async def _dispatch_web_push(user_id: str, title: str, body: str, url: str) -> N
             except Exception:
                 pass
 
-from pydantic import BaseModel
 
 class UnreadCountOut(BaseModel):
     count: int
