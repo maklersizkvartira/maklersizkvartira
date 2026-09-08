@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import select, or_, func
 from sqlalchemy.orm import selectinload
 
-from app.core.deps import CurrentUser, DbSession
+from app.core.deps import CurrentUser, DbSession, OptionalUser
 from app.core.errors import BadRequest, NotFound
 from app.models.chat import ChatMessage, Conversation, SupportConversation, SupportMessage
 from app.models.listing import Listing
@@ -299,19 +299,42 @@ class PushSubscriptionIn(BaseModel):
     endpoint: str
     p256dh: str | None = None
     auth: str | None = None
+    guest_id: str | None = None
+    user_agent: str | None = None
 
 
-# In-memory storage / registry for active device push subscriptions per user
+# In-memory storage / registry for active device push subscriptions
 _user_push_subscriptions: dict[str, list[dict[str, str | None]]] = {}
+_guest_push_registry: dict[str, dict] = {}
 
 
 @router.post("/push-subscriptions")
 async def register_push_subscription(
     payload: PushSubscriptionIn,
-    user: CurrentUser,
+    user: OptionalUser = None,
 ) -> dict[str, str]:
-    """Register device web-push subscription for the user to receive background notifications."""
-    uid = str(user.id)
+    """Register device web-push subscription for registered users or guest visitors."""
+    from datetime import datetime, timezone
+    import hashlib
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    if user is not None:
+        uid = str(user.id)
+        is_guest = False
+    else:
+        raw_hash = hashlib.md5(payload.endpoint.encode()).hexdigest()[:10]
+        uid = payload.guest_id or f"guest_{raw_hash}"
+        if not uid.startswith("guest_"):
+            uid = f"guest_{uid}"
+        is_guest = True
+        _guest_push_registry[uid] = {
+            "guest_id": uid,
+            "user_agent": payload.user_agent,
+            "created_at": _guest_push_registry.get(uid, {}).get("created_at") or now_iso,
+            "last_active": now_iso,
+        }
+
     if uid not in _user_push_subscriptions:
         _user_push_subscriptions[uid] = []
 
@@ -322,9 +345,14 @@ async def register_push_subscription(
             "endpoint": payload.endpoint,
             "p256dh": payload.p256dh,
             "auth": payload.auth,
+            "is_guest": is_guest,
+            "user_agent": payload.user_agent,
+            "updated_at": now_iso,
         })
+    else:
+        existing[0]["updated_at"] = now_iso
 
-    return {"status": "ok"}
+    return {"status": "ok", "subscriber_id": uid}
 
 
 async def _dispatch_web_push(user_id: str, title: str, body: str, url: str) -> None:

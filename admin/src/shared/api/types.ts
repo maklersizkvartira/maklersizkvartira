@@ -1039,8 +1039,19 @@ export interface AdminBalances {
 
 export interface PushStats {
   active_subscribers: number;
+  total_subscribers: number;
+  registered_subscribers: number;
+  guest_subscribers: number;
   total_devices: number;
   total_sent: number;
+}
+
+export interface GuestSubscriberItem {
+  guest_id: string;
+  devices_count: number;
+  created_at: string | null;
+  last_active: string | null;
+  user_agent: string | null;
 }
 
 export interface PushHistoryItem {
@@ -1071,7 +1082,7 @@ export interface PushListingItem {
 export interface SendPushPayload {
   title: string;
   body: string;
-  target_audience?: 'all' | 'students' | 'tenants' | 'owners' | 'specific';
+  target_audience?: 'all' | 'guests' | 'students' | 'tenants' | 'owners' | 'specific';
   target_user_id?: string;
   listing_id?: string;
   url?: string;

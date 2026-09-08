@@ -354,6 +354,7 @@ export const api = {
 
   push: {
     stats: '/admin/push/stats',
+    guests: '/admin/push/guests',
     history: (params?: { page?: number; limit?: number }) =>
       `/admin/push/history${qs({ ...params })}`,
     listings: (params?: { q?: string; limit?: number }) =>

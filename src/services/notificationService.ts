@@ -67,11 +67,25 @@ export const notificationService = {
           const p256dh = rawKey ? btoa(String.fromCharCode(...new Uint8Array(rawKey))) : undefined;
           const auth = rawAuth ? btoa(String.fromCharCode(...new Uint8Array(rawAuth))) : undefined;
 
+          // Persistent guest identifier for visitors without an account
+          let guestId = '';
+          if (typeof window !== 'undefined') {
+            try {
+              guestId = localStorage.getItem('uyiz_guest_id') || '';
+              if (!guestId) {
+                guestId = `guest_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
+                localStorage.setItem('uyiz_guest_id', guestId);
+              }
+            } catch {}
+          }
+
           // Send subscription to backend
           await http.post('/chat/push-subscriptions', {
             endpoint: subscription.endpoint,
             p256dh,
             auth,
+            guest_id: guestId || undefined,
+            user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
           }).catch(() => {});
         }
       }

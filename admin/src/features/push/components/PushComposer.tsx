@@ -17,6 +17,8 @@ import {
   Flame,
   Zap,
   MapPin,
+  UserX,
+  Compass,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -28,15 +30,19 @@ import { ListingPickerModal } from './ListingPickerModal';
 
 interface PushComposerProps {
   onSent?: () => void;
+  initialAudience?: 'all' | 'guests' | 'students' | 'tenants' | 'owners' | 'specific';
+  initialTargetUserId?: string;
 }
 
-export function PushComposer({ onSent }: PushComposerProps) {
+export function PushComposer({ onSent, initialAudience, initialTargetUserId }: PushComposerProps) {
   const t = useTranslations('pushPage.composer');
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [audience, setAudience] = useState<'all' | 'students' | 'tenants' | 'owners' | 'specific'>('all');
-  const [targetUserId, setTargetUserId] = useState('');
+  const [audience, setAudience] = useState<'all' | 'guests' | 'students' | 'tenants' | 'owners' | 'specific'>(
+    initialAudience || (initialTargetUserId ? 'specific' : 'all')
+  );
+  const [targetUserId, setTargetUserId] = useState(initialTargetUserId || '');
   const [customUrl, setCustomUrl] = useState('');
   const [selectedListing, setSelectedListing] = useState<PushListingItem | null>(null);
 
@@ -46,6 +52,15 @@ export function PushComposer({ onSent }: PushComposerProps) {
 
   // Preset templates
   const presets = [
+    {
+      id: 'guests',
+      name: 'Mehmonlar uchun',
+      icon: UserX,
+      color: 'text-purple-500 bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800',
+      title: '👀 Siz izlagan arzon kvartiralar chiqdi!',
+      body: 'Saytimizda bugun yangi qulay ijara xonadonlari chiqdi. Kirib koʻrish uchun bosing!',
+      audience: 'guests' as const,
+    },
     {
       id: 'students',
       name: t('presetStudents'),
@@ -209,6 +224,7 @@ export function PushComposer({ onSent }: PushComposerProps) {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {[
                 { id: 'all', label: t('allUsers'), icon: Layers },
+                { id: 'guests', label: 'Mehmonlar (Saytga kirib ketganlar)', icon: UserX },
                 { id: 'students', label: t('students'), icon: GraduationCap },
                 { id: 'tenants', label: t('tenants'), icon: Home },
                 { id: 'owners', label: t('owners'), icon: Building },

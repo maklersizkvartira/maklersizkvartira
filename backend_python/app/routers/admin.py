@@ -2909,15 +2909,40 @@ async def get_push_stats(
     admin: RequireModerator,
 ) -> dict:
     from app.routers.chat import _user_push_subscriptions
-    total_subscribers = len(_user_push_subscriptions)
+    guest_subscribers = sum(1 for uid in _user_push_subscriptions.keys() if uid.startswith("guest_"))
+    registered_subscribers = len(_user_push_subscriptions) - guest_subscribers
     total_devices = sum(len(subs) for subs in _user_push_subscriptions.values())
     
     return _ok({
-        "total_subscribers": total_subscribers,
+        "active_subscribers": len(_user_push_subscriptions),
+        "total_subscribers": len(_user_push_subscriptions),
+        "registered_subscribers": registered_subscribers,
+        "guest_subscribers": guest_subscribers,
         "total_devices": total_devices,
         "total_sent": len(_admin_push_history),
         "last_sent_at": _admin_push_history[-1]["created_at"] if _admin_push_history else None,
     })
+
+
+@router.get("/push/guests", summary="List guest push subscribers")
+async def list_guest_subscribers(
+    admin: RequireModerator,
+) -> dict:
+    from app.routers.chat import _user_push_subscriptions, _guest_push_registry
+    guests = []
+    for uid, subs in _user_push_subscriptions.items():
+        if uid.startswith("guest_"):
+            meta = _guest_push_registry.get(uid, {})
+            first_sub = subs[0] if subs else {}
+            guests.append({
+                "guest_id": uid,
+                "devices_count": len(subs),
+                "created_at": meta.get("created_at") or first_sub.get("updated_at"),
+                "last_active": meta.get("last_active") or first_sub.get("updated_at"),
+                "user_agent": meta.get("user_agent") or first_sub.get("user_agent"),
+            })
+    guests.sort(key=lambda g: g.get("last_active") or "", reverse=True)
+    return _ok(guests)
 
 
 @router.get("/push/history", summary="List previously sent push notifications")
@@ -3010,6 +3035,9 @@ async def send_push_notification(
     target_uids: list[str] = []
     if payload.target_audience == "specific" and payload.target_user_id:
         target_uids = [payload.target_user_id]
+    elif payload.target_audience == "guests":
+        # Target only guest/unregistered visitors
+        target_uids = [uid for uid in _user_push_subscriptions.keys() if uid.startswith("guest_")]
     elif payload.target_audience in ("students", "owners", "tenants"):
         role_map = {"students": "STUDENT", "owners": "OWNER", "tenants": "TENANT"}
         target_role = role_map.get(payload.target_audience)
@@ -3020,7 +3048,7 @@ async def send_push_notification(
         else:
             target_uids = list(_user_push_subscriptions.keys())
     else:
-        # All subscribers
+        # All subscribers (both registered and guests)
         target_uids = list(_user_push_subscriptions.keys())
 
     # Dispatch in background to all matching devices

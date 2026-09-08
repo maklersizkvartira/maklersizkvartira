@@ -34,6 +34,7 @@ import { MetaApi } from './services/listingsApi';
 import { useSeoHead } from './seo/useSeoHead';
 import { AUTH_VIEWS, REQUIRES_AUTH, authTabForView } from './router/views';
 import { useAppStore, type ViewState } from './stores/useAppStore';
+import { PushNotificationPrompt } from './components/common/PushNotificationPrompt';
 
 /** Per-tab analytics id, and the key it lived under before the brand changed. */
 const SESSION_KEY = 'uyiz.session';
@@ -320,7 +321,10 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     void notificationService.registerServiceWorker();
-    if (currentUser) {
+    if (
+      currentUser ||
+      (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted')
+    ) {
       void notificationService.requestPermissionAndSubscribe();
     }
   }, [currentUser]);
@@ -504,6 +508,7 @@ export const App: React.FC = () => {
       {welcomeName && <WelcomeCelebration name={welcomeName} onDone={dismissWelcome} />}
       <Toaster />
       <OfflineDetector />
+      <PushNotificationPrompt />
     </div>
   );
 };
