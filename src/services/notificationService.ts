@@ -47,16 +47,40 @@ export const notificationService = {
 
       // Get push subscription if supported
       if ('pushManager' in registration) {
+        const VAPID_PUBLIC_KEY = 'BCZzmQm2-JRxUQrL_PWOHJh66m7va4mYFTTH17F5whUz9M72di00zBs0tPDRfQC4wr24LbeEAc8hQkC4W31KAcU';
+
+        // Helper: base64url string to Uint8Array required by pushManager.subscribe
+        const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
+          const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+          const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+          const rawData = window.atob(base64);
+          const outputArray = new Uint8Array(rawData.length);
+          for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+          }
+          return outputArray;
+        };
+
         let subscription = await registration.pushManager.getSubscription();
+
+        // If existing subscription was created with an old/different key, renew it
+        try {
+          const storedKey = localStorage.getItem('uyiz_vapid_key');
+          if (subscription && storedKey !== VAPID_PUBLIC_KEY) {
+            await subscription.unsubscribe();
+            subscription = null;
+          }
+        } catch {}
+
         if (!subscription) {
-          // Subscribe with application server public key if available, or simple subscription
           try {
             subscription = await registration.pushManager.subscribe({
               userVisibleOnly: true,
-              applicationServerKey: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U', // Standard valid web-push public key
+              applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
             });
-          } catch {
-            // Fallback without applicationServerKey if local/test
+            localStorage.setItem('uyiz_vapid_key', VAPID_PUBLIC_KEY);
+          } catch (subErr) {
+            console.warn('[Push] pushManager.subscribe error:', subErr);
           }
         }
 

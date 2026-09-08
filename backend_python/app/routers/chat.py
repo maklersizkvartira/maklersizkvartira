@@ -355,35 +355,69 @@ async def register_push_subscription(
     return {"status": "ok", "subscriber_id": uid}
 
 
-async def _dispatch_web_push(user_id: str, title: str, body: str, url: str) -> None:
-    """Send web-push notification to all registered devices for user_id."""
+VAPID_PUBLIC_KEY = "BCZzmQm2-JRxUQrL_PWOHJh66m7va4mYFTTH17F5whUz9M72di00zBs0tPDRfQC4wr24LbeEAc8hQkC4W31KAcU"
+VAPID_PRIVATE_KEY = "28-uBeeXVqCXVWqPreG_fWzISh4q6uij_rl5YuB4Oxk"
+VAPID_CLAIMS = {"sub": "mailto:support@uyiz.uz"}
+
+
+async def _dispatch_web_push(user_id: str, title: str, body: str, url: str, image: str | None = None) -> None:
+    """Send RFC 8291/8292 encrypted web-push notification via pywebpush with VAPID."""
     subscriptions = _user_push_subscriptions.get(user_id, [])
     if not subscriptions:
         return
     import json
-    import httpx
+    import asyncio
+    import structlog
 
-    payload = json.dumps({
+    logger = structlog.get_logger(__name__)
+
+    payload_dict = {
         "title": title,
         "body": body,
         "url": url,
         "icon": "/logo-org.png",
         "badge": "/favicon.ico",
-    })
+    }
+    if image:
+        payload_dict["image"] = image
 
-    async with httpx.AsyncClient(timeout=5.0) as client:
-        for sub in list(subscriptions):
-            endpoint = sub.get("endpoint")
-            if not endpoint:
-                continue
-            try:
-                await client.post(
-                    endpoint,
-                    content=payload,
-                    headers={"Content-Type": "application/json", "TTL": "86400"},
-                )
-            except Exception:
-                pass
+    payload = json.dumps(payload_dict)
+
+    from pywebpush import webpush, WebPushException
+
+    def _send_sync(sub: dict):
+        endpoint = sub.get("endpoint")
+        p256dh = sub.get("p256dh")
+        auth = sub.get("auth")
+        if not endpoint or not p256dh or not auth:
+            return
+        sub_info = {
+            "endpoint": endpoint,
+            "keys": {
+                "p256dh": p256dh,
+                "auth": auth,
+            }
+        }
+        try:
+            webpush(
+                subscription_info=sub_info,
+                data=payload,
+                vapid_private_key=VAPID_PRIVATE_KEY,
+                vapid_claims=VAPID_CLAIMS,
+                timeout=10,
+            )
+            logger.info("webpush_sent_successfully", user_id=user_id, endpoint=endpoint[:30])
+        except WebPushException as ex:
+            logger.warning("webpush_failed", error=str(ex), status_code=getattr(ex.response, "status_code", None))
+            if ex.response is not None and ex.response.status_code in (404, 410):
+                if sub in subscriptions:
+                    subscriptions.remove(sub)
+        except Exception as e:
+            logger.warning("webpush_unexpected_error", error=str(e))
+
+    loop = asyncio.get_running_loop()
+    for sub in list(subscriptions):
+        await loop.run_in_executor(None, _send_sync, sub)
 
 
 class UnreadCountOut(BaseModel):

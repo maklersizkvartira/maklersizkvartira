@@ -3053,10 +3053,11 @@ async def send_push_notification(
 
     # Dispatch in background to all matching devices
     sent_count = 0
+    push_image = (listing_data.get("cover_image") if listing_data else None) or payload.image_url
     for uid in target_uids:
         if uid in _user_push_subscriptions:
             sent_count += len(_user_push_subscriptions[uid])
-            asyncio.create_task(_dispatch_web_push(uid, title, body, target_url))
+            asyncio.create_task(_dispatch_web_push(uid, title, body, target_url, push_image))
 
     record = {
         "id": str(uuid.uuid4()),

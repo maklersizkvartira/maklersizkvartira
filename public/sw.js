@@ -32,12 +32,13 @@ self.addEventListener('push', (event) => {
     body: data.body,
     icon: data.icon || '/logo-org.png',
     badge: data.badge || '/favicon.ico',
+    image: data.image || undefined,
     data: {
       url: data.url || '/?view=CHAT',
       dateOfArrival: Date.now(),
     },
     vibrate: [200, 100, 200],
-    tag: 'uyiz-chat-notification',
+    tag: `uyiz-push-${Date.now()}`,
     renotify: true,
   };
 
