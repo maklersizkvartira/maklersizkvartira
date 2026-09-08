@@ -5,6 +5,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { useState, useEffect, createContext, useContext, type ReactNode } from 'react';
 import { RoleProvider } from './role-provider';
 import { Toaster } from '@/shared/ui/Toast';
+import { OfflineDetector } from '@/shared/ui/OfflineDetector';
 // Locale-aware navigation. `useServerInsertedHTML` has no next-intl
 // counterpart and stays on next/navigation; the router and the pathname must
 // not, or a locale switch would push an unprefixed URL straight past the proxy.
@@ -388,6 +389,7 @@ function IntlAwareProviders({
             <ConfirmProvider>
               {children}
               <Toaster />
+              <OfflineDetector />
             </ConfirmProvider>
           </RoleProvider>
         </ThemeProvider>

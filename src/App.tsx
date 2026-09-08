@@ -23,6 +23,7 @@ import { WelcomeCelebration } from './components/auth/WelcomeCelebration';
 import { ListingsPage } from './components/listings/ListingsPage';
 import { AiMascot } from './components/common/AiMascot';
 import { GlobalAINotification } from './components/common/GlobalAINotification';
+import { OfflineDetector } from './components/common/OfflineDetector';
 import { useTranslation } from './i18n';
 import { sessionStore } from './lib/storage';
 import { setSessionExpiredHandler } from './services/http';
@@ -494,6 +495,7 @@ export const App: React.FC = () => {
       */}
       {welcomeName && <WelcomeCelebration name={welcomeName} onDone={dismissWelcome} />}
       <Toaster />
+      <OfflineDetector />
     </div>
   );
 };
