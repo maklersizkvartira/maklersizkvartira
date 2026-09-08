@@ -74,6 +74,7 @@
     "reports": "Shikoyatlar",
     "support": "Mijozlar bilan ishlash",
     "chat": "AI suhbatlari (jonli)",
+    "push": "Push xabarlar",
     "topRequests": "Top soʻrovlari",
     "verifications": "Tasdiqlashlar",
     "people": "Odamlar",
@@ -991,5 +992,59 @@
     "noData": "Bu davr uchun maʼlumot yoʻq",
     "utcNote": "Sanalar UTC boʻyicha hisoblanadi — Toshkent vaqtidan 5 soat orqada.",
     "loadError": "Grafiklarni yuklab boʻlmadi."
+  },
+  "pushPage": {
+    "title": "Push xabarnomalar",
+    "subtitle": "Foydalanuvchilarga bildirishnomalar, eʼlonlar tavsiyalari va yangiliklarni yuborish",
+    "stats": {
+      "subscribers": "Obunachilar",
+      "devices": "Faol qurilmalar",
+      "sent": "Yuborilgan pushlar"
+    },
+    "composer": {
+      "title": "Yangi Push xabar yaratish",
+      "titleLabel": "Sarlavha",
+      "titlePlaceholder": "Masalan: Talabalar uchun metro yonidagi arzon kvartiralar!",
+      "bodyLabel": "Xabar matni",
+      "bodyPlaceholder": "Masalan: Chilonzor metrosi yaqinida 2 xonali toza kvartira ijaraga beriladi. Batafsil koʻrish uchun bosing!",
+      "audienceLabel": "Kimga yuborish",
+      "allUsers": "Barcha foydalanuvchilar (Broadcast)",
+      "students": "Talabalar (Studentlar)",
+      "tenants": "Ijarachilar (Izlovchilar)",
+      "owners": "Uy egalari (Ijara beruvchilar)",
+      "specific": "Maxsus foydalanuvchi",
+      "userIdLabel": "Foydalanuvchi ID yoki telefoni",
+      "attachListing": "Eʼlon biriktirish (Tavsiya)",
+      "changeListing": "Boshqa eʼlon tanlash",
+      "removeListing": "Eʼlonni olib tashlash",
+      "customUrl": "Maxsus havola (ixtiyoriy)",
+      "preview": "Qurilmada jonli koʻrinishi",
+      "sendButton": "Push xabarni yuborish",
+      "sending": "Yuborilmoqda...",
+      "presetsTitle": "Tezkor shablonlar",
+      "presetStudents": "Talabalar uchun taklif",
+      "presetCheap": "Hamyonbop kvartiralar",
+      "presetUrgent": "Shoshilinch arzon narx",
+      "presetMetro": "Metro yaqinida"
+    },
+    "history": {
+      "title": "Yuborilgan pushlar tarixi",
+      "tableTitle": "Xabar",
+      "tableTarget": "Auditoriya",
+      "tableListing": "Biriktirilgan eʼlon",
+      "tableSentBy": "Yuboruvchi",
+      "tableDate": "Sana",
+      "tableStatus": "Holati",
+      "empty": "Hozircha hech qanday push xabar yuborilmagan"
+    },
+    "picker": {
+      "title": "Eʼlonni tanlang",
+      "searchPlaceholder": "Sarlavha, tuman yoki ID boʻyicha qidirish...",
+      "select": "Tanlash",
+      "price": "soʻm/oy",
+      "empty": "Eʼlonlar topilmadi"
+    },
+    "success": "Push xabar muvaffaqiyatli yuborildi!",
+    "error": "Push xabar yuborishda xatolik yuz berdi"
   }
 }

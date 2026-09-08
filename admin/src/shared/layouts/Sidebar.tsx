@@ -118,6 +118,13 @@ const Icons = {
       <path d="M8 10h8M8 13.5h5" />
     </svg>
   ),
+  push: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      <circle cx="18.5" cy="5.5" r="2.5" fill="currentColor" />
+    </svg>
+  ),
   settings: (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3" />
@@ -244,6 +251,7 @@ export const NAV_GROUPS: NavGroup[] = [
       // desk work on a different channel, and an operator taking a
       // conversation over reaches for it from the same part of the rail.
       { key: 'chat', href: '/chat', icon: Icons.chat },
+      { key: 'push', href: '/push', icon: Icons.push },
     ],
   },
   {

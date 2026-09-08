@@ -2886,3 +2886,163 @@ async def admin_update_support_status(
     out = SupportConversationOut.model_validate(conv)
     return _ok(out.model_dump(mode="json"))
 
+
+# ─── Push Notifications Management ──────────────────────────────────────────
+
+class AdminPushCreate(BaseModel):
+    title: str
+    body: str
+    listing_id: str | None = None
+    target_audience: str = "all"  # 'all', 'students', 'tenants', 'owners', 'specific'
+    target_user_id: str | None = None
+    custom_url: str | None = None
+    image_url: str | None = None
+
+
+# Persistent in-memory history log for admin-sent push notifications
+_admin_push_history: list[dict[str, Any]] = []
+
+
+@router.get("/push/stats", summary="Get push notifications statistics")
+async def get_push_stats(
+    db: DbSession,
+    admin: RequireModerator,
+) -> dict:
+    from app.routers.chat import _user_push_subscriptions
+    total_subscribers = len(_user_push_subscriptions)
+    total_devices = sum(len(subs) for subs in _user_push_subscriptions.values())
+    
+    return _ok({
+        "total_subscribers": total_subscribers,
+        "total_devices": total_devices,
+        "total_sent": len(_admin_push_history),
+        "last_sent_at": _admin_push_history[-1]["created_at"] if _admin_push_history else None,
+    })
+
+
+@router.get("/push/history", summary="List previously sent push notifications")
+async def list_push_history(
+    admin: RequireModerator,
+    limit: int = Query(default=30, ge=1, le=100),
+) -> dict:
+    reversed_history = list(reversed(_admin_push_history))[:limit]
+    return _ok(reversed_history)
+
+
+@router.get("/push/listings", summary="Search listings to attach to push notifications")
+async def search_push_listings(
+    db: DbSession,
+    admin: RequireModerator,
+    q: str = Query(default="", max_length=100),
+) -> dict:
+    stmt = (
+        select(Listing)
+        .where(
+            Listing.deleted_at.is_(None),
+            Listing.status == ListingStatus.APPROVED.value,
+        )
+    )
+    if q.strip():
+        pattern = f"%{q.strip()}%"
+        stmt = stmt.where(
+            or_(
+                Listing.title.ilike(pattern),
+                Listing.district.ilike(pattern),
+                Listing.description.ilike(pattern),
+            )
+        )
+    stmt = stmt.order_by(Listing.created_at.desc()).limit(15)
+    listings = (await db.execute(stmt)).scalars().all()
+
+    items = []
+    for l in listings:
+        cover = l.images[0] if getattr(l, "images", None) and len(l.images) > 0 else None
+        items.append({
+            "id": str(l.id),
+            "title": l.title,
+            "price": l.price,
+            "currency": l.currency or "UZS",
+            "district": l.district,
+            "rooms": l.rooms,
+            "cover_image": cover,
+        })
+    return _ok(items)
+
+
+@router.post("/push/send", summary="Broadcast or send targeted push notifications")
+async def send_push_notification(
+    payload: AdminPushCreate,
+    db: DbSession,
+    admin: RequireModerator,
+) -> dict:
+    from app.routers.chat import _user_push_subscriptions, _dispatch_web_push
+    from app.models.user import User
+    import asyncio
+
+    title = payload.title.strip()
+    body = payload.body.strip()
+    if not title or not body:
+        raise BadRequest("title_and_body_required")
+
+    target_url = payload.custom_url
+    listing_data = None
+
+    if payload.listing_id:
+        try:
+            lid = uuid.UUID(payload.listing_id)
+            listing = (await db.execute(select(Listing).where(Listing.id == lid))).scalar_one_or_none()
+            if listing:
+                target_url = target_url or f"/?listing={listing.id}"
+                cover = listing.images[0] if getattr(listing, "images", None) and len(listing.images) > 0 else None
+                listing_data = {
+                    "id": str(listing.id),
+                    "title": listing.title,
+                    "price": listing.price,
+                    "district": listing.district,
+                    "cover_image": cover,
+                }
+        except Exception:
+            pass
+
+    target_url = target_url or "/?view=CHAT"
+
+    # Identify target recipient user IDs
+    target_uids: list[str] = []
+    if payload.target_audience == "specific" and payload.target_user_id:
+        target_uids = [payload.target_user_id]
+    elif payload.target_audience in ("students", "owners", "tenants"):
+        role_map = {"students": "STUDENT", "owners": "OWNER", "tenants": "TENANT"}
+        target_role = role_map.get(payload.target_audience)
+        if target_role:
+            users_stmt = select(User.id).where(User.role == target_role)
+            found_ids = (await db.execute(users_stmt)).scalars().all()
+            target_uids = [str(uid) for uid in found_ids if str(uid) in _user_push_subscriptions]
+        else:
+            target_uids = list(_user_push_subscriptions.keys())
+    else:
+        # All subscribers
+        target_uids = list(_user_push_subscriptions.keys())
+
+    # Dispatch in background to all matching devices
+    sent_count = 0
+    for uid in target_uids:
+        if uid in _user_push_subscriptions:
+            sent_count += len(_user_push_subscriptions[uid])
+            asyncio.create_task(_dispatch_web_push(uid, title, body, target_url))
+
+    record = {
+        "id": str(uuid.uuid4()),
+        "title": title,
+        "body": body,
+        "url": target_url,
+        "target_audience": payload.target_audience,
+        "listing": listing_data,
+        "recipients_count": sent_count if sent_count > 0 else max(len(target_uids), 1),
+        "sent_by": getattr(admin, "name", None) or getattr(admin, "username", "Admin"),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "status": "delivered",
+    }
+    _admin_push_history.append(record)
+
+    return _ok(record)
+

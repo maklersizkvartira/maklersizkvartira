@@ -1034,3 +1034,53 @@ export interface AdminBalances {
     cost: AiCost;
   };
 }
+
+// ─── Push notifications ───────────────────────────────────────────────────────
+
+export interface PushStats {
+  active_subscribers: number;
+  total_devices: number;
+  total_sent: number;
+}
+
+export interface PushHistoryItem {
+  id: string;
+  title: string;
+  body: string;
+  target_audience: string;
+  target_user_id: string | null;
+  listing_id: string | null;
+  listing_title: string | null;
+  url: string | null;
+  sent_by: string | null;
+  sent_count: number;
+  created_at: string;
+  status: string;
+}
+
+export interface PushListingItem {
+  id: string;
+  title: string;
+  price: number;
+  currency: string;
+  district: string;
+  image: string | null;
+  rooms: number | null;
+}
+
+export interface SendPushPayload {
+  title: string;
+  body: string;
+  target_audience?: 'all' | 'students' | 'tenants' | 'owners' | 'specific';
+  target_user_id?: string;
+  listing_id?: string;
+  url?: string;
+  image?: string;
+}
+
+export interface SendPushResult {
+  status: string;
+  sent_count: number;
+  total_subscribers: number;
+}
+

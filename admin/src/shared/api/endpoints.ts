@@ -351,4 +351,13 @@ export const api = {
     updateStatus: (userId: string) =>
       `/admin/support/conversations/${userId}/status`,
   },
+
+  push: {
+    stats: '/admin/push/stats',
+    history: (params?: { page?: number; limit?: number }) =>
+      `/admin/push/history${qs({ ...params })}`,
+    listings: (params?: { q?: string; limit?: number }) =>
+      `/admin/push/listings${qs({ ...params })}`,
+    send: '/admin/push/send',
+  },
 } as const;

@@ -74,6 +74,7 @@
     "reports": "Reports",
     "support": "Customer Support",
     "chat": "AI chats (live)",
+    "push": "Push Notifications",
     "topRequests": "Top requests",
     "verifications": "Verifications",
     "people": "People",
@@ -991,5 +992,59 @@
     "noData": "No data for this period",
     "utcNote": "Dates are counted in UTC — five hours behind Tashkent.",
     "loadError": "The charts could not be loaded."
+  },
+  "pushPage": {
+    "title": "Push Notifications",
+    "subtitle": "Send push notifications, listing recommendations, and announcements to users",
+    "stats": {
+      "subscribers": "Subscribers",
+      "devices": "Active Devices",
+      "sent": "Total Sent"
+    },
+    "composer": {
+      "title": "Compose Push Notification",
+      "titleLabel": "Title",
+      "titlePlaceholder": "e.g. Affordable apartments near metro for students!",
+      "bodyLabel": "Message Body",
+      "bodyPlaceholder": "e.g. 2-room clean apartment for rent near Chilonzor metro. Tap to view details!",
+      "audienceLabel": "Audience",
+      "allUsers": "All Users (Broadcast)",
+      "students": "Students",
+      "tenants": "Tenants (Seekers)",
+      "owners": "Owners (Landlords)",
+      "specific": "Specific User",
+      "userIdLabel": "User ID or Phone",
+      "attachListing": "Attach Listing (Recommendation)",
+      "changeListing": "Change Listing",
+      "removeListing": "Remove Listing",
+      "customUrl": "Custom URL (optional)",
+      "preview": "Live Device Preview",
+      "sendButton": "Send Push Notification",
+      "sending": "Sending...",
+      "presetsTitle": "Quick Presets",
+      "presetStudents": "Student Deals",
+      "presetCheap": "Budget Friendly",
+      "presetUrgent": "Hot Urgent Offers",
+      "presetMetro": "Near Metro Station"
+    },
+    "history": {
+      "title": "Sent Push History",
+      "tableTitle": "Notification",
+      "tableTarget": "Audience",
+      "tableListing": "Attached Listing",
+      "tableSentBy": "Sender",
+      "tableDate": "Date",
+      "tableStatus": "Status",
+      "empty": "No push notifications sent yet"
+    },
+    "picker": {
+      "title": "Select Listing",
+      "searchPlaceholder": "Search by title, district or ID...",
+      "select": "Select",
+      "price": "UZS/month",
+      "empty": "No listings found"
+    },
+    "success": "Push notification sent successfully!",
+    "error": "Failed to send push notification"
   }
 }
