@@ -22,6 +22,21 @@
       "permanent": true
     },
     {
+      "source": "/oferta",
+      "destination": "/yordam/oferta",
+      "permanent": false
+    },
+    {
+      "source": "/ru/oferta",
+      "destination": "/ru/yordam/oferta",
+      "permanent": false
+    },
+    {
+      "source": "/en/oferta",
+      "destination": "/en/yordam/oferta",
+      "permanent": false
+    },
+    {
       "source": "/search",
       "destination": "/elonlar",
       "permanent": true

@@ -25,31 +25,44 @@ import { FaqSection, PageIntro } from '../seo/blocks';
 
 const SHELL = 'mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8';
 
+const BulletList: React.FC<{ items: string[]; className?: string }> = ({ items, className }) => (
+  <ul className={`space-y-2 ${className ?? ''}`}>
+    {items.map((item) => (
+      <li key={item} className="flex items-start gap-2 text-sm text-muted">
+        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" aria-hidden="true" />
+        <span className="leading-relaxed">{item}</span>
+      </li>
+    ))}
+  </ul>
+);
+
 const Sections: React.FC<{ sections: ArticleSection[] }> = ({ sections }) => (
   <>
     {sections.map((section) => (
       <section key={section.heading} className="mt-8">
         <h2 className="text-lg font-black text-content sm:text-xl">{section.heading}</h2>
-        <div className="mt-3 space-y-3">
-          {section.paragraphs.map((paragraph, index) => (
-            <p key={index} className="text-sm leading-relaxed text-muted">
-              {paragraph}
-            </p>
-          ))}
-        </div>
-        {section.bullets && section.bullets.length > 0 ? (
-          <ul className="mt-3 space-y-2">
-            {section.bullets.map((bullet) => (
-              <li key={bullet} className="flex items-start gap-2 text-sm text-muted">
-                <span
-                  className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand"
-                  aria-hidden="true"
-                />
-                <span className="leading-relaxed">{bullet}</span>
-              </li>
+        {section.paragraphs.length > 0 ? (
+          <div className="mt-3 space-y-3">
+            {section.paragraphs.map((paragraph, index) => (
+              <p key={index} className="text-sm leading-relaxed text-muted">
+                {paragraph}
+              </p>
             ))}
-          </ul>
+          </div>
         ) : null}
+        {section.bullets && section.bullets.length > 0 ? (
+          <BulletList items={section.bullets} className="mt-3" />
+        ) : null}
+        {section.clauses?.map((clause) => (
+          <div key={clause.text} className="mt-3">
+            <p className="text-sm leading-relaxed text-muted">{clause.text}</p>
+            {/* Indented so a list reads as belonging to the clause above it
+                rather than as the start of the next one. */}
+            {clause.items && clause.items.length > 0 ? (
+              <BulletList items={clause.items} className="mt-2 pl-3" />
+            ) : null}
+          </div>
+        ))}
       </section>
     ))}
   </>

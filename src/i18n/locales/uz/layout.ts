@@ -118,6 +118,7 @@ export const layout = {
     legal: 'Huquqiy',
     terms: 'Foydalanish shartlari',
     privacy: 'Maxfiylik siyosati',
+    offer: 'Ommaviy oferta',
     safety: 'Xavfsizlik qoidalari',
     guides: 'Qo‘llanmalar',
     contact: 'Bog‘lanish',

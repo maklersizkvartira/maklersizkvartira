@@ -10,6 +10,9 @@ export const HELP_SLUGS = [
   'xavfsizlik',
   'foydalanish-shartlari',
   'maxfiylik-siyosati',
+  // The public offer: payment, anti-fraud and refund terms for the acquiring
+  // bank. Also reachable as `/oferta` through a redirect in vercel.json.
+  'oferta',
 ] as const;
 
 export type HelpSlug = (typeof HELP_SLUGS)[number];

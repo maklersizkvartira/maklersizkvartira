@@ -1,5 +1,5 @@
 /**
- * Uzbek long-form editorial: the six guide articles and the four help pages.
+ * Uzbek long-form editorial: the six guide articles and the five help pages.
  *
  * These are the only pages on the site that are written rather than generated.
  * Everything else — district landings, category pages, listing metadata — is
@@ -22,9 +22,28 @@
  * plain-language summary written for a reader, not a contract drafted by a
  * lawyer, and each says so in its own text. They deliberately name no company
  * registration number, address or licence.
+ *
+ * The public offer (`oferta`) is the exception on both counts. It is a binding
+ * document an acquiring bank reads, so it does not call itself a summary, and
+ * it has to carry the operator's requisites. Its figures come from `offer.ts`
+ * so the three languages cannot drift apart; the Uzbek text is the prevailing
+ * one (clause 13.3) and the clause numbers are cited in the letter to the bank.
  */
 
+import {
+  groupDigits,
+  OFFER_OPERATOR,
+  OFFER_PLANS,
+  OFFER_UPDATED_AT,
+  PLAN_DAYS,
+  TOP_HOURS,
+} from './offer';
 import type { Article, HelpArticle } from './types';
+
+/** The operator as the Uzbek offer names it. */
+const OPERATOR_UZ = `«${OFFER_OPERATOR.name}» MChJ`;
+
+const somUz = (value: number): string => `${groupDigits(value)} so‘m`;
 
 export const UZ_ARTICLES: Article[] = [
   {
@@ -1672,13 +1691,17 @@ export const UZ_HELP: HelpArticle[] = [
         ],
       },
       {
-        heading: 'Nima bepul',
+        heading: 'Nima bepul va nima pullik',
         paragraphs: [
-          'Hammasi. Qidirish, e’lon ko‘rish, telefon raqam olish, e’lon joylash va uni '
-            + 'tasdiqlashdan o‘tkazish — ijarachi uchun ham, e’lon beruvchi uchun ham '
-            + 'to‘lovsiz. Platforma kelishuvdan hech qanday haq olmaydi.',
+          'Asosiy imkoniyatlarning hammasi bepul. Qidirish, e’lon ko‘rish, telefon raqam olish, '
+            + 'e’lon joylash va uni tasdiqlashdan o‘tkazish — ijarachi uchun ham, e’lon beruvchi '
+            + 'uchun ham to‘lovsiz. Platforma kelishuvdan hech qanday haq olmaydi.',
+          'Pullik faqat ixtiyoriy obunalar: «Uyiz AI Cheksiz», «Uy egasi» va «Agentlik». '
+            + 'Ularning narxi, to‘lov va pulni qaytarish tartibi Ommaviy ofertada yozilgan. Obuna '
+            + 'uchun to‘lov faqat hisobingiz ichidagi to‘lov sahifasi orqali qabul qilinadi.',
           'Agar kimdir sizdan "sayt uchun", "shartnoma rasmiylashtirish uchun" yoki '
-            + '"bazaga kirish uchun" pul so‘rasa — bu platformaning odami emas. Bunday '
+            + '"bazaga kirish uchun" pul so‘rasa yoki pulni kartaga o‘tkazishni aytsa — bu '
+            + 'platformaning odami emas. Bunday '
             + 'e’lonni darhol shikoyat qiling.',
         ],
       },
@@ -1789,13 +1812,15 @@ export const UZ_HELP: HelpArticle[] = [
             + 'ko‘rsatadi va boshqalarga ularni topish imkonini beradi. Boshqa hech narsa '
             + 'qilmaydi.',
           'Platforma ijara kelishuvining tomoni emas. U uyni ijaraga bermaydi, ijaraga '
-            + 'olmaydi, shartnoma tuzmaydi, pul qabul qilmaydi va tomonlar o‘rtasida '
-            + 'vositachilik qilmaydi. Shartnoma faqat uy egasi bilan ijarachi o‘rtasida '
-            + 'tuziladi va uning shartlari uchun javobgarlik ham shu ikki tomonda '
-            + 'qoladi.',
-          'Platforma kelishuvdan hech qanday haq olmaydi va e’lon joylash bepul. Sizdan '
-            + 'platforma nomidan pul so‘ragan har qanday odam qoidabuzar hisoblanadi va bu '
-            + 'haqda xabar berish kerak.',
+            + 'olmaydi, shartnoma tuzmaydi, ijara haqi yoki zakladkani qabul qilmaydi va '
+            + 'tomonlar o‘rtasida vositachilik qilmaydi. Shartnoma faqat uy egasi bilan '
+            + 'ijarachi o‘rtasida tuziladi va uning shartlari uchun javobgarlik ham shu ikki '
+            + 'tomonda qoladi.',
+          'Platforma kelishuvdan hech qanday haq olmaydi va e’lon joylash bepul. Ixtiyoriy '
+            + 'pullik obunalar alohida Ommaviy oferta asosida sotiladi va ular uchun to‘lov '
+            + 'faqat hisobingiz ichidagi to‘lov sahifasi orqali qabul qilinadi. Sizdan platforma '
+            + 'nomidan kartaga pul o‘tkazishni, karta ma’lumotlari yoki SMS-kodni so‘ragan har '
+            + 'qanday odam qoidabuzar hisoblanadi va bu haqda xabar berish kerak.',
         ],
       },
       {
@@ -1942,5 +1967,543 @@ export const UZ_HELP: HelpArticle[] = [
       },
     ],
     updatedAt: '2026-08-01',
+  },
+
+  {
+    slug: 'oferta',
+    title: 'Ommaviy oferta',
+    summary:
+      'Uyiz pullik obunalari: narxlar, to‘lov tartibi, to‘lovlar xavfsizligi va firibgarlikka '
+      + 'qarshi choralar, pulni qaytarish tartibi hamda Ijrochi rekvizitlari.',
+    h1: 'Ommaviy oferta',
+    intro:
+      `Ushbu hujjat — ${OPERATOR_UZ} (bundan keyin — Ijrochi) tomonidan uyiz.uz servisidagi `
+      + 'pullik obunalarni taqdim etish bo‘yicha e’lon qilingan ommaviy oferta. Unda xizmatlar va narxlar, to‘lov '
+      + 'tartibi, to‘lovlar xavfsizligi va firibgarlikka qarshi choralar, pul mablag‘larini '
+      + 'qaytarish tartibi, shuningdek Ijrochining rekvizitlari va aloqa ma’lumotlari '
+      + 'keltirilgan. Obuna uchun to‘lov qilish ushbu oferta shartlarini to‘liq qabul qilishni '
+      + 'anglatadi.',
+    sections: [
+      {
+        heading: '1. Umumiy qoidalar',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '1.1. Ushbu oferta O‘zbekiston Respublikasi Fuqarolik kodeksi, «Elektron tijorat '
+              + 'to‘g‘risida»gi va «Iste’molchilarning huquqlarini himoya qilish to‘g‘risida»gi '
+              + 'qonunlariga muvofiq e’lon qilingan bo‘lib, shu sahifadagi shartlarda shartnoma '
+              + 'tuzish taklifidir.',
+          },
+          {
+            text: '1.2. Ofertada quyidagi atamalar qo‘llanadi:',
+            items: [
+              `Ijrochi — ${OPERATOR_UZ}, Uyiz servisining egasi va operatori.`,
+              'Servis — uyiz.uz sayti va uning mobil versiyasi: uy-joy e’lonlarini joylash va '
+                + 'qidirish platformasi.',
+              'Foydalanuvchi — Servisda telefon raqamini tasdiqlab ro‘yxatdan o‘tgan va obuna '
+                + 'sotib olayotgan jismoniy yoki yuridik shaxs.',
+              `Obuna — ${PLAN_DAYS} kalendar kun davomida Servisning pullik imkoniyatlaridan `
+                + 'foydalanish huquqi (3-bo‘lim).',
+              `Top — tanlangan e’lonni ${TOP_HOURS} soat davomida «Top» blokida va qidiruv `
+                + 'natijalarining yuqori qismida ko‘rsatish.',
+              'To‘lov sahifasi — Bank yoki u jalb qilgan to‘lov operatorining himoyalangan '
+                + 'sahifasi; bank kartasi ma’lumotlari faqat shu yerda kiritiladi.',
+              'Bank — Ijrochi bilan internet-ekvayring shartnomasini tuzgan bank-ekvayer va u '
+                + 'jalb qilgan to‘lov operatori.',
+            ],
+          },
+          {
+            text:
+              '1.3. Servisning asosiy imkoniyatlari — e’lonlarni qidirish va ko‘rish, e’lon '
+              + 'joylash, moderatorlar ko‘rib chiqadigan bepul Top so‘rovi — bepulligicha qoladi '
+              + 'va ushbu oferta predmeti hisoblanmaydi.',
+          },
+          {
+            text:
+              '1.4. Ijrochi foydalanuvchilar o‘rtasidagi ijara yoki oldi-sotdi kelishuvining '
+              + 'tomoni emas: ijara haqi, zakladka yoki uy narxini qabul qilmaydi va bunday '
+              + 'to‘lovlarda vositachilik qilmaydi. Servis orqali faqat ushbu ofertada '
+              + 'ko‘rsatilgan obunalar uchun to‘lov qabul qilinadi.',
+          },
+        ],
+      },
+      {
+        heading: '2. Oferta predmeti',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '2.1. Ijrochi Foydalanuvchiga 3-bo‘limda ko‘rsatilgan obunalardan birini taqdim '
+              + 'etadi, Foydalanuvchi esa uning narxini ushbu oferta shartlarida to‘laydi.',
+          },
+          {
+            text:
+              '2.2. Obuna raqamli xizmat bo‘lib, to‘lov tasdiqlangach Foydalanuvchining '
+              + 'Servisdagi hisobida elektron shaklda faollashtiriladi. Jismoniy yetkazib berish '
+              + 'nazarda tutilmagan.',
+          },
+          {
+            text:
+              '2.3. Obuna uni sotib olgan hisobga bog‘lanadi va boshqa hisobga yoki uchinchi '
+              + 'shaxsga o‘tkazilmaydi.',
+          },
+        ],
+      },
+      {
+        heading: '3. Obunalar va narxlar',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              `3.1. Har bir obuna faollashtirilgan paytdan boshlab ${PLAN_DAYS} kalendar kun `
+              + 'amal qiladi va avtomatik uzaytirilmaydi. Amaldagi obunalar:',
+            items: [
+              `«Uyiz AI Cheksiz» — ${somUz(OFFER_PLANS.ai.price)} / ${PLAN_DAYS} kun. Har qanday `
+                + 'Foydalanuvchi uchun: Uyiz AI yordamchisidan kunlik limitsiz foydalanish '
+                + '(bepul rejimda kunlik so‘rovlar soni cheklangan).',
+              `«Uy egasi» — ${somUz(OFFER_PLANS.owner.price)} / ${PLAN_DAYS} kun. O‘z uyini `
+                + `e’lon qiladigan uy egalari uchun: ${OFFER_PLANS.owner.tops} ta Top, har biri `
+                + `${TOP_HOURS} soat. Servisga kelgusida qo‘shiladigan qo‘shimcha imkoniyatlar `
+                + 'obuna narxini oshirmasdan taqdim etilishi mumkin.',
+              `«Agentlik» — ${somUz(OFFER_PLANS.agency.price)} / ${PLAN_DAYS} kun. Ko‘chmas `
+                + `mulk agentliklari va agentlar uchun: ${OFFER_PLANS.agency.tops} ta Top, har `
+                + `biri ${TOP_HOURS} soat, shuningdek Servisda e’lon qilinadigan qo‘shimcha `
+                + 'imkoniyatlar.',
+            ],
+          },
+          {
+            text:
+              '3.2. Top faqat Foydalanuvchining o‘ziga tegishli, faol (chop etilgan) e’loniga '
+              + `qo‘llanadi. Ishlatilgan Top e’lonni ${TOP_HOURS} soat davomida «Top» blokida va `
+              + 'qidiruv natijalarining yuqori qismida ushlab turadi. Obuna muddatining oxirida '
+              + `ishlatilgan Top ham to‘liq ${TOP_HOURS} soat amal qiladi.`,
+          },
+          {
+            text:
+              '3.3. Obuna muddati ichida ishlatilmagan Toplar muddat tugashi bilan bekor bo‘ladi '
+              + 'va keyingi davrga o‘tkazilmaydi.',
+          },
+          {
+            text:
+              '3.4. Top e’lonning ko‘rinishini oshiradi, lekin ko‘rishlar yoki qo‘ng‘iroqlar sonini '
+              + 'va kelishuv tuzilishini kafolatlamaydi. Foydalanish shartlarini buzgani uchun '
+              + 'moderator yashirgan yoki o‘chirgan e’longa ishlatilgan Top tiklanmaydi.',
+          },
+          {
+            text:
+              '3.5. «Uyiz AI Cheksiz» obunasidagi cheksiz foydalanish halol foydalanish sharti '
+              + 'bilan beriladi: so‘rovlarni bot yoki skript orqali avtomatik yuborish va hisobni '
+              + 'boshqa shaxslarga berish taqiqlanadi. Servis barqarorligini himoya qilish uchun '
+              + 'qisqa muddatli texnik cheklovlar (masalan, bir daqiqadagi so‘rovlar soni) '
+              + 'qo‘llanishi mumkin.',
+          },
+          {
+            text:
+              '3.6. Narxlar O‘zbekiston so‘mida ko‘rsatilgan va qonunchilikda nazarda tutilgan '
+              + 'barcha soliqlarni o‘z ichiga oladi. Ijrochi narxlarni o‘zgartirishi mumkin; yangi '
+              + 'narx allaqachon to‘langan obunaga ta’sir qilmaydi.',
+          },
+        ],
+      },
+      {
+        heading: '4. Ofertani qabul qilish (aksept)',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '4.1. Foydalanuvchi obunani tanlaydi, to‘lovdan oldin ushbu oferta bilan '
+              + 'tanishganini tasdiqlaydi va obuna narxini to‘laydi. To‘lovning muvaffaqiyatli '
+              + 'amalga oshirilishi ofertaning to‘liq va so‘zsiz qabul qilinishi (aksept) '
+              + 'hisoblanadi.',
+          },
+          {
+            text:
+              '4.2. Aksept qilingan paytdan boshlab shartnoma yozma shaklda tuzilgan hisoblanadi '
+              + 'va obuna muddati tugaguncha yoki 8-bo‘limga muvofiq bekor qilinguncha amal '
+              + 'qiladi.',
+          },
+          {
+            text:
+              '4.3. 18 yoshga to‘lmagan shaxs obunani faqat ota-onasi yoki boshqa qonuniy '
+              + 'vakilining roziligi bilan sotib olishi mumkin.',
+          },
+        ],
+      },
+      {
+        heading: '5. Tomonlarning huquq va majburiyatlari',
+        paragraphs: [],
+        clauses: [
+          {
+            text: '5.1. Ijrochi:',
+            items: [
+              'to‘lov tasdiqlangach obunani darhol faollashtiradi;',
+              'obuna davomida Servisning uzluksiz ishlashini ta’minlaydi va rejali texnik ishlar '
+                + 'haqida oldindan xabar beradi;',
+              'Foydalanuvchi murojaatlarini ushbu ofertada ko‘rsatilgan muddatlarda ko‘rib '
+                + 'chiqadi;',
+              'Foydalanuvchi ma’lumotlarining maxfiyligini ta’minlaydi.',
+            ],
+          },
+          {
+            text: '5.2. Ijrochi quyidagi huquqlarga ega:',
+            items: [
+              'firibgarlik belgilari aniqlanganda yoki Foydalanish shartlari qo‘pol buzilganda '
+                + 'hisob va obunani to‘xtatib turish (7.5 va 8.4-bandlar);',
+              'Servis imkoniyatlarini yangilash — to‘langan obuna shartlarini yomonlashtirmagan '
+                + 'holda.',
+            ],
+          },
+          {
+            text: '5.3. Foydalanuvchi:',
+            items: [
+              'Servisda o‘zi haqida to‘g‘ri ma’lumot ko‘rsatadi;',
+              'faqat o‘ziga tegishli bank kartasi bilan to‘laydi;',
+              'SMS-kod, parol va karta ma’lumotlarini hech kimga bermaydi;',
+              'Servisning Foydalanish shartlariga rioya qiladi.',
+            ],
+          },
+          {
+            text:
+              '5.4. Foydalanuvchi obunadan to‘liq foydalanish, 8-bo‘limga muvofiq obunadan voz '
+              + 'kechib pulni qaytarishni talab qilish va har qanday masala bo‘yicha Ijrochiga '
+              + 'murojaat qilish huquqiga ega.',
+          },
+        ],
+      },
+      {
+        heading: '6. To‘lov tartibi',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '6.1. Obuna 100% oldindan to‘lov asosida taqdim etiladi. Hisob-kitoblar faqat '
+              + 'O‘zbekiston so‘mida (UZS) amalga oshiriladi.',
+          },
+          {
+            text:
+              '6.2. To‘lov usuli — bank kartasi orqali onlayn to‘lov. Uzcard va Humo to‘lov '
+              + 'tizimlarining kartalari qabul qilinadi; Visa va Mastercard kartalari Bank ular '
+              + 'bo‘yicha to‘lov qabul qilishni ta’minlagan taqdirda qabul qilinadi. Qabul '
+              + 'qilinadigan kartalarning aniq ro‘yxati to‘lov sahifasida ko‘rsatiladi. Naqd pul, '
+              + 'shaxsiy kartaga o‘tkazma va boshqa usullar bilan to‘lov qabul qilinmaydi.',
+          },
+          {
+            text: '6.3. To‘lov bosqichlari:',
+            items: [
+              '1) uyiz.uz saytida telefon raqamingiz orqali hisobingizga kiring;',
+              '2) «Obunalar» bo‘limida obunani tanlang, uning nomi, muddati va narxini tekshiring '
+                + 'hamda ushbu oferta bilan tanishganingizni belgilang;',
+              '3) «To‘lash» tugmasini bosing — Bankning himoyalangan to‘lov sahifasi ochiladi;',
+              '4) karta raqami va amal qilish muddatini kiriting, so‘ng karta chiqargan bankdan '
+                + 'kelgan bir martalik SMS-kod bilan to‘lovni tasdiqlang;',
+              '5) to‘lov tasdiqlangach Servisga qaytasiz va obuna hisobingizda avtomatik '
+                + 'faollashadi.',
+            ],
+          },
+          {
+            text:
+              '6.4. Obuna Bank to‘lovni tasdiqlagan zahoti, odatda bir necha daqiqa ichida '
+              + 'faollashtiriladi. To‘lovdan keyin 1 soat ichida obuna faollashmasa, 14-bo‘limdagi '
+              + 'aloqa kanallari orqali to‘lov sanasi, summasi va kartaning oxirgi 4 raqamini '
+              + 'ko‘rsatib murojaat qiling.',
+          },
+          {
+            text:
+              '6.5. Karta hisobvarag‘idan mablag‘ yechilgan va Bank to‘lovni tasdiqlagan payt '
+              + 'to‘lov amalga oshirilgan payt hisoblanadi.',
+          },
+          {
+            text:
+              '6.6. Har bir to‘lov bo‘yicha O‘zbekiston Respublikasi qonunchiligiga muvofiq '
+              + 'elektron fiskal chek shakllantiriladi va Foydalanuvchiga to‘lov sahifasida yoki '
+              + 'Servisdagi hisobida taqdim etiladi.',
+          },
+          {
+            text:
+              '6.7. Ijrochi to‘lov uchun qo‘shimcha komissiya olmaydi. Karta chiqargan bank o‘z '
+              + 'tariflariga ko‘ra komissiya olishi mumkin.',
+          },
+          {
+            text:
+              '6.8. Obuna avtomatik uzaytirilmaydi: Foydalanuvchining yangi to‘lovisiz kartadan '
+              + 'takroriy yechib olish amalga oshirilmaydi va karta ma’lumotlari keyingi to‘lovlar '
+              + 'uchun saqlanmaydi.',
+          },
+        ],
+      },
+      {
+        heading: '7. To‘lovlar xavfsizligi va firibgarlikka qarshi choralar',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '7.1. Karta ma’lumotlari Servisga tushmaydi: karta raqami, amal qilish muddati va '
+              + 'CVV/CVC kodi faqat Bankning himoyalangan to‘lov sahifasida kiritiladi. Ijrochi '
+              + 'ularni ko‘rmaydi, qabul qilmaydi va saqlamaydi.',
+          },
+          {
+            text:
+              '7.2. To‘lov sahifasi PCI DSS xalqaro xavfsizlik standarti talablariga muvofiq '
+              + 'ishlaydi, ma’lumotlar TLS protokoli orqali shifrlangan holda uzatiladi. uyiz.uz '
+              + 'sayti faqat himoyalangan HTTPS ulanishi orqali ishlaydi.',
+          },
+          {
+            text:
+              '7.3. Har bir to‘lov karta chiqargan bankning bir martalik SMS-kodi (OTP) bilan '
+              + 'tasdiqlanadi; kodsiz yoki noto‘g‘ri kod bilan to‘lov amalga oshmaydi.',
+          },
+          {
+            text:
+              '7.4. Ijrochi internet-ekvayring shartnomasida nazarda tutilgan cheklovlarni qabul '
+              + 'qiladi va Bankning firibgarlik operatsiyalariga qarshi kurashish imkoniyatlaridan '
+              + 'foydalanadi: karta va operatsiya bo‘yicha limitlar, shubhali operatsiyani to‘xtatib '
+              + 'turish yoki rad etish Bank va to‘lov tizimi tomonida qo‘llanadi; Bank rad etgan '
+              + 'operatsiya Servis tomonida bajarilmaydi — obuna faqat to‘lov tasdiqlangandan '
+              + 'keyin faollashtiriladi; Bankning operatsiyani tekshirish yoki bekor qilish '
+              + 'haqidagi so‘rovi so‘zsiz bajariladi.',
+          },
+          {
+            text: '7.5. Servis tomonidagi nazorat:',
+            items: [
+              'har bir to‘lov buyurtmasi va tranzaksiya bo‘yicha jurnal yuritiladi (sana va vaqt, '
+                + 'summa, holat, tranzaksiya raqami, hisob, obuna turi) va Bank so‘roviga ko‘ra '
+                + 'taqdim etiladi;',
+              'obunani faqat SMS-kod orqali tasdiqlangan telefon raqamli hisobdan sotib olish '
+                + 'mumkin;',
+              'bir turdagi obuna amal qilayotganda xuddi shu obuna uchun takroriy to‘lov qabul '
+                + 'qilinmaydi — bu tasodifiy ikki marta yechib olishning oldini oladi;',
+              'bir hisobdan 1 soat ichida 5 ta muvaffaqiyatsiz to‘lov urinishidan keyin to‘lov '
+                + 'imkoniyati 24 soatga cheklanadi;',
+              'firibgarlik belgilari aniqlanganda hisob bloklanadi va holat Bank bilan '
+                + 'birgalikda tekshiriladi;',
+              'shubhali operatsiya haqidagi murojaat 24 soat ichida ko‘rib chiqiladi.',
+            ],
+          },
+          {
+            text:
+              '7.6. Ijrochi xodimlari hech qachon karta raqami, CVV/CVC, SMS-kod yoki parolni '
+              + 'so‘ramaydi va obuna uchun pulni shaxsiy kartaga o‘tkazishni taklif qilmaydi. Obuna '
+              + 'uchun to‘lov faqat Servisdagi hisob ichidan ochiladigan to‘lov sahifasi orqali '
+              + 'qabul qilinadi. Boshqacha taklif firibgarlik hisoblanadi: bunday holatda to‘lov '
+              + 'qilmang va 7.8-banddagi kanal orqali xabar bering.',
+          },
+          {
+            text:
+              '7.7. Karta yo‘qolgan yoki uning ma’lumotlari begona shaxsga ma’lum bo‘lib qolgan '
+              + 'bo‘lsa, Foydalanuvchi kartani darhol karta chiqargan bank orqali bloklashi lozim.',
+          },
+          {
+            text:
+              `7.8. Shubhali operatsiya haqida xabar berish kanali: ${OFFER_OPERATOR.email} `
+              + 'manziliga «Shubhali operatsiya» mavzusi bilan yozing yoki '
+              + `${OFFER_OPERATOR.phones[0]} raqamiga qo‘ng‘iroq qiling (har kuni 09:00–21:00). `
+              + 'Operatsiya sanasi, summasi va kartaning oxirgi 4 raqamini ko‘rsating. Murojaat 24 '
+              + 'soat ichida ko‘rib chiqiladi va zarur bo‘lsa, operatsiya tekshirish uchun Bankka '
+              + 'yuboriladi.',
+          },
+        ],
+      },
+      {
+        heading: '8. Pul mablag‘larini qaytarish tartibi',
+        paragraphs: [],
+        clauses: [
+          {
+            text: '8.1. Mablag‘ to‘liq qaytariladi, agar:',
+            items: [
+              'to‘lov amalga oshgan, lekin obuna Ijrochiga bog‘liq sabab bilan '
+                + 'faollashtirilmagan bo‘lsa;',
+              'bitta buyurtma uchun mablag‘ bir necha marta yechilgan bo‘lsa — ortiqcha yechilgan '
+                + 'summa to‘liq qaytariladi;',
+              'Foydalanuvchi obuna faollashtirilgan paytdan boshlab 3 kalendar kun ichida undan '
+                + 'voz kechgan va uning imkoniyatlaridan foydalanmagan bo‘lsa (birorta Top '
+                + 'ishlatilmagan, Uyiz AI’ga bepul limitdan ortiq so‘rov yuborilmagan);',
+              'operatsiya Bank tomonidan karta egasining roziligisiz amalga oshirilgan deb tan '
+                + 'olingan bo‘lsa.',
+            ],
+          },
+          {
+            text: '8.2. Mablag‘ qisman qaytariladi, agar:',
+            items: [
+              'Foydalanuvchi 8.1-bandda ko‘rsatilgan muddatdan keyin yoki obunadan foydalana '
+                + 'boshlagach undan voz kechsa — obunaning foydalanilmagan qismi qaytariladi;',
+              'Servis Ijrochiga bog‘liq sabab bilan ketma-ket 72 soatdan ortiq ishlamagan bo‘lsa '
+                + '— Foydalanuvchi tanlovi bo‘yicha ishlamagan kunlarga mutanosib summa '
+                + 'qaytariladi yoki obuna muddati shuncha kunga uzaytiriladi.',
+            ],
+          },
+          {
+            text:
+              `8.3. Foydalanilmagan qism «Uyiz AI Cheksiz» uchun narx × qolgan to‘liq kunlar ÷ `
+              + `${PLAN_DAYS} formulasi bo‘yicha hisoblanadi. «Uy egasi» va «Agentlik» uchun — narx `
+              + '× ishlatilmagan Toplar ÷ obunadagi Toplar soni, lekin qolgan to‘liq kunlar '
+              + 'ulushidan ko‘p emas. Summa butun so‘mgacha pastga yuvarlanadi. Masalan, «Uyiz AI '
+              + `Cheksiz» obunasidan 20 to‘liq kun qolganda voz kechilsa, `
+              + `${groupDigits(OFFER_PLANS.ai.price)} × 20 ÷ ${PLAN_DAYS} = `
+              + `${somUz(Math.floor((OFFER_PLANS.ai.price * 20) / PLAN_DAYS))} qaytariladi.`,
+          },
+          {
+            text:
+              '8.4. Obuna muddati tugagan yoki barcha Toplar ishlatilgan bo‘lsa, foydalanilmagan '
+              + 'qism qolmaydi va 8.2-bandning birinchi holati bo‘yicha qaytarish amalga '
+              + 'oshirilmaydi. Mablag‘ning bir necha marta yechilishi va ruxsatsiz operatsiya '
+              + 'bo‘yicha murojaatlar muddatidan qat’i nazar ko‘rib chiqiladi. Firibgarlik yoki '
+              + 'Foydalanish shartlarini qo‘pol buzganlik uchun hisob bloklanganda to‘lov Bank '
+              + 'bilan birgalikda tekshiriladi va mablag‘ faqat karta egasiga, Bank xulosasi '
+              + 'asosida qaytariladi.',
+          },
+          {
+            text: '8.5. Qaytarishni so‘rash tartibi:',
+            items: [
+              `1) ${OFFER_OPERATOR.email} manziliga yoki Telegramdagi ${OFFER_OPERATOR.telegram} `
+                + 'akkauntiga murojaat yuboring: hisobingiz telefon raqami, to‘lov sanasi va summasi, '
+                + 'kartaning oxirgi 4 raqami, fiskal chek yoki tranzaksiya raqami (bo‘lsa) va '
+                + 'qaytarish sababi;',
+              '2) murojaat qabul qilingani 1 ish kuni ichida tasdiqlanadi;',
+              '3) murojaat 3 ish kuni ichida ko‘rib chiqiladi va qaror Foydalanuvchiga ma’lum '
+                + 'qilinadi;',
+              '4) qaror ijobiy bo‘lsa, mablag‘ to‘lov qilingan kartaga 10 ish kunigacha bo‘lgan '
+                + 'muddatda qaytariladi; mablag‘ning kartaga tushish vaqti karta chiqargan bankka '
+                + 'ham bog‘liq.',
+            ],
+          },
+          {
+            text:
+              '8.6. Mablag‘ faqat to‘lov amalga oshirilgan kartaga qaytariladi. Naqd pulda, '
+              + 'boshqa kartaga yoki uchinchi shaxsga qaytarish amalga oshirilmaydi.',
+          },
+          {
+            text: '8.7. Qaytarish uchun komissiya olinmaydi.',
+          },
+          {
+            text:
+              '8.8. To‘liq qaytarishdan so‘ng obuna o‘chiriladi; qisman qaytarishdan so‘ng '
+              + 'obunaning qolgan muddati va ishlatilmagan Toplar bekor qilinadi.',
+          },
+          {
+            text:
+              '8.9. Foydalanuvchi to‘lovni o‘z banki orqali e’tiroz qilsa (chargeback), Ijrochi '
+              + 'Bank so‘roviga ko‘ra operatsiya jurnalini taqdim etadi va Bank qaroriga amal '
+              + 'qiladi.',
+          },
+        ],
+      },
+      {
+        heading: '9. Javobgarlik',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '9.1. Tomonlar ushbu oferta bo‘yicha majburiyatlarini bajarmaganlik uchun '
+              + 'O‘zbekiston Respublikasi qonunchiligiga muvofiq javob beradi.',
+          },
+          {
+            text:
+              '9.2. Ijrochining obuna bo‘yicha javobgarligi Foydalanuvchi shu obuna uchun to‘lagan '
+              + 'summa bilan cheklanadi.',
+          },
+          {
+            text:
+              '9.3. Ijrochi e’lonlardagi ma’lumotning to‘g‘riligi va foydalanuvchilar o‘rtasidagi '
+              + 'kelishuvlar uchun javob bermaydi — bu masalalar Servisning Foydalanish shartlari '
+              + 'bilan tartibga solinadi.',
+          },
+          {
+            text:
+              '9.4. Ijrochi Bank, to‘lov tizimlari yoki aloqa operatorlari tomonidagi nosozlik '
+              + 'tufayli to‘lov kechikishi uchun javob bermaydi, ammo muammoni hal qilishda '
+              + 'Foydalanuvchiga ko‘maklashadi.',
+          },
+        ],
+      },
+      {
+        heading: '10. Fors-major',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '10.1. Tomonlar yengib bo‘lmaydigan kuch holatlari (tabiiy ofatlar, harbiy '
+              + 'harakatlar, davlat organlarining qarorlari, keng ko‘lamli elektr yoki internet '
+              + 'uzilishlari) sababli majburiyatlarni bajarmaganlik uchun javobgarlikdan ozod '
+              + 'qilinadi. Bunday holatda obuna muddati holat davom etgan kunlar soniga '
+              + 'uzaytiriladi.',
+          },
+        ],
+      },
+      {
+        heading: '11. Nizolarni hal qilish',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              `11.1. Nizolar muzokaralar yo‘li bilan hal qilinadi. Da’vo ${OFFER_OPERATOR.email} `
+              + 'manziliga yuboriladi va 10 ish kuni ichida ko‘rib chiqiladi; pulni qaytarish '
+              + 'haqidagi murojaatlar 8-bo‘limdagi muddatlarda ko‘rib chiqiladi.',
+          },
+          {
+            text:
+              '11.2. Kelishuvga erishilmasa, nizo O‘zbekiston Respublikasi qonunchiligiga muvofiq '
+              + 'sudda hal qilinadi.',
+          },
+        ],
+      },
+      {
+        heading: '12. Shaxsga doir ma’lumotlar',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '12.1. Ijrochi Foydalanuvchi ma’lumotlarini «Shaxsga doir ma’lumotlar to‘g‘risida»gi '
+              + 'Qonunga va Servisdagi «Maxfiylik siyosati»ga muvofiq qayta ishlaydi.',
+          },
+          {
+            text:
+              '12.2. To‘lov bo‘yicha Ijrochi faqat Bank taqdim etgan ma’lumotlarni oladi: to‘lov '
+              + 'sanasi, summasi, holati, tranzaksiya raqami va kartaning niqoblangan raqami. Karta '
+              + 'raqami, amal qilish muddati va CVV/CVC Ijrochiga berilmaydi (7.1-band).',
+          },
+        ],
+      },
+      {
+        heading: '13. Ofertaning amal qilishi va o‘zgartirilishi',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '13.1. Oferta ushbu sahifada e’lon qilingan paytdan boshlab amal qiladi; joriy '
+              + 'tahrir sanasi sahifa oxirida ko‘rsatilgan.',
+          },
+          {
+            text:
+              '13.2. Ijrochi ofertani bir tomonlama o‘zgartirishi mumkin. Yangi tahrir shu '
+              + 'sahifada e’lon qilingan paytdan kuchga kiradi va undan keyin qilingan to‘lovlarga '
+              + 'nisbatan qo‘llanadi; allaqachon to‘langan obunalar to‘lov paytidagi shartlarda '
+              + 'amal qiladi.',
+          },
+          {
+            text:
+              '13.3. Oferta o‘zbek, rus va ingliz tillarida e’lon qilinadi. Matnlar o‘rtasida '
+              + 'tafovut bo‘lsa, o‘zbek tilidagi matn ustun hisoblanadi.',
+          },
+        ],
+      },
+      {
+        heading: '14. Ijrochi rekvizitlari va aloqa ma’lumotlari',
+        paragraphs: [],
+        bullets: [
+          `Ijrochi: «${OFFER_OPERATOR.name}» mas’uliyati cheklangan jamiyati`,
+          `Servis: Uyiz — ${OFFER_OPERATOR.site}`,
+          `STIR: ${OFFER_OPERATOR.tin}`,
+          `Hisob raqami: ${OFFER_OPERATOR.account}`,
+          `Bank: «Xalq banki» ATB, MFO: ${OFFER_OPERATOR.bankMfo}`,
+          ...(OFFER_OPERATOR.legalAddress ? [`Yuridik manzil: ${OFFER_OPERATOR.legalAddress}`] : []),
+          `Telefon: ${OFFER_OPERATOR.phones.join(', ')}`,
+          `E-mail: ${OFFER_OPERATOR.email}`,
+          `Telegram: ${OFFER_OPERATOR.telegram}`,
+          'Murojaatlarni qabul qilish vaqti: har kuni 09:00–21:00',
+        ],
+      },
+    ],
+    updatedAt: OFFER_UPDATED_AT,
   },
 ];

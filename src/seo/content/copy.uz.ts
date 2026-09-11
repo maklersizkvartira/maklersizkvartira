@@ -415,8 +415,9 @@ export const UZ_COPY: CopyPack = {
         q: 'Saytdan foydalanish pulikmi?',
         a:
           'Yo‘q. Qidirish, e’lon ko‘rish, raqam olish va e’lon joylash — hammasi bepul. '
-          + 'Platforma nomidan pul so‘ragan har qanday odam qoidabuzar hisoblanadi va shikoyat '
-          + 'qilinishi kerak.',
+          + 'Pullik faqat ixtiyoriy obunalar, ularning shartlari Ommaviy ofertada. Platforma '
+          + 'nomidan kartaga pul o‘tkazishni so‘ragan har qanday odam qoidabuzar hisoblanadi va '
+          + 'shikoyat qilinishi kerak.',
       },
       {
         q: 'E’lonni kim joylay oladi?',

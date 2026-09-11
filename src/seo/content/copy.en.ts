@@ -440,8 +440,9 @@ export const EN_COPY: CopyPack = {
         q: 'Does the site cost anything to use?',
         a:
           'No. Searching, viewing listings, revealing a phone number and posting a listing are '
-          + 'all free. Anyone who asks you for money on the platform’s behalf is breaking the '
-          + 'rules and should be reported.',
+          + 'all free. The only paid things are optional subscriptions, on the terms of the Public '
+          + 'offer. Anyone who asks you, on the platform’s behalf, to transfer money to a card is '
+          + 'breaking the rules and should be reported.',
       },
       {
         q: 'Who can post a listing?',

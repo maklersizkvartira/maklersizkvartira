@@ -1,5 +1,5 @@
 /**
- * English long-form editorial: the six guides and the four help pages.
+ * English long-form editorial: the six guides and the five help pages.
  *
  * These are the only written pages on the site. Everything else — district
  * landings, category pages, listing metadata — is assembled from the taxonomy
@@ -27,9 +27,28 @@
  * plain-language summary written for a reader, not a contract drafted by a
  * lawyer, and each says so in its own text. They deliberately name no company
  * registration number, address or licence.
+ *
+ * The public offer (`oferta`) is the exception on both counts. It is a binding
+ * document an acquiring bank reads, so it does not call itself a summary, and
+ * it has to carry the operator's requisites. Its figures come from `offer.ts`
+ * so the three languages cannot drift apart, its clause numbers match the
+ * Uzbek text exactly, and the Uzbek text prevails where they differ (13.3).
  */
 
+import {
+  groupDigits,
+  OFFER_OPERATOR,
+  OFFER_PLANS,
+  OFFER_UPDATED_AT,
+  PLAN_DAYS,
+  TOP_HOURS,
+} from './offer';
 import type { Article, HelpArticle } from './types';
+
+/** The operator as the English offer names it. */
+const OPERATOR_EN = `${OFFER_OPERATOR.name} LLC`;
+
+const somEn = (value: number): string => `UZS ${groupDigits(value, ',')}`;
 
 export const EN_ARTICLES: Article[] = [
   {
@@ -1637,13 +1656,18 @@ export const EN_HELP: HelpArticle[] = [
         ],
       },
       {
-        heading: 'What is free',
+        heading: 'What is free and what is paid',
         paragraphs: [
-          'All of it. Searching, browsing, getting a phone number, posting a listing and having '
-            + 'it verified are free for tenants and for whoever posts. The platform takes nothing '
-            + 'out of the deal.',
+          'Everything the platform is for is free. Searching, browsing, getting a phone number, '
+            + 'posting a listing and having it verified are free for tenants and for whoever '
+            + 'posts. The platform takes nothing out of the deal.',
+          'The only paid things are three optional subscriptions: "Uyiz AI Unlimited", "Owner" '
+            + 'and "Agency". Their prices and the payment and refund procedure are set out in the '
+            + 'Public offer. A subscription is paid for only through the payment page inside your '
+            + 'account.',
           'If somebody asks you for money "for the site", "to process the contract" or "for '
-            + 'access to the database", they do not work here. Report that listing immediately.',
+            + 'access to the database", or tells you to transfer money to a card, they do not work '
+            + 'here. Report that listing immediately.',
         ],
       },
       {
@@ -1749,13 +1773,15 @@ export const EN_HELP: HelpArticle[] = [
           'Uyiz is a listings board. The platform displays adverts posted by its users and lets '
             + 'other people find them. It does nothing else.',
           'The platform is not a party to the rental agreement. It does not let property, does '
-            + 'not rent property, does not draw up contracts, does not take payments and does not '
-            + 'act as an intermediary between the parties. The contract is made solely between '
-            + 'the owner and the tenant, and responsibility for its terms rests with those two '
-            + 'parties.',
-          'The platform takes nothing out of the deal, and posting a listing is free. Anyone who '
-            + 'asks you for money on the platform’s behalf is breaking the rules and should be '
-            + 'reported.',
+            + 'not rent property, does not draw up contracts, does not take rent or deposits and '
+            + 'does not act as an intermediary between the parties. The contract is made solely '
+            + 'between the owner and the tenant, and responsibility for its terms rests with those '
+            + 'two parties.',
+          'The platform takes nothing out of the deal, and posting a listing is free. Optional '
+            + 'paid subscriptions are sold separately under the Public offer, and they are paid '
+            + 'for only through the payment page inside your account. Anyone who asks you, on the '
+            + 'platform’s behalf, to transfer money to a card or for your card details or an SMS '
+            + 'code is breaking the rules and should be reported.',
         ],
       },
       {
@@ -1895,5 +1921,540 @@ export const EN_HELP: HelpArticle[] = [
       },
     ],
     updatedAt: '2026-08-01',
+  },
+
+  {
+    slug: 'oferta',
+    title: 'Public offer',
+    summary:
+      'Uyiz paid subscriptions: prices, payment procedure, payment security and anti-fraud '
+      + 'measures, the refund procedure and the Contractor’s details.',
+    h1: 'Public offer',
+    intro:
+      `This document is the public offer made by ${OPERATOR_EN} (the "Contractor") for the `
+      + 'provision of paid subscriptions on the uyiz.uz service. It sets out the services and '
+      + 'prices, the payment procedure, payment security and anti-fraud measures, the refund '
+      + 'procedure, and the Contractor’s details and contacts. Paying for a subscription means '
+      + 'full acceptance of the terms of this offer.',
+    sections: [
+      {
+        heading: '1. General provisions',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '1.1. This offer is published in accordance with the Civil Code of the Republic of '
+              + 'Uzbekistan and the laws "On Electronic Commerce" and "On Consumer Protection", '
+              + 'and is a proposal to conclude a contract on the terms set out on this page.',
+          },
+          {
+            text: '1.2. The following terms are used in this offer:',
+            items: [
+              `Contractor — ${OPERATOR_EN}, the owner and operator of the Uyiz service.`,
+              'Service — the uyiz.uz website and its mobile version: a platform for posting and '
+                + 'searching housing listings.',
+              'User — an individual or legal entity that has registered on the Service with a '
+                + 'confirmed phone number and is purchasing a subscription.',
+              `Subscription — the right to use the Service’s paid features for ${PLAN_DAYS} `
+                + 'calendar days (Section 3).',
+              `Top — displaying a chosen listing for ${TOP_HOURS} hours in the "Top" block and at `
+                + 'the head of the search results.',
+              'Payment page — the secure page of the Bank or of the payment operator it engages; '
+                + 'bank card details are entered only there.',
+              'Bank — the acquiring bank that has concluded an internet acquiring agreement with '
+                + 'the Contractor, and the payment operator it engages.',
+            ],
+          },
+          {
+            text:
+              '1.3. The Service’s core features — searching and viewing listings, posting a '
+              + 'listing, and the free Top request reviewed by moderators — remain free and are '
+              + 'not the subject of this offer.',
+          },
+          {
+            text:
+              '1.4. The Contractor is not a party to any rental or sale agreement between users: '
+              + 'it does not accept rent, deposits or purchase prices and does not act as an '
+              + 'intermediary in such payments. The Service accepts payment only for the '
+              + 'subscriptions set out in this offer.',
+          },
+        ],
+      },
+      {
+        heading: '2. Subject of the offer',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '2.1. The Contractor provides the User with one of the subscriptions listed in '
+              + 'Section 3, and the User pays its price on the terms of this offer.',
+          },
+          {
+            text:
+              '2.2. A subscription is a digital service and is activated electronically in the '
+              + 'User’s account on the Service once the payment is confirmed. No physical delivery '
+              + 'is involved.',
+          },
+          {
+            text:
+              '2.3. A subscription is tied to the account that purchased it and cannot be '
+              + 'transferred to another account or to a third party.',
+          },
+        ],
+      },
+      {
+        heading: '3. Subscriptions and prices',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              `3.1. Each subscription is valid for ${PLAN_DAYS} calendar days from the moment it `
+              + 'is activated and is not renewed automatically. Current subscriptions:',
+            items: [
+              `"Uyiz AI Unlimited" — ${somEn(OFFER_PLANS.ai.price)} / ${PLAN_DAYS} days. For any `
+                + 'User: use of the Uyiz AI assistant with no daily limit (in the free mode the '
+                + 'number of requests per day is limited).',
+              `"Owner" — ${somEn(OFFER_PLANS.owner.price)} / ${PLAN_DAYS} days. For owners `
+                + `listing their own home: ${OFFER_PLANS.owner.tops} Tops of ${TOP_HOURS} hours `
+                + 'each. Additional features added to the Service in future may be provided '
+                + 'without increasing the subscription price.',
+              `"Agency" — ${somEn(OFFER_PLANS.agency.price)} / ${PLAN_DAYS} days. For real estate `
+                + `agencies and agents: ${OFFER_PLANS.agency.tops} Tops of ${TOP_HOURS} hours `
+                + 'each, plus the additional features announced on the Service.',
+            ],
+          },
+          {
+            text:
+              '3.2. A Top can be applied only to an active (published) listing belonging to the '
+              + `User. A Top that has been used keeps the listing for ${TOP_HOURS} hours in the `
+              + '"Top" block and at the head of the search results. A Top used at the end of the '
+              + `subscription period also runs for the full ${TOP_HOURS} hours.`,
+          },
+          {
+            text:
+              '3.3. Tops not used within the subscription period lapse when the period ends and '
+              + 'are not carried over to the next period.',
+          },
+          {
+            text:
+              '3.4. A Top increases a listing’s visibility but does not guarantee any number of '
+              + 'views or calls, or that an agreement will be concluded. A Top used on a listing '
+              + 'that a moderator has hidden or removed for breaching the Terms of use is not '
+              + 'restored.',
+          },
+          {
+            text:
+              '3.5. Unlimited use under the "Uyiz AI Unlimited" subscription is provided on a '
+              + 'fair-use basis: sending requests automatically through a bot or script, and '
+              + 'sharing the account with other persons, are prohibited. Short-term technical '
+              + 'limits (for example, on the number of requests per minute) may be applied to '
+              + 'protect the stability of the Service.',
+          },
+          {
+            text:
+              '3.6. Prices are stated in Uzbek soums and include all taxes provided for by law. '
+              + 'The Contractor may change prices; a new price does not affect a subscription that '
+              + 'has already been paid for.',
+          },
+        ],
+      },
+      {
+        heading: '4. Acceptance of the offer',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '4.1. The User chooses a subscription, confirms before paying that they have read '
+              + 'this offer, and pays the subscription price. Successful completion of the payment '
+              + 'constitutes full and unconditional acceptance of the offer.',
+          },
+          {
+            text:
+              '4.2. From the moment of acceptance the contract is deemed concluded in writing and '
+              + 'remains in force until the subscription period ends or until it is terminated in '
+              + 'accordance with Section 8.',
+          },
+          {
+            text:
+              '4.3. A person under 18 may purchase a subscription only with the consent of a '
+              + 'parent or other legal representative.',
+          },
+        ],
+      },
+      {
+        heading: '5. Rights and obligations of the parties',
+        paragraphs: [],
+        clauses: [
+          {
+            text: '5.1. The Contractor:',
+            items: [
+              'activates the subscription immediately once the payment is confirmed;',
+              'ensures the Service operates without interruption during the subscription and '
+                + 'gives advance notice of scheduled maintenance;',
+              'reviews the User’s requests within the time limits set out in this offer;',
+              'keeps the User’s data confidential.',
+            ],
+          },
+          {
+            text: '5.2. The Contractor has the right to:',
+            items: [
+              'suspend the account and the subscription where signs of fraud are detected or the '
+                + 'Terms of use are seriously breached (clauses 7.5 and 8.4);',
+              'update the Service’s features, without worsening the terms of a subscription that '
+                + 'has been paid for.',
+            ],
+          },
+          {
+            text: '5.3. The User:',
+            items: [
+              'provides accurate information about themselves on the Service;',
+              'pays only with a bank card that belongs to them;',
+              'does not share SMS codes, passwords or card details with anyone;',
+              'complies with the Service’s Terms of use.',
+            ],
+          },
+          {
+            text:
+              '5.4. The User has the right to use the subscription in full, to withdraw from the '
+              + 'subscription and request a refund in accordance with Section 8, and to contact '
+              + 'the Contractor on any matter.',
+          },
+        ],
+      },
+      {
+        heading: '6. Payment procedure',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '6.1. Subscriptions are provided on a 100% prepayment basis. All settlements are '
+              + 'made in Uzbek soums (UZS) only.',
+          },
+          {
+            text:
+              '6.2. Payment method — online payment by bank card. Cards of the Uzcard and Humo '
+              + 'payment systems are accepted; Visa and Mastercard cards are accepted where the '
+              + 'Bank supports payments with them. The exact list of accepted cards is shown on '
+              + 'the payment page. Payment in cash, by transfer to a personal card or by any '
+              + 'other method is not accepted.',
+          },
+          {
+            text: '6.3. Payment steps:',
+            items: [
+              '1) sign in to your account on uyiz.uz with your phone number;',
+              '2) in the "Subscriptions" section, choose a subscription, check its name, period '
+                + 'and price, and confirm that you have read this offer;',
+              '3) press the "Pay" button — the Bank’s secure payment page opens;',
+              '4) enter the card number and expiry date, then confirm the payment with the '
+                + 'one-time SMS code sent by the bank that issued the card;',
+              '5) once the payment is confirmed you return to the Service and the subscription '
+                + 'is activated in your account automatically.',
+            ],
+          },
+          {
+            text:
+              '6.4. The subscription is activated as soon as the Bank confirms the payment, '
+              + 'normally within a few minutes. If the subscription is not active within 1 hour '
+              + 'of payment, contact us through the channels in Section 14, stating the payment '
+              + 'date, the amount and the last 4 digits of the card.',
+          },
+          {
+            text:
+              '6.5. The payment is deemed made at the moment the funds are debited from the card '
+              + 'account and the Bank confirms the payment.',
+          },
+          {
+            text:
+              '6.6. An electronic fiscal receipt is issued for every payment in accordance with '
+              + 'the legislation of the Republic of Uzbekistan and is provided to the User on the '
+              + 'payment page or in their account on the Service.',
+          },
+          {
+            text:
+              '6.7. The Contractor charges no additional fee for payment. The bank that issued '
+              + 'the card may charge a fee under its own tariffs.',
+          },
+          {
+            text:
+              '6.8. Subscriptions are not renewed automatically: no repeat debit is made from the '
+              + 'card without a new payment by the User, and card details are not stored for '
+              + 'future payments.',
+          },
+        ],
+      },
+      {
+        heading: '7. Payment security and anti-fraud measures',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '7.1. Card data never reaches the Service: the card number, expiry date and CVV/CVC '
+              + 'code are entered only on the Bank’s secure payment page. The Contractor does not '
+              + 'see, receive or store them.',
+          },
+          {
+            text:
+              '7.2. The payment page operates in accordance with the PCI DSS international '
+              + 'security standard, and data is transmitted encrypted over TLS. The uyiz.uz '
+              + 'website works only over a secure HTTPS connection.',
+          },
+          {
+            text:
+              '7.3. Every payment is confirmed with a one-time SMS code (OTP) from the bank that '
+              + 'issued the card; a payment without the code, or with a wrong code, does not go '
+              + 'through.',
+          },
+          {
+            text:
+              '7.4. The Contractor accepts the restrictions provided for in the internet acquiring '
+              + 'agreement and uses the Bank’s capabilities for combating fraudulent operations: '
+              + 'limits per card and per operation, and the suspension or rejection of a '
+              + 'suspicious operation, are applied on the side of the Bank and the payment system; '
+              + 'an operation rejected by the Bank is not executed on the Service’s side — a '
+              + 'subscription is activated only after the payment is confirmed; a request from '
+              + 'the Bank to check or cancel an operation is carried out unconditionally.',
+          },
+          {
+            text: '7.5. Controls on the Service’s side:',
+            items: [
+              'a log is kept of every payment order and transaction (date and time, amount, '
+                + 'status, transaction number, account, subscription type) and is provided at the '
+                + 'Bank’s request;',
+              'a subscription can be purchased only from an account whose phone number has been '
+                + 'confirmed by SMS code;',
+              'while a subscription of a given type is active, a repeat payment for the same '
+                + 'subscription is not accepted — this prevents an accidental double debit;',
+              'after 5 unsuccessful payment attempts from one account within 1 hour, the ability '
+                + 'to pay is restricted for 24 hours;',
+              'where signs of fraud are detected, the account is blocked and the case is '
+                + 'investigated together with the Bank;',
+              'a report of a suspicious operation is reviewed within 24 hours.',
+            ],
+          },
+          {
+            text:
+              '7.6. The Contractor’s staff never ask for a card number, CVV/CVC, SMS code or '
+              + 'password, and never suggest paying for a subscription by transfer to a personal '
+              + 'card. Payment for a subscription is accepted only through the payment page opened '
+              + 'from within the account on the Service. Any other proposal is fraud: do not pay, '
+              + 'and report it through the channel in clause 7.8.',
+          },
+          {
+            text:
+              '7.7. If a card is lost or its details have become known to someone else, the User '
+              + 'must block the card immediately through the bank that issued it.',
+          },
+          {
+            text:
+              `7.8. Channel for reporting a suspicious operation: write to ${OFFER_OPERATOR.email} `
+              + 'with the subject "Suspicious operation" or call '
+              + `${OFFER_OPERATOR.phones[0]} (daily, 09:00–21:00). State the date and amount of `
+              + 'the operation and the last 4 digits of the card. The report is reviewed within '
+              + '24 hours and, where necessary, the operation is sent to the Bank for checking.',
+          },
+        ],
+      },
+      {
+        heading: '8. Refund procedure',
+        paragraphs: [],
+        clauses: [
+          {
+            text: '8.1. The payment is refunded in full if:',
+            items: [
+              'the payment went through but the subscription was not activated for a reason '
+                + 'attributable to the Contractor;',
+              'the funds for a single order were debited more than once — the excess amount is '
+                + 'refunded in full;',
+              'the User withdraws from the subscription within 3 calendar days of its activation '
+                + 'and has not used its features (no Top used, no requests to Uyiz AI beyond the '
+                + 'free limit);',
+              'the Bank recognises the operation as made without the cardholder’s consent.',
+            ],
+          },
+          {
+            text: '8.2. The payment is refunded in part if:',
+            items: [
+              'the User withdraws from the subscription after the period in clause 8.1 or after '
+                + 'starting to use it — the unused part of the subscription is refunded;',
+              'the Service has been unavailable for more than 72 consecutive hours for a reason '
+                + 'attributable to the Contractor — at the User’s choice, an amount proportional '
+                + 'to the days of unavailability is refunded or the subscription is extended by '
+                + 'the same number of days.',
+            ],
+          },
+          {
+            text:
+              '8.3. The unused part is calculated for "Uyiz AI Unlimited" as price × full days '
+              + `remaining ÷ ${PLAN_DAYS}. For "Owner" and "Agency" it is price × unused Tops ÷ `
+              + 'the number of Tops in the subscription, but not more than the share of full days '
+              + 'remaining. The amount is rounded down to the whole soum. For example, if the '
+              + '"Uyiz AI Unlimited" subscription is cancelled with 20 full days remaining, '
+              + `${groupDigits(OFFER_PLANS.ai.price, ',')} × 20 ÷ ${PLAN_DAYS} = `
+              + `${somEn(Math.floor((OFFER_PLANS.ai.price * 20) / PLAN_DAYS))} is refunded.`,
+          },
+          {
+            text:
+              '8.4. If the subscription period has ended or all Tops have been used, no unused '
+              + 'part remains and no refund is made under the first case of clause 8.2. Requests '
+              + 'about a repeated debit or an unauthorised operation are reviewed regardless of '
+              + 'the time elapsed. Where an account is blocked for fraud or a serious breach of '
+              + 'the Terms of use, the payment is investigated together with the Bank and the '
+              + 'funds are refunded only to the cardholder, on the basis of the Bank’s findings.',
+          },
+          {
+            text: '8.5. How to request a refund:',
+            items: [
+              `1) send a request to ${OFFER_OPERATOR.email} or to the ${OFFER_OPERATOR.telegram} `
+                + 'account on Telegram, stating: your account phone number, the payment date and '
+                + 'amount, the last 4 digits of the card, the fiscal receipt or transaction number '
+                + '(if available), and the reason for the refund;',
+              '2) receipt of the request is confirmed within 1 working day;',
+              '3) the request is reviewed within 3 working days and the decision is communicated '
+                + 'to the User;',
+              '4) if the decision is positive, the funds are returned to the card used for the '
+                + 'payment within up to 10 working days; when they reach the card also depends on '
+                + 'the bank that issued it.',
+            ],
+          },
+          {
+            text:
+              '8.6. Funds are refunded only to the card from which the payment was made. Refunds '
+              + 'in cash, to another card or to a third party are not made.',
+          },
+          {
+            text: '8.7. No fee is charged for a refund.',
+          },
+          {
+            text:
+              '8.8. After a full refund the subscription is cancelled; after a partial refund the '
+              + 'remaining subscription period and unused Tops are cancelled.',
+          },
+          {
+            text:
+              '8.9. If the User disputes the payment through their own bank (chargeback), the '
+              + 'Contractor provides the operation log at the Bank’s request and complies with '
+              + 'the Bank’s decision.',
+          },
+        ],
+      },
+      {
+        heading: '9. Liability',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '9.1. The parties are liable for failure to perform their obligations under this '
+              + 'offer in accordance with the legislation of the Republic of Uzbekistan.',
+          },
+          {
+            text:
+              '9.2. The Contractor’s liability in respect of a subscription is limited to the '
+              + 'amount the User paid for that subscription.',
+          },
+          {
+            text:
+              '9.3. The Contractor is not liable for the accuracy of information in listings or '
+              + 'for agreements between users — these matters are governed by the Service’s Terms '
+              + 'of use.',
+          },
+          {
+            text:
+              '9.4. The Contractor is not liable for payment delays caused by failures on the side '
+              + 'of the Bank, payment systems or telecom operators, but helps the User to resolve '
+              + 'the problem.',
+          },
+        ],
+      },
+      {
+        heading: '10. Force majeure',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '10.1. The parties are released from liability for failure to perform their '
+              + 'obligations due to force majeure (natural disasters, military action, decisions of '
+              + 'state authorities, large-scale power or internet outages). In that case the '
+              + 'subscription period is extended by the number of days the circumstances lasted.',
+          },
+        ],
+      },
+      {
+        heading: '11. Dispute resolution',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '11.1. Disputes are resolved through negotiation. A claim is sent to '
+              + `${OFFER_OPERATOR.email} and reviewed within 10 working days; refund requests are `
+              + 'reviewed within the time limits in Section 8.',
+          },
+          {
+            text:
+              '11.2. If no agreement is reached, the dispute is resolved in court in accordance '
+              + 'with the legislation of the Republic of Uzbekistan.',
+          },
+        ],
+      },
+      {
+        heading: '12. Personal data',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '12.1. The Contractor processes the User’s data in accordance with the Law "On '
+              + 'Personal Data" and the Privacy policy on the Service.',
+          },
+          {
+            text:
+              '12.2. In respect of payments the Contractor receives only the data provided by the '
+              + 'Bank: the payment date, amount, status, transaction number and the masked card '
+              + 'number. The card number, expiry date and CVV/CVC are not provided to the '
+              + 'Contractor (clause 7.1).',
+          },
+        ],
+      },
+      {
+        heading: '13. Validity and amendment of the offer',
+        paragraphs: [],
+        clauses: [
+          {
+            text:
+              '13.1. The offer is in force from the moment it is published on this page; the date '
+              + 'of the current version is shown at the foot of the page.',
+          },
+          {
+            text:
+              '13.2. The Contractor may amend the offer unilaterally. A new version takes effect '
+              + 'from the moment it is published on this page and applies to payments made after '
+              + 'that; subscriptions already paid for remain on the terms in force at the time of '
+              + 'payment.',
+          },
+          {
+            text:
+              '13.3. The offer is published in Uzbek, Russian and English. In the event of any '
+              + 'discrepancy between the texts, the Uzbek text prevails.',
+          },
+        ],
+      },
+      {
+        heading: '14. Contractor’s details and contacts',
+        paragraphs: [],
+        bullets: [
+          `Contractor: ${OFFER_OPERATOR.name} Limited Liability Company`,
+          `Service: Uyiz — ${OFFER_OPERATOR.site}`,
+          `TIN: ${OFFER_OPERATOR.tin}`,
+          `Account: ${OFFER_OPERATOR.account}`,
+          `Bank: JSCB Xalq Banki, MFO: ${OFFER_OPERATOR.bankMfo}`,
+          ...(OFFER_OPERATOR.legalAddress
+            ? [`Registered address: ${OFFER_OPERATOR.legalAddress}`]
+            : []),
+          `Phone: ${OFFER_OPERATOR.phones.join(', ')}`,
+          `Email: ${OFFER_OPERATOR.email}`,
+          `Telegram: ${OFFER_OPERATOR.telegram}`,
+          'Support hours: daily 09:00–21:00',
+        ],
+      },
+    ],
+    updatedAt: OFFER_UPDATED_AT,
   },
 ];

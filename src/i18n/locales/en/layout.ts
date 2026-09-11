@@ -118,6 +118,7 @@ export const layout = {
     legal: 'Legal',
     terms: 'Terms of use',
     privacy: 'Privacy policy',
+    offer: 'Public offer',
     safety: 'Safety rules',
     guides: 'Guides',
     contact: 'Contact',

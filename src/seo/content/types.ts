@@ -72,11 +72,28 @@ export interface FaqEntry {
   a: string;
 }
 
+/** One numbered clause of a legal document, with an optional list under it. */
+export interface ArticleClause {
+  /** The clause as written, number included: "6.3. To‘lov bosqichlari:". */
+  text: string;
+  items?: string[];
+}
+
 export interface ArticleSection {
   heading: string;
   paragraphs: string[];
   /** Optional bullet list rendered under the paragraphs. */
   bullets?: string[];
+  /**
+   * Clauses rendered after the paragraphs and bullets, each with its own list.
+   *
+   * The public offer needs a list in the middle of a section — the payment
+   * steps sit between 6.2 and 6.4 — which a single trailing `bullets` cannot
+   * express. The numbers stay in the text rather than being generated: the
+   * letter to the bank cites "7.4" and "8.5", and an inserted clause must not
+   * renumber them silently.
+   */
+  clauses?: ArticleClause[];
 }
 
 export interface Article {

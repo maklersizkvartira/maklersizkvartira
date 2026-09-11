@@ -153,6 +153,7 @@ export const Footer: React.FC = () => {
       links: [
         { labelKey: 'layout.footer.terms', to: helpPath('foydalanish-shartlari') },
         { labelKey: 'layout.footer.privacy', to: helpPath('maxfiylik-siyosati') },
+        { labelKey: 'layout.footer.offer', to: helpPath('oferta') },
         { labelKey: 'layout.footer.safety', to: helpPath('xavfsizlik') },
         // Ko'p beriladigan savollar (FAQ) olib tashlandi
         { labelKey: 'layout.footer.guides', to: BLOG_PATH },
