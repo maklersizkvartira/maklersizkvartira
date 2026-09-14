@@ -231,34 +231,47 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:col-span-3">
-            {columns.map((column) => (
-              <nav
-                key={column.titleKey}
-                aria-label={t(column.titleKey as never)}
-                className={column.titleKey === 'layout.footer.legal' ? 'hidden sm:block' : undefined}
-              >
-                <h2 className="mb-3 text-xs font-black uppercase tracking-wide text-content">
-                  {t(column.titleKey as never)}
-                </h2>
-                {/* The rows are 44px tall rather than the height of their own
-                    text: a footer link is the smallest thing on the page and
-                    was the hardest thing on it to hit with a thumb. */}
-                <ul className="space-y-0.5">
-                  {column.links.map((link) => (
-                    <li key={link.labelKey}>
-                      <AppLink
-                        to={link.to ?? (link.view ? viewPath(link.view) : '/')}
-                        view={link.to ? undefined : link.view}
-                        className="press inline-flex min-h-11 cursor-pointer items-center text-xs text-muted transition-colors hover:text-brand-text"
-                      >
-                        {t(link.labelKey as never)}
-                      </AppLink>
-                    </li>
-                  ))}
-                </ul>
-              </nav>
-            ))}
+          <div className="grid grid-cols-2 gap-6 sm:gap-8 sm:grid-cols-3 lg:col-span-3">
+            {columns.map((column) => {
+              const isLegal = column.titleKey === 'layout.footer.legal';
+              return (
+                <nav
+                  key={column.titleKey}
+                  aria-label={t(column.titleKey as never)}
+                  className={
+                    isLegal
+                      ? 'col-span-2 border-t border-line/60 pt-5 sm:col-span-1 sm:border-t-0 sm:pt-0'
+                      : undefined
+                  }
+                >
+                  <h2 className="mb-2.5 text-xs font-black uppercase tracking-wide text-content sm:mb-3">
+                    {t(column.titleKey as never)}
+                  </h2>
+                  {/* The rows are 44px tall on desktop, and a more compact 32px on mobile
+                      legal so the 7 items stay compact and neat across two columns without
+                      making the footer overly tall. */}
+                  <ul
+                    className={
+                      isLegal
+                        ? 'grid grid-cols-2 gap-x-4 gap-y-0.5 sm:block sm:space-y-0.5'
+                        : 'space-y-0.5'
+                    }
+                  >
+                    {column.links.map((link) => (
+                      <li key={link.labelKey}>
+                        <AppLink
+                          to={link.to ?? (link.view ? viewPath(link.view) : '/')}
+                          view={link.to ? undefined : link.view}
+                          className="press inline-flex min-h-8 items-center text-xs text-muted transition-colors hover:text-brand-text sm:min-h-11"
+                        >
+                          {t(link.labelKey as never)}
+                        </AppLink>
+                      </li>
+                    ))}
+                  </ul>
+                </nav>
+              );
+            })}
           </div>
         </div>
 
