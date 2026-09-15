@@ -129,6 +129,20 @@ export default function UsersPage() {
     { key: 'trustScore', header: t('columns.trust'), align: 'right' },
     { key: 'listingsCount', header: t('columns.listings'), align: 'right' },
     {
+      key: 'balance',
+      header: 'Balans',
+      align: 'right',
+      render: (row) => (
+        <span
+          className={`font-mono font-bold text-xs ${
+            (row.balance || 0) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--color-text-muted)]'
+          }`}
+        >
+          {(row.balance || 0).toLocaleString('uz-UZ')} so‘m
+        </span>
+      ),
+    },
+    {
       key: 'lastLoginAt',
       header: t('columns.lastLogin'),
       hideOnCard: true,

@@ -309,6 +309,7 @@ export interface AdminUserRow {
   language: string;
   theme: string;
   xpPoints: number;
+  balance: number;
   listingsCount: number;
   approvedListings: number;
   favoritesCount: number;

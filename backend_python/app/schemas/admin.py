@@ -52,6 +52,7 @@ class AdminUserRow(ORMCamelModel):
     language: str
     theme: str
     xp_points: int
+    balance: float = 0.0
     listings_count: int = 0
     approved_listings: int = 0
     favorites_count: int = 0

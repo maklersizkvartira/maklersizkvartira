@@ -3133,6 +3133,60 @@ async def list_payments(
     }
 
 
+@router.get("/payments/purchases", summary="List services purchased from wallet (TOP, VIP, Galochka)")
+async def list_purchases(
+    admin: RequireModerator,
+    db: DbSession,
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
+    service_type: str | None = Query(default=None),
+) -> dict[str, Any]:
+    """Get list of internal service purchases (TOP, VIP, Verified badge)."""
+    offset = (page - 1) * limit
+    stmt = (
+        select(WalletTransaction, User)
+        .join(User, WalletTransaction.user_id == User.id)
+        .where(WalletTransaction.type.startswith("PURCHASE_"))
+    )
+    if service_type:
+        stmt = stmt.where(WalletTransaction.type == f"PURCHASE_{service_type}")
+
+    count_stmt = (
+        select(func.count(WalletTransaction.id))
+        .where(WalletTransaction.type.startswith("PURCHASE_"))
+    )
+    if service_type:
+        count_stmt = count_stmt.where(WalletTransaction.type == f"PURCHASE_{service_type}")
+
+    total = (await db.execute(count_stmt)).scalar() or 0
+
+    stmt = stmt.order_by(WalletTransaction.created_at.desc()).offset(offset).limit(limit)
+    rows = (await db.execute(stmt)).all()
+
+    data = []
+    for w_tx, user in rows:
+        data.append({
+            "id": str(w_tx.id),
+            "userId": str(user.id),
+            "userName": user.name,
+            "userPhone": user.phone,
+            "type": w_tx.type.replace("PURCHASE_", ""),
+            "amount": abs(w_tx.amount),
+            "balanceAfter": w_tx.balance_after,
+            "description": w_tx.description,
+            "referenceId": str(w_tx.reference_id) if w_tx.reference_id else None,
+            "createdAt": w_tx.created_at.isoformat(),
+        })
+
+    return {
+        "status": "success",
+        "data": data,
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }
+
+
 @router.get("/payments/stats", summary="Payment analytics summary")
 async def get_payment_stats(admin: RequireModerator, db: DbSession) -> dict[str, Any]:
     """Summary of revenue, topups, services bought."""

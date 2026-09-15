@@ -46,6 +46,19 @@ interface PaymentRow {
   createdAt: string;
 }
 
+interface PurchaseRow {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhone: string;
+  type: string;
+  amount: number;
+  balanceAfter: number;
+  description: string;
+  referenceId: string | null;
+  createdAt: string;
+}
+
 interface PaymentStats {
   totalRevenue: number;
   verifiedUsersCount: number;
@@ -57,9 +70,11 @@ export default function PaymentsPage() {
   const c = useTranslations('common');
   const locale = useLocale();
 
+  const [activeTab, setActiveTab] = useState<'click' | 'purchases'>('click');
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [providerFilter, setProviderFilter] = useState('');
+  const [serviceTypeFilter, setServiceTypeFilter] = useState('');
 
   const dateFormat = useMemo(
     () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }),
@@ -72,7 +87,7 @@ export default function PaymentsPage() {
     queryFn: () => http.get('/admin/payments/stats'),
   });
 
-  // Fetch Payments List
+  // Fetch Payments List (Click top-ups)
   const { data: paymentsData, isLoading: listLoading, refetch } = useQuery<{
     status: string;
     data: PaymentRow[];
@@ -90,6 +105,27 @@ export default function PaymentsPage() {
       if (providerFilter) params.set('provider', providerFilter);
       return http.get(`/admin/payments?${params.toString()}`);
     },
+    enabled: activeTab === 'click',
+  });
+
+  // Fetch Purchases List (TOP, VIP, Galochka purchases)
+  const { data: purchasesData, isLoading: purchasesLoading } = useQuery<{
+    status: string;
+    data: PurchaseRow[];
+    total: number;
+    page: number;
+    limit: number;
+  }>({
+    queryKey: ['admin-purchases', page, serviceTypeFilter],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: '20',
+      });
+      if (serviceTypeFilter) params.set('service_type', serviceTypeFilter);
+      return http.get(`/admin/payments/purchases?${params.toString()}`);
+    },
+    enabled: activeTab === 'purchases',
   });
 
   const columns: Column<PaymentRow>[] = [
@@ -182,10 +218,85 @@ export default function PaymentsPage() {
     },
     {
       key: 'date',
-      header: 'Sana',
+      header: 'Sana & Soat',
       align: 'right',
       render: (row) => (
-        <span className="text-xs text-[var(--color-text-muted)]">
+        <span className="text-xs font-mono text-[var(--color-text-muted)]">
+          {dateFormat.format(new Date(row.createdAt))}
+        </span>
+      ),
+    },
+  ];
+
+  const purchaseColumns: Column<PurchaseRow>[] = [
+    {
+      key: 'user',
+      header: 'Foydalanuvchi',
+      render: (row) => (
+        <div>
+          <div className="font-bold text-sm text-[var(--color-text)]">{row.userName}</div>
+          <div className="text-xs text-[var(--color-text-muted)] font-mono">{row.userPhone}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'service',
+      header: 'Xizmat turi',
+      render: (row) => {
+        let label = 'Xizmat';
+        let badgeColor = 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400';
+        if (row.type === 'VERIFIED_BADGE') {
+          label = 'Galochka (Verified)';
+          badgeColor = 'bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400';
+        } else if (row.type === 'TOP_LISTING') {
+          label = 'TOP E’lon';
+          badgeColor = 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400';
+        } else if (row.type === 'VIP_LISTING') {
+          label = 'VIP E’lon';
+          badgeColor = 'bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-950/40 dark:text-purple-400';
+        }
+        return (
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${badgeColor}`}>
+            {label}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'description',
+      header: 'Tavsif / E’lon',
+      render: (row) => (
+        <span className="text-xs font-medium text-[var(--color-text)]">
+          {row.description}
+        </span>
+      ),
+    },
+    {
+      key: 'amount',
+      header: 'Yechilgan summa',
+      align: 'right',
+      render: (row) => (
+        <span className="font-extrabold text-sm text-rose-600 dark:text-rose-400">
+          -{formatNumber(row.amount)} so‘m
+        </span>
+      ),
+    },
+    {
+      key: 'balanceAfter',
+      header: 'Qolgan balans',
+      align: 'right',
+      render: (row) => (
+        <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
+          {formatNumber(row.balanceAfter)} so‘m
+        </span>
+      ),
+    },
+    {
+      key: 'date',
+      header: 'Sana & Soat',
+      align: 'right',
+      render: (row) => (
+        <span className="text-xs font-mono text-[var(--color-text-muted)]">
           {dateFormat.format(new Date(row.createdAt))}
         </span>
       ),
@@ -266,77 +377,173 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <FilterBar
-        label="Filtrlar"
-        resetLabel="Tozalash"
-        activeCount={(statusFilter ? 1 : 0) + (providerFilter ? 1 : 0)}
-        onReset={() => {
-          setStatusFilter('');
-          setProviderFilter('');
-        }}
-      >
-        <Select
-          value={statusFilter}
-          onChange={(val) => {
-            setStatusFilter(val);
+      {/* Tab Switcher */}
+      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] w-fit shadow-xs">
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('click');
             setPage(1);
           }}
-          placeholder="To‘lov holati"
-          options={[
-            { value: '', label: 'Barcha holatlar' },
-            { value: 'SUCCESS', label: 'Muvaffaqiyatli' },
-            { value: 'PENDING', label: 'Kutilmoqda' },
-            { value: 'FAILED', label: 'Bekor qilingan' },
-          ]}
-        />
-        <Select
-          value={providerFilter}
-          onChange={(val) => {
-            setProviderFilter(val);
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            activeTab === 'click'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+          }`}
+        >
+          <CreditCard className="w-4 h-4" />
+          Click Tushumlari (Hisob to‘ldirish)
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('purchases');
             setPage(1);
           }}
-          placeholder="Tizim"
-          options={[
-            { value: '', label: 'Barcha tizimlar' },
-            { value: 'CLICK', label: 'Click' },
-          ]}
-        />
-      </FilterBar>
-
-      {/* Transactions Table */}
-      <div className="card overflow-hidden">
-        <DataTable
-          columns={columns}
-          rows={paymentsData?.data ?? []}
-          keyOf={(row) => row.id}
-          loading={listLoading}
-          loadingRows={10}
-          empty={
-            <div className="py-16 text-center text-sm text-[var(--color-text-muted)]">
-              Hech qanday to‘lov ma’lumotlari topilmadi
-            </div>
-          }
-        />
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            activeTab === 'purchases'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+          }`}
+        >
+          <Crown className="w-4 h-4 text-amber-400" />
+          Xarid qilingan xizmatlar (TOP / VIP / Galochka)
+        </button>
       </div>
 
-      {/* Pagination */}
-      {paymentsData && paymentsData.total > 0 && (
-        <Pagination
-          meta={{
-            page: paymentsData.page,
-            pageSize: paymentsData.limit,
-            total: paymentsData.total,
-            totalPages: Math.ceil(paymentsData.total / paymentsData.limit),
-            hasNext: paymentsData.page * paymentsData.limit < paymentsData.total,
-            hasPrevious: paymentsData.page > 1,
-          }}
-          onPage={(p) => setPage(p)}
-          summary={(pg, tot) => `${pg} / ${tot} sahifa`}
-          navLabel="Sahifalar bo‘yicha harakat"
-          previousLabel="Oldingi"
-          nextLabel="Keyingi"
-        />
+      {/* Tab 1: Click Payments */}
+      {activeTab === 'click' && (
+        <>
+          <FilterBar
+            label="Filtrlar"
+            resetLabel="Tozalash"
+            activeCount={(statusFilter ? 1 : 0) + (providerFilter ? 1 : 0)}
+            onReset={() => {
+              setStatusFilter('');
+              setProviderFilter('');
+            }}
+          >
+            <Select
+              value={statusFilter}
+              onChange={(val) => {
+                setStatusFilter(val);
+                setPage(1);
+              }}
+              placeholder="To‘lov holati"
+              options={[
+                { value: '', label: 'Barcha holatlar' },
+                { value: 'SUCCESS', label: 'Muvaffaqiyatli' },
+                { value: 'PENDING', label: 'Kutilmoqda' },
+                { value: 'FAILED', label: 'Bekor qilingan' },
+              ]}
+            />
+            <Select
+              value={providerFilter}
+              onChange={(val) => {
+                setProviderFilter(val);
+                setPage(1);
+              }}
+              placeholder="Tizim"
+              options={[
+                { value: '', label: 'Barcha tizimlar' },
+                { value: 'CLICK', label: 'Click' },
+              ]}
+            />
+          </FilterBar>
+
+          <div className="card overflow-hidden">
+            <DataTable
+              columns={columns}
+              rows={paymentsData?.data ?? []}
+              keyOf={(row) => row.id}
+              loading={listLoading}
+              loadingRows={10}
+              empty={
+                <div className="py-16 text-center text-sm text-[var(--color-text-muted)]">
+                  Hech qanday Click to‘lovlari topilmadi
+                </div>
+              }
+            />
+          </div>
+
+          {paymentsData && paymentsData.total > 0 && (
+            <Pagination
+              meta={{
+                page: paymentsData.page,
+                pageSize: paymentsData.limit,
+                total: paymentsData.total,
+                totalPages: Math.ceil(paymentsData.total / paymentsData.limit),
+                hasNext: paymentsData.page * paymentsData.limit < paymentsData.total,
+                hasPrevious: paymentsData.page > 1,
+              }}
+              onPage={(p) => setPage(p)}
+              summary={(pg, tot) => `${pg} / ${tot} sahifa`}
+              navLabel="Sahifalar bo‘yicha harakat"
+              previousLabel="Oldingi"
+              nextLabel="Keyingi"
+            />
+          )}
+        </>
+      )}
+
+      {/* Tab 2: Service Purchases (TOP / VIP / Verified) */}
+      {activeTab === 'purchases' && (
+        <>
+          <FilterBar
+            label="Xizmat filtrlari"
+            resetLabel="Tozalash"
+            activeCount={serviceTypeFilter ? 1 : 0}
+            onReset={() => setServiceTypeFilter('')}
+          >
+            <Select
+              value={serviceTypeFilter}
+              onChange={(val) => {
+                setServiceTypeFilter(val);
+                setPage(1);
+              }}
+              placeholder="Xizmat turi"
+              options={[
+                { value: '', label: 'Barcha xizmatlar' },
+                { value: 'TOP_LISTING', label: 'TOP E’lon' },
+                { value: 'VIP_LISTING', label: 'VIP E’lon' },
+                { value: 'VERIFIED_BADGE', label: 'Galochka (Verified)' },
+              ]}
+            />
+          </FilterBar>
+
+          <div className="card overflow-hidden">
+            <DataTable
+              columns={purchaseColumns}
+              rows={purchasesData?.data ?? []}
+              keyOf={(row) => row.id}
+              loading={purchasesLoading}
+              loadingRows={10}
+              empty={
+                <div className="py-16 text-center text-sm text-[var(--color-text-muted)]">
+                  Hali hech qanday pullik xizmatlar xaridi amalga oshirilmagan
+                </div>
+              }
+            />
+          </div>
+
+          {purchasesData && purchasesData.total > 0 && (
+            <Pagination
+              meta={{
+                page: purchasesData.page,
+                pageSize: purchasesData.limit,
+                total: purchasesData.total,
+                totalPages: Math.ceil(purchasesData.total / purchasesData.limit),
+                hasNext: purchasesData.page * purchasesData.limit < purchasesData.total,
+                hasPrevious: purchasesData.page > 1,
+              }}
+              onPage={(p) => setPage(p)}
+              summary={(pg, tot) => `${pg} / ${tot} sahifa`}
+              navLabel="Sahifalar bo‘yicha harakat"
+              previousLabel="Oldingi"
+              nextLabel="Keyingi"
+            />
+          )}
+        </>
       )}
     </div>
   );

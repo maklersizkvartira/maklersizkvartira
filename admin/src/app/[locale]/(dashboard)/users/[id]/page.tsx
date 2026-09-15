@@ -327,6 +327,14 @@ export default function UserDetailPage() {
               value={<StatusPill status={user.status} label={statusLabel(user.status)} />}
             />
             <Field label={t('columns.phone')} value={maskPhone(user.phone)} />
+            <Field
+              label="Balans"
+              value={
+                <span className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
+                  {((user as any).balance || 0).toLocaleString('uz-UZ')} so‘m
+                </span>
+              }
+            />
             <Field label={t('columns.trust')} value={String(user.trustScore)} />
             <Field label={t('columns.listings')} value={String(user.listingsCount)} />
             <Field label={t('columns.lastLogin')} value={showDate(user.lastLoginAt)} />
