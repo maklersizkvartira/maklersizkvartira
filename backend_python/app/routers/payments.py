@@ -41,6 +41,20 @@ PRICES = {
 # ---------------------------------------------------------------------------
 # Click Webhook (Prepare & Complete)
 # ---------------------------------------------------------------------------
+@router.get("/click/prepare-or-complete", summary="Click webhook health check")
+@router.get("/click/prepare", summary="Click prepare health check")
+@router.get("/click/complete", summary="Click complete health check")
+async def click_webhook_health() -> dict[str, Any]:
+    """Health check for Click webhook endpoints when checked via GET in a browser."""
+    return {
+        "status": "ok",
+        "service": "Click Payment Webhook",
+        "message": "Click Webhook endpoint is active and waiting for Click POST requests.",
+        "service_id": settings.CLICK_SERVICE_ID,
+        "supported_actions": ["PREPARE (action=0)", "COMPLETE (action=1)"],
+    }
+
+
 @router.post("/click/prepare-or-complete", summary="Click webhook endpoint")
 @router.post("/click/prepare", summary="Click prepare webhook alias")
 @router.post("/click/complete", summary="Click complete webhook alias")

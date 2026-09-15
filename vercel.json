@@ -49,6 +49,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://maklersizkvartira-production.up.railway.app/api/:path*"
+    },
+    {
       "source": "/sitemap-listings.xml",
       "destination": "https://maklersizkvartira-production.up.railway.app/sitemap-listings.xml"
     },
