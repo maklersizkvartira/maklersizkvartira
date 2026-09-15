@@ -7,7 +7,7 @@
  */
 
 import React, { useState } from 'react';
-import { CreditCard, ExternalLink, Info, Loader2, ShieldCheck, Smartphone, Wallet, X } from 'lucide-react';
+import { CreditCard, ExternalLink, Info, Loader2, ShieldCheck, Wallet, X } from 'lucide-react';
 import { PaymentApi } from '../../services/paymentApi';
 import { useAppStore } from '../../stores/useAppStore';
 
@@ -25,9 +25,6 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [activePaymentType, setActivePaymentType] = useState<'click' | 'card' | null>(null);
   const pushToast = useAppStore((s) => s.pushToast);
-  const currentUser = useAppStore((s) => s.currentUser);
-  const paymentId = currentUser?.referralCode || (currentUser?.id ? currentUser.id.slice(0, 8).toUpperCase() : 'UYIZ01');
-  const userPhone = currentUser?.phone || '';
 
   if (!isOpen) return null;
 
@@ -158,22 +155,6 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose }) => {
           <span className="text-2xl font-black text-blue-600 dark:text-blue-400">
             {currentAmount.toLocaleString()} so‘m
           </span>
-        </div>
-
-        {/* Direct Click App Search Alternative */}
-        <div className="mb-5 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 text-left">
-          <div className="flex items-center justify-between text-xs mb-1.5">
-            <span className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-              <Smartphone className="w-4 h-4 text-blue-500" />
-              Click ilovasidan to‘lash uchun:
-            </span>
-            <span className="font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-lg border border-blue-200 dark:border-blue-900/40">
-              ID: {paymentId}
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-            Click ilovasida qidiruvga <strong>«Uyiz.uz»</strong> deb yozib, yuqoridagi <strong>To‘lov ID</strong> yoki ro‘yxatdan o‘tgan telefoningizni kiritib to‘lashingiz ham mumkin.
-          </p>
         </div>
 
         {/* Payment Buttons Section */}

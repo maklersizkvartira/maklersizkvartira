@@ -8,15 +8,12 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   BadgeCheck,
-  Check,
-  Copy,
   CreditCard,
   History,
   Loader2,
   Plus,
   RefreshCw,
   ShieldCheck,
-  Smartphone,
   Sparkles,
   Wallet,
   Zap,
@@ -75,27 +72,10 @@ export const WalletCard: React.FC = () => {
     }
   };
 
-  const [copiedId, setCopiedId] = useState<boolean>(false);
-  const [copiedPhone, setCopiedPhone] = useState<boolean>(false);
-
   const currentBalance = wallet?.balance ?? 0;
   const isVerified = Boolean(wallet?.isVerified || currentUser?.isVerified);
   const cardHolderName = (currentUser?.name || 'UYIZ FOYDALANUVCHISI').toUpperCase();
-  const lastFourDigits = (currentUser?.phone?.replace(/\D/g, '').slice(-4)) || '7788';
   const paymentId = currentUser?.referralCode || (currentUser?.id ? currentUser.id.slice(0, 8).toUpperCase() : 'UYIZ01');
-  const userPhone = currentUser?.phone || '';
-
-  const copyToClipboard = (text: string, type: 'id' | 'phone') => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    if (type === 'id') {
-      setCopiedId(true);
-      setTimeout(() => setCopiedId(false), 2000);
-    } else {
-      setCopiedPhone(true);
-      setTimeout(() => setCopiedPhone(false), 2000);
-    }
-  };
 
   return (
     <>
@@ -195,93 +175,26 @@ export const WalletCard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Card Bottom Row: Cardholder name, To'lov ID & Card number */}
-              <div className="relative z-10 pt-2 border-t border-white/10 flex items-end justify-between text-xs gap-2">
-                <div className="min-w-0">
+              {/* Card Bottom Row: Cardholder name & To'lov ID */}
+              <div className="relative z-10 pt-3 border-t border-white/15 flex items-end justify-between text-xs">
+                <div className="min-w-0 pr-3">
                   <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
                     Karta Egasi
                   </div>
-                  <div className="font-mono font-bold text-slate-100 tracking-wider text-xs truncate max-w-[130px]">
+                  <div className="font-mono font-bold text-slate-100 tracking-wider text-xs sm:text-sm truncate max-w-[190px]">
                     {cardHolderName}
                   </div>
                 </div>
 
-                {/* To'lov ID badge directly on the 3D card */}
-                <div className="px-2 py-0.5 rounded-lg bg-emerald-500/25 border border-emerald-400/40 text-center shadow-inner">
-                  <div className="text-[7.5px] font-black text-emerald-300 uppercase tracking-wider">
+                <div className="text-right shrink-0">
+                  <div className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">
                     To‘lov ID
                   </div>
-                  <div className="font-mono font-black text-white text-[11px] tracking-wider">
-                    {paymentId}
-                  </div>
-                </div>
-
-                <div className="text-right shrink-0">
-                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                    Karta Raqami
-                  </div>
-                  <div className="font-mono font-bold text-slate-200 tracking-widest text-xs">
-                    •••• {lastFourDigits}
+                  <div className="font-mono font-black text-white tracking-widest text-sm sm:text-base drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+                    ID: {paymentId}
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Click App Direct Payment Information Box */}
-            <div className="w-full max-w-[420px] mt-4 p-4 rounded-2xl bg-gradient-to-br from-blue-50/80 to-indigo-50/50 dark:from-slate-800/60 dark:to-slate-800/30 border border-blue-100 dark:border-slate-700/60">
-              <div className="flex items-center gap-2 mb-2.5">
-                <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white shrink-0 shadow-sm">
-                  <Smartphone className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                    Click ilovasidan to‘lash
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-600/10 text-blue-600 dark:text-blue-400">
-                      ID yoki Telefon
-                    </span>
-                  </h4>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 mb-2.5 text-xs">
-                {/* ID Box */}
-                <div className="p-2 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between">
-                  <div className="min-w-0 pr-1">
-                    <span className="block text-[9px] font-bold text-slate-400 uppercase">To‘lov ID:</span>
-                    <span className="font-mono font-black text-blue-600 dark:text-blue-400 text-xs truncate block">{paymentId}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(paymentId, 'id')}
-                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-blue-600 transition-colors shrink-0"
-                    title="Nusxalash"
-                  >
-                    {copiedId ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-
-                {/* Phone Box */}
-                <div className="p-2 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between">
-                  <div className="min-w-0 pr-1">
-                    <span className="block text-[9px] font-bold text-slate-400 uppercase">Telefon raqam:</span>
-                    <span className="font-mono font-bold text-slate-700 dark:text-slate-200 text-xs truncate block">{userPhone || '—'}</span>
-                  </div>
-                  {userPhone && (
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard(userPhone, 'phone')}
-                      className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-blue-600 transition-colors shrink-0"
-                      title="Nusxalash"
-                    >
-                      {copiedPhone ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                Click ilovasida qidiruvga <strong>«Uyiz.uz»</strong> deb yozib, yuqoridagi <strong>To‘lov ID</strong> yoki <strong>Telefon raqamingizni</strong> kiritib ham hisobingizni to‘g‘ridan-to‘g‘ri to‘ldirishingiz mumkin.
-              </p>
             </div>
           </div>
 
