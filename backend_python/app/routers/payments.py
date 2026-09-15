@@ -8,7 +8,7 @@ from typing import Any
 
 import structlog
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
-from sqlalchemy import desc, select
+from sqlalchemy import String, cast, desc, func, or_, select
 
 from app.core.config import settings
 from app.core.deps import CurrentUser, DbSession
@@ -163,14 +163,22 @@ async def click_webhook(
     if payment_tx is None:
         target_param = str(merchant_trans_id).strip()
 
-        # Check 1: User UUID
+        # Check 1: User UUID (full or prefix)
         try:
             u_uuid = uuid.UUID(target_param)
             user = (await db.execute(select(User).where(User.id == u_uuid))).scalar_one_or_none()
         except (ValueError, TypeError):
             user = None
 
-        # Check 2: Phone number (+99890..., 99890..., 90...)
+        # Check 2: User UUID prefix (e.g. 8-character ID)
+        if user is None and len(target_param) >= 8 and not target_param.isdigit():
+            user = (
+                await db.execute(
+                    select(User).where(cast(User.id, String).ilike(f"{target_param}%"))
+                )
+            ).scalar_one_or_none()
+
+        # Check 3: Phone number (+99890..., 99890..., 90...)
         if user is None:
             clean_digits = "".join(c for c in target_param if c.isdigit())
             candidate_phones = [target_param]
@@ -185,11 +193,24 @@ async def click_webhook(
                 )
             ).scalar_one_or_none()
 
-        # Check 3: Referral code
-        if user is None and len(target_param) <= 16:
+        # Check 4: Referral code / Payment ID (with or without prefix)
+        if user is None and len(target_param) <= 20:
+            clean_code = (
+                target_param.replace("UYIZ-", "")
+                .replace("UYIZ", "")
+                .replace("ID-", "")
+                .replace("ID:", "")
+                .replace("ID", "")
+                .strip()
+            )
             user = (
                 await db.execute(
-                    select(User).where(User.referral_code == target_param.upper())
+                    select(User).where(
+                        or_(
+                            User.referral_code == target_param.upper(),
+                            User.referral_code == clean_code.upper(),
+                        )
+                    )
                 )
             ).scalar_one_or_none()
 
