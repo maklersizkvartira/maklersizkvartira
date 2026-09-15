@@ -44,6 +44,7 @@ import type { Listing } from '../../types';
 import { isForSale } from '../../types/deal';
 import { sellerTypeOf } from '../../types/roles';
 import { AppLink } from '../../router/AppLink';
+import { BlueVerifiedBadge } from '../common/BlueVerifiedBadge';
 import { listingPath } from '../../seo/routes';
 import { listingSlug } from '../../seo/slugs';
 
@@ -152,6 +153,20 @@ export const ListingCard: React.FC<ListingCardProps> = ({
   const forSale = isForSale(listing);
   const href = listingPath({ id: listing.id, slug: listingSlug(listing) });
   const rotates = autoRotate ?? images.length > 1;
+
+  const isVipListing = Boolean(
+    listing.isVip ||
+    (listing.vipUntil && new Date(listing.vipUntil).getTime() > Date.now())
+  );
+  const isTopListing = Boolean(
+    promoted ||
+    listing.isFeatured ||
+    (listing.featuredUntil && new Date(listing.featuredUntil).getTime() > Date.now())
+  );
+  const isOwnerVerified = Boolean(
+    listing.owner?.isVerified ||
+    listing.safetyBadges?.includes('VERIFIED_OWNER')
+  );
 
   // A recycled card (the grid reuses positions as pages append) must not keep
   // the previous listing's slide or its dead-photo bookkeeping.
@@ -296,15 +311,15 @@ export const ListingCard: React.FC<ListingCardProps> = ({
 
       {/* Top-left badges */}
       <div className="absolute left-2 top-2 flex flex-wrap gap-1.5 z-10">
-        {listing.isVip && (
-          <span className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-md shadow-purple-500/30">
-            <Crown className="h-3 w-3 text-amber-300" aria-hidden="true" />
+        {isVipListing && (
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-purple-700 via-indigo-600 to-purple-800 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-white shadow-lg shadow-purple-900/40 border border-purple-300/40 backdrop-blur-md">
+            <Crown className="h-3.5 w-3.5 text-amber-300 fill-amber-300 drop-shadow" aria-hidden="true" />
             VIP
           </span>
         )}
-        {promoted && !listing.isVip && (
-          <span className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-md shadow-amber-500/30">
-            <Flame className="h-3 w-3" aria-hidden="true" />
+        {isTopListing && !isVipListing && (
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-white shadow-lg shadow-orange-900/40 border border-amber-200/40 backdrop-blur-md">
+            <Flame className="h-3.5 w-3.5 text-yellow-200 fill-yellow-200 drop-shadow" aria-hidden="true" />
             TOP
           </span>
         )}
@@ -536,11 +551,17 @@ export const ListingCard: React.FC<ListingCardProps> = ({
             would turn a statement of fact into a caution. */}
         <span
           className={cn(
-            'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] sm:text-[10px] font-black',
+            'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[9px] sm:text-[10px] font-black',
             isAgentListing ? 'bg-info-soft text-info' : 'bg-brand-soft text-brand-text',
           )}
         >
-          {t(isAgentListing ? 'listings.seller.agentBadge' : 'listings.seller.ownerBadge')}
+          <span>{t(isAgentListing ? 'listings.seller.agentBadge' : 'listings.seller.ownerBadge')}</span>
+          {isOwnerVerified && (
+            <BlueVerifiedBadge
+              size="xs"
+              tooltipText={isAgentListing ? "Tasdiqlangan rieltor" : "Tasdiqlangan uy egasi"}
+            />
+          )}
         </span>
         <span className="text-[10px] sm:text-[11px] text-subtle">
           {listing.createdAt ? formatRelativeTime(listing.createdAt) : null}

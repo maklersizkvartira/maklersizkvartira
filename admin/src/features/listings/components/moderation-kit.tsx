@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useState,
   useSyncExternalStore,
   type CSSProperties,
   type ReactNode,
@@ -341,6 +342,44 @@ function LightboxStep({
 
 /* ─── Thumbnail ──────────────────────────────────────────────────────────── */
 
+/**
+ * Normalise any image input (URL, R2 key, stringified array, postgres array, etc.)
+ * into a safe, valid image URL.
+ */
+export function resolveThumbUrl(input: unknown): string | null {
+  if (!input) return null;
+  if (Array.isArray(input)) {
+    if (input.length === 0) return null;
+    return resolveThumbUrl(input[0]);
+  }
+  if (typeof input === 'string') {
+    const trimmed = input.trim();
+    if (!trimmed) return null;
+    // Handle stringified JSON array: e.g. '["https://..."]'
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return resolveThumbUrl(parsed[0]);
+        }
+      } catch {
+        // Not valid JSON
+      }
+    }
+    // Handle postgres array format: e.g. '{"https://..."}'
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      const match = trimmed.slice(1, -1).split(',')[0]?.replace(/^"|"$/g, '').trim();
+      if (match) return resolveThumbUrl(match);
+    }
+    // Handle Cloudflare R2 relative keys (e.g. 'listings/...')
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://') && !trimmed.startsWith('data:')) {
+      return `https://img.uyiz.uz/${trimmed.replace(/^\/+/, '')}`;
+    }
+    return trimmed;
+  }
+  return null;
+}
+
 interface ThumbProps {
   src?: string | null;
   alt: string;
@@ -353,12 +392,16 @@ interface ThumbProps {
 /**
  * A fixed-size listing thumbnail.
  *
- * `loading="lazy"` matters more here than it looks: `images` can hold base64
- * data URIs of several megabytes each, so a 24-row grid that decodes every
- * first photo up front freezes the tab. The box is fixed so the row height
- * never depends on what the image turns out to be.
+ * Handles CDN URLs, relative R2 keys, JSON stringified lists, and graceful image error fallback.
  */
 export function Thumb({ src, alt, size = 44, className = '', style }: ThumbProps) {
+  const resolved = resolveThumbUrl(src);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setError(false);
+  }, [src]);
+
   return (
     <span
       className={`inline-flex items-center justify-center shrink-0 overflow-hidden ${className}`}
@@ -371,13 +414,14 @@ export function Thumb({ src, alt, size = 44, className = '', style }: ThumbProps
         ...style,
       }}
     >
-      {src ? (
+      {resolved && !error ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={src}
+          src={resolved}
           alt={alt}
           loading="lazy"
           decoding="async"
+          onError={() => setError(true)}
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         />
       ) : (

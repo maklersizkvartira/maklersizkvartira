@@ -74,16 +74,29 @@ def verify_click_signature(
     Complete (action = 1):
         md5(click_trans_id + service_id + SECRET_KEY + merchant_trans_id + merchant_prepare_id + amount + action + sign_time)
     """
-    # Amount format from Click is usually formatted with two decimal places or as passed
-    formatted_amount = f"{float(amount):.2f}" if isinstance(amount, (int, float)) else str(amount)
-    
-    if action == 0:
-        raw = f"{click_trans_id}{service_id}{secret_key}{merchant_trans_id}{formatted_amount}{action}{sign_time}"
-    elif action == 1:
-        prep_id = merchant_prepare_id or ""
-        raw = f"{click_trans_id}{service_id}{secret_key}{merchant_trans_id}{prep_id}{formatted_amount}{action}{sign_time}"
-    else:
-        return False
+    # Click may format amount as "10000", "10000.0", or "10000.00"
+    # Testing all representations prevents false-negative sign mismatches
+    candidates = [str(amount)]
+    try:
+        f_val = float(amount)
+        candidates.append(f"{f_val:.2f}")
+        if f_val.is_integer():
+            candidates.append(str(int(f_val)))
+        candidates.append(f"{f_val:.1f}")
+    except (ValueError, TypeError):
+        pass
 
-    expected_hash = hashlib.md5(raw.encode("utf-8")).hexdigest()
-    return expected_hash.lower() == (sign_string or "").lower()
+    for amt in candidates:
+        if action == 0:
+            raw = f"{click_trans_id}{service_id}{secret_key}{merchant_trans_id}{amt}{action}{sign_time}"
+        elif action == 1:
+            prep_id = merchant_prepare_id or ""
+            raw = f"{click_trans_id}{service_id}{secret_key}{merchant_trans_id}{prep_id}{amt}{action}{sign_time}"
+        else:
+            return False
+
+        expected_hash = hashlib.md5(raw.encode("utf-8")).hexdigest()
+        if expected_hash.lower() == (sign_string or "").lower():
+            return True
+
+    return False

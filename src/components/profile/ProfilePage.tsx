@@ -45,6 +45,7 @@ import { useTranslation } from '../../i18n';
 import { AuthApi, type AuthSession } from '../../services/authApi';
 import { UploadError, uploadImage } from '../../services/uploadsApi';
 import { WalletCard } from './WalletCard';
+import { BlueVerifiedBadge } from '../common/BlueVerifiedBadge';
 import { useAppStore, type SignupRole } from '../../stores/useAppStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useHaptics } from '../../hooks/useHaptics';
@@ -1140,7 +1141,10 @@ export const ProfilePage: React.FC = () => {
         </button>
 
         <div className="min-w-0 flex-1 space-y-1">
-          <p className="truncate text-base font-black text-content">{currentUser.name}</p>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p className="truncate text-base font-black text-content">{currentUser.name}</p>
+            {currentUser.isVerified && <BlueVerifiedBadge size="sm" />}
+          </div>
           <span className="inline-flex items-center gap-1 rounded-full border border-brand/30 bg-brand-soft px-2.5 py-0.5 text-xs font-bold text-brand-text">
             <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
             {isOwner
@@ -1222,7 +1226,10 @@ export const ProfilePage: React.FC = () => {
             </button>
 
             <div className="min-w-0 flex-1 space-y-1">
-              <p className="truncate text-lg font-black text-content">{currentUser.name}</p>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <p className="truncate text-lg font-black text-content">{currentUser.name}</p>
+                {currentUser.isVerified && <BlueVerifiedBadge size="md" />}
+              </div>
               <p className="text-xs font-semibold text-muted">{currentUser.phone}</p>
               <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                 <span className="inline-flex items-center gap-1 rounded-full border border-brand/30 bg-brand-soft px-2 py-0.5 text-[11px] font-bold text-brand-text">

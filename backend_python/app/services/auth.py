@@ -641,7 +641,7 @@ async def complete_registration(
     user.language = pending.language
     user.status = UserStatus.ACTIVE.value
     user.phone_verified_at = _now()
-    user.is_verified = True
+    # is_verified is the paid badge (VERIFIED_BADGE) or admin document check, not standard phone verification
     user.trust_score = max(user.trust_score or 0, 60)
     user.verification_level = max(user.verification_level or 1, 2)
     user.failed_login_count = 0

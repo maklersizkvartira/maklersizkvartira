@@ -206,7 +206,20 @@ export default function ListingsPage() {
       key: 'photo',
       header: t('columns.photo'),
       width: '64px',
-      render: (row) => <Thumb src={row.images[0] ?? null} alt={row.title} size={44} />,
+      render: (row) => (
+        <Thumb
+          src={
+            (Array.isArray(row.images) && row.images.length > 0 ? row.images[0] : null) ??
+            (row as any).images ??
+            (row as any).image ??
+            (row as any).coverImage ??
+            (row as any).photo ??
+            null
+          }
+          alt={row.title}
+          size={44}
+        />
+      ),
     },
     {
       key: 'title',

@@ -542,6 +542,13 @@ export const MyListingsPage: React.FC = () => {
                 // owner "Top faol" for ever after their week expired and would
                 // never offer them the button again. This is the same rule the
                 // catalogue's Top rail and the RECOMMENDED sort apply.
+                const vipUntil = listing.vipUntil
+                  ? new Date(listing.vipUntil).getTime()
+                  : null;
+                const isVipActive =
+                  Boolean(listing.isVip) ||
+                  (vipUntil !== null && Number.isFinite(vipUntil) && vipUntil > Date.now());
+
                 const topStatus = listing.topRequestStatus ?? null;
                 const topUntil = listing.featuredUntil
                   ? new Date(listing.featuredUntil).getTime()
@@ -572,18 +579,30 @@ export const MyListingsPage: React.FC = () => {
                   >
                     <div className="flex flex-col gap-3 border-b border-line pb-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex min-w-0 items-center gap-3">
-                        {cover ? (
-                          <img
-                            src={cover}
-                            alt=""
-                            loading="lazy"
-                            className="h-14 w-16 shrink-0 rounded-2xl border border-line object-cover sm:h-16 sm:w-20"
-                          />
-                        ) : (
-                          <span className="flex h-14 w-16 shrink-0 items-center justify-center rounded-2xl border border-line bg-surface-2 text-subtle sm:h-16 sm:w-20">
-                            <ImageIcon className="h-6 w-6" aria-hidden="true" />
-                          </span>
-                        )}
+                        <div className="relative shrink-0">
+                          {cover ? (
+                            <img
+                              src={cover}
+                              alt=""
+                              loading="lazy"
+                              className="h-14 w-16 shrink-0 rounded-2xl border border-line object-cover sm:h-16 sm:w-20"
+                            />
+                          ) : (
+                            <span className="flex h-14 w-16 shrink-0 items-center justify-center rounded-2xl border border-line bg-surface-2 text-subtle sm:h-16 sm:w-20">
+                              <ImageIcon className="h-6 w-6" aria-hidden="true" />
+                            </span>
+                          )}
+                          {isVipActive && (
+                            <span className="absolute -top-1 -left-1 px-1.5 py-0.5 rounded-md bg-purple-600 text-white text-[9px] font-black uppercase shadow-md flex items-center gap-0.5">
+                              <Crown className="w-2.5 h-2.5 text-amber-300 fill-amber-300" /> VIP
+                            </span>
+                          )}
+                          {topActive && !isVipActive && (
+                            <span className="absolute -top-1 -left-1 px-1.5 py-0.5 rounded-md bg-amber-500 text-white text-[9px] font-black uppercase shadow-md flex items-center gap-0.5">
+                              <Flame className="w-2.5 h-2.5 text-yellow-200 fill-yellow-200" /> TOP
+                            </span>
+                          )}
+                        </div>
 
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
@@ -744,14 +763,14 @@ export const MyListingsPage: React.FC = () => {
                           <Rocket className="h-3.5 w-3.5 shrink-0 text-brand" aria-hidden="true" />
                           Reklama & Ko‘tarish
                         </p>
-                        {listing.isVip && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400">
-                            <Crown className="w-3 h-3" /> VIP FAOL
+                        {isVipActive && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800">
+                            <Crown className="w-3 h-3 text-amber-500 fill-amber-500" /> VIP FAOL
                           </span>
                         )}
-                        {topActive && !listing.isVip && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
-                            <Flame className="w-3 h-3" /> TOP FAOL
+                        {topActive && !isVipActive && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                            <Flame className="w-3 h-3 text-amber-500 fill-amber-500" /> TOP FAOL
                           </span>
                         )}
                       </div>

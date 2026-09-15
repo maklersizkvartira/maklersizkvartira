@@ -20,8 +20,10 @@ import {
   Building2,
   Check,
   CheckCircle2,
+  Crown,
   Eye,
   Flag,
+  Flame,
   GraduationCap,
   Heart,
   Image as ImageIcon,
@@ -40,6 +42,7 @@ import {
   X,
 } from 'lucide-react';
 
+import { BlueVerifiedBadge } from '../common/BlueVerifiedBadge';
 import { VerificationBadge } from '../common/VerificationBadge';
 import { isForSale } from '../../types/deal';
 import { sellerTypeOf } from '../../types/roles';
@@ -280,6 +283,18 @@ export const ListingDetailPage: React.FC = () => {
   const ownerPhone = (listing?.owner?.phone ?? '').trim();
   const isOwnListing = Boolean(currentUser && listing && currentUser.id === listing.owner?.id);
   const isFavorite = listing ? favoriteIds.has(listing.id) : false;
+  const isVipListing = Boolean(
+    listing?.isVip ||
+    (listing?.vipUntil && new Date(listing.vipUntil).getTime() > Date.now())
+  );
+  const isTopListing = Boolean(
+    listing?.isFeatured ||
+    (listing?.featuredUntil && new Date(listing.featuredUntil).getTime() > Date.now())
+  );
+  const isOwnerVerified = Boolean(
+    listing?.owner?.isVerified ||
+    listing?.safetyBadges?.includes('VERIFIED_OWNER')
+  );
   /** Off until asked. See the price block below for why. */
   const [showConverted, setShowConverted] = useState(false);
 
@@ -667,6 +682,22 @@ export const ListingDetailPage: React.FC = () => {
         <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-surface-2 shadow-card sm:aspect-video">
           {activeImage ? (
             <>
+              {/* Top-left badges overlay */}
+              <div className="absolute left-3 top-3 flex flex-wrap gap-2 z-10 pointer-events-none">
+                {isVipListing && (
+                  <span className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-700 via-indigo-600 to-purple-800 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-white shadow-xl shadow-purple-900/50 border border-purple-300/40 backdrop-blur-md animate-pulse-slow">
+                    <Crown className="h-4 w-4 text-amber-300 fill-amber-300 drop-shadow" aria-hidden="true" />
+                    VIP E'LON
+                  </span>
+                )}
+                {isTopListing && !isVipListing && (
+                  <span className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-white shadow-xl shadow-orange-900/50 border border-amber-200/40 backdrop-blur-md">
+                    <Flame className="h-4 w-4 text-yellow-200 fill-yellow-200 drop-shadow" aria-hidden="true" />
+                    TOP E'LON
+                  </span>
+                )}
+              </div>
+
               <img
                 src={activeImage}
                 alt={listing.title}
@@ -1019,11 +1050,17 @@ export const ListingDetailPage: React.FC = () => {
                     publisher block, so who is offering the flat is read
                     before the price is acted on. */}
                 <span
-                  className={`rounded-md px-2 py-0.5 font-black ${
+                  className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 font-black ${
                     isAgentListing ? 'bg-info-soft text-info' : 'bg-brand-soft text-brand-text'
                   }`}
                 >
-                  {t(isAgentListing ? 'listings.seller.agentBadge' : 'listings.seller.ownerBadge')}
+                  <span>{t(isAgentListing ? 'listings.seller.agentBadge' : 'listings.seller.ownerBadge')}</span>
+                  {isOwnerVerified && (
+                    <BlueVerifiedBadge
+                      size="xs"
+                      tooltipText={isAgentListing ? "Tasdiqlangan rieltor" : "Tasdiqlangan uy egasi"}
+                    />
+                  )}
                 </span>
                 {forSale ? (
                   <span className="rounded-md bg-success-soft px-2 py-0.5 font-black text-success">
@@ -1079,14 +1116,22 @@ export const ListingDetailPage: React.FC = () => {
                   </span>
                 )}
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-content">
-                    {listing.owner?.name ||
-                      t(
-                        isAgentListing
-                          ? 'listings.seller.agentLabel'
-                          : 'listings.seller.ownerLabel',
-                      )}
-                  </p>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <p className="truncate text-sm font-bold text-content">
+                      {listing.owner?.name ||
+                        t(
+                          isAgentListing
+                            ? 'listings.seller.agentLabel'
+                            : 'listings.seller.ownerLabel',
+                        )}
+                    </p>
+                    {isOwnerVerified && (
+                      <BlueVerifiedBadge
+                        size="sm"
+                        tooltipText={isAgentListing ? "Tasdiqlangan rieltor" : "Tasdiqlangan uy egasi"}
+                      />
+                    )}
+                  </div>
                   {/* A person's name reads the same whoever they are, so on an
                       agent listing this is the line that says what the name
                       above it is — and which firm, when the listing carries

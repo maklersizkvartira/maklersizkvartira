@@ -43,6 +43,8 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
+  Crown,
+  Flame,
   Home,
   Navigation,
   MapPin,
@@ -55,8 +57,10 @@ import {
   Trash2,
   Upload,
   Users,
+  X,
 } from 'lucide-react';
 
+import { PromoteListingModal } from './PromoteListingModal';
 import { useTranslation } from '../../i18n';
 import { UZBEKISTAN_REGIONS, TASHKENT_METRO_LINES } from '../../data/mockLocations';
 import { AMENITIES, NO_AMENITIES, type AmenityState } from '../../data/amenities';
@@ -77,7 +81,7 @@ import { Button, Field, FormError, SelectInput, TextInput } from '../ui/Field';
 import { Card } from '../ui/Card';
 import { Segmented } from '../ui/Segmented';
 import { Sheet } from '../ui/Sheet';
-import type { DealType, PropertyType, SellerType } from '../../types';
+import type { DealType, Listing, PropertyType, SellerType } from '../../types';
 import { canPublishAsAgent, canPublishListings, isSwitchableRole } from '../../types/roles';
 import {
   districtCentre,
@@ -506,6 +510,10 @@ export const CreateListingPage: React.FC = () => {
   const [maxStep, setMaxStep] = useState(() =>
     clampStep(Math.max(initialDraft?.maxStep ?? 1, initialDraft?.step ?? 1)),
   );
+
+  const [newlyCreatedListing, setNewlyCreatedListing] = useState<Listing | null>(null);
+  const [showUpsellModal, setShowUpsellModal] = useState<boolean>(false);
+  const [isPromoteModalOpen, setIsPromoteModalOpen] = useState<boolean>(false);
 
   // -- Step 1: location ------------------------------------------------------
   const [region, setRegion] = useState(initialDraft?.region ?? TASHKENT_CITY);
@@ -1354,11 +1362,10 @@ export const CreateListingPage: React.FC = () => {
       haptics.success();
       pushToast('layout.toast.listingCreated', 'success');
 
+      setNewlyCreatedListing(response.data as unknown as Listing);
+      void fetchMyListings();
+
       if (topRequested) {
-        // The listing id exists only now, so this is the one moment the Top
-        // request can be sent without making the owner go and find the
-        // listing again. A failure here is a failed promotion, never a failed
-        // publish, and the sheet says so in those words.
         try {
           await ListingsApi.requestTop(response.data.id, {
             days: topDays,
@@ -1368,14 +1375,11 @@ export const CreateListingPage: React.FC = () => {
         } catch {
           setTopOutcome('failed');
         }
-        void fetchMyListings();
-        // The sheet is what moves the owner on, so the view does not change
-        // out from under the message that has just been put in front of them.
         return;
       }
 
-      void fetchMyListings();
-      setCurrentView('MY_LISTINGS');
+      setShowUpsellModal(true);
+      return;
     } catch (error) {
       // Five creates an hour is a real cap and the bare catch used to render it
       // as "no internet", which sends the owner to reload and try again.
@@ -3416,6 +3420,120 @@ export const CreateListingPage: React.FC = () => {
         }}
       />
 
+      {/* Post-Listing Upsell Modal */}
+      {showUpsellModal && newlyCreatedListing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100 dark:border-slate-800">
+            {/* Close 'X' Button */}
+            <button
+              onClick={() => {
+                setShowUpsellModal(false);
+                setCurrentView('MY_LISTINGS');
+              }}
+              className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              aria-label="Yopish"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Header */}
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600 flex items-center justify-center text-white shadow-lg shadow-orange-500/30">
+                <Sparkles className="w-7 h-7" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                E'loningiz muvaffaqiyatli joylandi! 🎉
+              </h3>
+              <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-400">
+                E'loningizni <strong className="text-slate-900 dark:text-white">TOP</strong> yoki <strong className="text-purple-600 dark:text-purple-400">VIP</strong> ga ko'tarib, 5 barobar tezroq mijoz topishni xohlaysizmi?
+              </p>
+            </div>
+
+            {/* Promo Options Preview */}
+            <div className="space-y-3 mb-6">
+              <div
+                onClick={() => {
+                  setShowUpsellModal(false);
+                  setIsPromoteModalOpen(true);
+                }}
+                className="p-4 rounded-2xl border-2 border-purple-500/30 hover:border-purple-500 bg-gradient-to-r from-purple-500/5 to-indigo-500/5 cursor-pointer transition-all hover:scale-[1.01]"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <Crown className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    <span className="font-bold text-sm text-slate-900 dark:text-white">VIP E'lon</span>
+                  </div>
+                  <span className="text-xs font-black text-purple-600 dark:text-purple-400">12 000 so'm / 7 kun</span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Qidiruvda eng yuqorida, binafsha/oltin ramka va VIP belgisi bilan ajralib turadi.
+                </p>
+              </div>
+
+              <div
+                onClick={() => {
+                  setShowUpsellModal(false);
+                  setIsPromoteModalOpen(true);
+                }}
+                className="p-4 rounded-2xl border-2 border-amber-500/30 hover:border-amber-500 bg-gradient-to-r from-amber-500/5 to-orange-500/5 cursor-pointer transition-all hover:scale-[1.01]"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <Flame className="w-4 h-4 text-amber-500" />
+                    <span className="font-bold text-sm text-slate-900 dark:text-white">TOP E'lon</span>
+                  </div>
+                  <span className="text-xs font-black text-amber-600 dark:text-amber-400">7 000 so'm / 7 kun</span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Qidiruv sahifasining yuqori pog'onasida olovli TOP nishoni bilan chiqadi.
+                </p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-2.5">
+              <Button
+                type="button"
+                fullWidth
+                className="press py-3 font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg shadow-emerald-600/25"
+                onClick={() => {
+                  setShowUpsellModal(false);
+                  setIsPromoteModalOpen(true);
+                }}
+              >
+                Ha, e'lonni ko'tarish
+              </Button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUpsellModal(false);
+                  setCurrentView('MY_LISTINGS');
+                }}
+                className="py-2.5 text-xs font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+              >
+                Keyinroq / O'tkazib yuborish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Promotion Checkout Modal */}
+      {isPromoteModalOpen && newlyCreatedListing && (
+        <PromoteListingModal
+          isOpen={isPromoteModalOpen}
+          listing={newlyCreatedListing}
+          onClose={() => {
+            setIsPromoteModalOpen(false);
+            setCurrentView('MY_LISTINGS');
+          }}
+          onSuccess={() => {
+            void fetchMyListings();
+            setIsPromoteModalOpen(false);
+            setCurrentView('MY_LISTINGS');
+          }}
+        />
+      )}
     </div>
   );
 };

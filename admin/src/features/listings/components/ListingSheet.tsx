@@ -215,33 +215,45 @@ export function ListingSheet({
             A scroll strip of small lazy boxes, never a grid of full images:
             legacy rows carry base64 data URIs of several megabytes each, and
             the full-size decode happens only when one is tapped. */}
-        <SheetSection title={t('columns.photo')}>
-          {row.images.length === 0 ? (
-            <div className="flex items-center gap-3">
-              <Thumb src={null} alt="" size={64} />
-              <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                {c('noData')}
-              </p>
-            </div>
-          ) : (
-            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-              {row.images.map((src, index) => (
-                <button
-                  key={`${index}-${src.slice(0, 24)}`}
-                  type="button"
-                  aria-label={`${c('view')} ${index + 1}`}
-                  className="rounded-[var(--radius-sm)] active:scale-95 transition-transform shrink-0"
-                  onClick={() => {
-                    setGalleryIndex(index);
-                    setLightboxOpen(true);
-                  }}
-                >
-                  <Thumb src={src} alt={row.title} size={72} />
-                </button>
-              ))}
-            </div>
-          )}
-        </SheetSection>
+        {(() => {
+          const rowImages = Array.isArray(row.images)
+            ? row.images
+            : typeof (row as any).images === 'string'
+              ? [(row as any).images]
+              : (row as any).coverImage
+                ? [(row as any).coverImage]
+                : [];
+
+          return (
+            <SheetSection title={t('columns.photo')}>
+              {rowImages.length === 0 ? (
+                <div className="flex items-center gap-3">
+                  <Thumb src={null} alt="" size={64} />
+                  <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    {c('noData')}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+                  {rowImages.map((src, index) => (
+                    <button
+                      key={`${index}-${String(src).slice(0, 24)}`}
+                      type="button"
+                      aria-label={`${c('view')} ${index + 1}`}
+                      className="rounded-[var(--radius-sm)] active:scale-95 transition-transform shrink-0"
+                      onClick={() => {
+                        setGalleryIndex(index);
+                        setLightboxOpen(true);
+                      }}
+                    >
+                      <Thumb src={src} alt={row.title} size={72} />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </SheetSection>
+          );
+        })()}
 
         {/* ── Verdict signals ─────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-2 mb-5">
