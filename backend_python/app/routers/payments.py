@@ -42,6 +42,8 @@ PRICES = {
 # Click Webhook (Prepare & Complete)
 # ---------------------------------------------------------------------------
 @router.post("/click/prepare-or-complete", summary="Click webhook endpoint")
+@router.post("/click/prepare", summary="Click prepare webhook alias")
+@router.post("/click/complete", summary="Click complete webhook alias")
 async def click_webhook(
     request: Request,
     db: DbSession,
@@ -123,7 +125,24 @@ async def click_webhook(
         await db.commit()
         return _respond(click_service.CLICK_SIGN_CHECK_FAILED, "SIGN CHECK FAILED!")
 
-    # 4. Find the local transaction
+    # 4. Handle "test" onboarding transaction for Click verification team
+    if str(merchant_trans_id).strip().lower() == "test":
+        log.info("click.test_transaction_success", action=action, click_trans_id=click_trans_id)
+        await db.commit()
+        if action == 0:
+            return _respond(
+                click_service.CLICK_SUCCESS,
+                "Success",
+                {"merchant_prepare_id": "test"},
+            )
+        else:
+            return _respond(
+                click_service.CLICK_SUCCESS,
+                "Success",
+                {"merchant_confirm_id": "test"},
+            )
+
+    # Find the local transaction
     try:
         tx_uuid = uuid.UUID(merchant_trans_id)
     except (ValueError, TypeError):
@@ -255,12 +274,6 @@ async def create_topup(
         transaction_param=str(tx.id),
         return_url=return_url,
     )
-    click_card_url = click_service.generate_click_url(
-        amount=tx.amount,
-        transaction_param=str(tx.id),
-        return_url=return_url,
-        card_type="card",
-    )
 
     await db.commit()
 
@@ -268,7 +281,7 @@ async def create_topup(
         transaction_id=tx.id,
         amount=tx.amount,
         click_url=click_url,
-        click_card_url=click_card_url,
+        click_card_url=click_url,
     )
 
 

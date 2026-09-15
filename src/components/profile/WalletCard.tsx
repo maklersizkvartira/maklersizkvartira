@@ -143,9 +143,13 @@ export const WalletCard: React.FC = () => {
                     <path d="M12 19a8.5 8.5 0 0 0 0-14" />
                     <path d="M15.5 21.5a12 12 0 0 0 0-19" />
                   </svg>
-                  <span className="text-[10px] font-extrabold tracking-widest text-white/50 border border-white/20 rounded-md px-1.5 py-0.5">
-                    CLICK
-                  </span>
+                  <div className="flex items-center px-2 py-0.5 rounded-md bg-white/10 border border-white/20 backdrop-blur-xs">
+                    <img
+                      src="/brand/click-logo-white.svg"
+                      alt="Click"
+                      className="h-3.5 w-auto object-contain opacity-95"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -200,8 +204,12 @@ export const WalletCard: React.FC = () => {
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3">
               <div>
                 <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <Zap className="w-4 h-4 text-emerald-500" />
-                  Hisobni to‘ldirish
+                  <img
+                    src="/brand/click-icon.svg"
+                    alt="Click"
+                    className="w-4 h-4 object-contain"
+                  />
+                  <span>Hisobni to‘ldirish</span>
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Click orqali 5 000 dan 70 000 so‘mgacha

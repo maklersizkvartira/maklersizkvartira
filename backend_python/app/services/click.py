@@ -31,14 +31,11 @@ def generate_click_url(
     amount: float,
     transaction_param: str,
     return_url: str | None = None,
-    card_type: str | None = None,
 ) -> str:
-    """Generate payment link for Click.
+    """Generate official checkout payment link for Click.
     
-    1. Click button (Click Up app / web):
-       https://my.click.uz/services/pay?service_id=...&merchant_id=...&amount=...&transaction_param=...
-    2. Click pay by card:
-       Adding card_type or redirecting to Click's card payment interface.
+    Standard Click payment link structure (as in docs.click.uz):
+    https://my.click.uz/services/pay?service_id=...&merchant_id=...&amount=...&transaction_param=...&return_url=...
     """
     params: dict[str, Any] = {
         "service_id": settings.CLICK_SERVICE_ID,
@@ -48,8 +45,6 @@ def generate_click_url(
     }
     if return_url:
         params["return_url"] = return_url
-    if card_type:
-        params["card_type"] = card_type
 
     return f"https://my.click.uz/services/pay?{urlencode(params)}"
 
