@@ -1410,10 +1410,10 @@ export const ProfilePage: React.FC = () => {
         open={activeMobileSection === 'wallet'}
         onClose={() => setActiveMobileSection(null)}
         title="Mening Hamyonim & Balans"
-        description="Click to‘lovlari va xizmatlar"
+        description="Click, Payme va Uzum Bank orqali to‘lovlar"
       >
-        <div className="p-4 sm:p-6">
-          <WalletCard />
+        <div className="px-1 py-2 sm:p-6">
+          <WalletCard embedded={true} />
         </div>
       </Sheet>
 

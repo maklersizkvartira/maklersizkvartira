@@ -160,7 +160,8 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
       window.location.href = targetUrl;
     } catch (err: any) {
       console.error('To‘lovda xatolik:', err);
-      pushToast('common.error.generic', 'error');
+      const errMsg = err?.message || err?.detail || 'common.error.generic';
+      pushToast(errMsg, 'error');
     } finally {
       setLoading(false);
       setActivePaymentType(null);
