@@ -7,7 +7,7 @@
  */
 
 import React, { useState } from 'react';
-import { CreditCard, ExternalLink, Loader2, ShieldCheck, Wallet, X } from 'lucide-react';
+import { CreditCard, ExternalLink, Info, Loader2, ShieldCheck, Wallet, X } from 'lucide-react';
 import { PaymentApi } from '../../services/paymentApi';
 import { useAppStore } from '../../stores/useAppStore';
 
@@ -219,6 +219,14 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose }) => {
               <ExternalLink className="w-5 h-5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
             )}
           </button>
+
+          {/* Quick tip on card payment flow */}
+          <div className="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40 flex items-start gap-2.5 text-left">
+            <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              <span className="font-bold text-slate-800 dark:text-white">Karta bilan to‘lash:</span> Click sahifasiga o‘tgach, u yerda <strong className="text-blue-600 dark:text-blue-400">«Karta orqali / Оплата без регистрации»</strong> tugmasini bosib, Uzcard yoki Humo karta raqamingizni kiritasiz.
+            </p>
+          </div>
         </div>
 
         {/* Trust Guarantee Footer */}
