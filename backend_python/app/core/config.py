@@ -240,9 +240,9 @@ class Settings(BaseSettings):
     CLICK_MERCHANT_USER_ID: str = "91391"
 
     # -- Payme Payment Gateway -----------------------------------------------
-    PAYME_MERCHANT_ID: str = "65a000000000000000000000"
-    PAYME_SECRET_KEY: str = "PaymeSecretKeyPlaceholder"
-    PAYME_TEST_SECRET_KEY: str = "PaymeTestKeyPlaceholder"
+    PAYME_MERCHANT_ID: str = "6aa934ceee30563de3a1aea6"
+    PAYME_SECRET_KEY: str = "kDce4ijPPZe9ZN8P3B64%s3K#eBwzPsj#IRk"
+    PAYME_TEST_SECRET_KEY: str = "C6kxzR29k4VWSxpsbOZCD99U#2kVr#NggAIU"
     PAYME_CHECKOUT_URL: str = "https://checkout.paycom.uz"
     PAYME_MXIK_CODE: str = "06820001001000000"
     PAYME_PACKAGE_CODE: str = "1417745"
