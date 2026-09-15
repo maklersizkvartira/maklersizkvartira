@@ -43,10 +43,12 @@ export const PaymentApi = {
   createTopUp: async (
     amount: number,
     returnUrl?: string,
-    _gateway: PaymentGateway = 'click',
+    gateway: PaymentGateway = 'click',
   ): Promise<CreateTopUpResponse> => {
-    // Note: Backend FastAPI schema uses extra='forbid', so only send expected fields
-    const payload: { amount: number; returnUrl?: string } = { amount };
+    const payload: { amount: number; returnUrl?: string; gateway: string } = {
+      amount,
+      gateway,
+    };
     if (returnUrl) payload.returnUrl = returnUrl;
     return http.post<CreateTopUpResponse>('/payments/topup', payload);
   },

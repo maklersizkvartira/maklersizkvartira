@@ -304,8 +304,9 @@ export const WalletCard: React.FC<WalletCardProps> = ({ embedded = false }) => {
                     <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-tight">
                       Payme
                     </div>
-                    <div className="text-[10px] text-amber-600 dark:text-amber-400 font-bold mt-0.5">
-                      Tez kunda
+                    <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5 flex items-center justify-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Faol
                     </div>
                   </div>
                 </button>

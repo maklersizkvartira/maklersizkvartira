@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    BigInteger,
     DateTime,
     Float,
     ForeignKey,
@@ -51,6 +52,15 @@ class PaymentTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     click_trans_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     click_paydoc_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     merchant_prepare_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    
+    # Payme specific parameters
+    payme_trans_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    payme_time: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    payme_perform_time: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    payme_cancel_time: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    payme_state: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    payme_reason: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    
     error_code: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     
@@ -62,14 +72,12 @@ class PaymentTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __table_args__ = (
         Index("ix_payment_transactions_user_status", "user_id", "status"),
         Index("ix_payment_transactions_provider_click", "provider", "click_trans_id"),
+        Index("ix_payment_transactions_provider_payme", "provider", "payme_trans_id"),
     )
 
 
 class ClickPaymentLog(Base, UUIDPrimaryKeyMixin, TimestampMixin):
-    """Raw audit log of all Click Prepare and Complete requests/responses.
-    
-    Required by Click integration guidelines for auditing and debugging.
-    """
+    """Raw audit log of all Click Prepare and Complete requests/responses."""
 
     __tablename__ = "click_payment_logs"
 
@@ -81,6 +89,23 @@ class ClickPaymentLog(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     error_code: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     
+    raw_request: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    raw_response: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    client_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+
+class PaymePaymentLog(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Raw audit log of all Payme JSON-RPC 2.0 requests/responses."""
+
+    __tablename__ = "payme_payment_logs"
+
+    method: Mapped[str] = mapped_column(String(64), nullable=False)
+    payme_trans_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    account_param: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+    error_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     raw_request: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     raw_response: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     client_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)

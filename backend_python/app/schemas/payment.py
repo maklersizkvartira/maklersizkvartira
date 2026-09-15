@@ -21,8 +21,9 @@ class CreateTopUpResponse(CamelModel):
     status: str = "success"
     transaction_id: uuid.UUID
     amount: float
-    click_url: str
-    click_card_url: str
+    click_url: str | None = None
+    click_card_url: str | None = None
+    payme_url: str | None = None
 
 
 class WalletTransactionOut(ORMCamelModel):

@@ -239,6 +239,15 @@ class Settings(BaseSettings):
     CLICK_SECRET_KEY: str = "TyAfhhVWnkXhYh"
     CLICK_MERCHANT_USER_ID: str = "91391"
 
+    # -- Payme Payment Gateway -----------------------------------------------
+    PAYME_MERCHANT_ID: str = "65a000000000000000000000"
+    PAYME_SECRET_KEY: str = "PaymeSecretKeyPlaceholder"
+    PAYME_TEST_SECRET_KEY: str = "PaymeTestKeyPlaceholder"
+    PAYME_CHECKOUT_URL: str = "https://checkout.paycom.uz"
+    PAYME_MXIK_CODE: str = "06820001001000000"
+    PAYME_PACKAGE_CODE: str = "1417745"
+    PAYME_VAT_PERCENT: int = 0
+
     TELEGRAM_BOT_TOKEN: str = "8760567987:AAF5Qg1jVk7xClHJuTkxOSWvgDs9WEptL_M"
     TELEGRAM_GROUP_ID: str = "-1004486550551"
     #: A SECOND bot and chat, for the AI transcripts only.

@@ -115,14 +115,28 @@ async def lifespan(app: FastAPI):
                         click_trans_id VARCHAR(64),
                         click_paydoc_id VARCHAR(64),
                         merchant_prepare_id VARCHAR(64),
+                        payme_trans_id VARCHAR(64),
+                        payme_time BIGINT,
+                        payme_perform_time BIGINT,
+                        payme_cancel_time BIGINT,
+                        payme_state INTEGER,
+                        payme_reason INTEGER,
                         error_code INTEGER NOT NULL DEFAULT 0,
                         error_note TEXT,
                         completed_at TIMESTAMPTZ,
                         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
                     );
+                    ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS payme_trans_id VARCHAR(64);
+                    ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS payme_time BIGINT;
+                    ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS payme_perform_time BIGINT;
+                    ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS payme_cancel_time BIGINT;
+                    ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS payme_state INTEGER;
+                    ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS payme_reason INTEGER;
+
                     CREATE INDEX IF NOT EXISTS ix_payment_transactions_user_status ON payment_transactions(user_id, status);
                     CREATE INDEX IF NOT EXISTS ix_payment_transactions_click_trans_id ON payment_transactions(click_trans_id);
+                    CREATE INDEX IF NOT EXISTS ix_payment_transactions_payme_trans_id ON payment_transactions(payme_trans_id);
 
                     CREATE TABLE IF NOT EXISTS click_payment_logs (
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -140,6 +154,22 @@ async def lifespan(app: FastAPI):
                         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
                     );
                     CREATE INDEX IF NOT EXISTS ix_click_payment_logs_click_trans_id ON click_payment_logs(click_trans_id);
+
+                    CREATE TABLE IF NOT EXISTS payme_payment_logs (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        method VARCHAR(64) NOT NULL,
+                        payme_trans_id VARCHAR(64),
+                        account_param VARCHAR(128),
+                        amount DOUBLE PRECISION,
+                        error_code INTEGER,
+                        error_message TEXT,
+                        raw_request JSONB,
+                        raw_response JSONB,
+                        client_ip VARCHAR(64),
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_payme_payment_logs_payme_trans_id ON payme_payment_logs(payme_trans_id);
 
                     CREATE TABLE IF NOT EXISTS wallet_transactions (
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

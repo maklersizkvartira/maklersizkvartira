@@ -66,8 +66,8 @@ const GATEWAYS: GatewayConfig[] = [
   {
     id: 'payme',
     name: 'Payme',
-    badge: 'Ulanmoqda',
-    isReady: false,
+    badge: 'Faol',
+    isReady: true,
     iconSrc: '/brand/payme-app-icon.png',
     logoWhiteSrc: '/brand/payme-logo-white.svg',
     primaryColor: '#00CCCC',
@@ -149,9 +149,14 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
       setActivePaymentType(type);
 
       const returnUrl = typeof window !== 'undefined' ? `${window.location.origin}/profile` : undefined;
-      const res = await PaymentApi.createTopUp(currentAmount, returnUrl, 'click');
+      const res = await PaymentApi.createTopUp(currentAmount, returnUrl, selectedGateway);
 
-      const targetUrl = type === 'card' ? (res.clickCardUrl || res.clickUrl) : (res.clickUrl || res.clickCardUrl);
+      let targetUrl: string | undefined;
+      if (selectedGateway === 'payme') {
+        targetUrl = res.paymeUrl;
+      } else {
+        targetUrl = type === 'card' ? (res.clickCardUrl || res.clickUrl) : (res.clickUrl || res.clickCardUrl);
+      }
 
       if (!targetUrl) {
         throw new Error('To‘lov havolasi olinmadi');
@@ -512,32 +517,29 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
                     </div>
                     <div className="text-left">
                       <div className="text-xs sm:text-sm font-black leading-tight text-slate-950">
-                        Payme ilovasi orqali to‘lash
+                        Payme orqali to‘lash
                       </div>
                       <div className="text-[10px] sm:text-[11px] text-slate-800/80 font-medium">
-                        Payme ilovasi yoki hisob raqami
+                        Payme ilovasi yoki bank kartasi bilan
                       </div>
                     </div>
                   </div>
-                  <ExternalLink className="w-4 h-4 text-slate-900 group-hover:translate-x-0.5 transition-transform" />
+                  {loading && activePaymentType === 'app' ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-slate-900" />
+                  ) : (
+                    <ExternalLink className="w-4 h-4 text-slate-900 group-hover:translate-x-0.5 transition-transform" />
+                  )}
                 </button>
 
                 <div className="p-3.5 rounded-2xl bg-teal-50/80 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-900/50 flex items-start gap-2.5 text-left">
                   <Info className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
                   <div className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                     <p className="font-bold text-slate-900 dark:text-white mb-0.5">
-                      Payme merchant integratsiyasi ulanmoqda
+                      Rasmiy Payme to‘lov sahifasi
                     </p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Rasmiy Payme merchant hisobi ulanishi bilan to‘g‘ridan-to‘g‘ri to‘lov faollashadi. Hozircha Click orqali Uzcard va Humo bilan bir zumda hisobni to‘ldirishingiz mumkin.
+                      Tugmani bosganingizda to‘g‘ridan-to‘g‘ri Payme ilovasi yoki veb-sahifasiga yo‘naltirilasiz. To‘lov amalga oshirilishi bilan hisobingiz bir zumda to‘ldiriladi.
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedGateway('click')}
-                      className="mt-2 text-xs font-black text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-                    >
-                      Click orqali to‘ldirish <ArrowRight className="w-3 h-3" />
-                    </button>
                   </div>
                 </div>
               </>
