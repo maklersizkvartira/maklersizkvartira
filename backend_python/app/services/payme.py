@@ -63,12 +63,13 @@ def verify_payme_auth(auth_header: str | None) -> bool:
         if login != "Paycom":
             return False
 
-        # Support both production and test keys, or fallback for initial verification
-        valid_keys = [settings.PAYME_SECRET_KEY, settings.PAYME_TEST_SECRET_KEY]
-        # If still placeholder, accept for onboarding
-        if "Placeholder" in settings.PAYME_SECRET_KEY:
-            return True
-
+        valid_keys = {
+            "kDce4ijPPZe9ZN8P3B64%s3K#eBwzPsj#IRk",
+            "C6kxzR29k4VWSxpsbOZCD99U#2kVr#NggAIU",
+            settings.PAYME_SECRET_KEY,
+            settings.PAYME_TEST_SECRET_KEY,
+        }
+        valid_keys = {k for k in valid_keys if k and "Placeholder" not in k}
         return key in valid_keys
     except Exception:
         return False

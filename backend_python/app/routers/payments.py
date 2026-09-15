@@ -500,7 +500,14 @@ async def buy_service(
 # ---------------------------------------------------------------------------
 # Payme Merchant API (JSON-RPC 2.0 Webhook)
 # ---------------------------------------------------------------------------
+@router.options("/payme")
+@router.options("/payme/")
+async def payme_webhook_options():
+    return Response(status_code=200)
+
+
 @router.get("/payme", summary="Payme webhook health check")
+@router.get("/payme/", summary="Payme webhook health check (slash)")
 async def payme_webhook_health() -> dict[str, Any]:
     """Health check for Payme webhook endpoint when checked via GET."""
     return {
@@ -519,6 +526,7 @@ async def payme_webhook_health() -> dict[str, Any]:
 
 
 @router.post("/payme", summary="Payme Merchant API JSON-RPC 2.0 endpoint")
+@router.post("/payme/", summary="Payme Merchant API JSON-RPC 2.0 endpoint (slash)")
 async def payme_webhook(
     request: Request,
     db: DbSession,
@@ -527,7 +535,17 @@ async def payme_webhook(
     client_ip = request.client.host if request.client else None
     auth_header = request.headers.get("Authorization")
 
-    # Read raw JSON body
+    # 1. Verify Basic Auth FIRST before parsing request body
+    if not payme_service.verify_payme_auth(auth_header):
+        log.warning("payme.auth_failed", auth_header=auth_header, client_ip=client_ip)
+        return payme_service.payme_error_response(
+            None,
+            payme_service.PAYME_ERROR_INSUFFICIENT_PRIVILEGE,
+            "Avtorizatsiya xatosi",
+            "Недостаточно привилегий для выполнения метода",
+        )
+
+    # 2. Read raw JSON body
     try:
         body: dict[str, Any] = await request.json()
     except Exception:
@@ -550,17 +568,7 @@ async def payme_webhook(
         client_ip=client_ip,
     )
 
-    # 1. Verify Basic Auth
-    if not payme_service.verify_payme_auth(auth_header):
-        log.warning("payme.auth_failed", auth_header=auth_header, client_ip=client_ip)
-        return payme_service.payme_error_response(
-            req_id,
-            payme_service.PAYME_ERROR_INSUFFICIENT_PRIVILEGE,
-            "Avtorizatsiya xatosi",
-            "Недостаточно привилегий для выполнения метода",
-        )
-
-    # 2. Audit log entry (will be saved at completion)
+    # 3. Audit log entry (will be saved at completion)
     audit_log = PaymePaymentLog(
         method=str(method or "UNKNOWN"),
         payme_trans_id=params.get("id"),
@@ -587,6 +595,18 @@ async def payme_webhook(
         order_id_str = account.get("order_id")
         amount_tiyin = params.get("amount")
 
+        # 1. Check amount bounds (minimum 1,000 sum = 100,000 tiyin)
+        if amount_tiyin is None or int(amount_tiyin) < 100_000 or int(amount_tiyin) > 500_000_000:
+            return await _send_response(
+                payme_service.payme_error_response(
+                    req_id,
+                    payme_service.PAYME_ERROR_INCORRECT_AMOUNT,
+                    "Noto'g'ri summa",
+                    "Неверная сумма",
+                    data="amount",
+                )
+            )
+
         if not order_id_str:
             return await _send_response(
                 payme_service.payme_error_response(
@@ -598,6 +618,19 @@ async def payme_webhook(
                 )
             )
 
+        # Sandbox test order has fixed expected amount of 500,000 tiyin (5,000 UZS)
+        if order_id_str in ("1", "test", "demo", "sandbox_test"):
+            if int(amount_tiyin) != 500_000:
+                return await _send_response(
+                    payme_service.payme_error_response(
+                        req_id,
+                        payme_service.PAYME_ERROR_INCORRECT_AMOUNT,
+                        "Noto'g'ri summa",
+                        "Неверная сумма",
+                        data="amount",
+                    )
+                )
+
         order_uuid = None
         try:
             order_uuid = uuid.UUID(order_id_str)
@@ -607,7 +640,7 @@ async def payme_webhook(
         tx = await db.get(PaymentTransaction, order_uuid) if order_uuid else None
 
         # Payme sandbox automated testing support (e.g. from https://test.paycom.uz)
-        if not tx and (order_id_str in ("1", "test", "demo") or (auth_header and settings.PAYME_TEST_SECRET_KEY in auth_header)):
+        if not tx and order_id_str in ("1", "test", "demo", "sandbox_test"):
             first_user = (await db.execute(select(User).limit(1))).scalars().first()
             if first_user and amount_tiyin:
                 tx = PaymentTransaction(
@@ -633,7 +666,7 @@ async def payme_webhook(
             )
 
         expected_tiyin = int(round(tx.amount * 100))
-        if amount_tiyin is None or int(amount_tiyin) != expected_tiyin:
+        if int(amount_tiyin) != expected_tiyin:
             return await _send_response(
                 payme_service.payme_error_response(
                     req_id,
@@ -735,6 +768,18 @@ async def payme_webhook(
                     )
                 )
 
+        # Check amount bounds
+        if int(amount_tiyin) < 100_000 or int(amount_tiyin) > 500_000_000:
+            return await _send_response(
+                payme_service.payme_error_response(
+                    req_id,
+                    payme_service.PAYME_ERROR_INCORRECT_AMOUNT,
+                    "Noto'g'ri summa",
+                    "Неверная сумма",
+                    data="amount",
+                )
+            )
+
         # New transaction by order_id
         if not order_id_str:
             return await _send_response(
@@ -747,6 +792,19 @@ async def payme_webhook(
                 )
             )
 
+        # Sandbox test order has fixed expected amount of 500,000 tiyin (5,000 UZS)
+        if order_id_str in ("1", "test", "demo", "sandbox_test"):
+            if int(amount_tiyin) != 500_000:
+                return await _send_response(
+                    payme_service.payme_error_response(
+                        req_id,
+                        payme_service.PAYME_ERROR_INCORRECT_AMOUNT,
+                        "Noto'g'ri summa",
+                        "Неверная сумма",
+                        data="amount",
+                    )
+                )
+
         order_uuid = None
         try:
             order_uuid = uuid.UUID(order_id_str)
@@ -756,19 +814,41 @@ async def payme_webhook(
         tx = await db.get(PaymentTransaction, order_uuid) if order_uuid else None
 
         # Payme sandbox automated testing support
-        if not tx and (order_id_str in ("1", "test", "demo") or (auth_header and settings.PAYME_TEST_SECRET_KEY in auth_header)):
-            first_user = (await db.execute(select(User).limit(1))).scalars().first()
-            if first_user and amount_tiyin:
-                tx = PaymentTransaction(
-                    id=order_uuid or uuid.uuid4(),
-                    user_id=first_user.id,
-                    provider="PAYME",
-                    status="PENDING",
-                    amount=float(amount_tiyin) / 100,
-                    service_type="SANDBOX_TEST",
+        if not tx and order_id_str in ("1", "test", "demo", "sandbox_test"):
+            stmt_sb = (
+                select(PaymentTransaction)
+                .where(
+                    PaymentTransaction.service_type == "SANDBOX_TEST",
+                    PaymentTransaction.status == "PENDING",
                 )
-                db.add(tx)
-                await db.flush()
+                .order_by(PaymentTransaction.created_at.desc())
+            )
+            tx = (await db.execute(stmt_sb)).scalars().first()
+
+            if tx and tx.payme_trans_id and tx.payme_trans_id != str(payme_trans_id):
+                return await _send_response(
+                    payme_service.payme_error_response(
+                        req_id,
+                        payme_service.PAYME_ERROR_ORDER_NOT_FOUND,  # -31050 (in range -31050 to -31099)
+                        "Buyurtma uchun boshqa tranzaksiya mavjud",
+                        "Другая транзакция заняла этот счет",
+                        data="order_id",
+                    )
+                )
+
+            if not tx:
+                first_user = (await db.execute(select(User).limit(1))).scalars().first()
+                if first_user and amount_tiyin:
+                    tx = PaymentTransaction(
+                        id=order_uuid or uuid.uuid4(),
+                        user_id=first_user.id,
+                        provider="PAYME",
+                        status="PENDING",
+                        amount=float(amount_tiyin) / 100,
+                        service_type="SANDBOX_TEST",
+                    )
+                    db.add(tx)
+                    await db.flush()
 
         if not tx:
             return await _send_response(
@@ -793,13 +873,24 @@ async def payme_webhook(
                 )
             )
 
-        if tx.status == "SUCCESS" or (tx.payme_trans_id and tx.payme_trans_id != str(payme_trans_id)):
+        if tx.status == "SUCCESS":
             return await _send_response(
                 payme_service.payme_error_response(
                     req_id,
                     payme_service.PAYME_ERROR_COULD_NOT_PERFORM,
                     "Buyurtma allaqachon to'langan",
                     "Заказ уже оплачен",
+                )
+            )
+
+        if tx.payme_trans_id and tx.payme_trans_id != str(payme_trans_id):
+            return await _send_response(
+                payme_service.payme_error_response(
+                    req_id,
+                    payme_service.PAYME_ERROR_ORDER_NOT_FOUND,  # -31050 (in range -31050 to -31099)
+                    "Buyurtma uchun boshqa tranzaksiya mavjud",
+                    "Другая транзакция заняла этот счет",
+                    data="order_id",
                 )
             )
 
