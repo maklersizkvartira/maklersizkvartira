@@ -1,11 +1,12 @@
 /**
  * WalletCard: 3D Plastic Bank Card representation of user's wallet balance,
- * Click quick top-up, verified badge purchase, and transaction history.
+ * Multi-payment gateway top-up (Click, Payme, Uzum Bank), verified badge purchase, and transaction history.
  */
 
 import React, { useEffect, useState } from 'react';
 import {
   ArrowDownLeft,
+  ArrowRight,
   ArrowUpRight,
   BadgeCheck,
   CreditCard,
@@ -18,7 +19,7 @@ import {
   Wallet,
   Zap,
 } from 'lucide-react';
-import { PaymentApi, type WalletInfo, type WalletTransaction } from '../../services/paymentApi';
+import { PaymentApi, type PaymentGateway, type WalletInfo, type WalletTransaction } from '../../services/paymentApi';
 import { useAppStore } from '../../stores/useAppStore';
 import { TopUpModal } from './TopUpModal';
 import { BlueVerifiedBadge } from '../common/BlueVerifiedBadge';
@@ -42,6 +43,7 @@ export const WalletCard: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [buyingBadge, setBuyingBadge] = useState<boolean>(false);
   const [isTopUpOpen, setIsTopUpOpen] = useState<boolean>(false);
+  const [selectedGateway, setSelectedGateway] = useState<PaymentGateway>('click');
   const pushToast = useAppStore((s) => s.pushToast);
   const currentUser = useAppStore((s) => s.currentUser);
   const refreshUser = useAppStore((s) => s.refreshUser);
@@ -62,9 +64,14 @@ export const WalletCard: React.FC = () => {
     fetchWallet();
   }, []);
 
+  const handleOpenTopUp = (gw: PaymentGateway = 'click') => {
+    setSelectedGateway(gw);
+    setIsTopUpOpen(true);
+  };
+
   const handleBuyBadge = async () => {
     if ((wallet?.balance ?? 0) < VERIFIED_BADGE_PRICE) {
-      setIsTopUpOpen(true);
+      handleOpenTopUp('click');
       return;
     }
 
@@ -97,7 +104,7 @@ export const WalletCard: React.FC = () => {
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">Mening Hamyonim</h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Click orqali hisobni to‘ldirish va tezkor xizmatlar
+                Click, Payme va Uzum Bank orqali hisobni to‘ldirish hamda xizmatlar
               </p>
             </div>
           </div>
@@ -132,7 +139,7 @@ export const WalletCard: React.FC = () => {
                       UYIZ WALLET
                     </span>
                     <span className="block text-[8px] font-bold text-emerald-400/90 tracking-widest uppercase">
-                      PREMIUM CARD
+                      MULTI-PAYMENT CARD
                     </span>
                   </div>
                 </div>
@@ -151,11 +158,25 @@ export const WalletCard: React.FC = () => {
                     <path d="M12 19a8.5 8.5 0 0 0 0-14" />
                     <path d="M15.5 21.5a12 12 0 0 0 0-19" />
                   </svg>
-                  <div className="flex items-center px-2 py-0.5 rounded-md bg-white/10 border border-white/20 backdrop-blur-xs">
+                  {/* Multi-gateway mini badges */}
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/10 border border-white/20 backdrop-blur-xs">
                     <img
-                      src="/brand/click-logo-white.svg"
+                      src="/brand/click-icon.svg"
                       alt="Click"
-                      className="h-3.5 w-auto object-contain opacity-95"
+                      className="h-3.5 w-3.5 object-contain"
+                      title="Click"
+                    />
+                    <img
+                      src="/brand/payme-app-icon.png"
+                      alt="Payme"
+                      className="h-3.5 w-3.5 object-cover rounded-xs"
+                      title="Payme"
+                    />
+                    <img
+                      src="/brand/uzum-app-icon.png"
+                      alt="Uzum"
+                      className="h-3.5 w-3.5 object-cover rounded-xs"
+                      title="Uzum Bank"
                     />
                   </div>
                 </div>
@@ -207,35 +228,105 @@ export const WalletCard: React.FC = () => {
           </div>
 
           {/* Quick Actions Panel */}
-          <div className="lg:col-span-5 flex flex-col justify-between gap-4">
-            {/* Action 1: Hisobni to'ldirish */}
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3">
-              <div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <img
-                    src="/brand/click-icon.svg"
-                    alt="Click"
-                    className="w-4 h-4 object-contain"
-                  />
-                  <span>Hisobni to‘ldirish</span>
-                </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Click orqali 5 000 dan 70 000 so‘mgacha
-                </p>
+          <div className="lg:col-span-5 flex flex-col justify-between gap-3.5">
+            {/* Payment Systems Section Header */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  Hisobni to‘ldirish
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  Bir zumda tushadi
+                </span>
               </div>
+
+              {/* 3 Payment System Cards: Click, Payme, Uzum Bank */}
+              <div className="grid grid-cols-3 gap-2">
+                {/* Card 1: Click */}
+                <button
+                  type="button"
+                  onClick={() => handleOpenTopUp('click')}
+                  className="p-2.5 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/40 hover:border-blue-500 flex flex-col items-center justify-between text-center transition-all hover:scale-[1.02] active:scale-95 group shadow-xs"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-white dark:bg-slate-900 flex items-center justify-center p-1.5 shadow-xs border border-blue-100 dark:border-blue-900/60 mb-1.5">
+                    <img
+                      src="/brand/click-icon.svg"
+                      alt="Click"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-slate-900 dark:text-white leading-tight">
+                      Click
+                    </div>
+                    <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">
+                      Faol
+                    </div>
+                  </div>
+                </button>
+
+                {/* Card 2: Payme */}
+                <button
+                  type="button"
+                  onClick={() => handleOpenTopUp('payme')}
+                  className="p-2.5 rounded-2xl bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200/80 dark:border-teal-900/40 hover:border-teal-400 flex flex-col items-center justify-between text-center transition-all hover:scale-[1.02] active:scale-95 group shadow-xs"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-white dark:bg-slate-900 flex items-center justify-center p-0.5 shadow-xs border border-teal-100 dark:border-teal-900/60 mb-1.5 overflow-hidden">
+                    <img
+                      src="/brand/payme-app-icon.png"
+                      alt="Payme"
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-slate-900 dark:text-white leading-tight">
+                      Payme
+                    </div>
+                    <div className="text-[10px] text-amber-600 dark:text-amber-400 font-bold mt-0.5">
+                      Tez kunda
+                    </div>
+                  </div>
+                </button>
+
+                {/* Card 3: Uzum Bank */}
+                <button
+                  type="button"
+                  onClick={() => handleOpenTopUp('uzum')}
+                  className="p-2.5 rounded-2xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-900/40 hover:border-purple-500 flex flex-col items-center justify-between text-center transition-all hover:scale-[1.02] active:scale-95 group shadow-xs"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-white dark:bg-slate-900 flex items-center justify-center p-0.5 shadow-xs border border-purple-100 dark:border-purple-900/60 mb-1.5 overflow-hidden">
+                    <img
+                      src="/brand/uzum-app-icon.png"
+                      alt="Uzum Bank"
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-slate-900 dark:text-white leading-tight">
+                      Uzum
+                    </div>
+                    <div className="text-[10px] text-amber-600 dark:text-amber-400 font-bold mt-0.5">
+                      Tez kunda
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              {/* General Top-Up CTA */}
               <button
-                onClick={() => setIsTopUpOpen(true)}
-                className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-lg shadow-emerald-600/30 active:scale-95 transition-all"
+                type="button"
+                onClick={() => handleOpenTopUp('click')}
+                className="w-full mt-2 inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md shadow-emerald-600/25 active:scale-95 transition-all"
               >
                 <Plus className="w-4 h-4" />
-                To‘ldirish
+                Hisobni to‘ldirish (Karta / Click)
               </button>
             </div>
 
             {/* Action 2: Rasmiy Ko'k Galochka */}
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between gap-2.5">
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between gap-2">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-sm font-bold text-slate-900 dark:text-white">
+                <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
                   <BlueVerifiedBadge size="sm" />
                   <span>Rasmiy Ko‘k Galochka</span>
                 </div>
@@ -243,7 +334,7 @@ export const WalletCard: React.FC = () => {
                   {VERIFIED_BADGE_PRICE.toLocaleString()} so‘m
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
                 {isVerified
                   ? 'Sizning hisobingiz tasdiqlangan va ko‘k galochka barcha e‘lonlaringizda faol!'
                   : 'Rieltor yoki Mulkdor ismingiz yonida rasmiy ko‘k galochka va yuqori ishonch reytingi.'}
@@ -258,7 +349,7 @@ export const WalletCard: React.FC = () => {
                 <button
                   onClick={handleBuyBadge}
                   disabled={buyingBadge}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shadow-lg shadow-blue-600/30 active:scale-95 transition-all disabled:opacity-60"
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shadow-md shadow-blue-600/25 active:scale-95 transition-all disabled:opacity-60"
                 >
                   {buyingBadge ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -348,6 +439,7 @@ export const WalletCard: React.FC = () => {
       {/* TopUp Modal */}
       <TopUpModal
         isOpen={isTopUpOpen}
+        initialGateway={selectedGateway}
         onClose={() => setIsTopUpOpen(false)}
         onSuccess={() => {
           setIsTopUpOpen(false);

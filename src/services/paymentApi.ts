@@ -4,12 +4,16 @@
 
 import { http } from './http';
 
+export type PaymentGateway = 'click' | 'payme' | 'uzum';
+
 export interface CreateTopUpResponse {
   status: string;
   transactionId: string;
   amount: number;
-  clickUrl: string;
-  clickCardUrl: string;
+  clickUrl?: string;
+  clickCardUrl?: string;
+  paymeUrl?: string;
+  uzumUrl?: string;
 }
 
 export interface WalletTransaction {
@@ -35,9 +39,13 @@ export interface BuyServiceResponse {
 }
 
 export const PaymentApi = {
-  /** Create a topup invoice and retrieve Click checkout URLs */
-  createTopUp: async (amount: number, returnUrl?: string): Promise<CreateTopUpResponse> => {
-    return http.post<CreateTopUpResponse>('/payments/topup', { amount, returnUrl });
+  /** Create a topup invoice and retrieve checkout URLs for Click, Payme or Uzum */
+  createTopUp: async (
+    amount: number,
+    returnUrl?: string,
+    gateway: PaymentGateway = 'click',
+  ): Promise<CreateTopUpResponse> => {
+    return http.post<CreateTopUpResponse>('/payments/topup', { amount, returnUrl, gateway });
   },
 
   /** Get user balance and transaction history */
