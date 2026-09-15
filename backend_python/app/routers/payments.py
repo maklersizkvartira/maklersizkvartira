@@ -192,18 +192,20 @@ async def click_webhook(
                 )
             ).scalar_one_or_none()
 
-        # Check 3: Phone number (+99890..., 99890..., 90...)
+        # Check 3: Phone number (+99890..., 99890..., 90..., 890...)
         if user is None:
             clean_digits = "".join(c for c in target_param if c.isdigit())
-            candidate_phones = [target_param]
+            candidate_phones = {target_param}
             if len(clean_digits) == 9:
-                candidate_phones.append(f"+998{clean_digits}")
+                candidate_phones.add(f"+998{clean_digits}")
             elif len(clean_digits) == 12 and clean_digits.startswith("998"):
-                candidate_phones.append(f"+{clean_digits}")
+                candidate_phones.add(f"+{clean_digits}")
+            elif len(clean_digits) == 10 and clean_digits.startswith("8"):
+                candidate_phones.add(f"+998{clean_digits[1:]}")
 
             user = (
                 await db.execute(
-                    select(User).where(User.phone.in_(candidate_phones))
+                    select(User).where(User.phone.in_(list(candidate_phones)))
                 )
             ).scalar_one_or_none()
 

@@ -23,6 +23,18 @@ import { useAppStore } from '../../stores/useAppStore';
 import { TopUpModal } from './TopUpModal';
 import { BlueVerifiedBadge } from '../common/BlueVerifiedBadge';
 
+function formatDisplayPhone(rawPhone?: string): string {
+  if (!rawPhone) return '+998 -- --- -- --';
+  const digits = rawPhone.replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('998')) {
+    return `+998 ${digits.slice(3, 5)} ${digits.slice(5, 8)} ${digits.slice(8, 10)} ${digits.slice(10, 12)}`;
+  }
+  if (digits.length === 9) {
+    return `+998 ${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 7)} ${digits.slice(7, 9)}`;
+  }
+  return rawPhone;
+}
+
 const VERIFIED_BADGE_PRICE = 20_000;
 
 export const WalletCard: React.FC = () => {
@@ -51,10 +63,7 @@ export const WalletCard: React.FC = () => {
   }, []);
 
   const handleBuyBadge = async () => {
-    if (!wallet) return;
-
-    if (wallet.balance < VERIFIED_BADGE_PRICE) {
-      pushToast('common.error.generic', 'warning');
+    if ((wallet?.balance ?? 0) < VERIFIED_BADGE_PRICE) {
       setIsTopUpOpen(true);
       return;
     }
@@ -75,7 +84,6 @@ export const WalletCard: React.FC = () => {
   const currentBalance = wallet?.balance ?? 0;
   const isVerified = Boolean(wallet?.isVerified || currentUser?.isVerified);
   const cardHolderName = (currentUser?.name || 'UYIZ FOYDALANUVCHISI').toUpperCase();
-  const paymentId = currentUser?.referralCode || (currentUser?.id ? currentUser.id.slice(0, 8).toUpperCase() : 'UYIZ01');
 
   return (
     <>
@@ -175,7 +183,7 @@ export const WalletCard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Card Bottom Row: Cardholder name & To'lov ID */}
+              {/* Card Bottom Row: Cardholder name & Phone Number */}
               <div className="relative z-10 pt-3 border-t border-white/15 flex items-end justify-between text-xs">
                 <div className="min-w-0 pr-3">
                   <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
@@ -188,10 +196,10 @@ export const WalletCard: React.FC = () => {
 
                 <div className="text-right shrink-0">
                   <div className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">
-                    To‘lov ID
+                    Telefon raqam
                   </div>
-                  <div className="font-mono font-black text-white tracking-widest text-sm sm:text-base drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
-                    ID: {paymentId}
+                  <div className="font-mono font-black text-white tracking-wider text-xs sm:text-sm drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+                    {formatDisplayPhone(currentUser?.phone)}
                   </div>
                 </div>
               </div>
