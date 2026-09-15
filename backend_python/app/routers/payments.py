@@ -299,9 +299,12 @@ async def get_wallet_info(
     )
     txs = (await db.execute(stmt)).scalars().all()
 
+    has_badge_purchase = any(t.type == "PURCHASE_VERIFIED_BADGE" for t in txs)
+    is_verified_badge = user.is_verified and has_badge_purchase
+
     return WalletInfoResponse(
         balance=user.balance,
-        is_verified=user.is_verified,
+        is_verified=is_verified_badge,
         transactions=[WalletTransactionOut.model_validate(t) for t in txs],
     )
 

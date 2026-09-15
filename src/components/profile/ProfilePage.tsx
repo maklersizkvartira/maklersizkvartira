@@ -1045,63 +1045,72 @@ export const ProfilePage: React.FC = () => {
     </div>
   );
 
-  const renderVerificationContent = () => (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <span
-          className={cn(
-            'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold',
-            currentUser.isVerified
-              ? 'bg-success-soft text-success'
-              : 'bg-warning-soft text-warning',
+  const renderVerificationContent = () => {
+    const isIdentityVerified = currentUser.verificationLevel >= 2;
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold',
+              isIdentityVerified
+                ? 'bg-success-soft text-success'
+                : 'bg-warning-soft text-warning',
+            )}
+          >
+            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+            {isIdentityVerified
+              ? t('account.profile.verified')
+              : t('account.profile.notVerified')}
+          </span>
+          {currentUser.isVerified && (
+            <span className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+              <BlueVerifiedBadge size="xs" />
+              <span>Rasmiy ko‘k galochka</span>
+            </span>
           )}
-        >
-          <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-          {currentUser.isVerified
-            ? t('account.profile.verified')
-            : t('account.profile.notVerified')}
-        </span>
-      </div>
+        </div>
 
-      <div className="space-y-3 text-sm">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-3 text-sm">
+          <div className="grid grid-cols-2 gap-3">
+            <DataRow
+              label={t('account.profile.trustScore')}
+              value={formatNumber(currentUser.trustScore)}
+            />
+            <DataRow
+              label={t('account.profile.verificationLevel')}
+              value={t('common.badge.verificationLevel', {
+                level: currentUser.verificationLevel,
+              })}
+            />
+          </div>
           <DataRow
-            label={t('account.profile.trustScore')}
-            value={formatNumber(currentUser.trustScore)}
-          />
-          <DataRow
-            label={t('account.profile.verificationLevel')}
-            value={t('common.badge.verificationLevel', {
-              level: currentUser.verificationLevel,
-            })}
+            label={t('account.profile.xpPoints')}
+            value={
+              <span className="inline-flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-warning" aria-hidden="true" />
+                {formatNumber(currentUser.xpPoints)}
+              </span>
+            }
           />
         </div>
-        <DataRow
-          label={t('account.profile.xpPoints')}
-          value={
-            <span className="inline-flex items-center gap-1.5">
-              <Sparkles className="h-4 w-4 text-warning" aria-hidden="true" />
-              {formatNumber(currentUser.xpPoints)}
-            </span>
-          }
-        />
-      </div>
 
-      {!currentUser.isVerified && (
-        <Button
-          variant="secondary"
-          fullWidth
-          className="press"
-          onClick={() => {
-            setActiveMobileSection(null);
-            setCurrentView('VERIFICATION');
-          }}
-        >
-          {t('account.profile.verify')}
-        </Button>
-      )}
-    </div>
-  );
+        {!isIdentityVerified && (
+          <Button
+            variant="secondary"
+            fullWidth
+            className="press"
+            onClick={() => {
+              setActiveMobileSection(null);
+              setCurrentView('VERIFICATION');
+            }}
+          >
+            {t('account.profile.verify')}
+          </Button>
+        )}
+      </div>
+    );
+  };
 
   const renderAvatarCardContent = () => (
     <>
@@ -1241,13 +1250,13 @@ export const ProfilePage: React.FC = () => {
                 <span
                   className={cn(
                     'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold',
-                    currentUser.isVerified
+                    currentUser.verificationLevel >= 2
                       ? 'bg-success-soft text-success'
                       : 'bg-warning-soft text-warning',
                   )}
                 >
                   <ShieldCheck className="h-3 w-3" aria-hidden="true" />
-                  {currentUser.isVerified
+                  {currentUser.verificationLevel >= 2
                     ? t('account.profile.verified')
                     : t('account.profile.notVerified')}
                 </span>

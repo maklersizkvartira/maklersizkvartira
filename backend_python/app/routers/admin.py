@@ -18,7 +18,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Header, Query, Request
 from pydantic import BaseModel
-from sqlalchemy import String, and_, cast, func, or_, select, true, update
+from sqlalchemy import String, and_, cast, distinct, func, or_, select, true, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -3140,8 +3140,11 @@ async def get_payment_stats(admin: RequireModerator, db: DbSession) -> dict[str,
     total_rev_stmt = select(func.sum(PaymentTransaction.amount)).where(PaymentTransaction.status == "SUCCESS")
     total_revenue = (await db.execute(total_rev_stmt)).scalar() or 0.0
 
-    # Total verified users count
-    verified_count_stmt = select(func.count(User.id)).where(User.is_verified == True)
+    # Total verified users count (only those who purchased 20,000 UZS badge or have an active badge)
+    verified_count_stmt = (
+        select(func.count(distinct(WalletTransaction.user_id)))
+        .where(WalletTransaction.type == "PURCHASE_VERIFIED_BADGE")
+    )
     verified_count = (await db.execute(verified_count_stmt)).scalar() or 0
 
     # Total VIP listings

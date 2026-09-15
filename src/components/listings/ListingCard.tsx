@@ -163,10 +163,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
     listing.isFeatured ||
     (listing.featuredUntil && new Date(listing.featuredUntil).getTime() > Date.now())
   );
-  const isOwnerVerified = Boolean(
-    listing.owner?.isVerified ||
-    listing.safetyBadges?.includes('VERIFIED_OWNER')
-  );
+  const isOwnerVerified = Boolean(listing.owner?.isVerified);
 
   // A recycled card (the grid reuses positions as pages append) must not keep
   // the previous listing's slide or its dead-photo bookkeeping.

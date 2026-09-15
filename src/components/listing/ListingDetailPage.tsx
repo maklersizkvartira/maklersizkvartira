@@ -291,10 +291,7 @@ export const ListingDetailPage: React.FC = () => {
     listing?.isFeatured ||
     (listing?.featuredUntil && new Date(listing.featuredUntil).getTime() > Date.now())
   );
-  const isOwnerVerified = Boolean(
-    listing?.owner?.isVerified ||
-    listing?.safetyBadges?.includes('VERIFIED_OWNER')
-  );
+  const isOwnerVerified = Boolean(listing?.owner?.isVerified);
   /** Off until asked. See the price block below for why. */
   const [showConverted, setShowConverted] = useState(false);
 
