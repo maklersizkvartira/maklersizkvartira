@@ -10,6 +10,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   BadgeCheck,
+  CheckCircle2,
   CreditCard,
   History,
   Loader2,
@@ -18,8 +19,10 @@ import {
   ShieldCheck,
   Sparkles,
   Wallet,
+  X,
   Zap,
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { PaymentApi, type PaymentGateway, type WalletInfo, type WalletTransaction } from '../../services/paymentApi';
 import { useAppStore } from '../../stores/useAppStore';
 import { TopUpModal } from './TopUpModal';
@@ -50,6 +53,8 @@ export const WalletCard: React.FC<WalletCardProps> = ({ embedded = false }) => {
   const [buyingBadge, setBuyingBadge] = useState<boolean>(false);
   const [isTopUpOpen, setIsTopUpOpen] = useState<boolean>(false);
   const [selectedGateway, setSelectedGateway] = useState<PaymentGateway>('click');
+  const [topUpInitialAmount, setTopUpInitialAmount] = useState<number | undefined>(undefined);
+  const [isBadgeModalOpen, setIsBadgeModalOpen] = useState<boolean>(false);
   const pushToast = useAppStore((s) => s.pushToast);
   const currentUser = useAppStore((s) => s.currentUser);
   const refreshUser = useAppStore((s) => s.refreshUser);
@@ -70,31 +75,47 @@ export const WalletCard: React.FC<WalletCardProps> = ({ embedded = false }) => {
     fetchWallet();
   }, []);
 
-  const handleOpenTopUp = (gw: PaymentGateway = 'click') => {
+  const handleOpenTopUp = (gw: PaymentGateway = 'click', amount?: number) => {
     setSelectedGateway(gw);
+    setTopUpInitialAmount(amount);
     setIsTopUpOpen(true);
   };
 
-  const handleBuyBadge = async () => {
-    if ((wallet?.balance ?? 0) < VERIFIED_BADGE_PRICE) {
-      handleOpenTopUp('click');
+  const effectiveBalance = wallet?.balance ?? currentUser?.balance ?? 0;
+
+  const handleConfirmBuyBadge = async () => {
+    if (effectiveBalance < VERIFIED_BADGE_PRICE) {
+      const deficit = Math.max(1000, VERIFIED_BADGE_PRICE - effectiveBalance);
+      setIsBadgeModalOpen(false);
+      handleOpenTopUp('click', deficit);
       return;
     }
 
     try {
       setBuyingBadge(true);
-      await PaymentApi.buyService('VERIFIED_BADGE');
-      pushToast('account.profile.nameSaved', 'success');
+      const res = await PaymentApi.buyService('VERIFIED_BADGE');
+      
+      try {
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 },
+        });
+      } catch (_) {}
+
+      pushToast(res?.message || 'Rasmiy ko‘k galochka muvaffaqiyatli faollashtirildi!', 'success');
       await fetchWallet();
       await refreshUser?.();
+      setIsBadgeModalOpen(false);
     } catch (err: any) {
-      pushToast('common.error.generic', 'error');
+      console.error('Xatolik:', err);
+      pushToast(err?.message || 'common.error.generic', 'error');
     } finally {
       setBuyingBadge(false);
     }
   };
 
-  const currentBalance = wallet?.balance ?? 0;
+  const currentBalance = effectiveBalance;
   const isVerified = Boolean(wallet?.isVerified || currentUser?.isVerified);
   const cardHolderName = (currentUser?.name || 'UYIZ FOYDALANUVCHISI').toUpperCase();
 
@@ -135,14 +156,14 @@ export const WalletCard: React.FC<WalletCardProps> = ({ embedded = false }) => {
         )}
 
         {/* 3D Bank Card & Actions Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
-          {/* 3D VIP Bank Card (Full Width & Scaled Up on Mobile) */}
-          <div className="lg:col-span-7 flex justify-center w-full">
-            <div className="w-full max-w-[460px] aspect-[1.6] min-h-[210px] sm:min-h-[240px] rounded-3xl p-5 sm:p-6 relative overflow-hidden text-white flex flex-col justify-between shadow-[0_20px_50px_rgba(0,0,0,0.4),0_10px_25px_rgba(16,185,129,0.25)] border border-white/25 bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 transition-all duration-300 hover:scale-[1.01] group">
+          {/* 3D VIP Bank Card (Standard ISO 7810 1.586 Proportion on Desktop & Mobile) */}
+          <div className="lg:col-span-7 flex justify-center lg:justify-start w-full">
+            <div className="w-full max-w-[480px] aspect-[1.586] rounded-3xl p-5 sm:p-6 relative overflow-hidden text-white flex flex-col justify-between shadow-[0_20px_45px_-10px_rgba(0,0,0,0.5),0_10px_25px_rgba(16,185,129,0.25)] border border-white/20 bg-gradient-to-br from-[#0a0f1d] via-[#0f1d24] to-[#042825] transition-all duration-300 hover:scale-[1.01] group">
               
               {/* Sheen & Holographic Neon Glow Effects */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/20 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/15 pointer-events-none" />
               <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-emerald-500/25 rounded-full blur-3xl pointer-events-none" />
               <div className="absolute -left-12 -top-12 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
 
@@ -157,7 +178,7 @@ export const WalletCard: React.FC<WalletCardProps> = ({ embedded = false }) => {
                       UYIZ WALLET
                     </span>
                     <span className="block text-[8px] sm:text-[9px] font-bold text-emerald-400 tracking-widest uppercase">
-                      MULTI-PAYMENT CARD
+                      PREMIUM FINTECH CARD
                     </span>
                   </div>
                 </div>
@@ -203,33 +224,40 @@ export const WalletCard: React.FC<WalletCardProps> = ({ embedded = false }) => {
 
               {/* Card Middle: Realistic Golden Smart Chip & Large Balance */}
               <div className="relative z-10 my-auto flex items-center justify-between gap-4">
-                {/* 3D Golden EMV Smart Chip */}
-                <div className="shrink-0 w-12 h-9 sm:w-14 sm:h-10 rounded-lg bg-gradient-to-br from-yellow-200 via-amber-400 to-yellow-600 border border-yellow-300 shadow-md relative overflow-hidden flex items-center justify-center">
-                  <div className="w-full h-[1px] bg-amber-800/40 absolute top-3" />
-                  <div className="w-full h-[1px] bg-amber-800/40 absolute bottom-3" />
-                  <div className="h-full w-[1px] bg-amber-800/40 absolute left-4" />
-                  <div className="h-full w-[1px] bg-amber-800/40 absolute right-4" />
-                  <div className="w-4 h-4 rounded border border-amber-800/50 bg-amber-300/30" />
+                <div className="flex items-center gap-3">
+                  {/* 3D Golden EMV Smart Chip */}
+                  <div className="shrink-0 w-11 h-8 sm:w-13 sm:h-9.5 rounded-lg bg-gradient-to-br from-yellow-200 via-amber-400 to-yellow-600 border border-yellow-300 shadow-md relative overflow-hidden flex items-center justify-center">
+                    <div className="w-full h-[1px] bg-amber-800/40 absolute top-2.5" />
+                    <div className="w-full h-[1px] bg-amber-800/40 absolute bottom-2.5" />
+                    <div className="h-full w-[1px] bg-amber-800/40 absolute left-3.5" />
+                    <div className="h-full w-[1px] bg-amber-800/40 absolute right-3.5" />
+                    <div className="w-3.5 h-3.5 rounded border border-amber-800/50 bg-amber-300/30" />
+                  </div>
+
+                  {/* Debossed simulated card digits */}
+                  <div className="hidden sm:block font-mono text-[11px] font-bold text-slate-300/70 tracking-widest">
+                    •••• {currentUser?.phone ? currentUser.phone.slice(-4) : '8899'}
+                  </div>
                 </div>
 
                 {/* Balance Display */}
                 <div className="text-right">
-                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-300 block mb-0.5">
+                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-300/90 block mb-0.5">
                     Joriy Balans
                   </span>
-                  <div className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-emerald-300 drop-shadow-[0_2px_8px_rgba(16,185,129,0.6)]">
+                  <div className="text-2xl sm:text-3xl lg:text-[32px] font-black tracking-tight text-white drop-shadow-[0_2px_10px_rgba(16,185,129,0.7)]">
                     {loading ? '...' : `${currentBalance.toLocaleString()} so‘m`}
                   </div>
                 </div>
               </div>
 
               {/* Card Bottom Row: Cardholder Name & Phone Number */}
-              <div className="relative z-10 pt-3 border-t border-white/20 flex items-end justify-between">
+              <div className="relative z-10 pt-3 border-t border-white/15 flex items-end justify-between">
                 <div className="min-w-0 pr-3">
                   <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">
                     Karta Egasi
                   </div>
-                  <div className="font-mono font-bold text-slate-100 tracking-wider text-xs sm:text-sm truncate max-w-[200px] sm:max-w-[240px]">
+                  <div className="font-mono font-bold text-slate-100 tracking-wider text-xs sm:text-sm truncate max-w-[180px] sm:max-w-[240px]">
                     {cardHolderName}
                   </div>
                 </div>
@@ -246,8 +274,8 @@ export const WalletCard: React.FC<WalletCardProps> = ({ embedded = false }) => {
             </div>
           </div>
 
-          {/* Quick Actions Panel: Large Touch-Friendly Buttons on Mobile */}
-          <div className="lg:col-span-5 flex flex-col justify-between gap-4">
+          {/* Quick Actions Panel */}
+          <div className="lg:col-span-5 flex flex-col justify-between gap-4 w-full">
             
             {/* Payment Providers Section */}
             <div>
@@ -261,7 +289,7 @@ export const WalletCard: React.FC<WalletCardProps> = ({ embedded = false }) => {
                 </span>
               </div>
 
-              {/* 3 Payment System Cards (Large & Prominent) */}
+              {/* 3 Payment System Cards */}
               <div className="grid grid-cols-3 gap-2.5">
                 {/* Card 1: Click */}
                 <button
@@ -364,23 +392,26 @@ export const WalletCard: React.FC<WalletCardProps> = ({ embedded = false }) => {
               </p>
 
               {isVerified ? (
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3.5 py-2 rounded-xl">
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3.5 py-2.5 rounded-xl border border-emerald-200/60 dark:border-emerald-800/50">
                   <ShieldCheck className="w-4 h-4" />
                   Sizda ko‘k galochka faol
                 </div>
               ) : (
                 <button
-                  onClick={handleBuyBadge}
+                  type="button"
+                  onClick={() => setIsBadgeModalOpen(true)}
                   disabled={buyingBadge}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shadow-md shadow-blue-600/25 active:scale-95 transition-all disabled:opacity-60"
+                  className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black shadow-md transition-all active:scale-95 disabled:opacity-60 ${
+                    effectiveBalance >= VERIFIED_BADGE_PRICE
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-blue-600/30'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/25'
+                  }`}
                 >
-                  {buyingBadge ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                  <BlueVerifiedBadge size="xs" />
+                  {effectiveBalance >= VERIFIED_BADGE_PRICE ? (
+                    <span>Galochkani faollashtirish (Balansda mavjud)</span>
                   ) : (
-                    <>
-                      <BlueVerifiedBadge size="xs" />
-                      Galochka sotib olish (20 000 so‘m)
-                    </>
+                    <span>Galochka sotib olish (20 000 so‘m)</span>
                   )}
                 </button>
               )}
@@ -408,8 +439,8 @@ export const WalletCard: React.FC<WalletCardProps> = ({ embedded = false }) => {
                       <div
                         className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                           isPositive
-                            ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
-                            : 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                         }`}
                       >
                         {isPositive ? (
@@ -418,26 +449,27 @@ export const WalletCard: React.FC<WalletCardProps> = ({ embedded = false }) => {
                           <ArrowUpRight className="w-4 h-4" />
                         )}
                       </div>
-                      <div className="min-w-0">
-                        <div className="font-semibold text-slate-900 dark:text-white truncate max-w-[170px] sm:max-w-none">
+                      <div>
+                        <div className="font-bold text-slate-800 dark:text-slate-200">
                           {tx.description}
                         </div>
-                        <div className="text-[10px] sm:text-[11px] text-slate-400">
+                        <div className="text-[10px] text-slate-400 mt-0.5">
                           {new Date(tx.createdAt).toLocaleString('uz-UZ', {
-                            day: 'numeric',
+                            day: '2-digit',
                             month: 'short',
+                            year: 'numeric',
                             hour: '2-digit',
                             minute: '2-digit',
                           })}
                         </div>
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
+                    <div className="text-right">
                       <div
-                        className={`font-bold ${
+                        className={`font-black ${
                           isPositive
                             ? 'text-emerald-600 dark:text-emerald-400'
-                            : 'text-slate-900 dark:text-slate-200'
+                            : 'text-slate-900 dark:text-white'
                         }`}
                       >
                         {isPositive ? '+' : ''}
@@ -459,13 +491,176 @@ export const WalletCard: React.FC<WalletCardProps> = ({ embedded = false }) => {
         </div>
       </div>
 
+      {/* Smart Verified Badge Confirmation Modal */}
+      {isBadgeModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200 text-left">
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setIsBadgeModalOpen(false)}
+              disabled={buyingBadge}
+              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Icon Header */}
+            <div className="flex flex-col items-center text-center mb-5">
+              <div className="w-16 h-16 rounded-3xl bg-blue-50 dark:bg-blue-950/60 border-2 border-blue-200 dark:border-blue-800/80 flex items-center justify-center mb-3 shadow-lg shadow-blue-500/20">
+                <BlueVerifiedBadge size="lg" />
+              </div>
+              <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
+                Rasmiy Ko‘k Galochka
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs">
+                Mulkdor yoki Rieltor profilingizda yuqori ishonch reytingi
+              </p>
+            </div>
+
+            {/* Content based on Balance availability */}
+            {effectiveBalance >= VERIFIED_BADGE_PRICE ? (
+              <>
+                {/* Balance Breakdown Card */}
+                <div className="p-4 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 space-y-2 mb-4 text-xs">
+                  <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+                    <span>Hamyon balansingiz:</span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {effectiveBalance.toLocaleString()} so‘m
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+                    <span>Xizmat narxi (bir martalik):</span>
+                    <span className="font-bold text-blue-600 dark:text-blue-400">
+                      -20 000 so‘m
+                    </span>
+                  </div>
+                  <div className="pt-2 border-t border-blue-200/80 dark:border-blue-900/60 flex items-center justify-between font-black text-emerald-600 dark:text-emerald-400">
+                    <span>Xariddan so‘ng qoladi:</span>
+                    <span>{(effectiveBalance - VERIFIED_BADGE_PRICE).toLocaleString()} so‘m</span>
+                  </div>
+                </div>
+
+                {/* Benefits */}
+                <div className="space-y-2 mb-5 text-xs text-slate-600 dark:text-slate-300">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-blue-500 shrink-0" />
+                    <span>Barcha e‘lonlaringizda ko‘k nishon aks etadi</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-blue-500 shrink-0" />
+                    <span>Mijozlar ishonchini va qo‘ng‘iroqlarni 3 barobarga oshiradi</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-blue-500 shrink-0" />
+                    <span>Bir martalik to‘lov — umrbod amal qiladi!</span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-col gap-2.5">
+                  <button
+                    type="button"
+                    onClick={handleConfirmBuyBadge}
+                    disabled={buyingBadge}
+                    className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm shadow-lg shadow-blue-600/30 active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    {buyingBadge ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        Balansdan faollashtirish (20 000 so‘m)
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsBadgeModalOpen(false)}
+                    disabled={buyingBadge}
+                    className="w-full py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+                  >
+                    Bekor qilish
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Deficit Card */}
+                {(() => {
+                  const deficit = VERIFIED_BADGE_PRICE - effectiveBalance;
+                  return (
+                    <>
+                      <div className="p-4 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 space-y-2 mb-4 text-xs">
+                        <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+                          <span>Xizmat narxi:</span>
+                          <span className="font-bold text-slate-900 dark:text-white">
+                            20 000 so‘m
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+                          <span>Hamyoningizda:</span>
+                          <span className="font-bold text-slate-900 dark:text-white">
+                            {effectiveBalance.toLocaleString()} so‘m
+                          </span>
+                        </div>
+                        <div className="pt-2 border-t border-amber-200 dark:border-amber-900/60 flex items-center justify-between font-black text-amber-700 dark:text-amber-400">
+                          <span>Yetishmayotgan summa:</span>
+                          <span>{deficit.toLocaleString()} so‘m</span>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-slate-500 dark:text-slate-400 text-center mb-5">
+                        Ko‘k galochkani faollashtirish uchun hisobingizga kamida{' '}
+                        <strong className="text-slate-800 dark:text-white font-bold">
+                          {deficit.toLocaleString()} so‘m
+                        </strong>{' '}
+                        to‘ldirishingiz kerak.
+                      </p>
+
+                      <div className="flex flex-col gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsBadgeModalOpen(false);
+                            handleOpenTopUp('click', deficit);
+                          }}
+                          className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-sm shadow-lg shadow-emerald-600/30 active:scale-98 transition-all flex items-center justify-center gap-2"
+                        >
+                          <Plus className="w-5 h-5" />
+                          Hisobni to‘ldirish ({deficit.toLocaleString()} so‘m)
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setIsBadgeModalOpen(false)}
+                          className="w-full py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+                        >
+                          Keyinroq
+                        </button>
+                      </div>
+                    </>
+                  );
+                })()}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* TopUp Modal */}
       <TopUpModal
         isOpen={isTopUpOpen}
         initialGateway={selectedGateway}
-        onClose={() => setIsTopUpOpen(false)}
+        initialAmount={topUpInitialAmount}
+        onClose={() => {
+          setIsTopUpOpen(false);
+          setTopUpInitialAmount(undefined);
+        }}
         onSuccess={() => {
           setIsTopUpOpen(false);
+          setTopUpInitialAmount(undefined);
           fetchWallet();
         }}
       />

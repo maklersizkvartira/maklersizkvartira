@@ -27,6 +27,7 @@ interface TopUpModalProps {
   onClose: () => void;
   onSuccess?: () => void;
   initialGateway?: PaymentGateway;
+  initialAmount?: number;
 }
 
 const PRESET_AMOUNTS = [5_000, 10_000, 20_000, 50_000, 100_000];
@@ -99,9 +100,10 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
   isOpen,
   onClose,
   initialGateway = 'click',
+  initialAmount,
 }) => {
   const [selectedGateway, setSelectedGateway] = useState<PaymentGateway>(initialGateway);
-  const [selectedAmount, setSelectedAmount] = useState<number>(20_000);
+  const [selectedAmount, setSelectedAmount] = useState<number>(initialAmount || 20_000);
   const [customAmount, setCustomAmount] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [activePaymentType, setActivePaymentType] = useState<'app' | 'card' | null>(null);
@@ -112,7 +114,11 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
     if (initialGateway) {
       setSelectedGateway(initialGateway);
     }
-  }, [initialGateway, isOpen]);
+    if (initialAmount) {
+      setSelectedAmount(initialAmount);
+      setCustomAmount('');
+    }
+  }, [initialGateway, initialAmount, isOpen]);
 
   if (!isOpen) return null;
 
@@ -174,9 +180,9 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6 sm:py-10 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
       {/* Modal Container: Bottom Sheet on Mobile, Centered Dialog on Desktop */}
-      <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[32px] sm:rounded-3xl p-5 sm:p-7 shadow-2xl border-t sm:border border-slate-100 dark:border-slate-800 max-h-[92vh] flex flex-col animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 duration-200">
+      <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[32px] sm:rounded-3xl p-5 sm:p-7 shadow-2xl border-t sm:border border-slate-100 dark:border-slate-800 max-h-[90vh] sm:max-h-[86vh] flex flex-col my-auto animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 duration-200">
         
         {/* Mobile Drag Indicator */}
         <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-3 sm:hidden shrink-0" />
@@ -186,7 +192,7 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
           onClick={onClose}
           disabled={loading}
           aria-label="Yopish"
-          className="absolute top-4 right-4 sm:top-5 sm:right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors z-10"
+          className="absolute top-4 right-4 sm:top-5 sm:right-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors z-30 shadow-sm border border-slate-200/80 dark:border-slate-700/80 active:scale-95"
         >
           <X className="w-5 h-5" />
         </button>
