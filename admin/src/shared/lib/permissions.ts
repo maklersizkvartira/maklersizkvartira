@@ -68,6 +68,7 @@ export function atLeast(
  */
 const ROUTE_TABLE = {
   '/dashboard': 'MODERATOR',
+  '/payments': 'MODERATOR',
   /**
    * The charts, moved off the dashboard onto a page of their own.
    *

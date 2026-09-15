@@ -139,6 +139,12 @@ const Icons = {
       <circle cx="18" cy="13.5" r=".7" fill="currentColor" />
     </svg>
   ),
+  payments: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <line x1="2" y1="10" x2="22" y2="10" />
+    </svg>
+  ),
   sun: (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="5" />
@@ -233,6 +239,7 @@ export const NAV_GROUPS: NavGroup[] = [
     key: 'overview',
     items: [
       { key: 'dashboard', href: '/dashboard', icon: Icons.dashboard },
+      { key: 'payments', href: '/payments', icon: Icons.payments },
       { key: 'analytics', href: '/analytics', icon: Icons.analytics },
       { key: 'game', href: '/game', icon: Icons.game },
     ],

@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Index, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import INET, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -80,6 +80,9 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     referred_by_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
+
+    # -- Wallet / Balance (in UZS) -------------------------------------------
+    balance: Mapped[float] = mapped_column(Float, default=0.0, server_default="0.0", nullable=False)
 
     # -- Preferences (drive i18n + theme on every device) --------------------
     language: Mapped[str] = mapped_column(

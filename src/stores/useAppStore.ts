@@ -354,6 +354,7 @@ interface AppState {
   welcomeName: string | null;
   dismissWelcome: () => void;
   initAuth: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   login: (user: ApiUser, options?: { celebrate?: boolean }) => void;
   logout: () => Promise<void>;
   /**
@@ -750,6 +751,16 @@ const store = createStore<AppState>((set, get) => ({
     } catch (error) {
       if (error instanceof ApiError && error.isAuth) clearTokens();
       set({ currentUser: null, authReady: true });
+    }
+  },
+
+  refreshUser: async () => {
+    if (!getAccessToken()) return;
+    try {
+      const user = await AuthApi.me();
+      set({ currentUser: user });
+    } catch {
+      /* ignore */
     }
   },
 

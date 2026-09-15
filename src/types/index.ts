@@ -201,6 +201,8 @@ export interface Listing {
   isFeatured?: boolean;
   /** When the granted Top promotion runs out. Null while the listing is not promoted. */
   featuredUntil?: string | null;
+  isVip?: boolean;
+  vipUntil?: string | null;
   /**
    * The owner's own view of their Top request. The API fills it in only for
    * the listing's owner and for staff, so it is absent on every other row.

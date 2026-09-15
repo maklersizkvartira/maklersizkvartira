@@ -18,7 +18,7 @@ from app.core import middleware as app_middleware
 from app.core.config import settings
 from app.core.database import dispose_engine
 from app.core.errors import APIError, MESSAGES, translate
-from app.routers import admin, ai, auth, chat, listings, meta, seo, uploads
+from app.routers import admin, ai, auth, chat, listings, meta, payments, seo, uploads
 
 
 def configure_logging() -> None:
@@ -96,8 +96,66 @@ async def lifespan(app: FastAPI):
                     CREATE INDEX IF NOT EXISTS ix_support_messages_conversation_id ON support_messages(conversation_id);
                     CREATE INDEX IF NOT EXISTS ix_support_messages_sender_id ON support_messages(sender_id);
                 """))
+
+                # Ensure payment tables & columns exist
+                await db.execute(text("""
+                    ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DOUBLE PRECISION NOT NULL DEFAULT 0.0;
+                    ALTER TABLE listings ADD COLUMN IF NOT EXISTS is_vip BOOLEAN NOT NULL DEFAULT FALSE;
+                    ALTER TABLE listings ADD COLUMN IF NOT EXISTS vip_until TIMESTAMPTZ;
+
+                    CREATE TABLE IF NOT EXISTS payment_transactions (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        provider VARCHAR(32) NOT NULL DEFAULT 'CLICK',
+                        status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+                        amount DOUBLE PRECISION NOT NULL,
+                        currency VARCHAR(3) NOT NULL DEFAULT 'UZS',
+                        service_type VARCHAR(64) NOT NULL DEFAULT 'TOPUP',
+                        listing_id UUID REFERENCES listings(id) ON DELETE SET NULL,
+                        click_trans_id VARCHAR(64),
+                        click_paydoc_id VARCHAR(64),
+                        merchant_prepare_id VARCHAR(64),
+                        error_code INTEGER NOT NULL DEFAULT 0,
+                        error_note TEXT,
+                        completed_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_payment_transactions_user_status ON payment_transactions(user_id, status);
+                    CREATE INDEX IF NOT EXISTS ix_payment_transactions_click_trans_id ON payment_transactions(click_trans_id);
+
+                    CREATE TABLE IF NOT EXISTS click_payment_logs (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        action VARCHAR(32) NOT NULL,
+                        click_trans_id VARCHAR(64),
+                        service_id VARCHAR(64),
+                        merchant_trans_id VARCHAR(64),
+                        amount DOUBLE PRECISION,
+                        error_code INTEGER NOT NULL DEFAULT 0,
+                        error_note TEXT,
+                        raw_request JSONB,
+                        raw_response JSONB,
+                        client_ip VARCHAR(64),
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_click_payment_logs_click_trans_id ON click_payment_logs(click_trans_id);
+
+                    CREATE TABLE IF NOT EXISTS wallet_transactions (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        type VARCHAR(32) NOT NULL,
+                        amount DOUBLE PRECISION NOT NULL,
+                        balance_after DOUBLE PRECISION NOT NULL,
+                        description VARCHAR(255) NOT NULL,
+                        reference_id UUID,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_wallet_transactions_user_created ON wallet_transactions(user_id, created_at);
+                """))
             except Exception as tbl_err:
-                log.warning("support_tables_autoheal_note", error=str(tbl_err))
+                log.warning("tables_autoheal_note", error=str(tbl_err))
 
             # Nothing is deleted here. This block used to run
             #
@@ -215,6 +273,7 @@ def create_app() -> FastAPI:
     app.include_router(chat.router, prefix=prefix)
     app.include_router(ai.router, prefix=prefix)
     app.include_router(admin.router, prefix=prefix)
+    app.include_router(payments.router, prefix=prefix)
 
     # Served at the app root, not under the API prefix: the security
     # middleware puts `Cache-Control: no-store` on everything under the prefix,

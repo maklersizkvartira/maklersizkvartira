@@ -23,9 +23,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   BarChart3,
   Briefcase,
+  Crown,
   Edit3,
   ExternalLink,
   Eye,
+  Flame,
   Heart,
   Home,
   Image as ImageIcon,
@@ -56,6 +58,7 @@ import { Card, CardEmpty, SectionCard } from '../ui/Card';
 import { Button, Field, FormError, TextInput } from '../ui/Field';
 import { Sheet } from '../ui/Sheet';
 import { EditListingModal } from './EditListingModal';
+import { PromoteListingModal } from './PromoteListingModal';
 import { canPublishListings } from '../../types/roles';
 
 /** Maps the server's moderation state onto a shared status label and tone. */
@@ -215,6 +218,7 @@ export const MyListingsPage: React.FC = () => {
   const [topError, setTopError] = useState<string | null>(null);
   /** True once the request is with the admins; the sheet becomes the receipt. */
   const [topSent, setTopSent] = useState(false);
+  const [promoteTarget, setPromoteTarget] = useState<Listing | null>(null);
 
   type MyListingFilter = 'ALL' | 'OWNER' | 'AGENT' | 'ROOMMATE';
   const [filter, setFilter] = useState<MyListingFilter>('ALL');
@@ -734,25 +738,46 @@ export const MyListingsPage: React.FC = () => {
                       </div>
                     )}
 
-                    <Card tone="nested" padding="none" className="flex flex-col gap-1.5 p-3">
-                      <p className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-muted">
-                        <Rocket className="h-3.5 w-3.5 shrink-0 text-brand" aria-hidden="true" />
-                        {t('owner.my.top.title')}
-                      </p>
+                    <Card tone="nested" padding="none" className="flex flex-col gap-2 p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-muted">
+                          <Rocket className="h-3.5 w-3.5 shrink-0 text-brand" aria-hidden="true" />
+                          Reklama & Ko‘tarish
+                        </p>
+                        {listing.isVip && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400">
+                            <Crown className="w-3 h-3" /> VIP FAOL
+                          </span>
+                        )}
+                        {topActive && !listing.isVip && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
+                            <Flame className="w-3 h-3" /> TOP FAOL
+                          </span>
+                        )}
+                      </div>
+
                       {topLine && <p className="text-xs font-bold text-content">{topLine}</p>}
-                      {!topActive && !topPending && (
-                        <>
-                          <p className="text-xs text-subtle">{t('owner.my.top.body')}</p>
+
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setPromoteTarget(listing)}
+                          className="press inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-purple-600 px-4 text-xs font-black text-white shadow-md shadow-amber-500/20 hover:brightness-110"
+                        >
+                          <Flame className="h-3.5 w-3.5" aria-hidden="true" />
+                          <span>Ko‘tarish (TOP: 7 000 / VIP: 12 000 so‘m)</span>
+                        </button>
+
+                        {!topActive && !topPending && (
                           <button
                             type="button"
                             onClick={() => openTopRequest(listing)}
-                            className="press inline-flex min-h-11 items-center justify-center gap-1.5 self-start rounded-xl border border-brand/30 bg-brand-soft px-3.5 text-xs font-extrabold text-brand-text transition-colors hover:bg-brand-soft-2"
+                            className="press inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-line bg-surface-2 px-3 text-xs font-bold text-subtle transition-colors hover:text-content"
                           >
-                            <Rocket className="h-3.5 w-3.5" aria-hidden="true" />
-                            <span>{t('owner.my.top.cta')}</span>
+                            <span>Bepul so‘rov</span>
                           </button>
-                        </>
-                      )}
+                        )}
+                      </div>
                     </Card>
                   </Card>
                 );
@@ -942,6 +967,17 @@ export const MyListingsPage: React.FC = () => {
           listing={editing}
           onClose={() => setEditing(null)}
           onSaved={() => {
+            void fetchMyListings();
+          }}
+        />
+      )}
+
+      {promoteTarget && (
+        <PromoteListingModal
+          isOpen={Boolean(promoteTarget)}
+          listing={promoteTarget}
+          onClose={() => setPromoteTarget(null)}
+          onSuccess={() => {
             void fetchMyListings();
           }}
         />

@@ -338,6 +338,7 @@ class UserOut(ORMCamelModel):
     language: str
     theme: str
     referral_code: str | None = None
+    balance: float = 0.0
     must_change_password: bool = False
     phone_verified_at: datetime | None = None
     last_login_at: datetime | None = None

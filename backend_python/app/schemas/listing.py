@@ -329,6 +329,8 @@ class ListingOut(ORMCamelModel):
     #: When the current promotion runs out. Read this rather than
     #: ``is_featured``: the boolean is never cleared when the date passes.
     featured_until: datetime | None = None
+    is_vip: bool = False
+    vip_until: datetime | None = None
     promotion_weight: int
     #: The owner's own view of their latest Top request: "PENDING",
     #: "APPROVED", "REJECTED" or None. Filled per-request and only for the

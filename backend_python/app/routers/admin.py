@@ -72,6 +72,7 @@ from app.models.enums import (
 from app.models.chat import SupportConversation, SupportMessage
 from app.models.listing import Favorite, Listing, TopRequest
 from app.models.moderation import Report, VerificationRequest
+from app.models.payment import ClickPaymentLog, PaymentTransaction, WalletTransaction
 from app.models.user import AdminUser, User
 from app.schemas.chat import (
     SupportConversationDetailOut,
@@ -3071,7 +3072,134 @@ async def send_push_notification(
         "created_at": datetime.now(timezone.utc).isoformat(),
         "status": "delivered",
     }
-    _admin_push_history.append(record)
-
     return _ok(record)
+
+
+# ---------------------------------------------------------------------------
+# Payments & Revenue Management
+# ---------------------------------------------------------------------------
+@router.get("/payments", summary="List payments and transactions")
+async def list_payments(
+    admin: RequireModerator,
+    db: DbSession,
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
+    status: str | None = Query(default=None),
+    provider: str | None = Query(default=None),
+) -> dict[str, Any]:
+    """Get list of external payment transactions with user details."""
+    offset = (page - 1) * limit
+    stmt = select(PaymentTransaction)
+    if status:
+        stmt = stmt.where(PaymentTransaction.status == status)
+    if provider:
+        stmt = stmt.where(PaymentTransaction.provider == provider)
+
+    count_stmt = select(func.count(PaymentTransaction.id))
+    if status:
+        count_stmt = count_stmt.where(PaymentTransaction.status == status)
+    if provider:
+        count_stmt = count_stmt.where(PaymentTransaction.provider == provider)
+    
+    total = (await db.execute(count_stmt)).scalar() or 0
+    
+    stmt = stmt.order_by(PaymentTransaction.created_at.desc()).offset(offset).limit(limit)
+    rows = (await db.execute(stmt)).scalars().all()
+
+    data = []
+    for r in rows:
+        data.append({
+            "id": str(r.id),
+            "userId": str(r.user_id),
+            "userName": r.user.name if r.user else "Noma'lum",
+            "userPhone": r.user.phone if r.user else "",
+            "provider": r.provider,
+            "status": r.status,
+            "amount": r.amount,
+            "currency": r.currency,
+            "serviceType": r.service_type,
+            "clickTransId": r.click_trans_id,
+            "clickPaydocId": r.click_paydoc_id,
+            "completedAt": r.completed_at.isoformat() if r.completed_at else None,
+            "createdAt": r.created_at.isoformat(),
+        })
+
+    return {
+        "status": "success",
+        "data": data,
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }
+
+
+@router.get("/payments/stats", summary="Payment analytics summary")
+async def get_payment_stats(admin: RequireModerator, db: DbSession) -> dict[str, Any]:
+    """Summary of revenue, topups, services bought."""
+    # Total successful payments
+    total_rev_stmt = select(func.sum(PaymentTransaction.amount)).where(PaymentTransaction.status == "SUCCESS")
+    total_revenue = (await db.execute(total_rev_stmt)).scalar() or 0.0
+
+    # Total verified users count
+    verified_count_stmt = select(func.count(User.id)).where(User.is_verified == True)
+    verified_count = (await db.execute(verified_count_stmt)).scalar() or 0
+
+    # Total VIP listings
+    vip_count_stmt = select(func.count(Listing.id)).where(Listing.is_vip == True)
+    vip_count = (await db.execute(vip_count_stmt)).scalar() or 0
+
+    # Total TOP listings
+    top_count_stmt = select(func.count(Listing.id)).where(Listing.is_featured == True)
+    top_count = (await db.execute(top_count_stmt)).scalar() or 0
+
+    return {
+        "status": "success",
+        "totalRevenue": float(total_revenue),
+        "verifiedUsersCount": verified_count,
+        "vipListingsCount": vip_count,
+        "topListingsCount": top_count,
+    }
+
+
+class AdjustBalanceRequest(BaseModel):
+    amount: float
+    reason: str
+
+
+@router.post("/users/{user_id}/adjust-balance", summary="Manually add or deduct balance")
+async def adjust_user_balance(
+    user_id: uuid.UUID,
+    payload: AdjustBalanceRequest,
+    admin: RequireAdmin,
+    db: DbSession,
+) -> dict[str, Any]:
+    """Admin can adjust user wallet balance directly."""
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user:
+        raise NotFound("user_not_found")
+
+    old_bal = float(user.balance)
+    new_bal = max(0.0, old_bal + payload.amount)
+    user.balance = new_bal
+
+    tx_type = "ADMIN_ADD" if payload.amount >= 0 else "ADMIN_DEDUCT"
+    desc = f"Admin ({admin.username}): {payload.reason}"
+
+    wallet_tx = WalletTransaction(
+        user_id=user.id,
+        type=tx_type,
+        amount=payload.amount,
+        balance_after=new_bal,
+        description=desc,
+    )
+    db.add(wallet_tx)
+    await db.commit()
+
+    return {
+        "status": "success",
+        "oldBalance": old_bal,
+        "newBalance": new_bal,
+        "adjusted": payload.amount,
+    }
+
 

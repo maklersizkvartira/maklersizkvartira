@@ -38,11 +38,13 @@ import {
   Tablet,
   User,
   UserCog,
+  Wallet,
 } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { AuthApi, type AuthSession } from '../../services/authApi';
 import { UploadError, uploadImage } from '../../services/uploadsApi';
+import { WalletCard } from './WalletCard';
 import { useAppStore, type SignupRole } from '../../stores/useAppStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useHaptics } from '../../hooks/useHaptics';
@@ -626,6 +628,7 @@ export const ProfilePage: React.FC = () => {
   };
 
   type MobileProfileSection =
+    | 'wallet'
     | 'profile'
     | 'verification'
     | 'role'
@@ -636,7 +639,7 @@ export const ProfilePage: React.FC = () => {
     | null;
 
   const [activeMobileSection, setActiveMobileSection] = useState<MobileProfileSection>(null);
-  const [desktopTab, setDesktopTab] = useState<'all' | 'profile' | 'role' | 'preferences' | 'security' | 'sessions'>('all');
+  const [desktopTab, setDesktopTab] = useState<'all' | 'wallet' | 'profile' | 'role' | 'preferences' | 'security' | 'sessions'>('all');
 
   // -- Shared Section Content Renderers -------------------------------------
   const renderProfileContent = () => (
@@ -1280,6 +1283,19 @@ export const ProfilePage: React.FC = () => {
           </Button>
         )}
 
+        {/* Hamyon va Balans (Click) */}
+        <Card padding="none" className="overflow-hidden">
+          <MenuRow
+            icon={Wallet}
+            title="Mening Hamyonim & Balans"
+            subtitle="Click orqali to‘lov, galochka va xizmatlar"
+            onClick={() => {
+              haptics.tap();
+              setActiveMobileSection('wallet');
+            }}
+          />
+        </Card>
+
         {/* Group 1: Profil va Shaxsiyat */}
         <Card padding="none" className="overflow-hidden divide-y divide-line">
           <MenuRow
@@ -1375,6 +1391,17 @@ export const ProfilePage: React.FC = () => {
 
       {/* Mobile Bottom Sheets */}
       <Sheet
+        open={activeMobileSection === 'wallet'}
+        onClose={() => setActiveMobileSection(null)}
+        title="Mening Hamyonim & Balans"
+        description="Click to‘lovlari va xizmatlar"
+      >
+        <div className="p-4 sm:p-6">
+          <WalletCard />
+        </div>
+      </Sheet>
+
+      <Sheet
         open={activeMobileSection === 'profile'}
         onClose={() => setActiveMobileSection(null)}
         title={t('account.profile.title')}
@@ -1444,6 +1471,7 @@ export const ProfilePage: React.FC = () => {
           <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-line bg-surface-2 p-1.5 shadow-sm">
             {[
               { id: 'all', label: 'Barchasi', icon: null },
+              { id: 'wallet', label: 'Hamyon & Balans', icon: Wallet },
               { id: 'profile', label: t('account.profile.title'), icon: User },
               {
                 id: 'role',
@@ -1477,6 +1505,11 @@ export const ProfilePage: React.FC = () => {
               );
             })}
           </div>
+
+          {/* -- Wallet & Balans ------------------------------------------- */}
+          {(desktopTab === 'all' || desktopTab === 'wallet') && (
+            <WalletCard />
+          )}
 
           {/* -- Profile fields ------------------------------------------- */}
           {(desktopTab === 'all' || desktopTab === 'profile') && (

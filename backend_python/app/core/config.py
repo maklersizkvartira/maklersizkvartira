@@ -233,6 +233,12 @@ class Settings(BaseSettings):
     DEVSMS_SERVICE_NAME: str = "Uyiz"
     SMS_ENABLED: bool = True
 
+    # -- Click Payment Gateway -----------------------------------------------
+    CLICK_SERVICE_ID: str = "112055"
+    CLICK_MERCHANT_ID: str = "64716"
+    CLICK_SECRET_KEY: str = "TyAfhhVWnkXhYh"
+    CLICK_MERCHANT_USER_ID: str = "91391"
+
     TELEGRAM_BOT_TOKEN: str = "8760567987:AAF5Qg1jVk7xClHJuTkxOSWvgDs9WEptL_M"
     TELEGRAM_GROUP_ID: str = "-1004486550551"
     #: A SECOND bot and chat, for the AI transcripts only.

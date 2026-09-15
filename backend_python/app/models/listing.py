@@ -165,6 +165,12 @@ class Listing(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     featured_until: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    is_vip: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, index=True
+    )
+    vip_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     #: Higher sorts first inside the promoted rail.
     promotion_weight: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 

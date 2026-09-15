@@ -12,6 +12,7 @@ from app.models.base import Base
 from app.models.chat import ChatMessage, Conversation, SupportConversation, SupportMessage
 from app.models.listing import Favorite, Listing, TopRequest
 from app.models.moderation import Report, VerificationRequest
+from app.models.payment import ClickPaymentLog, PaymentTransaction, WalletTransaction
 from app.models.settings import SystemSetting
 from app.models.user import AdminUser, User
 
@@ -21,12 +22,14 @@ __all__ = [
     "AdminUser",
     "AuditLog",
     "ChatMessage",
+    "ClickPaymentLog",
     "Conversation",
     "Base",
     "Favorite",
     "Listing",
     "LoginAttempt",
     "OtpCode",
+    "PaymentTransaction",
     "PendingRegistration",
     "RefreshToken",
     "Report",
@@ -38,4 +41,5 @@ __all__ = [
     "TrafficEvent",
     "User",
     "VerificationRequest",
+    "WalletTransaction",
 ]

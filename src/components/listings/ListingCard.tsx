@@ -23,6 +23,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BedDouble,
+  Crown,
+  Flame,
   Heart,
   Image as ImageIcon,
   MapPin,
@@ -293,11 +295,17 @@ export const ListingCard: React.FC<ListingCardProps> = ({
       )}
 
       {/* Top-left badges */}
-      <div className="absolute left-2 top-2 flex flex-wrap gap-1.5">
-        {promoted && (
-          <span className="inline-flex items-center gap-1 rounded-lg bg-warning px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-sm">
-            <Sparkles className="h-3 w-3" aria-hidden="true" />
-            {t('listings.featured.badge')}
+      <div className="absolute left-2 top-2 flex flex-wrap gap-1.5 z-10">
+        {listing.isVip && (
+          <span className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-md shadow-purple-500/30">
+            <Crown className="h-3 w-3 text-amber-300" aria-hidden="true" />
+            VIP
+          </span>
+        )}
+        {promoted && !listing.isVip && (
+          <span className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-md shadow-amber-500/30">
+            <Flame className="h-3 w-3" aria-hidden="true" />
+            TOP
           </span>
         )}
         {listing.isRoommate && (

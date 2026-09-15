@@ -42,6 +42,7 @@ export interface ApiUser {
   language: Language;
   theme: 'light' | 'dark' | 'system';
   referralCode?: string | null;
+  balance?: number;
   mustChangePassword: boolean;
   phoneVerifiedAt?: string | null;
   lastLoginAt?: string | null;
