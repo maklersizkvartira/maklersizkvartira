@@ -142,38 +142,93 @@ async def click_webhook(
                 {"merchant_confirm_id": "test"},
             )
 
-    # Find the local transaction
+    # Find the local transaction or user for direct Click app payment
+    payment_tx: PaymentTransaction | None = None
+    user: User | None = None
+
+    # A) Try to find existing transaction by merchant_prepare_id (if Complete) or merchant_trans_id (if Web checkout)
+    lookup_id = merchant_prepare_id or merchant_trans_id
     try:
-        tx_uuid = uuid.UUID(merchant_trans_id)
+        tx_uuid = uuid.UUID(str(lookup_id).strip())
+        payment_tx = (
+            await db.execute(
+                select(PaymentTransaction).where(PaymentTransaction.id == tx_uuid)
+            )
+        ).scalar_one_or_none()
     except (ValueError, TypeError):
-        log.error("click.invalid_merchant_trans_id", merchant_trans_id=merchant_trans_id)
-        await db.commit()
-        return _respond(click_service.CLICK_TRANSACTION_NOT_FOUND, "Transaction not found")
+        payment_tx = None
 
-    payment_tx = (
-        await db.execute(
-            select(PaymentTransaction).where(PaymentTransaction.id == tx_uuid)
-        )
-    ).scalar_one_or_none()
-
+    # B) If no existing transaction was found, check if merchant_trans_id is a User identifier (Phone / User ID / Referral code)
+    # This happens when users pay directly via Click App's search (Katalog: Uyiz.uz)
     if payment_tx is None:
-        log.error("click.payment_tx_not_found", tx_id=str(tx_uuid))
-        await db.commit()
-        return _respond(click_service.CLICK_TRANSACTION_NOT_FOUND, "Transaction not found")
+        target_param = str(merchant_trans_id).strip()
+
+        # Check 1: User UUID
+        try:
+            u_uuid = uuid.UUID(target_param)
+            user = (await db.execute(select(User).where(User.id == u_uuid))).scalar_one_or_none()
+        except (ValueError, TypeError):
+            user = None
+
+        # Check 2: Phone number (+99890..., 99890..., 90...)
+        if user is None:
+            clean_digits = "".join(c for c in target_param if c.isdigit())
+            candidate_phones = [target_param]
+            if len(clean_digits) == 9:
+                candidate_phones.append(f"+998{clean_digits}")
+            elif len(clean_digits) == 12 and clean_digits.startswith("998"):
+                candidate_phones.append(f"+{clean_digits}")
+
+            user = (
+                await db.execute(
+                    select(User).where(User.phone.in_(candidate_phones))
+                )
+            ).scalar_one_or_none()
+
+        # Check 3: Referral code
+        if user is None and len(target_param) <= 16:
+            user = (
+                await db.execute(
+                    select(User).where(User.referral_code == target_param.upper())
+                )
+            ).scalar_one_or_none()
+
+        if user is None:
+            log.error("click.user_or_tx_not_found", merchant_trans_id=merchant_trans_id)
+            await db.commit()
+            return _respond(click_service.CLICK_USER_NOT_FOUND, "User or transaction not found")
+
+        # In Prepare (action 0): create a pending transaction for this direct Click App payment
+        if action == 0:
+            payment_tx = PaymentTransaction(
+                user_id=user.id,
+                provider="CLICK",
+                status="PENDING",
+                amount=amount,
+                service_type="TOPUP_DIRECT_CLICK",
+            )
+            db.add(payment_tx)
+            await db.flush()
+        else:
+            log.error("click.direct_complete_without_prepare", merchant_trans_id=merchant_trans_id)
+            await db.commit()
+            return _respond(click_service.CLICK_TRANSACTION_NOT_FOUND, "Transaction not found")
+
+    # If transaction exists, load associated user
+    if user is None and payment_tx is not None:
+        user = (
+            await db.execute(select(User).where(User.id == payment_tx.user_id))
+        ).scalar_one_or_none()
+        if user is None:
+            log.error("click.user_not_found", user_id=str(payment_tx.user_id))
+            await db.commit()
+            return _respond(click_service.CLICK_USER_NOT_FOUND, "User not found")
 
     # Check Amount (allow small float deviation)
-    if abs(float(payment_tx.amount) - float(amount)) > 0.01:
+    if payment_tx is not None and abs(float(payment_tx.amount) - float(amount)) > 0.01:
         log.error("click.incorrect_amount", expected=payment_tx.amount, received=amount)
         await db.commit()
         return _respond(click_service.CLICK_INCORRECT_AMOUNT, "Incorrect amount")
-
-    user = (
-        await db.execute(select(User).where(User.id == payment_tx.user_id))
-    ).scalar_one_or_none()
-    if user is None:
-        log.error("click.user_not_found", user_id=str(payment_tx.user_id))
-        await db.commit()
-        return _respond(click_service.CLICK_USER_NOT_FOUND, "User not found")
 
     # 5. Handle Actions
     now = datetime.now(timezone.utc)
