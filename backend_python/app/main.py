@@ -17,6 +17,7 @@ from app.core import platform as _platform  # noqa: F401  (event-loop policy)
 from app.core import middleware as app_middleware
 from app.core.config import settings
 from app.core.database import dispose_engine
+from app.core.deps import DbSession
 from app.core.errors import APIError, MESSAGES, translate
 from app.routers import admin, ai, auth, chat, listings, meta, payments, seo, uploads
 
