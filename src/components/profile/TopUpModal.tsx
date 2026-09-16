@@ -114,8 +114,10 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
   const [gateway, setGateway] = useState<Gateway>(initialGateway === 'payme' ? 'payme' : 'click');
   /** The amount as typed, digits only. A preset writes into it too, so
    *  there is one source of truth rather than a preset AND a custom field
-   *  that had to be reconciled on every read. */
-  const [amountDigits, setAmountDigits] = useState<string>(String(initialAmount || 20_000));
+   *  that had to be reconciled on every read. Opens at the minimum, not at
+   *  a suggested figure: the field should show the least a person can pay,
+   *  and anything more is their choice. */
+  const [amountDigits, setAmountDigits] = useState<string>(String(initialAmount || MIN_AMOUNT));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -124,7 +126,7 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     setGateway(initialGateway === 'payme' ? 'payme' : 'click');
-    if (initialAmount) setAmountDigits(String(Math.round(initialAmount)));
+    setAmountDigits(String(initialAmount ? Math.round(initialAmount) : MIN_AMOUNT));
     setError(null);
     setLoading(false);
   }, [isOpen, initialGateway, initialAmount]);
