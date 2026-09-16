@@ -630,18 +630,7 @@ async def payme_webhook(
         order_id_str = account.get("order_id")
         amount_tiyin = params.get("amount")
 
-        # 1. Check amount bounds (minimum 1,000 sum = 100,000 tiyin)
-        if amount_tiyin is None or int(amount_tiyin) < 100_000 or int(amount_tiyin) > 500_000_000:
-            return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_INCORRECT_AMOUNT,
-                    "Noto'g'ri summa",
-                    "Неверная сумма",
-                    data="amount",
-                )
-            )
-
+        # 1. Verify account parameter first (account verification must precede amount check)
         if not order_id_str:
             return await _send_response(
                 payme_service.payme_error_response(
@@ -649,22 +638,9 @@ async def payme_webhook(
                     payme_service.PAYME_ERROR_ORDER_NOT_FOUND,
                     "account.order_id ko'rsatilmadi",
                     "Не указан параметр order_id",
-                    data="account",
+                    data="order_id",
                 )
             )
-
-        # Sandbox test order has fixed expected amount of 500,000 tiyin (5,000 UZS)
-        if order_id_str in ("1", "test", "demo", "sandbox_test"):
-            if int(amount_tiyin) != 500_000:
-                return await _send_response(
-                    payme_service.payme_error_response(
-                        req_id,
-                        payme_service.PAYME_ERROR_INCORRECT_AMOUNT,
-                        "Noto'g'ri summa",
-                        "Неверная сумма",
-                        data="amount",
-                    )
-                )
 
         order_uuid = None
         try:
@@ -697,6 +673,18 @@ async def payme_webhook(
                     "Buyurtma topilmadi",
                     "Заказ не найден",
                     data="order_id",
+                )
+            )
+
+        # 2. Verify amount bounds and matching after account is confirmed to exist
+        if amount_tiyin is None or int(amount_tiyin) < 100_000 or int(amount_tiyin) > 500_000_000:
+            return await _send_response(
+                payme_service.payme_error_response(
+                    req_id,
+                    payme_service.PAYME_ERROR_INCORRECT_AMOUNT,
+                    "Noto'g'ri summa",
+                    "Неверная сумма",
+                    data="amount",
                 )
             )
 
@@ -803,19 +791,7 @@ async def payme_webhook(
                     )
                 )
 
-        # Check amount bounds
-        if int(amount_tiyin) < 100_000 or int(amount_tiyin) > 500_000_000:
-            return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_INCORRECT_AMOUNT,
-                    "Noto'g'ri summa",
-                    "Неверная сумма",
-                    data="amount",
-                )
-            )
-
-        # New transaction by order_id
+        # New transaction by order_id: verify account/order existence first
         if not order_id_str:
             return await _send_response(
                 payme_service.payme_error_response(
@@ -826,19 +802,6 @@ async def payme_webhook(
                     data="account",
                 )
             )
-
-        # Sandbox test order has fixed expected amount of 500,000 tiyin (5,000 UZS)
-        if order_id_str in ("1", "test", "demo", "sandbox_test"):
-            if int(amount_tiyin) != 500_000:
-                return await _send_response(
-                    payme_service.payme_error_response(
-                        req_id,
-                        payme_service.PAYME_ERROR_INCORRECT_AMOUNT,
-                        "Noto'g'ri summa",
-                        "Неверная сумма",
-                        data="amount",
-                    )
-                )
 
         order_uuid = None
         try:
@@ -895,6 +858,31 @@ async def payme_webhook(
                     data="order_id",
                 )
             )
+
+        # Check amount bounds
+        if int(amount_tiyin) < 100_000 or int(amount_tiyin) > 500_000_000:
+            return await _send_response(
+                payme_service.payme_error_response(
+                    req_id,
+                    payme_service.PAYME_ERROR_INCORRECT_AMOUNT,
+                    "Noto'g'ri summa",
+                    "Неверная сумма",
+                    data="amount",
+                )
+            )
+
+        # Sandbox test order has fixed expected amount of 500,000 tiyin (5,000 UZS)
+        if order_id_str in ("1", "test", "demo", "sandbox_test"):
+            if int(amount_tiyin) != 500_000:
+                return await _send_response(
+                    payme_service.payme_error_response(
+                        req_id,
+                        payme_service.PAYME_ERROR_INCORRECT_AMOUNT,
+                        "Noto'g'ri summa",
+                        "Неверная сумма",
+                        data="amount",
+                    )
+                )
 
         expected_tiyin = int(round(tx.amount * 100))
         if int(amount_tiyin) != expected_tiyin:
