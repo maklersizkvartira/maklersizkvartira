@@ -6,15 +6,13 @@ import { useLocale, useTranslations } from 'next-intl';
 import {
   CreditCard,
   DollarSign,
-  Search,
   CheckCircle2,
   Clock,
   XCircle,
-  ArrowUpRight,
   ShieldCheck,
   Crown,
   Flame,
-  Wallet,
+  Building2,
 } from 'lucide-react';
 
 import { http } from '@/shared/lib/http';
@@ -23,8 +21,6 @@ import { FilterBar } from '@/shared/ui/FilterBar';
 import { Select } from '@/shared/ui/Select';
 import { DataTable, type Column } from '@/shared/ui/DataTable';
 import { Pagination } from '@/shared/ui/Pagination';
-import { StatusPill } from '@/shared/ui/StatusPill';
-import { Spinner } from '@/shared/ui/Spinner';
 
 function formatNumber(num: number): string {
   return (num || 0).toLocaleString('uz-UZ');
@@ -58,14 +54,31 @@ interface PurchaseRow {
   balanceAfter: number;
   description: string;
   referenceId: string | null;
+  listingId: string | null;
+  listingTitle: string | null;
+  listingPrice: number | null;
+  listingDistrict: string | null;
+  listingCity: string | null;
+  validUntil: string | null;
+  isStillActive: boolean;
   createdAt: string;
 }
 
 interface PaymentStats {
   totalRevenue: number;
+  totalCount: number;
+  clickRevenue: number;
+  clickCount: number;
+  paymeRevenue: number;
+  paymeCount: number;
+  uzumRevenue: number;
+  uzumCount: number;
   verifiedUsersCount: number;
   vipListingsCount: number;
   topListingsCount: number;
+  spentTop: number;
+  spentVip: number;
+  spentVerified: number;
 }
 
 export default function PaymentsPage() {
@@ -83,14 +96,14 @@ export default function PaymentsPage() {
     [locale],
   );
 
-  // Fetch Stats
+  // Fetch Stats (Real revenue split by provider and services)
   const { data: statsData, isLoading: statsLoading } = useQuery<{ status: string } & PaymentStats>({
     queryKey: ['admin-payment-stats'],
     queryFn: () => http.get('/admin/payments/stats'),
   });
 
-  // Fetch Payments List (Click & Payme top-ups)
-  const { data: paymentsData, isLoading: listLoading, refetch } = useQuery<{
+  // Fetch Payments List (Click & Payme real top-ups)
+  const { data: paymentsData, isLoading: listLoading } = useQuery<{
     status: string;
     data: PaymentRow[];
     total: number;
@@ -110,7 +123,7 @@ export default function PaymentsPage() {
     enabled: activeTab === 'click',
   });
 
-  // Fetch Purchases List (TOP, VIP, Galochka purchases)
+  // Fetch Purchases List (TOP, VIP, Galochka purchases with listing info)
   const { data: purchasesData, isLoading: purchasesLoading } = useQuery<{
     status: string;
     data: PurchaseRow[];
@@ -159,7 +172,7 @@ export default function PaymentsPage() {
       header: 'Foydalanuvchi',
       render: (row) => (
         <div>
-          <div className="font-bold text-sm text-[var(--color-text)]">{row.userName}</div>
+          <div className="font-bold text-sm text-[var(--color-text)]">{row.userName || 'Noma‘lum'}</div>
           <div className="text-xs text-[var(--color-text-muted)] font-mono">{row.userPhone}</div>
         </div>
       ),
@@ -176,7 +189,7 @@ export default function PaymentsPage() {
     },
     {
       key: 'service',
-      header: 'Xizmat turi',
+      header: 'To‘lov maqsadi',
       render: (row) => {
         let label = 'Hisob to‘ldirish';
         let badgeColor = 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400';
@@ -209,13 +222,24 @@ export default function PaymentsPage() {
     },
     {
       key: 'provider',
-      header: 'Tizim',
-      render: (row) => (
-        <span className="inline-flex items-center gap-1.5 font-semibold text-xs text-[var(--color-text)]">
-          <CreditCard className="w-3.5 h-3.5 text-blue-500" />
-          {row.provider}
-        </span>
-      ),
+      header: 'To‘lov tizimi',
+      render: (row) => {
+        const name = (row.provider || '').toUpperCase();
+        let badgeStyle = 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300';
+        if (name === 'CLICK') {
+          badgeStyle = 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300';
+        } else if (name === 'PAYME') {
+          badgeStyle = 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300';
+        } else if (name === 'UZUM' || name === 'UZUMBANK') {
+          badgeStyle = 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300';
+        }
+        return (
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-bold ${badgeStyle}`}>
+            <CreditCard className="w-3.5 h-3.5" />
+            {name}
+          </span>
+        );
+      },
     },
     {
       key: 'status',
@@ -268,11 +292,12 @@ export default function PaymentsPage() {
   const purchaseColumns: Column<PurchaseRow>[] = [
     {
       key: 'user',
-      header: 'Foydalanuvchi',
+      header: 'Foydalanuvchi (Xaridor)',
       render: (row) => (
         <div>
-          <div className="font-bold text-sm text-[var(--color-text)]">{row.userName}</div>
+          <div className="font-bold text-sm text-[var(--color-text)]">{row.userName || 'Noma‘lum'}</div>
           <div className="text-xs text-[var(--color-text-muted)] font-mono">{row.userPhone}</div>
+          <div className="text-[10px] text-[var(--color-text-muted)] font-mono">ID: {row.userId?.slice(0, 8)}...</div>
         </div>
       ),
     },
@@ -282,31 +307,73 @@ export default function PaymentsPage() {
       render: (row) => {
         let label = 'Xizmat';
         let badgeColor = 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400';
-        if (row.type === 'VERIFIED_BADGE') {
-          label = 'Galochka (Verified)';
+        let icon = null;
+        if (row.type === 'VERIFIED_BADGE' || row.type.includes('VERIFIED')) {
+          label = 'Galochka (Tasdiqlangan profil)';
           badgeColor = 'bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400';
-        } else if (row.type === 'TOP_LISTING') {
-          label = 'TOP E’lon';
+          icon = <ShieldCheck className="w-3 h-3 shrink-0" />;
+        } else if (row.type === 'TOP_LISTING' || row.type.includes('TOP')) {
+          label = 'TOP E’lon (7 kun)';
           badgeColor = 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400';
-        } else if (row.type === 'VIP_LISTING') {
-          label = 'VIP E’lon';
+          icon = <Flame className="w-3 h-3 shrink-0" />;
+        } else if (row.type === 'VIP_LISTING' || row.type.includes('VIP')) {
+          label = 'VIP E’lon (15 kun)';
           badgeColor = 'bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-950/40 dark:text-purple-400';
+          icon = <Crown className="w-3 h-3 shrink-0" />;
         }
         return (
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${badgeColor}`}>
+          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${badgeColor}`}>
+            {icon}
             {label}
           </span>
         );
       },
     },
     {
-      key: 'description',
-      header: 'Tavsif / E’lon',
-      render: (row) => (
-        <span className="text-xs font-medium text-[var(--color-text)]">
-          {row.description}
-        </span>
-      ),
+      key: 'listing',
+      header: 'Qaysi e‘longa sotib olingan?',
+      render: (row) => {
+        if (!row.listingId && !row.listingTitle) {
+          return (
+            <div className="text-xs text-[var(--color-text-muted)] italic">
+              {row.description || 'Profil tasdiqlash uchun (Galochka)'}
+            </div>
+          );
+        }
+        return (
+          <div className="space-y-1">
+            <div className="font-semibold text-xs text-[var(--color-text)] flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+              <span className="line-clamp-1 max-w-[220px]" title={row.listingTitle || ''}>
+                {row.listingTitle || 'E‘lon'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-[var(--color-text-muted)]">
+              {(row.listingDistrict || row.listingCity) && (
+                <span>📍 {[row.listingDistrict, row.listingCity].filter(Boolean).join(', ')}</span>
+              )}
+              {row.listingPrice != null && (
+                <span className="font-mono font-medium text-emerald-600 dark:text-emerald-400">
+                  {formatNumber(row.listingPrice)} so‘m
+                </span>
+              )}
+            </div>
+            {row.validUntil && (
+              <div className="text-[10px] font-mono">
+                {row.isStillActive ? (
+                  <span className="inline-flex items-center gap-1 text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded font-bold">
+                    <CheckCircle2 className="w-3 h-3" /> Faol ({dateFormat.format(new Date(row.validUntil))} gacha)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                    <Clock className="w-3 h-3" /> Muddati tugagan ({dateFormat.format(new Date(row.validUntil))})
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'amount',
@@ -320,17 +387,20 @@ export default function PaymentsPage() {
     },
     {
       key: 'balanceAfter',
-      header: 'Qolgan balans',
+      header: 'Balans holati',
       align: 'right',
       render: (row) => (
-        <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
-          {formatNumber(row.balanceAfter)} so‘m
-        </span>
+        <div className="text-right">
+          <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
+            {formatNumber(row.balanceAfter)} so‘m
+          </span>
+          <div className="text-[10px] text-[var(--color-text-muted)]">qolgan balans</div>
+        </div>
       ),
     },
     {
       key: 'date',
-      header: 'Sana & Soat',
+      header: 'Xarid vaqti',
       align: 'right',
       render: (row) => (
         <span className="text-xs font-mono text-[var(--color-text-muted)]">
@@ -344,73 +414,160 @@ export default function PaymentsPage() {
     <div className="space-y-6">
       <PageHeader
         title="To‘lovlar & Daromad boshqaruvi"
-        subtitle="Click va Payme to‘lovlari, tushumlar, pullik xizmatlar va balans auditi"
+        subtitle="Click, Payme va Uzum Bank real tushumlari, pullik xizmatlar xaridi va shaffof balans auditi"
       />
 
-      {/* KPI Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Revenue */}
-        <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-              Jami Tushum (Click & Payme)
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600">
-              <DollarSign className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-[var(--color-text)]">
-            {statsLoading ? '...' : `${formatNumber(statsData?.totalRevenue ?? 0)} so‘m`}
-          </div>
-          <p className="text-[11px] text-[var(--color-text-muted)] mt-1">Muvaffaqiyatli to‘lovlar</p>
+      {/* KPI Stats Cards - Row 1: Tizimlar bo'yicha Tushumlar */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-extrabold uppercase tracking-wider text-[var(--color-text-muted)]">
+            Kassaga Real Tushumlar (To‘lov tizimlari)
+          </h2>
+          <span className="text-[11px] text-[var(--color-text-muted)] font-medium">
+            Faqat muvaffaqiyatli to‘langan real pullar
+          </span>
         </div>
-
-        {/* Verified Badges */}
-        <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-              Galochka (Tasdiqlangan)
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-600">
-              <ShieldCheck className="w-4 h-4" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Jami Real Tushum */}
+          <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs relative overflow-hidden">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                Jami Real Tushum
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600">
+                <DollarSign className="w-4 h-4" />
+              </div>
             </div>
+            <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+              {statsLoading ? '...' : `${formatNumber(statsData?.totalRevenue ?? 0)} so‘m`}
+            </div>
+            <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
+              Jami tranzaksiyalar: <b className="text-[var(--color-text)]">{statsData?.totalCount ?? 0} ta</b>
+            </p>
           </div>
-          <div className="text-2xl font-black text-[var(--color-text)]">
-            {statsLoading ? '...' : `${formatNumber(statsData?.verifiedUsersCount ?? 0)} ta`}
+
+          {/* Card 2: Click Tushumi */}
+          <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">
+                Click orqali
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-sky-50 dark:bg-sky-950/40 flex items-center justify-center text-sky-600 font-black text-xs">
+                CL
+              </div>
+            </div>
+            <div className="text-2xl font-black text-[var(--color-text)]">
+              {statsLoading ? '...' : `${formatNumber(statsData?.clickRevenue ?? 0)} so‘m`}
+            </div>
+            <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
+              Muvaffaqiyatli: <b className="text-[var(--color-text)]">{statsData?.clickCount ?? 0} ta to‘lov</b>
+            </p>
           </div>
-          <p className="text-[11px] text-[var(--color-text-muted)] mt-1">20 000 so‘mlik rasmiy statuslar</p>
+
+          {/* Card 3: Payme Tushumi */}
+          <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
+                Payme orqali
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-cyan-50 dark:bg-cyan-950/40 flex items-center justify-center text-cyan-600 font-black text-xs">
+                PM
+              </div>
+            </div>
+            <div className="text-2xl font-black text-[var(--color-text)]">
+              {statsLoading ? '...' : `${formatNumber(statsData?.paymeRevenue ?? 0)} so‘m`}
+            </div>
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium">
+              {statsData && statsData.paymeRevenue === 0
+                ? 'Merchant tasdiqlanishi kutilmoqda (Sandbox)'
+                : `${statsData?.paymeCount ?? 0} ta to‘lov`}
+            </p>
+          </div>
+
+          {/* Card 4: Uzum Bank */}
+          <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                Uzum Bank orqali
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-purple-600 font-black text-xs">
+                UB
+              </div>
+            </div>
+            <div className="text-2xl font-black text-[var(--color-text)]">
+              {statsLoading ? '...' : `${formatNumber(statsData?.uzumRevenue ?? 0)} so‘m`}
+            </div>
+            <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
+              Muvaffaqiyatli: <b className="text-[var(--color-text)]">{statsData?.uzumCount ?? 0} ta to‘lov</b>
+            </p>
+          </div>
         </div>
+      </div>
 
-        {/* TOP Listings */}
-        <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-              TOP E’lonlar
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-amber-600">
-              <Flame className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-[var(--color-text)]">
-            {statsLoading ? '...' : `${formatNumber(statsData?.topListingsCount ?? 0)} ta`}
-          </div>
-          <p className="text-[11px] text-[var(--color-text-muted)] mt-1">7 000 so‘mlik ko‘tarilgan e’lonlar</p>
+      {/* KPI Stats Cards - Row 2: Sotilgan pullik xizmatlar (TOP / VIP / Verified) */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-extrabold uppercase tracking-wider text-[var(--color-text-muted)]">
+            Pullik Xizmatlar Xaridi (TOP, VIP, Galochka)
+          </h2>
+          <span className="text-[11px] text-[var(--color-text-muted)] font-medium">
+            Foydalanuvchilar balansidan sotib olingan haqiqiy xizmatlar
+          </span>
         </div>
-
-        {/* VIP Listings */}
-        <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-              VIP E’lonlar
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-purple-600">
-              <Crown className="w-4 h-4" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Card 5: TOP e'lonlar */}
+          <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                TOP E’lonlar
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-amber-600">
+                <Flame className="w-4 h-4" />
+              </div>
             </div>
+            <div className="text-2xl font-black text-[var(--color-text)]">
+              {statsLoading ? '...' : `${formatNumber(statsData?.topListingsCount ?? 0)} ta`}
+            </div>
+            <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
+              Jami sarflangan: <b className="text-amber-600 dark:text-amber-400">{formatNumber(statsData?.spentTop ?? 0)} so‘m</b> (7 000 so‘m/ta)
+            </p>
           </div>
-          <div className="text-2xl font-black text-[var(--color-text)]">
-            {statsLoading ? '...' : `${formatNumber(statsData?.vipListingsCount ?? 0)} ta`}
+
+          {/* Card 6: VIP e'lonlar */}
+          <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                VIP E’lonlar
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-purple-600">
+                <Crown className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-black text-[var(--color-text)]">
+              {statsLoading ? '...' : `${formatNumber(statsData?.vipListingsCount ?? 0)} ta`}
+            </div>
+            <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
+              Jami sarflangan: <b className="text-purple-600 dark:text-purple-400">{formatNumber(statsData?.spentVip ?? 0)} so‘m</b> (12 000 so‘m/ta)
+            </p>
           </div>
-          <p className="text-[11px] text-[var(--color-text-muted)] mt-1">12 000 so‘mlik VIP e’lonlar</p>
+
+          {/* Card 7: Galochka */}
+          <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                Galochka (Tasdiqlangan)
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-600">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-black text-[var(--color-text)]">
+              {statsLoading ? '...' : `${formatNumber(statsData?.verifiedUsersCount ?? 0)} ta`}
+            </div>
+            <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
+              Jami sarflangan: <b className="text-indigo-600 dark:text-indigo-400">{formatNumber(statsData?.spentVerified ?? 0)} so‘m</b> (20 000 so‘m/ta)
+            </p>
+          </div>
         </div>
       </div>
 
@@ -429,7 +586,7 @@ export default function PaymentsPage() {
           }`}
         >
           <CreditCard className="w-4 h-4" />
-          Barcha Tushumlar (Click & Payme)
+          Barcha Tushumlar (Click, Payme, Uzum)
         </button>
         <button
           type="button"
@@ -444,7 +601,7 @@ export default function PaymentsPage() {
           }`}
         >
           <Crown className="w-4 h-4 text-amber-400" />
-          Xarid qilingan xizmatlar (TOP / VIP / Galochka)
+          Xarid qilingan xizmatlar (TOP / VIP / Galochka auditi)
         </button>
       </div>
 
@@ -485,6 +642,7 @@ export default function PaymentsPage() {
                 { value: '', label: 'Barcha tizimlar' },
                 { value: 'CLICK', label: 'Click' },
                 { value: 'PAYME', label: 'Payme' },
+                { value: 'UZUM', label: 'Uzum Bank' },
               ]}
             />
           </FilterBar>

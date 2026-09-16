@@ -992,19 +992,20 @@ async def payme_webhook(
             if extracted_card:
                 tx.card_pan = str(extracted_card)
 
-            # Credit user wallet balance
-            user = await db.get(User, tx.user_id)
-            if user:
-                user.balance = float(user.balance) + float(tx.amount)
-                wallet_tx = WalletTransaction(
-                    user_id=user.id,
-                    type="TOPUP",
-                    amount=tx.amount,
-                    balance_after=user.balance,
-                    description=f"Payme orqali hisob to‘ldirildi (+{int(tx.amount):,} so'm)",
-                    reference_id=tx.id,
-                )
-                db.add(wallet_tx)
+            # Credit user wallet balance (only for real payments, never for automated sandbox tests)
+            if getattr(tx, "service_type", None) != "SANDBOX_TEST":
+                user = await db.get(User, tx.user_id)
+                if user:
+                    user.balance = float(user.balance) + float(tx.amount)
+                    wallet_tx = WalletTransaction(
+                        user_id=user.id,
+                        type="TOPUP",
+                        amount=tx.amount,
+                        balance_after=user.balance,
+                        description=f"Payme orqali hisob to‘ldirildi (+{int(tx.amount):,} so'm)",
+                        reference_id=tx.id,
+                    )
+                    db.add(wallet_tx)
 
             await db.commit()
             log.info(

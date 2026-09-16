@@ -3163,16 +3163,24 @@ async def list_payments(
     limit: int = Query(default=20, ge=1, le=100),
     status: str | None = Query(default=None),
     provider: str | None = Query(default=None),
+    include_sandbox: bool = Query(default=False),
 ) -> dict[str, Any]:
     """Get list of external payment transactions with user details."""
     offset = (page - 1) * limit
     stmt = select(PaymentTransaction).options(joinedload(PaymentTransaction.user))
+    
+    # Exclude sandbox automated tests by default so admin only sees real customer payments
+    if not include_sandbox:
+        stmt = stmt.where(PaymentTransaction.service_type != "SANDBOX_TEST")
+
     if status:
         stmt = stmt.where(PaymentTransaction.status == status)
     if provider:
         stmt = stmt.where(PaymentTransaction.provider == provider)
 
     count_stmt = select(func.count(PaymentTransaction.id))
+    if not include_sandbox:
+        count_stmt = count_stmt.where(PaymentTransaction.service_type != "SANDBOX_TEST")
     if status:
         count_stmt = count_stmt.where(PaymentTransaction.status == status)
     if provider:
@@ -3231,11 +3239,14 @@ async def list_purchases(
     limit: int = Query(default=20, ge=1, le=100),
     service_type: str | None = Query(default=None),
 ) -> dict[str, Any]:
-    """Get list of internal service purchases (TOP, VIP, Verified badge)."""
+    """Get list of internal service purchases (TOP, VIP, Verified badge) with linked listing details."""
     offset = (page - 1) * limit
+    now = datetime.now(timezone.utc)
+
     stmt = (
-        select(WalletTransaction, User)
+        select(WalletTransaction, User, Listing)
         .join(User, WalletTransaction.user_id == User.id)
+        .outerjoin(Listing, WalletTransaction.reference_id == Listing.id)
         .where(WalletTransaction.type.startswith("PURCHASE_"))
     )
     if service_type:
@@ -3254,17 +3265,36 @@ async def list_purchases(
     rows = (await db.execute(stmt)).all()
 
     data = []
-    for w_tx, user in rows:
+    for w_tx, user, listing in rows:
+        service_clean = w_tx.type.replace("PURCHASE_", "")
+        
+        valid_until = None
+        is_active = False
+        if listing:
+            if "VIP" in service_clean and listing.vip_until:
+                valid_until = listing.vip_until.isoformat()
+                is_active = listing.vip_until > now
+            elif "TOP" in service_clean and listing.featured_until:
+                valid_until = listing.featured_until.isoformat()
+                is_active = listing.featured_until > now
+
         data.append({
             "id": str(w_tx.id),
             "userId": str(user.id),
             "userName": user.name,
             "userPhone": user.phone,
-            "type": w_tx.type.replace("PURCHASE_", ""),
+            "type": service_clean,
             "amount": abs(w_tx.amount),
             "balanceAfter": w_tx.balance_after,
             "description": w_tx.description,
             "referenceId": str(w_tx.reference_id) if w_tx.reference_id else None,
+            "listingId": str(listing.id) if listing else None,
+            "listingTitle": listing.title if listing else None,
+            "listingPrice": listing.price if listing else None,
+            "listingDistrict": getattr(listing, "district", None) if listing else None,
+            "listingCity": getattr(listing, "city", None) if listing else None,
+            "validUntil": valid_until,
+            "isStillActive": is_active,
             "createdAt": w_tx.created_at.isoformat(),
         })
 
@@ -3279,50 +3309,101 @@ async def list_purchases(
 
 @router.get("/payments/stats", summary="Payment analytics summary")
 async def get_payment_stats(admin: RequireModerator, db: DbSession) -> dict[str, Any]:
-    """Summary of revenue, topups, services bought."""
-    # Total successful payments
-    total_rev_stmt = select(func.sum(PaymentTransaction.amount)).where(PaymentTransaction.status == "SUCCESS")
-    total_revenue = (await db.execute(total_rev_stmt)).scalar() or 0.0
+    """Real financial summary split by payment providers and verified purchased services."""
+    # Filter for real, non-sandbox customer payments
+    real_pay_filter = and_(
+        PaymentTransaction.status == "SUCCESS",
+        PaymentTransaction.service_type != "SANDBOX_TEST",
+    )
 
-    # Total verified users count (only those who purchased 20,000 UZS badge or have an active badge)
+    # 1. Click revenue & count
+    click_rev_stmt = select(func.coalesce(func.sum(PaymentTransaction.amount), 0.0)).where(
+        real_pay_filter, PaymentTransaction.provider == "CLICK"
+    )
+    click_revenue = float((await db.execute(click_rev_stmt)).scalar() or 0.0)
+
+    click_count_stmt = select(func.count(PaymentTransaction.id)).where(
+        real_pay_filter, PaymentTransaction.provider == "CLICK"
+    )
+    click_count = (await db.execute(click_count_stmt)).scalar() or 0
+
+    # 2. Payme revenue & count (only real production merchant payments)
+    payme_rev_stmt = select(func.coalesce(func.sum(PaymentTransaction.amount), 0.0)).where(
+        real_pay_filter, PaymentTransaction.provider == "PAYME"
+    )
+    payme_revenue = float((await db.execute(payme_rev_stmt)).scalar() or 0.0)
+
+    payme_count_stmt = select(func.count(PaymentTransaction.id)).where(
+        real_pay_filter, PaymentTransaction.provider == "PAYME"
+    )
+    payme_count = (await db.execute(payme_count_stmt)).scalar() or 0
+
+    # 3. Uzum Bank revenue & count
+    uzum_rev_stmt = select(func.coalesce(func.sum(PaymentTransaction.amount), 0.0)).where(
+        real_pay_filter, PaymentTransaction.provider.in_(["UZUM", "UZUMBANK"])
+    )
+    uzum_revenue = float((await db.execute(uzum_rev_stmt)).scalar() or 0.0)
+
+    uzum_count_stmt = select(func.count(PaymentTransaction.id)).where(
+        real_pay_filter, PaymentTransaction.provider.in_(["UZUM", "UZUMBANK"])
+    )
+    uzum_count = (await db.execute(uzum_count_stmt)).scalar() or 0
+
+    # Total real revenue
+    total_revenue = click_revenue + payme_revenue + uzum_revenue
+    total_count = click_count + payme_count + uzum_count
+
+    # 4. Verified badges purchased from wallet (20,000 UZS)
     verified_count_stmt = (
         select(func.count(distinct(WalletTransaction.user_id)))
         .where(WalletTransaction.type == "PURCHASE_VERIFIED_BADGE")
     )
     verified_count = (await db.execute(verified_count_stmt)).scalar() or 0
 
-    # Total VIP listings purchased
+    # 5. VIP listings purchased (12,000 UZS)
     vip_wallet_stmt = select(func.count(WalletTransaction.id)).where(
         WalletTransaction.type.in_(["PURCHASE_VIP_LISTING", "PURCHASE_VIP"])
     )
-    vip_wallet_count = (await db.execute(vip_wallet_stmt)).scalar() or 0
+    vip_count = (await db.execute(vip_wallet_stmt)).scalar() or 0
 
-    vip_direct_stmt = select(func.count(PaymentTransaction.id)).where(
-        PaymentTransaction.service_type.in_(["VIP_LISTING", "VIP"]),
-        PaymentTransaction.status == "SUCCESS",
-    )
-    vip_direct_count = (await db.execute(vip_direct_stmt)).scalar() or 0
-    vip_count = vip_wallet_count + vip_direct_count
-
-    # Total TOP listings purchased
+    # 6. TOP listings purchased (7,000 UZS)
     top_wallet_stmt = select(func.count(WalletTransaction.id)).where(
         WalletTransaction.type.in_(["PURCHASE_TOP_LISTING", "PURCHASE_TOP"])
     )
-    top_wallet_count = (await db.execute(top_wallet_stmt)).scalar() or 0
+    top_count = (await db.execute(top_wallet_stmt)).scalar() or 0
 
-    top_direct_stmt = select(func.count(PaymentTransaction.id)).where(
-        PaymentTransaction.service_type.in_(["TOP_LISTING", "TOP"]),
-        PaymentTransaction.status == "SUCCESS",
+    # 7. Total volume spent on internal services
+    spent_top_stmt = select(func.coalesce(func.sum(func.abs(WalletTransaction.amount)), 0.0)).where(
+        WalletTransaction.type.in_(["PURCHASE_TOP_LISTING", "PURCHASE_TOP"])
     )
-    top_direct_count = (await db.execute(top_direct_stmt)).scalar() or 0
-    top_count = top_wallet_count + top_direct_count
+    spent_top = float((await db.execute(spent_top_stmt)).scalar() or 0.0)
+
+    spent_vip_stmt = select(func.coalesce(func.sum(func.abs(WalletTransaction.amount)), 0.0)).where(
+        WalletTransaction.type.in_(["PURCHASE_VIP_LISTING", "PURCHASE_VIP"])
+    )
+    spent_vip = float((await db.execute(spent_vip_stmt)).scalar() or 0.0)
+
+    spent_verified_stmt = select(func.coalesce(func.sum(func.abs(WalletTransaction.amount)), 0.0)).where(
+        WalletTransaction.type == "PURCHASE_VERIFIED_BADGE"
+    )
+    spent_verified = float((await db.execute(spent_verified_stmt)).scalar() or 0.0)
 
     return {
         "status": "success",
         "totalRevenue": float(total_revenue),
+        "totalCount": total_count,
+        "clickRevenue": float(click_revenue),
+        "clickCount": click_count,
+        "paymeRevenue": float(payme_revenue),
+        "paymeCount": payme_count,
+        "uzumRevenue": float(uzum_revenue),
+        "uzumCount": uzum_count,
         "verifiedUsersCount": verified_count,
         "vipListingsCount": vip_count,
         "topListingsCount": top_count,
+        "spentTop": spent_top,
+        "spentVip": spent_vip,
+        "spentVerified": spent_verified,
     }
 
 
