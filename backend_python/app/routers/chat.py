@@ -311,48 +311,45 @@ _guest_push_registry: dict[str, dict] = {}
 @router.post("/push-subscriptions")
 async def register_push_subscription(
     payload: PushSubscriptionIn,
+    db: DbSession,
     user: OptionalUser = None,
 ) -> dict[str, str]:
-    """Register device web-push subscription for registered users or guest visitors."""
+    """Register device web-push subscription for registered users or guest visitors in PostgreSQL."""
     from datetime import datetime, timezone
+    from app.models.chat import PushSubscription
     import hashlib
 
-    now_iso = datetime.now(timezone.utc).isoformat()
+    user_id = user.id if user else None
+    raw_hash = hashlib.md5(payload.endpoint.encode()).hexdigest()[:10]
+    guest_id = payload.guest_id or (f"guest_{raw_hash}" if not user_id else None)
 
-    if user is not None:
-        uid = str(user.id)
-        is_guest = False
+    # Upsert by endpoint into PostgreSQL
+    stmt = select(PushSubscription).where(PushSubscription.endpoint == payload.endpoint)
+    existing = (await db.execute(stmt)).scalar_one_or_none()
+
+    if existing:
+        existing.p256dh = payload.p256dh or existing.p256dh
+        existing.auth = payload.auth or existing.auth
+        existing.user_id = user_id or existing.user_id
+        existing.guest_id = guest_id or existing.guest_id
+        existing.user_agent = payload.user_agent or existing.user_agent
+        existing.is_active = True
+        existing.updated_at = datetime.now(timezone.utc)
     else:
-        raw_hash = hashlib.md5(payload.endpoint.encode()).hexdigest()[:10]
-        uid = payload.guest_id or f"guest_{raw_hash}"
-        if not uid.startswith("guest_"):
-            uid = f"guest_{uid}"
-        is_guest = True
-        _guest_push_registry[uid] = {
-            "guest_id": uid,
-            "user_agent": payload.user_agent,
-            "created_at": _guest_push_registry.get(uid, {}).get("created_at") or now_iso,
-            "last_active": now_iso,
-        }
+        new_sub = PushSubscription(
+            endpoint=payload.endpoint,
+            p256dh=payload.p256dh,
+            auth=payload.auth,
+            user_id=user_id,
+            guest_id=guest_id,
+            user_agent=payload.user_agent,
+            is_active=True,
+        )
+        db.add(new_sub)
 
-    if uid not in _user_push_subscriptions:
-        _user_push_subscriptions[uid] = []
-
-    # Avoid duplicates
-    existing = [s for s in _user_push_subscriptions[uid] if s["endpoint"] == payload.endpoint]
-    if not existing:
-        _user_push_subscriptions[uid].append({
-            "endpoint": payload.endpoint,
-            "p256dh": payload.p256dh,
-            "auth": payload.auth,
-            "is_guest": is_guest,
-            "user_agent": payload.user_agent,
-            "updated_at": now_iso,
-        })
-    else:
-        existing[0]["updated_at"] = now_iso
-
-    return {"status": "ok", "subscriber_id": uid}
+    await db.commit()
+    subscriber_id = str(user_id) if user_id else (guest_id or "guest")
+    return {"status": "ok", "subscriber_id": subscriber_id}
 
 
 VAPID_PUBLIC_KEY = "BCZzmQm2-JRxUQrL_PWOHJh66m7va4mYFTTH17F5whUz9M72di00zBs0tPDRfQC4wr24LbeEAc8hQkC4W31KAcU"
@@ -360,14 +357,24 @@ VAPID_PRIVATE_KEY = "28-uBeeXVqCXVWqPreG_fWzISh4q6uij_rl5YuB4Oxk"
 VAPID_CLAIMS = {"sub": "mailto:support@uyiz.uz"}
 
 
-async def _dispatch_web_push(user_id: str, title: str, body: str, url: str, image: str | None = None) -> None:
+async def _send_single_webpush(
+    sub_info_dict: dict,
+    title: str,
+    body: str,
+    url: str,
+    image: str | None = None,
+) -> str:
     """Send RFC 8291/8292 encrypted web-push notification via pywebpush with VAPID."""
-    subscriptions = _user_push_subscriptions.get(user_id, [])
-    if not subscriptions:
-        return
+    endpoint = sub_info_dict.get("endpoint")
+    p256dh = sub_info_dict.get("p256dh")
+    auth = sub_info_dict.get("auth")
+    if not endpoint or not p256dh or not auth:
+        return "invalid_sub"
+
     import json
     import asyncio
     import structlog
+    from pywebpush import webpush, WebPushException
 
     logger = structlog.get_logger(__name__)
 
@@ -382,22 +389,15 @@ async def _dispatch_web_push(user_id: str, title: str, body: str, url: str, imag
         payload_dict["image"] = image
 
     payload = json.dumps(payload_dict)
+    sub_info = {
+        "endpoint": endpoint,
+        "keys": {
+            "p256dh": p256dh,
+            "auth": auth,
+        },
+    }
 
-    from pywebpush import webpush, WebPushException
-
-    def _send_sync(sub: dict):
-        endpoint = sub.get("endpoint")
-        p256dh = sub.get("p256dh")
-        auth = sub.get("auth")
-        if not endpoint or not p256dh or not auth:
-            return
-        sub_info = {
-            "endpoint": endpoint,
-            "keys": {
-                "p256dh": p256dh,
-                "auth": auth,
-            }
-        }
+    def _send_sync():
         try:
             webpush(
                 subscription_info=sub_info,
@@ -406,18 +406,51 @@ async def _dispatch_web_push(user_id: str, title: str, body: str, url: str, imag
                 vapid_claims=VAPID_CLAIMS,
                 timeout=10,
             )
-            logger.info("webpush_sent_successfully", user_id=user_id, endpoint=endpoint[:30])
+            logger.info("webpush_sent_successfully", endpoint=endpoint[:30])
+            return "ok"
         except WebPushException as ex:
-            logger.warning("webpush_failed", error=str(ex), status_code=getattr(ex.response, "status_code", None))
-            if ex.response is not None and ex.response.status_code in (404, 410):
-                if sub in subscriptions:
-                    subscriptions.remove(sub)
+            status_code = getattr(ex.response, "status_code", None)
+            logger.warning("webpush_failed", error=str(ex), status_code=status_code)
+            if status_code in (404, 410):
+                return "expired"
+            return "error"
         except Exception as e:
             logger.warning("webpush_unexpected_error", error=str(e))
+            return "error"
 
     loop = asyncio.get_running_loop()
-    for sub in list(subscriptions):
-        await loop.run_in_executor(None, _send_sync, sub)
+    return await loop.run_in_executor(None, _send_sync)
+
+
+async def _dispatch_web_push(user_id: str, title: str, body: str, url: str, image: str | None = None) -> None:
+    """Send web-push notification to all devices for a given user from database."""
+    from app.core.database import session_scope
+    from app.models.chat import PushSubscription
+    try:
+        async with session_scope() as db:
+            try:
+                target_uuid = uuid.UUID(user_id)
+                stmt = select(PushSubscription).where(
+                    PushSubscription.user_id == target_uuid,
+                    PushSubscription.is_active == True,
+                )
+            except Exception:
+                stmt = select(PushSubscription).where(
+                    PushSubscription.guest_id == user_id,
+                    PushSubscription.is_active == True,
+                )
+            subs = (await db.execute(stmt)).scalars().all()
+            for s in subs:
+                await _send_single_webpush(
+                    {"endpoint": s.endpoint, "p256dh": s.p256dh, "auth": s.auth},
+                    title,
+                    body,
+                    url,
+                    image,
+                )
+    except Exception as e:
+        import structlog
+        structlog.get_logger(__name__).warning("dispatch_push_error", error=str(e))
 
 
 class UnreadCountOut(BaseModel):

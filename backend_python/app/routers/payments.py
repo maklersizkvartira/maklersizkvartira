@@ -280,6 +280,16 @@ async def click_webhook(
             await db.commit()
             return _respond(click_service.CLICK_TRANSACTION_CANCELLED, "Transaction cancelled")
 
+        extracted_pan = (
+            raw_form.get("card_pan")
+            or raw_form.get("card_number")
+            or raw_form.get("pan")
+            or raw_form.get("card_mask")
+            or raw_form.get("card")
+        )
+        if extracted_pan:
+            payment_tx.card_pan = str(extracted_pan)
+
         payment_tx.click_trans_id = click_trans_id
         payment_tx.click_paydoc_id = click_paydoc_id
         payment_tx.merchant_prepare_id = str(payment_tx.id)
@@ -306,6 +316,16 @@ async def click_webhook(
         payment_tx.click_trans_id = click_trans_id
         payment_tx.click_paydoc_id = click_paydoc_id
         payment_tx.completed_at = now
+
+        extracted_pan = (
+            raw_form.get("card_pan")
+            or raw_form.get("card_number")
+            or raw_form.get("pan")
+            or raw_form.get("card_mask")
+            or raw_form.get("card")
+        )
+        if extracted_pan:
+            payment_tx.card_pan = str(extracted_pan)
 
         # Credit to user wallet balance
         user.balance = float(user.balance) + float(payment_tx.amount)
@@ -359,6 +379,7 @@ async def create_topup(
         status="PENDING",
         amount=payload.amount,
         service_type="TOPUP",
+        card_pan=payload.card_pan,
     )
     db.add(tx)
     await db.flush()
@@ -535,22 +556,36 @@ async def payme_webhook(
     client_ip = request.client.host if request.client else None
     auth_header = request.headers.get("Authorization")
 
-    # 1. Verify Basic Auth FIRST before parsing request body
+    # 1. Read raw JSON body first so we always have req_id for Payme responses
+    body: dict[str, Any] = {}
+    try:
+        body = await request.json()
+    except Exception:
+        try:
+            raw = await request.body()
+            if raw:
+                import json
+                body = json.loads(raw.decode("utf-8"))
+        except Exception:
+            body = {}
+
+    req_id = body.get("id")
+    method = body.get("method")
+    params = body.get("params") or {}
+
+    # 2. Verify Basic Auth with matching req_id
     if not payme_service.verify_payme_auth(auth_header):
-        log.warning("payme.auth_failed", auth_header=auth_header, client_ip=client_ip)
+        log.warning("payme.auth_failed", auth_header=auth_header, client_ip=client_ip, req_id=req_id)
         return payme_service.payme_error_response(
-            None,
+            req_id,
             payme_service.PAYME_ERROR_INSUFFICIENT_PRIVILEGE,
-            "Avtorizatsiya xatosi",
+            "Ushbu amalni bajarish uchun imtiyozlar yetarli emas",
             "Недостаточно привилегий для выполнения метода",
         )
 
-    # 2. Read raw JSON body
-    try:
-        body: dict[str, Any] = await request.json()
-    except Exception:
+    if not body:
         return payme_service.payme_error_response(
-            None,
+            req_id,
             payme_service.PAYME_ERROR_PARSE,
             "JSON parsing xatosi",
             "Ошибка парсинга JSON",
@@ -894,6 +929,15 @@ async def payme_webhook(
                 )
             )
 
+        extracted_card = (
+            params.get("card")
+            or params.get("card_pan")
+            or params.get("card_mask")
+            or params.get("pan")
+            or (params.get("account", {}).get("card") if isinstance(params.get("account"), dict) else None)
+        )
+        if extracted_card:
+            tx.card_pan = str(extracted_card)
         tx.payme_trans_id = str(payme_trans_id)
         tx.payme_time = int(trans_time)
         tx.payme_state = payme_service.STATE_IN_PROGRESS
@@ -962,6 +1006,15 @@ async def payme_webhook(
             tx.payme_perform_time = now_ms
             tx.status = "SUCCESS"
             tx.completed_at = datetime.now(timezone.utc)
+
+            extracted_card = (
+                params.get("card")
+                or params.get("card_pan")
+                or params.get("card_mask")
+                or params.get("pan")
+            )
+            if extracted_card:
+                tx.card_pan = str(extracted_card)
 
             # Credit user wallet balance
             user = await db.get(User, tx.user_id)

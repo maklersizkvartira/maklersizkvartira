@@ -113,7 +113,7 @@ def generate_payme_checkout_url(
 
 
 def payme_error_response(req_id: Any, code: int, message_uz: str, message_ru: str = "", data: Any = None) -> dict[str, Any]:
-    """Format standard JSON-RPC 2.0 error response for Payme."""
+    """Format standard JSON-RPC error response for Payme as specified by developer.help.paycom.uz."""
     err: dict[str, Any] = {
         "code": code,
         "message": {
@@ -122,19 +122,17 @@ def payme_error_response(req_id: Any, code: int, message_uz: str, message_ru: st
             "en": message_uz,
         },
     }
-    if data:
+    if data is not None:
         err["data"] = data
     return {
-        "jsonrpc": "2.0",
-        "id": req_id,
         "error": err,
+        "id": req_id,
     }
 
 
 def payme_success_response(req_id: Any, result: dict[str, Any]) -> dict[str, Any]:
-    """Format standard JSON-RPC 2.0 success response for Payme."""
+    """Format standard JSON-RPC success response for Payme as specified by developer.help.paycom.uz."""
     return {
-        "jsonrpc": "2.0",
-        "id": req_id,
         "result": result,
+        "id": req_id,
     }

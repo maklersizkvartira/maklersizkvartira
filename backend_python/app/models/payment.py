@@ -64,6 +64,9 @@ class PaymentTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     error_code: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     
+    # Masked card number (e.g. 8600 **** 1234)
+    card_pan: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user: Mapped["User"] = relationship(lazy="joined")

@@ -85,3 +85,36 @@ class SupportMessage(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     conversation = relationship("SupportConversation", back_populates="messages")
 
+
+class PushSubscription(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Persistent database storage for Web Push notification subscriptions."""
+
+    __tablename__ = "push_subscriptions"
+
+    endpoint: Mapped[str] = mapped_column(Text, unique=True, index=True, nullable=False)
+    p256dh: Mapped[str | None] = mapped_column(Text, nullable=True)
+    auth: Mapped[str | None] = mapped_column(Text, nullable=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    guest_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+
+    user = relationship("User", lazy="joined")
+
+
+class PushNotificationHistory(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Persistent audit log of push notifications sent by administrators."""
+
+    __tablename__ = "push_notification_history"
+
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image: Mapped[str | None] = mapped_column(Text, nullable=True)
+    target_audience: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_user_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    sent_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    sent_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+

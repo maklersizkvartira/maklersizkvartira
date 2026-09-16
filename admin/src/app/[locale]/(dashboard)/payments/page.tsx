@@ -40,8 +40,10 @@ interface PaymentRow {
   amount: number;
   currency: string;
   serviceType: string;
+  cardPan?: string | null;
   clickTransId: string | null;
   clickPaydocId: string | null;
+  paymeTransId?: string | null;
   completedAt: string | null;
   createdAt: string;
 }
@@ -87,7 +89,7 @@ export default function PaymentsPage() {
     queryFn: () => http.get('/admin/payments/stats'),
   });
 
-  // Fetch Payments List (Click top-ups)
+  // Fetch Payments List (Click & Payme top-ups)
   const { data: paymentsData, isLoading: listLoading, refetch } = useQuery<{
     status: string;
     data: PaymentRow[];
@@ -103,7 +105,7 @@ export default function PaymentsPage() {
       });
       if (statusFilter) params.set('status', statusFilter);
       if (providerFilter) params.set('provider', providerFilter);
-      return http.get(`/admin/payments?${params.toString()}`);
+      return http.raw.get(`/admin/payments?${params.toString()}`);
     },
     enabled: activeTab === 'click',
   });
@@ -123,10 +125,33 @@ export default function PaymentsPage() {
         limit: '20',
       });
       if (serviceTypeFilter) params.set('service_type', serviceTypeFilter);
-      return http.get(`/admin/payments/purchases?${params.toString()}`);
+      return http.raw.get(`/admin/payments/purchases?${params.toString()}`);
     },
     enabled: activeTab === 'purchases',
   });
+
+  // Safely extract rows whether envelope is unwrapped or intact
+  const paymentRows = useMemo<PaymentRow[]>(() => {
+    if (!paymentsData) return [];
+    if (Array.isArray(paymentsData.data)) return paymentsData.data;
+    if (Array.isArray(paymentsData)) return paymentsData as unknown as PaymentRow[];
+    return [];
+  }, [paymentsData]);
+
+  const totalPayments = typeof paymentsData?.total === 'number'
+    ? paymentsData.total
+    : paymentRows.length;
+
+  const purchaseRows = useMemo<PurchaseRow[]>(() => {
+    if (!purchasesData) return [];
+    if (Array.isArray(purchasesData.data)) return purchasesData.data;
+    if (Array.isArray(purchasesData)) return purchasesData as unknown as PurchaseRow[];
+    return [];
+  }, [purchasesData]);
+
+  const totalPurchases = typeof purchasesData?.total === 'number'
+    ? purchasesData.total
+    : purchaseRows.length;
 
   const columns: Column<PaymentRow>[] = [
     {
@@ -173,6 +198,16 @@ export default function PaymentsPage() {
       },
     },
     {
+      key: 'cardPan',
+      header: 'Karta raqami (boshi & oxiri)',
+      render: (row) => (
+        <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-[var(--color-text)]">
+          <CreditCard className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+          {row.cardPan || '—'}
+        </span>
+      ),
+    },
+    {
       key: 'provider',
       header: 'Tizim',
       render: (row) => (
@@ -208,12 +243,14 @@ export default function PaymentsPage() {
       },
     },
     {
-      key: 'clickTransId',
-      header: 'Click Trans ID',
+      key: 'transId',
+      header: 'Tranzaksiya ID',
       render: (row) => (
-        <span className="text-xs font-mono text-[var(--color-text-muted)]">
-          {row.clickTransId || '—'}
-        </span>
+        <div className="text-xs font-mono text-[var(--color-text-muted)] space-y-0.5">
+          {row.clickTransId && <div>Click: {row.clickTransId}</div>}
+          {row.paymeTransId && <div>Payme: {row.paymeTransId}</div>}
+          {!row.clickTransId && !row.paymeTransId && <div>—</div>}
+        </div>
       ),
     },
     {
@@ -307,7 +344,7 @@ export default function PaymentsPage() {
     <div className="space-y-6">
       <PageHeader
         title="To‘lovlar & Daromad boshqaruvi"
-        subtitle="Click to‘lovlari, tushumlar, pullik xizmatlar va balans auditi"
+        subtitle="Click va Payme to‘lovlari, tushumlar, pullik xizmatlar va balans auditi"
       />
 
       {/* KPI Stats Cards */}
@@ -316,7 +353,7 @@ export default function PaymentsPage() {
         <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-              Jami Tushum (Click)
+              Jami Tushum (Click & Payme)
             </span>
             <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600">
               <DollarSign className="w-4 h-4" />
@@ -325,7 +362,7 @@ export default function PaymentsPage() {
           <div className="text-2xl font-black text-[var(--color-text)]">
             {statsLoading ? '...' : `${formatNumber(statsData?.totalRevenue ?? 0)} so‘m`}
           </div>
-          <p className="text-[11px] text-[var(--color-text-muted)] mt-1">Muvaffaqiyatli Click to‘lovlari</p>
+          <p className="text-[11px] text-[var(--color-text-muted)] mt-1">Muvaffaqiyatli to‘lovlar</p>
         </div>
 
         {/* Verified Badges */}
@@ -392,7 +429,7 @@ export default function PaymentsPage() {
           }`}
         >
           <CreditCard className="w-4 h-4" />
-          Click Tushumlari (Hisob to‘ldirish)
+          Barcha Tushumlar (Click & Payme)
         </button>
         <button
           type="button"
@@ -411,7 +448,7 @@ export default function PaymentsPage() {
         </button>
       </div>
 
-      {/* Tab 1: Click Payments */}
+      {/* Tab 1: Payments */}
       {activeTab === 'click' && (
         <>
           <FilterBar
@@ -447,6 +484,7 @@ export default function PaymentsPage() {
               options={[
                 { value: '', label: 'Barcha tizimlar' },
                 { value: 'CLICK', label: 'Click' },
+                { value: 'PAYME', label: 'Payme' },
               ]}
             />
           </FilterBar>
@@ -454,27 +492,27 @@ export default function PaymentsPage() {
           <div className="card overflow-hidden">
             <DataTable
               columns={columns}
-              rows={paymentsData?.data ?? []}
+              rows={paymentRows}
               keyOf={(row) => row.id}
               loading={listLoading}
               loadingRows={10}
               empty={
                 <div className="py-16 text-center text-sm text-[var(--color-text-muted)]">
-                  Hech qanday Click to‘lovlari topilmadi
+                  Hech qanday to‘lovlar topilmadi
                 </div>
               }
             />
           </div>
 
-          {paymentsData && paymentsData.total > 0 && (
+          {totalPayments > 0 && (
             <Pagination
               meta={{
-                page: paymentsData.page,
-                pageSize: paymentsData.limit,
-                total: paymentsData.total,
-                totalPages: Math.ceil(paymentsData.total / paymentsData.limit),
-                hasNext: paymentsData.page * paymentsData.limit < paymentsData.total,
-                hasPrevious: paymentsData.page > 1,
+                page: paymentsData?.page ?? page,
+                pageSize: paymentsData?.limit ?? 20,
+                total: totalPayments,
+                totalPages: Math.ceil(totalPayments / (paymentsData?.limit ?? 20)),
+                hasNext: page * (paymentsData?.limit ?? 20) < totalPayments,
+                hasPrevious: page > 1,
               }}
               onPage={(p) => setPage(p)}
               summary={(pg, tot) => `${pg} / ${tot} sahifa`}
@@ -514,7 +552,7 @@ export default function PaymentsPage() {
           <div className="card overflow-hidden">
             <DataTable
               columns={purchaseColumns}
-              rows={purchasesData?.data ?? []}
+              rows={purchaseRows}
               keyOf={(row) => row.id}
               loading={purchasesLoading}
               loadingRows={10}
@@ -526,15 +564,15 @@ export default function PaymentsPage() {
             />
           </div>
 
-          {purchasesData && purchasesData.total > 0 && (
+          {totalPurchases > 0 && (
             <Pagination
               meta={{
-                page: purchasesData.page,
-                pageSize: purchasesData.limit,
-                total: purchasesData.total,
-                totalPages: Math.ceil(purchasesData.total / purchasesData.limit),
-                hasNext: purchasesData.page * purchasesData.limit < purchasesData.total,
-                hasPrevious: purchasesData.page > 1,
+                page: purchasesData?.page ?? page,
+                pageSize: purchasesData?.limit ?? 20,
+                total: totalPurchases,
+                totalPages: Math.ceil(totalPurchases / (purchasesData?.limit ?? 20)),
+                hasNext: page * (purchasesData?.limit ?? 20) < totalPurchases,
+                hasPrevious: page > 1,
               }}
               onPage={(p) => setPage(p)}
               summary={(pg, tot) => `${pg} / ${tot} sahifa`}

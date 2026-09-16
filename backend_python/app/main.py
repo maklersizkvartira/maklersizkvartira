@@ -183,6 +183,39 @@ async def lifespan(app: FastAPI):
                         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
                     );
                     CREATE INDEX IF NOT EXISTS ix_wallet_transactions_user_created ON wallet_transactions(user_id, created_at);
+
+                    -- Payment card tracking
+                    ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS card_pan VARCHAR(32);
+
+                    -- Web Push Subscriptions & Persistent History
+                    CREATE TABLE IF NOT EXISTS push_subscriptions (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        endpoint TEXT NOT NULL UNIQUE,
+                        p256dh TEXT,
+                        auth TEXT,
+                        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                        guest_id VARCHAR(64),
+                        user_agent TEXT,
+                        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_push_subscriptions_user_id ON push_subscriptions(user_id);
+                    CREATE INDEX IF NOT EXISTS ix_push_subscriptions_guest_id ON push_subscriptions(guest_id);
+                    CREATE INDEX IF NOT EXISTS ix_push_subscriptions_endpoint ON push_subscriptions(endpoint);
+
+                    CREATE TABLE IF NOT EXISTS push_notification_history (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        title VARCHAR(255) NOT NULL,
+                        body TEXT NOT NULL,
+                        url TEXT,
+                        image TEXT,
+                        target_audience VARCHAR(64) NOT NULL,
+                        target_user_id VARCHAR(64),
+                        sent_count INTEGER NOT NULL DEFAULT 0,
+                        sent_by VARCHAR(128),
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
                 """))
             except Exception as tbl_err:
                 log.warning("tables_autoheal_note", error=str(tbl_err))
@@ -304,6 +337,19 @@ def create_app() -> FastAPI:
     app.include_router(ai.router, prefix=prefix)
     app.include_router(admin.router, prefix=prefix)
     app.include_router(payments.router, prefix=prefix)
+    # Direct alias so Click & Payme webhooks also work at /payments/...
+    app.include_router(payments.router, include_in_schema=False)
+
+    # Root alias so test.paycom.uz works even if URL is configured as /payme directly
+    @app.api_route("/payme", methods=["GET", "POST", "OPTIONS"], include_in_schema=False)
+    @app.api_route("/payme/", methods=["GET", "POST", "OPTIONS"], include_in_schema=False)
+    async def payme_root_alias(request: Request, db: DbSession):
+        from fastapi.responses import Response
+        if request.method == "OPTIONS":
+            return Response(status_code=200)
+        if request.method == "GET":
+            return await payments.payme_webhook_health()
+        return await payments.payme_webhook(request, db)
 
     # Served at the app root, not under the API prefix: the security
     # middleware puts `Cache-Control: no-store` on everything under the prefix,

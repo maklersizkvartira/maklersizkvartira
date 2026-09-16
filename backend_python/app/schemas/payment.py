@@ -15,6 +15,7 @@ class CreateTopUpRequest(CamelModel):
     amount: float = Field(ge=1000, le=100_000_000, description="Amount in UZS")
     return_url: str | None = None
     gateway: str | None = "click"
+    card_pan: str | None = None
 
 
 class CreateTopUpResponse(CamelModel):

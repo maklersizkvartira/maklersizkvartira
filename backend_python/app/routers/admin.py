@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, Header, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import String, and_, cast, distinct, func, or_, select, true, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.core import audit as audit_log
 from app.core.config import settings
@@ -69,7 +69,12 @@ from app.models.enums import (
     UserStatus,
     VerificationStatus,
 )
-from app.models.chat import SupportConversation, SupportMessage
+from app.models.chat import (
+    PushNotificationHistory,
+    PushSubscription,
+    SupportConversation,
+    SupportMessage,
+)
 from app.models.listing import Favorite, Listing, TopRequest
 from app.models.moderation import Report, VerificationRequest
 from app.models.payment import ClickPaymentLog, PaymentTransaction, WalletTransaction
@@ -2909,50 +2914,108 @@ async def get_push_stats(
     db: DbSession,
     admin: RequireModerator,
 ) -> dict:
-    from app.routers.chat import _user_push_subscriptions
-    guest_subscribers = sum(1 for uid in _user_push_subscriptions.keys() if uid.startswith("guest_"))
-    registered_subscribers = len(_user_push_subscriptions) - guest_subscribers
-    total_devices = sum(len(subs) for subs in _user_push_subscriptions.values())
-    
+    total_devices = (
+        await db.execute(
+            select(func.count(PushSubscription.id)).where(PushSubscription.is_active == True)
+        )
+    ).scalar() or 0
+
+    guest_subscribers = (
+        await db.execute(
+            select(func.count(distinct(PushSubscription.guest_id))).where(
+                PushSubscription.is_active == True,
+                PushSubscription.guest_id.isnot(None),
+            )
+        )
+    ).scalar() or 0
+
+    registered_subscribers = (
+        await db.execute(
+            select(func.count(distinct(PushSubscription.user_id))).where(
+                PushSubscription.is_active == True,
+                PushSubscription.user_id.isnot(None),
+            )
+        )
+    ).scalar() or 0
+
+    total_subscribers = guest_subscribers + registered_subscribers
+    total_sent = (await db.execute(select(func.count(PushNotificationHistory.id)))).scalar() or 0
+
+    last_sent_stmt = (
+        select(PushNotificationHistory.created_at)
+        .order_by(PushNotificationHistory.created_at.desc())
+        .limit(1)
+    )
+    last_sent_at = (await db.execute(last_sent_stmt)).scalar_one_or_none()
+
     return _ok({
-        "active_subscribers": len(_user_push_subscriptions),
-        "total_subscribers": len(_user_push_subscriptions),
+        "active_subscribers": total_subscribers,
+        "total_subscribers": total_subscribers,
         "registered_subscribers": registered_subscribers,
         "guest_subscribers": guest_subscribers,
         "total_devices": total_devices,
-        "total_sent": len(_admin_push_history),
-        "last_sent_at": _admin_push_history[-1]["created_at"] if _admin_push_history else None,
+        "total_sent": total_sent,
+        "last_sent_at": last_sent_at.isoformat() if last_sent_at else None,
     })
 
 
 @router.get("/push/guests", summary="List guest push subscribers")
 async def list_guest_subscribers(
+    db: DbSession,
     admin: RequireModerator,
 ) -> dict:
-    from app.routers.chat import _user_push_subscriptions, _guest_push_registry
+    stmt = (
+        select(
+            PushSubscription.guest_id,
+            func.count(PushSubscription.id).label("devices_count"),
+            func.min(PushSubscription.created_at).label("created_at"),
+            func.max(PushSubscription.updated_at).label("last_active"),
+            func.max(PushSubscription.user_agent).label("user_agent"),
+        )
+        .where(
+            PushSubscription.is_active == True,
+            PushSubscription.guest_id.isnot(None),
+        )
+        .group_by(PushSubscription.guest_id)
+        .order_by(func.max(PushSubscription.updated_at).desc())
+    )
+    rows = (await db.execute(stmt)).all()
     guests = []
-    for uid, subs in _user_push_subscriptions.items():
-        if uid.startswith("guest_"):
-            meta = _guest_push_registry.get(uid, {})
-            first_sub = subs[0] if subs else {}
-            guests.append({
-                "guest_id": uid,
-                "devices_count": len(subs),
-                "created_at": meta.get("created_at") or first_sub.get("updated_at"),
-                "last_active": meta.get("last_active") or first_sub.get("updated_at"),
-                "user_agent": meta.get("user_agent") or first_sub.get("user_agent"),
-            })
-    guests.sort(key=lambda g: g.get("last_active") or "", reverse=True)
+    for r in rows:
+        guests.append({
+            "guest_id": r.guest_id,
+            "devices_count": r.devices_count,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "last_active": r.last_active.isoformat() if r.last_active else None,
+            "user_agent": r.user_agent,
+        })
     return _ok(guests)
 
 
 @router.get("/push/history", summary="List previously sent push notifications")
 async def list_push_history(
+    db: DbSession,
     admin: RequireModerator,
     limit: int = Query(default=30, ge=1, le=100),
 ) -> dict:
-    reversed_history = list(reversed(_admin_push_history))[:limit]
-    return _ok(reversed_history)
+    stmt = select(PushNotificationHistory).order_by(PushNotificationHistory.created_at.desc()).limit(limit)
+    rows = (await db.execute(stmt)).scalars().all()
+    history = []
+    for r in rows:
+        history.append({
+            "id": str(r.id),
+            "title": r.title,
+            "body": r.body,
+            "url": r.url,
+            "image_url": r.image,
+            "target_audience": r.target_audience,
+            "target_user_id": r.target_user_id,
+            "recipients_count": r.sent_count,
+            "sent_by": r.sent_by or "Admin",
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "status": "delivered",
+        })
+    return _ok(history)
 
 
 @router.get("/push/listings", summary="Search listings to attach to push notifications")
@@ -3001,8 +3064,7 @@ async def send_push_notification(
     db: DbSession,
     admin: RequireModerator,
 ) -> dict:
-    from app.routers.chat import _user_push_subscriptions, _dispatch_web_push
-    from app.models.user import User
+    from app.routers.chat import _send_single_webpush
     import asyncio
 
     title = payload.title.strip()
@@ -3031,45 +3093,60 @@ async def send_push_notification(
             pass
 
     target_url = target_url or "/?view=CHAT"
+    push_image = (listing_data.get("cover_image") if listing_data else None) or payload.image_url
 
-    # Identify target recipient user IDs
-    target_uids: list[str] = []
+    # Query target PushSubscription records from PostgreSQL
+    stmt = select(PushSubscription).where(PushSubscription.is_active == True)
     if payload.target_audience == "specific" and payload.target_user_id:
-        target_uids = [payload.target_user_id]
+        try:
+            target_uuid = uuid.UUID(payload.target_user_id)
+            stmt = stmt.where(PushSubscription.user_id == target_uuid)
+        except Exception:
+            stmt = stmt.where(PushSubscription.guest_id == payload.target_user_id)
     elif payload.target_audience == "guests":
-        # Target only guest/unregistered visitors
-        target_uids = [uid for uid in _user_push_subscriptions.keys() if uid.startswith("guest_")]
+        stmt = stmt.where(PushSubscription.guest_id.isnot(None), PushSubscription.user_id.is_(None))
     elif payload.target_audience in ("students", "owners", "tenants"):
         role_map = {"students": "STUDENT", "owners": "OWNER", "tenants": "TENANT"}
         target_role = role_map.get(payload.target_audience)
         if target_role:
             users_stmt = select(User.id).where(User.role == target_role)
-            found_ids = (await db.execute(users_stmt)).scalars().all()
-            target_uids = [str(uid) for uid in found_ids if str(uid) in _user_push_subscriptions]
-        else:
-            target_uids = list(_user_push_subscriptions.keys())
-    else:
-        # All subscribers (both registered and guests)
-        target_uids = list(_user_push_subscriptions.keys())
+            user_ids = (await db.execute(users_stmt)).scalars().all()
+            stmt = stmt.where(PushSubscription.user_id.in_(user_ids))
 
-    # Dispatch in background to all matching devices
-    sent_count = 0
-    push_image = (listing_data.get("cover_image") if listing_data else None) or payload.image_url
-    for uid in target_uids:
-        if uid in _user_push_subscriptions:
-            sent_count += len(_user_push_subscriptions[uid])
-            asyncio.create_task(_dispatch_web_push(uid, title, body, target_url, push_image))
+    subs = (await db.execute(stmt)).scalars().all()
+
+    # Dispatch web-push in background
+    for s in subs:
+        sub_dict = {"endpoint": s.endpoint, "p256dh": s.p256dh, "auth": s.auth}
+        asyncio.create_task(_send_single_webpush(sub_dict, title, body, target_url, push_image))
+
+    sent_count = len(subs)
+
+    # Save to PostgreSQL push notification history
+    history_entry = PushNotificationHistory(
+        title=title,
+        body=body,
+        url=target_url,
+        image=push_image,
+        target_audience=payload.target_audience,
+        target_user_id=payload.target_user_id,
+        sent_count=sent_count,
+        sent_by=getattr(admin, "name", None) or getattr(admin, "username", "Admin"),
+    )
+    db.add(history_entry)
+    await db.commit()
+    await db.refresh(history_entry)
 
     record = {
-        "id": str(uuid.uuid4()),
+        "id": str(history_entry.id),
         "title": title,
         "body": body,
         "url": target_url,
         "target_audience": payload.target_audience,
         "listing": listing_data,
-        "recipients_count": sent_count if sent_count > 0 else max(len(target_uids), 1),
-        "sent_by": getattr(admin, "name", None) or getattr(admin, "username", "Admin"),
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "recipients_count": sent_count,
+        "sent_by": history_entry.sent_by,
+        "created_at": history_entry.created_at.isoformat() if history_entry.created_at else datetime.now(timezone.utc).isoformat(),
         "status": "delivered",
     }
     return _ok(record)
@@ -3089,7 +3166,7 @@ async def list_payments(
 ) -> dict[str, Any]:
     """Get list of external payment transactions with user details."""
     offset = (page - 1) * limit
-    stmt = select(PaymentTransaction)
+    stmt = select(PaymentTransaction).options(joinedload(PaymentTransaction.user))
     if status:
         stmt = stmt.where(PaymentTransaction.status == status)
     if provider:
@@ -3108,6 +3185,16 @@ async def list_payments(
 
     data = []
     for r in rows:
+        card_pan_display = None
+        if r.card_pan:
+            cleaned = "".join(ch for ch in str(r.card_pan) if ch.isdigit())
+            if len(cleaned) >= 8:
+                card_pan_display = f"{cleaned[:4]} •••• •••• {cleaned[-4:]}"
+            elif len(cleaned) >= 4:
+                card_pan_display = f"•••• {cleaned[-4:]}"
+            else:
+                card_pan_display = r.card_pan
+
         data.append({
             "id": str(r.id),
             "userId": str(r.user_id),
@@ -3118,8 +3205,11 @@ async def list_payments(
             "amount": r.amount,
             "currency": r.currency,
             "serviceType": r.service_type,
+            "cardPan": card_pan_display,
+            "rawCardPan": r.card_pan,
             "clickTransId": r.click_trans_id,
             "clickPaydocId": r.click_paydoc_id,
+            "paymeTransId": r.payme_trans_id,
             "completedAt": r.completed_at.isoformat() if r.completed_at else None,
             "createdAt": r.created_at.isoformat(),
         })
@@ -3201,13 +3291,31 @@ async def get_payment_stats(admin: RequireModerator, db: DbSession) -> dict[str,
     )
     verified_count = (await db.execute(verified_count_stmt)).scalar() or 0
 
-    # Total VIP listings
-    vip_count_stmt = select(func.count(Listing.id)).where(Listing.is_vip == True)
-    vip_count = (await db.execute(vip_count_stmt)).scalar() or 0
+    # Total VIP listings purchased
+    vip_wallet_stmt = select(func.count(WalletTransaction.id)).where(
+        WalletTransaction.type.in_(["PURCHASE_VIP_LISTING", "PURCHASE_VIP"])
+    )
+    vip_wallet_count = (await db.execute(vip_wallet_stmt)).scalar() or 0
 
-    # Total TOP listings
-    top_count_stmt = select(func.count(Listing.id)).where(Listing.is_featured == True)
-    top_count = (await db.execute(top_count_stmt)).scalar() or 0
+    vip_direct_stmt = select(func.count(PaymentTransaction.id)).where(
+        PaymentTransaction.service_type.in_(["VIP_LISTING", "VIP"]),
+        PaymentTransaction.status == "SUCCESS",
+    )
+    vip_direct_count = (await db.execute(vip_direct_stmt)).scalar() or 0
+    vip_count = vip_wallet_count + vip_direct_count
+
+    # Total TOP listings purchased
+    top_wallet_stmt = select(func.count(WalletTransaction.id)).where(
+        WalletTransaction.type.in_(["PURCHASE_TOP_LISTING", "PURCHASE_TOP"])
+    )
+    top_wallet_count = (await db.execute(top_wallet_stmt)).scalar() or 0
+
+    top_direct_stmt = select(func.count(PaymentTransaction.id)).where(
+        PaymentTransaction.service_type.in_(["TOP_LISTING", "TOP"]),
+        PaymentTransaction.status == "SUCCESS",
+    )
+    top_direct_count = (await db.execute(top_direct_stmt)).scalar() or 0
+    top_count = top_wallet_count + top_direct_count
 
     return {
         "status": "success",
