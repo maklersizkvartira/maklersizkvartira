@@ -20,10 +20,8 @@ import {
   Building2,
   Check,
   CheckCircle2,
-  Crown,
   Eye,
   Flag,
-  Flame,
   GraduationCap,
   Heart,
   Image as ImageIcon,
@@ -43,6 +41,8 @@ import {
 } from 'lucide-react';
 
 import { BlueVerifiedBadge } from '../common/BlueVerifiedBadge';
+import { PromoBadge } from '../common/PromoBadge';
+import { useSwipe } from '../../hooks/useSwipe';
 import { VerificationBadge } from '../common/VerificationBadge';
 import { isForSale } from '../../types/deal';
 import { sellerTypeOf } from '../../types/roles';
@@ -255,6 +255,15 @@ export const ListingDetailPage: React.FC = () => {
   const images = useMemo(
     () => Array.from(new Set((listing?.images ?? []).filter(Boolean))),
     [listing],
+  );
+
+  // Declared here, above the loading/not-found returns below: a hook after
+  // an early return renders on some passes and not others, which React
+  // reports as "rendered more hooks than during the previous render".
+  const gallerySwipe = useSwipe(
+    () => setImageIndex((index) => (index + 1) % images.length),
+    () => setImageIndex((index) => (index - 1 + images.length) % images.length),
+    images.length > 1,
   );
 
   const displayAddress = useMemo(() => {
@@ -676,23 +685,16 @@ export const ListingDetailPage: React.FC = () => {
           gone from the product, so the gallery is the whole of the media
           block again. */}
       <div className="space-y-3">
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-surface-2 shadow-card sm:aspect-video">
+        <div
+          {...gallerySwipe.handlers}
+          className="relative aspect-[4/3] w-full touch-pan-y overflow-hidden rounded-2xl bg-surface-2 shadow-card sm:aspect-video"
+        >
           {activeImage ? (
             <>
               {/* Top-left badges overlay */}
               <div className="absolute left-3 top-3 flex flex-wrap gap-2 z-10 pointer-events-none">
-                {isVipListing && (
-                  <span className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-700 via-indigo-600 to-purple-800 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-white shadow-xl shadow-purple-900/50 border border-purple-300/40 backdrop-blur-md animate-pulse-slow">
-                    <Crown className="h-4 w-4 text-amber-300 fill-amber-300 drop-shadow" aria-hidden="true" />
-                    VIP E'LON
-                  </span>
-                )}
-                {isTopListing && !isVipListing && (
-                  <span className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-white shadow-xl shadow-orange-900/50 border border-amber-200/40 backdrop-blur-md">
-                    <Flame className="h-4 w-4 text-yellow-200 fill-yellow-200 drop-shadow" aria-hidden="true" />
-                    TOP E'LON
-                  </span>
-                )}
+                {isVipListing && <PromoBadge kind="vip" size="md" />}
+                {isTopListing && !isVipListing && <PromoBadge kind="top" size="md" />}
               </div>
 
               <img
@@ -804,7 +806,11 @@ export const ListingDetailPage: React.FC = () => {
                 {t('listings.detail.floorLabel')}
               </dt>
               <dd className="text-base font-extrabold text-content">
-                {t('common.units.floor', { floor: listing.floor, total: listing.totalFloors })}
+                {/* A house has no floor; the template printed its own
+                    "{floor}/{total}" placeholders for one. */}
+                {listing.floor != null && listing.totalFloors != null
+                  ? t('common.units.floor', { floor: listing.floor, total: listing.totalFloors })
+                  : '—'}
               </dd>
             </div>
             <div className="space-y-1 border-line sm:border-l">

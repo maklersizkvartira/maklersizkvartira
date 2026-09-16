@@ -23,8 +23,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BedDouble,
-  Crown,
-  Flame,
   Heart,
   Image as ImageIcon,
   MapPin,
@@ -36,8 +34,10 @@ import {
   Users,
 } from 'lucide-react';
 
+import { useSwipe } from '../../hooks/useSwipe';
 import { useTranslation } from '../../i18n';
 import { cn } from '../../lib/cn';
+import { PromoBadge } from '../common/PromoBadge';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useAppStore } from '../../stores/useAppStore';
 import type { Listing } from '../../types';
@@ -87,6 +87,15 @@ function subscribeToTicker(subscriber: TickSubscriber): () => void {
       tickerId = null;
     }
   };
+}
+
+/** The previous slot that actually has a picture, or the current one if none has. */
+function prevSlide(current: number, total: number, failed: ReadonlySet<number>): number {
+  for (let step = 1; step <= total; step += 1) {
+    const candidate = (current - step + total) % total;
+    if (!failed.has(candidate)) return candidate;
+  }
+  return current;
 }
 
 /** The next slot that actually has a picture, or the current one if none has. */
@@ -145,6 +154,8 @@ export const ListingCard: React.FC<ListingCardProps> = ({
    */
   const [failedSlides, setFailedSlides] = useState<ReadonlySet<number>>(() => new Set<number>());
   const [slide, setSlide] = useState(0);
+  /** True once a person has swiped the photos themselves; see the swipe below. */
+  const [handled, setHandled] = useState(false);
   const mediaRef = useRef<HTMLDivElement>(null);
 
   const isFavorite = favoriteIds.has(listing.id);
@@ -170,6 +181,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
   useEffect(() => {
     setSlide(0);
     setFailedSlides(new Set<number>());
+    setHandled(false);
   }, [listing.id]);
 
   const handleImageError = useCallback((index: number) => {
@@ -200,7 +212,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
     // `prefers-reduced-motion` clamps the CSS transition to nothing, which
     // turns the crossfade into a hard cut every ten seconds — worse than not
     // rotating at all. The stylesheet cannot stop a JS timer, so this does.
-    if (!rotates || reducedMotion || images.length < 2) return undefined;
+    if (!rotates || reducedMotion || handled || images.length < 2) return undefined;
 
     const advance = () => {
       const { total, failed } = rotation.current;
@@ -232,9 +244,12 @@ export const ListingCard: React.FC<ListingCardProps> = ({
       observer.disconnect();
       unsubscribe();
     };
-  }, [rotates, reducedMotion, images.length]);
+  }, [rotates, reducedMotion, handled, images.length]);
 
   const open = () => {
+    // A flick that ended inside the tap tolerance still reaches here as a
+    // click; the person was turning the photo, not opening the flat.
+    if (swipe.swipedRecently()) return;
     if (onOpen) onOpen(listing);
     else setCurrentView('LISTING_DETAIL', listing.id);
   };
@@ -250,11 +265,36 @@ export const ListingCard: React.FC<ListingCardProps> = ({
 
   const [hasInteracted, setHasInteracted] = useState(false);
 
+  /**
+   * A finger across the photo moves it; the auto-rotation stops for the
+   * card once a person has taken the wheel, or the ticker would pull the
+   * picture away ten seconds after they chose it.
+   */
+  const swipe = useSwipe(
+    () => {
+      setHandled(true);
+      setHasInteracted(true);
+      setSlide((current) => nextSlide(current, images.length, failedSlides));
+    },
+    () => {
+      setHandled(true);
+      setHasInteracted(true);
+      setSlide((current) => prevSlide(current, images.length, failedSlides));
+    },
+    hasPhoto && images.length > 1,
+  );
+
   const media = (
     <div
       ref={mediaRef}
       onMouseEnter={() => setHasInteracted(true)}
-      onTouchStart={() => setHasInteracted(true)}
+      onTouchStart={(event) => {
+        setHasInteracted(true);
+        swipe.handlers.onTouchStart(event);
+      }}
+      onTouchMove={swipe.handlers.onTouchMove}
+      onTouchEnd={swipe.handlers.onTouchEnd}
+      onTouchCancel={swipe.handlers.onTouchCancel}
       className={cn(
         'relative shrink-0 overflow-hidden bg-surface-2',
         isList ? 'h-full w-36 sm:w-52' : 'aspect-[4/3] w-full',
@@ -308,18 +348,8 @@ export const ListingCard: React.FC<ListingCardProps> = ({
 
       {/* Top-left badges */}
       <div className="absolute left-2 top-2 flex flex-wrap gap-1.5 z-10">
-        {isVipListing && (
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-purple-700 via-indigo-600 to-purple-800 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-white shadow-lg shadow-purple-900/40 border border-purple-300/40 backdrop-blur-md">
-            <Crown className="h-3.5 w-3.5 text-amber-300 fill-amber-300 drop-shadow" aria-hidden="true" />
-            VIP
-          </span>
-        )}
-        {isTopListing && !isVipListing && (
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-white shadow-lg shadow-orange-900/40 border border-amber-200/40 backdrop-blur-md">
-            <Flame className="h-3.5 w-3.5 text-yellow-200 fill-yellow-200 drop-shadow" aria-hidden="true" />
-            TOP
-          </span>
-        )}
+        {isVipListing && <PromoBadge kind="vip" />}
+        {isTopListing && !isVipListing && <PromoBadge kind="top" />}
         {listing.isRoommate && (
           <span className="inline-flex items-center gap-1 rounded-lg bg-info px-2 py-1 text-[10px] font-black text-white shadow-sm">
             <Users className="h-3 w-3" aria-hidden="true" />
@@ -598,7 +628,13 @@ export const ListingCard: React.FC<ListingCardProps> = ({
       className={`group press-sm cursor-pointer overflow-hidden rounded-2xl border bg-surface shadow-card
         transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised
         has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand
-        ${promoted ? 'border-warning/40 ring-1 ring-warning/20' : 'border-line'}
+        ${
+          isVipListing
+            ? 'border-amber-400/50 ring-1 ring-amber-400/25'
+            : promoted
+              ? 'border-warning/40 ring-1 ring-warning/20'
+              : 'border-line'
+        }
         ${isList ? 'flex h-36 sm:h-44' : 'flex h-full flex-col'}`}
     >
       {media}
