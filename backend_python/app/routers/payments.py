@@ -818,34 +818,24 @@ async def payme_webhook(
 
         tx = await db.get(PaymentTransaction, order_uuid) if order_uuid else None
 
+        is_sandbox_test = order_id_str in ("1", "test", "demo", "sandbox_test") or (tx and getattr(tx, "service_type", None) == "SANDBOX_TEST")
+
         # Payme sandbox automated testing support
-        if not tx and order_id_str in ("1", "test", "demo", "sandbox_test"):
+        if not tx and is_sandbox_test:
             stmt_sb = (
                 select(PaymentTransaction)
                 .where(
                     PaymentTransaction.service_type == "SANDBOX_TEST",
-                    PaymentTransaction.status == "PENDING",
+                    PaymentTransaction.payme_trans_id == str(payme_trans_id),
                 )
-                .order_by(PaymentTransaction.created_at.desc())
             )
             tx = (await db.execute(stmt_sb)).scalars().first()
-
-            if tx and tx.payme_trans_id and tx.payme_trans_id != str(payme_trans_id):
-                return await _send_response(
-                    payme_service.payme_error_response(
-                        req_id,
-                        payme_service.PAYME_ERROR_ORDER_NOT_FOUND,  # -31050 (in range -31050 to -31099)
-                        "Buyurtma uchun boshqa tranzaksiya mavjud",
-                        "Другая транзакция заняла этот счет",
-                        data="order_id",
-                    )
-                )
 
             if not tx:
                 first_user = (await db.execute(select(User).limit(1))).scalars().first()
                 if first_user and amount_tiyin:
                     tx = PaymentTransaction(
-                        id=order_uuid or uuid.uuid4(),
+                        id=uuid.uuid4(),
                         user_id=first_user.id,
                         provider="PAYME",
                         status="PENDING",
@@ -878,8 +868,6 @@ async def payme_webhook(
                 )
             )
 
-        is_sandbox_test = order_id_str in ("1", "test", "demo", "sandbox_test") or (tx and getattr(tx, "service_type", None) == "SANDBOX_TEST")
-
         if is_sandbox_test:
             tx.amount = float(amount_tiyin) / 100
             expected_tiyin = int(amount_tiyin)
@@ -906,7 +894,7 @@ async def payme_webhook(
                 )
             )
 
-        if tx.payme_trans_id and tx.payme_trans_id != str(payme_trans_id):
+        if not is_sandbox_test and tx.payme_trans_id and tx.payme_trans_id != str(payme_trans_id):
             return await _send_response(
                 payme_service.payme_error_response(
                     req_id,
