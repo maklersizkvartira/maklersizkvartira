@@ -304,13 +304,18 @@ const MenuRow: React.FC<{
             {subtitle}
           </span>
         )}
+        {/* The value sits under the title, not beside it: on the right it
+            shared one line with a title that, in Russian, needs the whole
+            of it — "Уровень подтверждения" was ending as "Урове…". */}
+        {(value || badge) && (
+          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+            {value && <span className="font-medium">{value}</span>}
+            {badge}
+          </span>
+        )}
       </div>
     </div>
-    <div className="flex items-center gap-2 shrink-0">
-      {value && <span className="text-xs text-muted font-medium">{value}</span>}
-      {badge}
-      <ChevronRight className="h-4 w-4 text-subtle" aria-hidden="true" />
-    </div>
+    <ChevronRight className="h-4 w-4 shrink-0 text-subtle" aria-hidden="true" />
   </button>
 );
 
@@ -1306,17 +1311,32 @@ export const ProfilePage: React.FC = () => {
           </Button>
         )}
 
-        {/* Hamyon va Balans (Click) */}
+        {/* The wallet: the balance is readable here, on the profile, and the
+            row opens the wallet as its own page rather than a sheet. */}
         <Card padding="none" className="overflow-hidden">
-          <MenuRow
-            icon={Wallet}
-            title="Mening Hamyonim & Balans"
-            subtitle="Click orqali to‘lov, galochka va xizmatlar"
+          <button
+            type="button"
             onClick={() => {
               haptics.tap();
-              setActiveMobileSection('wallet');
+              setCurrentView('WALLET');
             }}
-          />
+            className="press flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors hover:bg-surface-2 active:bg-surface-3"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-on-brand">
+              <Wallet className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs font-semibold text-muted">{t('account.wallet.balance')}</span>
+              <span className="block truncate text-lg font-black leading-tight text-content">
+                {formatNumber(currentUser.balance ?? 0)} {t('account.topUp.currency')}
+              </span>
+            </span>
+            {/* Only a chevron on the right: a labelled "top up" chip beside
+                it left the figure itself reading "45 000 с…" in Russian. */}
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-text">
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </span>
+          </button>
         </Card>
 
         {/* Group 1: Profil va Shaxsiyat */}
@@ -1333,7 +1353,7 @@ export const ProfilePage: React.FC = () => {
           <MenuRow
             icon={ShieldCheck}
             title={t('account.profile.verificationLevel')}
-            value={`${formatNumber(currentUser.trustScore)} ball`}
+            value={t('account.profile.pointsValue', { count: formatNumber(currentUser.trustScore) })}
             badge={
               <span
                 className={cn(
@@ -1389,7 +1409,7 @@ export const ProfilePage: React.FC = () => {
           <MenuRow
             icon={Monitor}
             title={t('account.sessions.title')}
-            value={sessions.length > 0 ? `${sessions.length} ta seans` : undefined}
+            value={sessions.length > 0 ? t('account.sessions.countShort', { count: sessions.length }) : undefined}
             onClick={() => {
               haptics.tap();
               setActiveMobileSection('sessions');
@@ -1413,17 +1433,6 @@ export const ProfilePage: React.FC = () => {
       </div>
 
       {/* Mobile Bottom Sheets */}
-      <Sheet
-        open={activeMobileSection === 'wallet'}
-        onClose={() => setActiveMobileSection(null)}
-        title="Mening Hamyonim & Balans"
-        description="Click, Payme va Uzum Bank orqali to‘lovlar"
-      >
-        <div className="px-1 py-2 sm:p-6">
-          <WalletCard embedded={true} />
-        </div>
-      </Sheet>
-
       <Sheet
         open={activeMobileSection === 'profile'}
         onClose={() => setActiveMobileSection(null)}

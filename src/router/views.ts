@@ -33,6 +33,7 @@ export type ViewState =
   | 'CREATE_LISTING'
   | 'MY_LISTINGS'
   | 'PROFILE'
+  | 'WALLET'
   | 'CHAT'
   | 'REFERRAL'
   | 'STUDENT_PROGRAM'
@@ -65,6 +66,7 @@ export const VIEW_PATHS: Partial<Record<ViewState, string>> = {
   FORGOT_PASSWORD: '/forget-password',
   FAVORITES: '/favorites',
   PROFILE: '/profile',
+  WALLET: '/wallet',
   MY_LISTINGS: '/my-listings',
   CREATE_LISTING: '/post-listing',
   VERIFICATION: '/verification',
@@ -127,6 +129,7 @@ export const PRIVATE_VIEWS: ReadonlySet<ViewState> = new Set<ViewState>([
   'FORGOT_PASSWORD',
   'FAVORITES',
   'PROFILE',
+  'WALLET',
   'MY_LISTINGS',
   'CREATE_LISTING',
   'VERIFICATION',
@@ -148,6 +151,7 @@ export const REQUIRES_AUTH: ReadonlySet<ViewState> = new Set<ViewState>([
   'CREATE_LISTING',
   'MY_LISTINGS',
   'PROFILE',
+  'WALLET',
   'FAVORITES',
   'VERIFICATION',
   'REFERRAL',

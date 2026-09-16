@@ -37,6 +37,7 @@ const LOADERS: Partial<Record<ViewState, () => Promise<unknown>>> = {
   LISTING_DETAIL: () => import('../components/listing/ListingDetailPage'),
   FAVORITES: () => import('../components/favorites/FavoritesPage'),
   PROFILE: () => import('../components/profile/ProfilePage'),
+  WALLET: () => import('../components/profile/WalletPage'),
   MY_LISTINGS: () => import('../components/owner/MyListingsPage'),
   CREATE_LISTING: () => import('../components/owner/CreateListingPage'),
   CHAT: () => import('../components/chat/ChatPage'),

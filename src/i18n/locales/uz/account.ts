@@ -41,6 +41,7 @@ export const account = {
     phoneLocked: 'Telefon raqam — hisobingiz identifikatori. Uni o‘zgartirib bo‘lmaydi.',
     memberSince: 'Ro‘yxatdan o‘tgan',
     trustScore: 'Ishonch reytingi',
+    pointsValue: '{count} ball',
     verificationLevel: 'Tasdiqlash darajasi',
     xpPoints: 'XP ballari',
     verified: 'Tasdiqlangan hisob',
@@ -95,6 +96,7 @@ export const account = {
   },
 
   sessions: {
+    countShort: '{count} ta seans',
     title: 'Faol seanslar',
     subtitle: 'Hisobingizga kirilgan qurilmalar ro‘yxati.',
     count: '{count} ta faol seans',
@@ -151,5 +153,32 @@ export const account = {
     noLink: 'To‘lov havolasi olinmadi. Birozdan so‘ng qayta urinib ko‘ring.',
     cardNote: 'Karta ma’lumotlari saytga tushmaydi. To‘lov tasdiqlangach balans bir zumda yangilanadi.',
     close: 'Yopish',
+  },
+
+  // The wallet page (WalletCard / WalletPage).
+  wallet: {
+    title: 'Hamyon',
+    subtitle: 'Balans, to‘ldirish va xizmatlar',
+    balance: 'Balans',
+    topUp: 'Hisobni to‘ldirish',
+    methods: 'Click yoki Payme orqali. Karta ma’lumotlari saytga tushmaydi.',
+    servicesTitle: 'Xizmatlar',
+    badgeTitle: 'Rasmiy ko‘k galochka',
+    badgeDesc: 'Ismingiz yonida tasdiqlangan belgi va e’lonlaringizga yuqori ishonch.',
+    badgeActive: 'Faol',
+    badgeBuy: 'Sotib olish',
+    badgeConfirmTitle: 'Ko‘k galochkani sotib olasizmi?',
+    badgeConfirmBody: 'Balansdan {price} so‘m yechiladi. Belgi darhol faollashadi va qaytarilmaydi.',
+    badgeBenefit1: 'Ism yonida ko‘k galochka',
+    badgeBenefit2: 'E’lonlarda «Tasdiqlangan egasi» belgisi',
+    badgeBenefit3: 'Ishonch reytingi oshadi',
+    badgeShortfall: 'Balansda {amount} so‘m yetishmaydi.',
+    badgeTopUp: '{amount} so‘m to‘ldirish',
+    badgeBought: 'Ko‘k galochka faollashtirildi!',
+    confirm: 'Tasdiqlash',
+    historyTitle: 'To‘lovlar tarixi',
+    historyEmpty: 'Hali to‘lovlar yo‘q. Birinchi to‘ldirish shu yerda ko‘rinadi.',
+    remaining: 'qoldiq: {amount}',
+    openWallet: 'Hamyonni ochish',
   },
 } as const;

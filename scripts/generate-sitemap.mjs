@@ -53,6 +53,17 @@ const DISALLOWED = [
   '/login',
   '/register',
   '/forget-password',
+  // The account screens moved to English addresses (VIEW_PATHS in
+  // src/router/views.ts); the Uzbek ones below still resolve as aliases,
+  // so both spellings are kept out.
+  '/profile',
+  '/wallet',
+  '/favorites',
+  '/my-listings',
+  '/post-listing',
+  '/verification',
+  '/invite',
+  '/messages',
   '/profil',
   '/saqlanganlar',
   '/mening-elonlarim',

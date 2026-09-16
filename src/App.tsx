@@ -46,6 +46,7 @@ const ListingDetailPage = lazy(() => import('./components/listing/ListingDetailP
 const MapView = lazy(() => import('./components/map/MapView'));
 const FavoritesPage = lazy(() => import('./components/favorites/FavoritesPage'));
 const ProfilePage = lazy(() => import('./components/profile/ProfilePage'));
+const WalletPage = lazy(() => import('./components/profile/WalletPage'));
 const MyListingsPage = lazy(() => import('./components/owner/MyListingsPage'));
 const CreateListingPage = lazy(() => import('./components/owner/CreateListingPage'));
 const VerificationPage = lazy(() => import('./components/verification/VerificationPage'));
@@ -179,6 +180,8 @@ function renderView(view: ViewState): React.ReactNode {
       return <FavoritesPage />;
     case 'PROFILE':
       return <ProfilePage />;
+    case 'WALLET':
+      return <WalletPage />;
     case 'MY_LISTINGS':
       return <MyListingsPage />;
     case 'CREATE_LISTING':

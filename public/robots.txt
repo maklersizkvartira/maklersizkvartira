@@ -7,7 +7,8 @@
 
 User-agent: *
 Allow: /
-
+Disallow: /profile
+Disallow: /wallet
 Disallow: /profil
 Disallow: /saqlanganlar
 Disallow: /mening-elonlarim
