@@ -77,5 +77,13 @@ export const chat = {
     quickPayment: 'To‘lov va xizmatlar',
     quickAccount: 'Hisob yoki parol masalasi',
     quickOther: 'Taklif yoki shikoyat',
+    brand: 'Uyiz Support',
+    official: 'Uyiz rasmiy hisobi',
+    status: 'Rasmiy · har kuni 09:00–21:00',
+    placeholder: 'Savolingizni yozing…',
+    replyEta: 'Odatda bir necha daqiqada javob beramiz.',
+    operatorLine: 'Operator: {name}',
+    sent: 'Yuborildi',
+    newMessages: 'Yangi xabarlar ↓',
   },
 } as const;

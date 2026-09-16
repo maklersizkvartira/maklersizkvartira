@@ -73,5 +73,13 @@ export const chat = {
     quickPayment: 'Оплата и услуги',
     quickAccount: 'Вопрос по аккаунту',
     quickOther: 'Предложение или жалоба',
+    brand: 'Uyiz Support',
+    official: 'Официальный аккаунт Uyiz',
+    status: 'Официально · ежедневно 09:00–21:00',
+    placeholder: 'Напишите ваш вопрос…',
+    replyEta: 'Обычно отвечаем в течение нескольких минут.',
+    operatorLine: 'Оператор: {name}',
+    sent: 'Отправлено',
+    newMessages: 'Новые сообщения ↓',
   },
 } as const;

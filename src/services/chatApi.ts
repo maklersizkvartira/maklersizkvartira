@@ -60,6 +60,8 @@ export interface SupportMessage {
   id: string;
   conversation_id: string;
   sender_type: 'USER' | 'ADMIN';
+  /** The operator's name on an ADMIN message; absent on the seeded welcome. */
+  sender_name?: string | null;
   sender_id: string;
   text: string;
   read_at: string | null;

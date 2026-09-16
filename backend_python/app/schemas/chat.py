@@ -2,7 +2,7 @@
 
 from datetime import datetime
 import uuid
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ChatMessageCreate(BaseModel):
@@ -95,7 +95,7 @@ class ConversationDetailOut(ConversationOut):
 
 
 class SupportMessageCreate(BaseModel):
-    text: str
+    text: str = Field(min_length=1, max_length=4000)
 
 
 class SupportMessageOut(BaseModel):
@@ -103,6 +103,11 @@ class SupportMessageOut(BaseModel):
     conversation_id: uuid.UUID
     sender_type: str  # "USER" or "ADMIN"
     sender_id: uuid.UUID
+    #: The operator's display name for an ADMIN message, filled in by the
+    #: router from the admin table. None for the seeded welcome, which no
+    #: person wrote. The customer sees the service's name either way; this
+    #: is the small line under it.
+    sender_name: str | None = None
     text: str
     read_at: datetime | None = None
     created_at: datetime

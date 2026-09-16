@@ -13,6 +13,16 @@ export const account = {
     subtitle: 'Profil ma’lumotlari, xavfsizlik va ilova sozlamalari.',
   },
 
+  // The desktop sidebar of the account page. Section titles come from the
+  // sections themselves; these are the entries that have no section of
+  // their own.
+  nav: {
+    overview: 'Umumiy',
+    overviewHint: 'Hisob holati va tasdiqlash',
+    wallet: 'Hamyon va balans',
+    walletHint: 'Click, Payme, xizmatlar',
+    signOut: 'Hisobdan chiqish',
+  },
   profile: {
     title: 'Profil ma’lumotlari',
     avatarAlt: '{name} — profil rasmi',

@@ -640,7 +640,14 @@ export const ProfilePage: React.FC = () => {
     | null;
 
   const [activeMobileSection, setActiveMobileSection] = useState<MobileProfileSection>(null);
-  const [desktopTab, setDesktopTab] = useState<'all' | 'wallet' | 'profile' | 'role' | 'preferences' | 'security' | 'sessions'>('all');
+  /**
+   * Which section the desktop shows. One at a time, chosen from a sidebar:
+   * the page used to render every section in one long column with a tab
+   * bar that merely hid some of them, so the first screen was a wallet card
+   * and the sign-out button was 3 900px down.
+   */
+  type DesktopSection = 'overview' | 'wallet' | 'profile' | 'role' | 'preferences' | 'security' | 'sessions' | 'signout';
+  const [desktopTab, setDesktopTab] = useState<DesktopSection>('overview');
 
   // -- Shared Section Content Renderers -------------------------------------
   const renderProfileContent = () => (
@@ -1478,69 +1485,183 @@ export const ProfilePage: React.FC = () => {
       </Sheet>
 
       {/* =================================================================== */}
-      {/* Desktop View (lg:grid): Two-column layout with category tabs        */}
+      {/* Desktop View: sidebar navigation, one section at a time             */}
       {/* =================================================================== */}
-      <div className="hidden lg:grid lg:grid-cols-[minmax(0,1fr)_320px] xl:gap-8 gap-6">
-        {/* -- Main column: everything that can be edited ------------------ */}
-        <div className="order-2 space-y-6 lg:order-1">
-          {/* Desktop Filter Tabs */}
-          <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-line bg-surface-2 p-1.5 shadow-sm">
-            {[
-              { id: 'all', label: 'Barchasi', icon: null },
-              { id: 'wallet', label: 'Hamyon & Balans', icon: Wallet },
-              { id: 'profile', label: t('account.profile.title'), icon: User },
-              {
-                id: 'role',
-                label: t('account.role.title'),
-                icon: currentUser.role === 'AGENT' ? Briefcase : currentUser.role === 'OWNER' ? Home : GraduationCap,
-              },
-              { id: 'preferences', label: t('account.preferences.title'), icon: Globe },
-              { id: 'security', label: t('account.security.title'), icon: Lock },
-              { id: 'sessions', label: t('account.sessions.title'), icon: Monitor },
-            ].map((tab) => {
-              const Icon = tab.icon;
-              const active = desktopTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    haptics.tap();
-                    setDesktopTab(tab.id as typeof desktopTab);
-                  }}
-                  className={cn(
-                    'press flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all',
-                    active
-                      ? 'bg-surface text-content shadow-sm border border-line ring-1 ring-black/5 dark:ring-white/5'
-                      : 'text-muted hover:bg-surface/50 hover:text-content',
-                  )}
-                >
-                  {Icon && <Icon className="h-3.5 w-3.5 stroke-[2]" aria-hidden="true" />}
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
+      <div className="hidden lg:grid lg:grid-cols-[272px_minmax(0,1fr)] lg:gap-6 xl:grid-cols-[288px_minmax(0,1fr)] xl:gap-8">
+        {/* -- Sidebar: who you are, and where everything is ------------------- */}
+        <aside className="lg:sticky lg:top-24 lg:self-start">
+          <Card padding="none" className="overflow-hidden">
+            <div className="flex items-center gap-3 p-4">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={avatarBusy}
+                aria-label={t('account.profile.avatarChange')}
+                aria-busy={avatarBusy || undefined}
+                title={t('account.profile.avatarChange')}
+                className="press group relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-line bg-surface-2 disabled:opacity-60"
+              >
+                {currentUser.avatar ? (
+                  <img
+                    src={currentUser.avatar}
+                    alt={t('account.profile.avatarAlt', { name: currentUser.name })}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span
+                    className={cn(
+                      'flex h-full w-full items-center justify-center',
+                      isOwner ? 'bg-brand text-on-brand' : 'bg-info text-white',
+                    )}
+                  >
+                    {isOwner ? <Home className="h-6 w-6" aria-hidden="true" /> : <GraduationCap className="h-6 w-6" aria-hidden="true" />}
+                  </span>
+                )}
+                <span className="absolute inset-0 flex items-center justify-center bg-black/55 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                  <Camera className="h-4 w-4" aria-hidden="true" />
+                </span>
+              </button>
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <p className="truncate text-sm font-black text-content">{currentUser.name}</p>
+                  {currentUser.isVerified && <BlueVerifiedBadge size="sm" />}
+                </div>
+                <p className="truncate text-xs text-muted">{currentUser.phone}</p>
+                <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-bold text-brand-text">
+                  {isOwner ? t('account.profile.badgeOwner') : t('account.profile.badgeStudent')}
+                </span>
+              </div>
+            </div>
 
-          {/* -- Wallet & Balans ------------------------------------------- */}
-          {(desktopTab === 'all' || desktopTab === 'wallet') && (
-            <WalletCard />
+            {/* The three figures that used to live only inside the
+                verification card, where nothing on the desktop pointed. */}
+            <div className="grid grid-cols-3 border-y border-line bg-surface-2/60 text-center">
+              <div className="min-w-0 py-2.5">
+                <div className="text-[10px] font-semibold text-subtle">{t('account.profile.trustScore')}</div>
+                <div className="text-sm font-black text-content">{formatNumber(currentUser.trustScore)}</div>
+              </div>
+              <div className="min-w-0 border-x border-line py-2.5">
+                <div className="text-[10px] font-semibold text-subtle">{t('account.profile.xpPoints')}</div>
+                <div className="flex items-center justify-center gap-1 text-sm font-black text-warning">
+                  <Sparkles className="h-3 w-3" aria-hidden="true" />
+                  <span>{formatNumber(currentUser.xpPoints)}</span>
+                </div>
+              </div>
+              <div className="min-w-0 py-2.5">
+                <div className="text-[10px] font-semibold text-subtle">{t('account.profile.verificationLevel')}</div>
+                <div className="text-sm font-black text-content">
+                  {t('common.badge.verificationLevel', { level: currentUser.verificationLevel })}
+                </div>
+              </div>
+            </div>
+
+            <nav aria-label={t('account.page.title')} className="p-2">
+              {(
+                [
+                  { id: 'overview', label: t('account.nav.overview'), hint: t('account.nav.overviewHint'), icon: ShieldCheck },
+                  { id: 'wallet', label: t('account.nav.wallet'), hint: t('account.nav.walletHint'), icon: Wallet },
+                  { id: 'profile', label: t('account.profile.title'), icon: User },
+                  {
+                    id: 'role',
+                    label: t('account.role.title'),
+                    icon: currentUser.role === 'AGENT' ? Briefcase : currentUser.role === 'OWNER' ? Home : GraduationCap,
+                  },
+                  { id: 'preferences', label: t('account.preferences.title'), icon: Globe },
+                  { id: 'security', label: t('account.security.title'), icon: Lock },
+                  { id: 'sessions', label: t('account.sessions.title'), icon: Monitor },
+                ] as Array<{ id: DesktopSection; label: string; hint?: string; icon: React.ComponentType<{ className?: string }> }>
+              ).map((item) => {
+                const Icon = item.icon;
+                const active = desktopTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-current={active ? 'page' : undefined}
+                    onClick={() => {
+                      haptics.tap();
+                      setDesktopTab(item.id);
+                    }}
+                    className={cn(
+                      'press flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors',
+                      active ? 'bg-brand-soft font-bold text-brand-text' : 'font-semibold text-muted hover:bg-surface-2 hover:text-content',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                        active ? 'bg-brand text-on-brand' : 'bg-surface-2 text-muted',
+                      )}
+                    >
+                      <Icon className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate leading-tight">{item.label}</span>
+                      {item.hint && <span className="block truncate text-[11px] font-normal text-subtle">{item.hint}</span>}
+                    </span>
+                  </button>
+                );
+              })}
+
+              <div className="my-2 border-t border-line" />
+
+              <button
+                type="button"
+                aria-current={desktopTab === 'signout' ? 'page' : undefined}
+                onClick={() => {
+                  haptics.tap();
+                  setDesktopTab('signout');
+                }}
+                className={cn(
+                  'press flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors',
+                  desktopTab === 'signout' ? 'bg-danger-soft text-danger' : 'text-muted hover:bg-danger-soft hover:text-danger',
+                )}
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2">
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
+                </span>
+                {t('account.nav.signOut')}
+              </button>
+            </nav>
+          </Card>
+        </aside>
+
+        {/* -- Content: the one section that was chosen ----------------------- */}
+        <div className="min-w-0 space-y-6">
+          {desktopTab === 'overview' && (
+            <>
+              <SectionCard
+                title={t('account.profile.verificationLevel')}
+                icon={ShieldCheck}
+                padding="none"
+                className={CARD_PADDING}
+              >
+                {renderVerificationContent()}
+              </SectionCard>
+              <Card padding="none" className={cn(CARD_PADDING, 'space-y-4')}>
+                {renderAvatarCardContent()}
+              </Card>
+              {isOwner && (
+                <Button
+                  type="button"
+                  onClick={() => setCurrentView('CREATE_LISTING')}
+                  className="w-full py-3"
+                >
+                  {t('account.role.createListing')}
+                </Button>
+              )}
+            </>
           )}
 
-          {/* -- Profile fields ------------------------------------------- */}
-          {(desktopTab === 'all' || desktopTab === 'profile') && (
-            <SectionCard
-              title={t('account.profile.title')}
-              icon={User}
-              padding="none"
-              className={CARD_PADDING}
-            >
+          {desktopTab === 'wallet' && <WalletCard />}
+
+          {desktopTab === 'profile' && (
+            <SectionCard title={t('account.profile.title')} icon={User} padding="none" className={CARD_PADDING}>
               {renderProfileContent()}
             </SectionCard>
           )}
 
-          {/* -- Role ------------------------------------------------------ */}
-          {(desktopTab === 'all' || desktopTab === 'role') && (
+          {desktopTab === 'role' && (
             <SectionCard
               title={t('account.role.title')}
               description={t('account.role.subtitle')}
@@ -1552,86 +1673,38 @@ export const ProfilePage: React.FC = () => {
             </SectionCard>
           )}
 
-          {/* -- Preferences ----------------------------------------------- */}
-          {(desktopTab === 'all' || desktopTab === 'preferences') && (
-            <SectionCard
-              title={t('account.preferences.title')}
-              icon={Globe}
-              padding="none"
-              className={CARD_PADDING}
-            >
+          {desktopTab === 'preferences' && (
+            <SectionCard title={t('account.preferences.title')} icon={Globe} padding="none" className={CARD_PADDING}>
               {renderPreferencesContent()}
             </SectionCard>
           )}
 
-          {/* -- Security --------------------------------------------------- */}
-          {(desktopTab === 'all' || desktopTab === 'security') && (
-            <SectionCard
-              title={t('account.security.title')}
-              icon={Lock}
-              padding="none"
-              className={CARD_PADDING}
-            >
+          {desktopTab === 'security' && (
+            <SectionCard title={t('account.security.title')} icon={Lock} padding="none" className={CARD_PADDING}>
               {renderSecurityContent()}
             </SectionCard>
           )}
 
-          {/* -- Sessions --------------------------------------------------- */}
-          {(desktopTab === 'all' || desktopTab === 'sessions') && (
+          {desktopTab === 'sessions' && (
             <SectionCard
               title={t('account.sessions.title')}
               description={t('account.sessions.subtitle')}
               icon={Monitor}
               padding="none"
               className={CARD_PADDING}
-              action={
-                <button
-                  type="button"
-                  onClick={() => void loadSessions()}
-                  disabled={sessionsLoading}
-                  aria-label={t('account.sessions.reload')}
-                  title={t('account.sessions.reload')}
-                  className="press flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-muted transition-colors hover:border-brand hover:text-content disabled:opacity-60"
-                >
-                  <RefreshCw
-                    className={cn('h-4 w-4', sessionsLoading && 'animate-spin')}
-                    aria-hidden="true"
-                  />
-                </button>
-              }
             >
+              {/* The reload control lives inside the content, next to the
+                  count; a second one in the header was the same button twice. */}
               {renderSessionsContent()}
             </SectionCard>
           )}
 
-          {/* -- Sign out --------------------------------------------------- */}
-          {desktopTab === 'all' && (
-            <SectionCard
-              title={t('account.signOut.title')}
-              icon={LogOut}
-              padding="none"
-              className={CARD_PADDING}
-            >
+          {desktopTab === 'signout' && (
+            <SectionCard title={t('account.signOut.title')} icon={LogOut} padding="none" className={CARD_PADDING}>
               {renderSignOutContent()}
             </SectionCard>
           )}
         </div>
-
-        {/* -- Rail: who you are, which does not change while you edit ------ */}
-        <aside className="order-1 space-y-6 lg:order-2 lg:sticky lg:top-24 lg:self-start">
-          <Card padding="none" className={cn(CARD_PADDING, 'space-y-4')}>
-            {renderAvatarCardContent()}
-          </Card>
-
-          <SectionCard
-            title={t('account.profile.verificationLevel')}
-            icon={ShieldCheck}
-            padding="none"
-            className={CARD_PADDING}
-          >
-            {renderVerificationContent()}
-          </SectionCard>
-        </aside>
       </div>
     </div>
   );

@@ -10,6 +10,13 @@ export const account = {
     subtitle: 'Данные профиля, безопасность и настройки приложения.',
   },
 
+  nav: {
+    overview: 'Обзор',
+    overviewHint: 'Состояние аккаунта и подтверждение',
+    wallet: 'Кошелёк и баланс',
+    walletHint: 'Click, Payme, услуги',
+    signOut: 'Выйти из аккаунта',
+  },
   profile: {
     title: 'Данные профиля',
     avatarAlt: '{name} — фото профиля',

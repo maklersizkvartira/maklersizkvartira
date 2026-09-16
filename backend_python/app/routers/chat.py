@@ -13,6 +13,7 @@ from app.core.deps import CurrentUser, DbSession, OptionalUser
 from app.core.errors import BadRequest, NotFound
 from app.models.chat import ChatMessage, Conversation, SupportConversation, SupportMessage
 from app.models.listing import Listing
+from app.models.user import AdminUser
 from app.schemas.chat import (
     ChatMessageCreate,
     ChatMessageOut,
@@ -487,6 +488,34 @@ async def get_unread_count(db: DbSession, user: CurrentUser) -> UnreadCountOut:
     return UnreadCountOut(count=count)
 
 
+SUPPORT_WELCOME = {
+    "uz": "Assalomu alaykum! Uyiz qo‘llab-quvvatlash xizmatiga xush kelibsiz. Qanday yordam bera olamiz?",
+    "ru": "Здравствуйте! Вы обратились в службу поддержки Uyiz. Чем можем помочь?",
+    "en": "Hello! You have reached Uyiz support. How can we help?",
+}
+
+
+async def _name_operators(db: DbSession, messages: list[SupportMessageOut]) -> None:
+    """Put the operator's name on every ADMIN message that a person wrote.
+
+    One query for the whole thread: the ids on ADMIN messages are admin
+    ids, except on the seeded welcome, where the column holds the customer's
+    id and the lookup simply finds nobody.
+    """
+    admin_ids = {m.sender_id for m in messages if m.sender_type == "ADMIN"}
+    if not admin_ids:
+        return
+    rows = (
+        await db.execute(
+            select(AdminUser.id, AdminUser.full_name, AdminUser.username).where(AdminUser.id.in_(admin_ids))
+        )
+    ).all()
+    names = {row.id: (row.full_name or row.username or "").strip() or None for row in rows}
+    for m in messages:
+        if m.sender_type == "ADMIN":
+            m.sender_name = names.get(m.sender_id)
+
+
 @router.get("/support", response_model=SupportConversationDetailOut)
 async def get_or_create_support_conversation(
     db: DbSession, user: CurrentUser
@@ -504,12 +533,15 @@ async def get_or_create_support_conversation(
         db.add(conversation)
         await db.flush()
 
-        # Seed initial friendly welcome message from support
+        # Seed the welcome, in the customer's own language. `sender_id` is
+        # the customer's id only because the column is not nullable; the
+        # message is the service's, and the client decides which side a
+        # bubble sits on by `sender_type`, never by this id.
         welcome_msg = SupportMessage(
             conversation_id=conversation.id,
             sender_type="ADMIN",
-            sender_id=user.id,  # Valid user reference
-            text="Assalomu alaykum! Uyiz qo'llab-quvvatlash xizmatiga xush kelibsiz. Qanday yordam bera olamiz?",
+            sender_id=user.id,
+            text=SUPPORT_WELCOME.get(user.language, SUPPORT_WELCOME["uz"]),
         )
         db.add(welcome_msg)
         await db.commit()
@@ -529,6 +561,7 @@ async def get_or_create_support_conversation(
 
     # Calculate unread & last message
     out = SupportConversationDetailOut.model_validate(conversation)
+    await _name_operators(db, out.messages)
     unread_count = 0
     if conversation.messages:
         last = conversation.messages[-1]

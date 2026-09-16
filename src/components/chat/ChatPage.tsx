@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import {
   ArrowLeft,
   Building2,
@@ -7,8 +7,6 @@ import {
   PlusCircle,
   Send,
   Loader2,
-  Headphones,
-  ShieldCheck,
   Sparkles,
   Pencil,
   Trash2,
@@ -29,6 +27,7 @@ import {
   SupportMessage,
 } from '../../services/chatApi';
 import { cn } from '../../lib/cn';
+import { OfficialBadge } from '../common/OfficialBadge';
 
 const QUICK_QUESTION_KEYS = [
   'chat.composer.quick.viewing',
@@ -71,7 +70,7 @@ const playNotificationSound = () => {
 };
 
 export const ChatPage: React.FC = () => {
-  const { t, formatPrice, formatRelativeTime } = useTranslation();
+  const { t, language, formatPrice, formatRelativeTime } = useTranslation();
 
   const currentUser = useAppStore((state) => state.currentUser);
   const setCurrentView = useAppStore((state) => state.setCurrentView);
@@ -152,12 +151,41 @@ export const ChatPage: React.FC = () => {
     };
   }, [activeConversationId, currentUser, pushToast]);
 
-  // Scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (detail || (activeConversationId === 'support' && supportConv)) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [detail?.messages.length, supportConv?.messages.length, activeConversationId]);
+  /**
+   * Scroll the THREAD, not the page.
+   *
+   * `scrollIntoView` on the sentinel scrolled every ancestor, so each poll
+   * that brought a message also yanked the whole document. The list is its
+   * own scroll box; it is moved directly, and only when the reader is
+   * already near the bottom (or just sent something) — a person reading an
+   * older message is left where they are and told there is something new.
+   */
+  const threadRef = useRef<HTMLDivElement>(null);
+  const stickToBottom = useRef(true);
+  const [hasUnseen, setHasUnseen] = useState(false);
+  const lastSupportId = supportConv?.messages[supportConv.messages.length - 1]?.id;
+  const lastDetailId = detail?.messages[detail.messages.length - 1]?.id;
+
+  const scrollThreadToBottom = useCallback((smooth = true) => {
+    const node = threadRef.current;
+    if (!node) return;
+    node.scrollTo({ top: node.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    setHasUnseen(false);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!activeConversationId) return;
+    if (stickToBottom.current) scrollThreadToBottom(false);
+    else setHasUnseen(true);
+  }, [lastSupportId, lastDetailId, activeConversationId, scrollThreadToBottom]);
+
+  const onThreadScroll = () => {
+    const node = threadRef.current;
+    if (!node) return;
+    const distance = node.scrollHeight - node.scrollTop - node.clientHeight;
+    stickToBottom.current = distance < 80;
+    if (stickToBottom.current) setHasUnseen(false);
+  };
 
   // Periodic polling for active conversation
   useEffect(() => {
@@ -169,12 +197,12 @@ export const ChatPage: React.FC = () => {
           const freshSupport = await chatApi.getSupportConversation();
           setSupportConv((prev) => {
             if (!prev) return freshSupport;
-            if (freshSupport.messages.length > prev.messages.length) {
-              const lastMsg = freshSupport.messages[freshSupport.messages.length - 1];
-              if (lastMsg.sender_type === 'ADMIN') {
-                playNotificationSound();
-              }
-            }
+            // By id, not by count: an optimistic append and a poll landing
+            // in the same second used to disagree on the count and either
+            // beep twice or never.
+            const known = new Set(prev.messages.map((m) => m.id));
+            const arrived = freshSupport.messages.filter((m) => !known.has(m.id));
+            if (arrived.some((m) => m.sender_type === 'ADMIN')) playNotificationSound();
             return freshSupport;
           });
         } else if (activeConversationId) {
@@ -241,7 +269,7 @@ export const ChatPage: React.FC = () => {
       } else if (activeConversationId === 'support') {
         const newMsg = await chatApi.sendSupportMessage(draft.trim());
         setDraft('');
-        playNotificationSound();
+        stickToBottom.current = true;
         setSupportConv((prev) =>
           prev
             ? {
@@ -346,9 +374,22 @@ export const ChatPage: React.FC = () => {
   };
 
   const appendQuestion = (text: string) => {
-    setDraft((current) => (current.trim() ? `${current.trimEnd()}\n${text}` : text));
+    // The chip is a topic, not a sentence: leave the caret on a fresh line
+    // so the details typed next do not run into it.
+    setDraft((current) => (current.trim() ? `${current.trimEnd()}\n${text}\n` : `${text}\n`));
     textareaRef.current?.focus();
   };
+
+  // Size the box to its text whenever the text changes by any route — a
+  // chip, a paste, a send that emptied it — not only on a keystroke.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+    // No scrollbar until the text is actually taller than the box.
+    el.style.overflowY = el.scrollHeight > 128 ? 'auto' : 'hidden';
+  }, [draft, activeConversationId]);
 
   if (!currentUser) {
     return null;
@@ -381,20 +422,15 @@ export const ChatPage: React.FC = () => {
               type="button"
               onClick={() => setCurrentView('CHAT', null, 'support')}
               className={cn(
-                'group relative flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition-all duration-200',
-                'border-blue-200/80 bg-gradient-to-r from-blue-50/70 via-indigo-50/30 to-surface hover:border-blue-400 hover:shadow-md',
-                'dark:border-blue-900/50 dark:from-blue-950/20 dark:via-indigo-950/10 dark:to-surface dark:hover:border-blue-700',
-                (supportConv?.unread_count ?? 0) > 0 && 'ring-2 ring-blue-500/40'
+                'press group relative flex w-full items-start gap-3 rounded-2xl border border-line bg-surface p-4 text-left shadow-xs transition-colors hover:border-brand/50',
+                (supportConv?.unread_count ?? 0) > 0 && 'border-brand/60 ring-1 ring-brand/30',
               )}
             >
               <span className="relative shrink-0">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 text-white shadow-md shadow-blue-500/25 transition-transform duration-200 group-hover:scale-105">
-                  <Headphones className="h-6 w-6 stroke-[2.2]" />
-                </div>
-                <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex h-3 w-3 rounded-full border-2 border-surface bg-emerald-500" />
+                <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-brand shadow-sm">
+                  <img src="/brand/mark-64.png" alt="" width={48} height={48} className="h-full w-full object-cover" />
                 </span>
+                <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-surface bg-success" aria-hidden="true" />
                 {(supportConv?.unread_count ?? 0) > 0 && (
                   <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-black text-white shadow">
                     {supportConv!.unread_count}
@@ -404,27 +440,20 @@ export const ChatPage: React.FC = () => {
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-1.5">
-                    <p className="truncate text-sm font-bold text-content group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      {t('chat.support.title')}
-                    </p>
-                    <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950/80 dark:text-blue-300 shrink-0">
-                      <ShieldCheck className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                      {t('chat.support.role')}
-                    </span>
-                  </div>
+                  <p className="flex min-w-0 items-center gap-1.5 truncate text-sm font-black text-content">
+                    <span className="truncate">{t('chat.support.brand')}</span>
+                    <OfficialBadge size="sm" />
+                  </p>
                   {supportConv?.last_message_at ? (
                     <time dateTime={supportConv.last_message_at} className="shrink-0 text-[10px] text-subtle">
                       {formatRelativeTime(supportConv.last_message_at)}
                     </time>
                   ) : (
-                    <span className="shrink-0 inline-flex items-center rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
-                      {t('chat.support.pinned')}
-                    </span>
+                    <span className="shrink-0 text-[10px] font-medium text-subtle">{t('chat.support.pinned')}</span>
                   )}
                 </div>
-
-                <p className="mt-1 line-clamp-2 text-xs text-muted">
+                <p className="mt-0.5 text-[11px] text-muted">{t('chat.support.status')}</p>
+                <p className={cn('mt-1.5 line-clamp-2 text-xs', (supportConv?.unread_count ?? 0) > 0 ? 'font-semibold text-content' : 'text-muted')}>
                   {supportConv?.last_message || t('chat.support.welcome')}
                 </p>
               </div>
@@ -537,111 +566,159 @@ export const ChatPage: React.FC = () => {
   // =========================================================================
   if (activeConversationId === 'support') {
     return (
-      <div className="flex flex-col h-[calc(100dvh-72px)] sm:h-[calc(100dvh-84px)] max-w-3xl mx-auto px-3 sm:px-4">
-        <header className="flex items-center gap-3 py-3 border-b border-line shrink-0 bg-surface">
-          <button
-            onClick={() => setCurrentView('CHAT', null, null)}
-            className="p-2 -ml-2 rounded-xl hover:bg-surface-2 text-muted transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div className="flex min-w-0 items-center gap-2.5">
-            <div className="relative shrink-0">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 text-white shadow-sm">
-                <Headphones className="h-5 w-5 stroke-[2.2]" />
-              </div>
-              <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center">
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full border-2 border-surface bg-emerald-500" />
-              </span>
-            </div>
-            <div className="min-w-0">
+      <div className="mx-auto flex h-[calc(100dvh-72px)] w-full max-w-3xl flex-col sm:h-[calc(100dvh-84px)] sm:px-4 sm:py-4">
+        {/* On a wide screen the thread is a card of its own; on a phone it is the screen. */}
+        <div className="flex min-h-0 flex-1 flex-col bg-surface sm:overflow-hidden sm:rounded-2xl sm:border sm:border-line sm:shadow-card">
+          <header className="flex shrink-0 items-center gap-2 border-b border-line bg-surface px-2 py-2.5 sm:px-4">
+            <button
+              type="button"
+              onClick={() => setCurrentView('CHAT', null, null)}
+              aria-label={t('common.action.back')}
+              className="press flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted transition-colors hover:bg-surface-2"
+            >
+              <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+            </button>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-brand shadow-sm">
+              <img src="/brand/mark-64.png" alt="" width={40} height={40} className="h-full w-full object-cover" />
+            </span>
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <h1 className="truncate text-base font-black text-content">{t('chat.support.title')}</h1>
-                <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950/80 dark:text-blue-300">
-                  <ShieldCheck className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                  {t('chat.support.role')}
-                </span>
+                <h1 className="truncate text-[15px] font-black leading-tight text-content">{t('chat.support.brand')}</h1>
+                <OfficialBadge size="sm" />
               </div>
-              <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">● {t('chat.support.operator')}</p>
+              <p className="flex items-center gap-1.5 text-[11px] font-medium text-muted">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />
+                {t('chat.support.status')}
+              </p>
             </div>
-          </div>
-        </header>
+          </header>
 
-        <div className="flex-1 overflow-y-auto py-3 space-y-3">
-          {loading ? (
-            <div className="flex justify-center py-6">
-              <Loader2 className="h-6 w-6 animate-spin text-muted" />
-            </div>
-          ) : (
-            supportConv?.messages.map((msg) => {
-              const isMe = msg.sender_type === 'USER' || (msg.sender_id && String(msg.sender_id).toLowerCase() === String(currentUser?.id).toLowerCase());
+          <div className="relative min-h-0 flex-1">
+            <div
+              ref={threadRef}
+              onScroll={onThreadScroll}
+              className="h-full space-y-3 overflow-y-auto overscroll-contain px-3 py-4 sm:px-4"
+            >
+              {loading ? (
+                <div className="flex justify-center py-6">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted" aria-hidden="true" />
+                </div>
+              ) : (
+                supportConv?.messages.map((msg, index) => {
+                  // Which side a bubble sits on is decided by who wrote it,
+                  // never by the id on it: the seeded welcome carries the
+                  // customer's own id and used to render as their message.
+                  const isMe = msg.sender_type === 'USER';
+                  const previous = supportConv.messages[index - 1];
+                  // A run of bubbles from the same author shares one header —
+                  // unless a different operator has taken over, whose name
+                  // is exactly the thing worth showing.
+                  const continues =
+                    previous?.sender_type === msg.sender_type &&
+                    (msg.sender_type === 'USER' || (previous?.sender_name ?? null) === (msg.sender_name ?? null));
+                  const time = new Date(msg.created_at).toLocaleTimeString(language, {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
 
-              return (
-                <div key={msg.id} className={cn('flex w-full items-end gap-2', isMe ? 'justify-end' : 'justify-start')}>
-                  {!isMe && (
-                    <div className="shrink-0">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-xs">
-                        <Headphones className="h-4 w-4" />
+                  return (
+                    <div
+                      key={msg.id}
+                      className={cn('flex w-full items-end gap-2', isMe ? 'justify-end' : 'justify-start', continues && '-mt-1.5')}
+                    >
+                      {!isMe && (
+                        <span className={cn('w-7 shrink-0', continues && 'invisible')} aria-hidden="true">
+                          <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-lg bg-brand">
+                            <img src="/brand/mark-64.png" alt="" width={28} height={28} className="h-full w-full object-cover" />
+                          </span>
+                        </span>
+                      )}
+                      <div
+                        className={cn(
+                          'max-w-[84%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm sm:max-w-[72%]',
+                          isMe
+                            ? 'rounded-br-md bg-brand text-on-brand'
+                            : 'rounded-bl-md border border-line bg-surface-2 text-content',
+                        )}
+                      >
+                        {!isMe && !continues && (
+                          <p className="mb-1 flex items-center gap-1 text-[11px] font-bold text-brand-text">
+                            {t('chat.support.brand')}
+                            <OfficialBadge size="xs" />
+                            {msg.sender_name && (
+                              <span className="font-medium text-subtle">
+                                · {t('chat.support.operatorLine', { name: msg.sender_name })}
+                              </span>
+                            )}
+                          </p>
+                        )}
+                        <p className="whitespace-pre-wrap break-words leading-relaxed">{msg.text}</p>
+                        <p className={cn('mt-1 text-[10px] font-medium', isMe ? 'text-right text-on-brand/75' : 'text-muted')}>
+                          {time}
+                        </p>
                       </div>
                     </div>
-                  )}
-                  <div
-                    className={cn(
-                      'max-w-[82%] sm:max-w-[78%] rounded-2xl px-4 py-2.5 shadow-sm text-sm',
-                      isMe
-                        ? 'rounded-br-xs bg-brand text-on-brand shadow-brand/20'
-                        : 'rounded-bl-xs border border-blue-200/70 bg-surface text-content dark:border-blue-900/50'
-                    )}
-                  >
-                    {!isMe && <p className="mb-1 text-[10px] font-bold text-blue-600 dark:text-blue-400">{t('chat.support.title')}</p>}
-                    <p className="whitespace-pre-wrap leading-relaxed break-words">{msg.text}</p>
-                    <p className={cn('mt-1 text-[10px] font-medium', isMe ? 'text-right text-on-brand/80' : 'text-left text-muted')}>
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                </div>
-              );
-            })
-          )}
-          <div ref={messagesEndRef} />
-        </div>
+                  );
+                })
+              )}
+              {!loading && (supportConv?.messages.length ?? 0) <= 1 && (
+                <p className="px-1 pt-1 text-center text-[11px] text-subtle">{t('chat.support.replyEta')}</p>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
 
-        {/* COMPOSER FOR SUPPORT */}
-        <div className="shrink-0 border-t border-line bg-surface pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            {SUPPORT_QUICK_KEYS.map((key) => (
+            {hasUnseen && (
               <button
-                key={key}
                 type="button"
-                onClick={() => appendQuestion(t(key))}
-                className="shrink-0 rounded-full border border-blue-200/80 bg-surface px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:border-blue-500 hover:text-blue-600 dark:border-blue-900/50"
+                onClick={() => scrollThreadToBottom(true)}
+                className="press absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-bold text-brand-text shadow-raised"
               >
-                {t(key)}
+                {t('chat.support.newMessages')}
               </button>
-            ))}
+            )}
           </div>
-          <div className="flex items-end gap-2 mt-1">
-            <textarea
-              ref={textareaRef}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              rows={1}
-              placeholder={t('chat.composer.placeholder')}
-              className="flex-1 min-h-[44px] max-h-32 resize-none rounded-2xl border border-line bg-surface px-4 py-3 text-sm focus:border-brand focus:outline-none"
-            />
-            <button
-              onClick={handleSend}
-              disabled={!draft.trim() || sending}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand text-on-brand disabled:opacity-50"
-            >
-              {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-            </button>
+
+          {/* COMPOSER FOR SUPPORT */}
+          <div className="shrink-0 border-t border-line bg-surface px-3 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:px-4 sm:pb-3">
+            <div className="scrollbar-hide -mx-3 flex gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0">
+              {SUPPORT_QUICK_KEYS.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => appendQuestion(t(key))}
+                  className="press shrink-0 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:border-brand hover:text-brand-text"
+                >
+                  {t(key)}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-end gap-2">
+              <textarea
+                ref={textareaRef}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                rows={1}
+                enterKeyHint="send"
+                placeholder={t('chat.support.placeholder')}
+                aria-label={t('chat.support.placeholder')}
+                className="max-h-32 min-h-[44px] flex-1 resize-none rounded-2xl border border-line bg-surface-2 px-4 py-3 text-sm text-content placeholder:text-subtle focus:border-brand focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={!draft.trim() || sending}
+                aria-label={t('common.action.send')}
+                className="press flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand text-on-brand shadow-sm disabled:opacity-50"
+              >
+                {sending ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <Send className="h-5 w-5" aria-hidden="true" />}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -694,7 +771,7 @@ export const ChatPage: React.FC = () => {
       </header>
 
       {/* MESSAGES CONTAINER */}
-      <div className="flex-1 overflow-y-auto py-3 space-y-3">
+      <div ref={threadRef} onScroll={onThreadScroll} className="flex-1 overflow-y-auto overscroll-contain py-3 space-y-3">
         {loading ? (
           <div className="flex justify-center py-6">
             <Loader2 className="h-6 w-6 animate-spin text-muted" />

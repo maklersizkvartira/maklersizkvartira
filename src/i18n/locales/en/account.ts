@@ -7,9 +7,16 @@
 export const account = {
   page: {
     title: 'Account settings',
-    subtitle: 'Your profile details, security and app preferences.',
+    subtitle: 'Profile details, security and app preferences.',
   },
 
+  nav: {
+    overview: 'Overview',
+    overviewHint: 'Account status and verification',
+    wallet: 'Wallet & balance',
+    walletHint: 'Click, Payme, services',
+    signOut: 'Sign out',
+  },
   profile: {
     title: 'Profile details',
     avatarAlt: '{name} — profile photo',
