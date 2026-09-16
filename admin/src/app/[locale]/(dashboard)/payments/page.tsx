@@ -170,8 +170,9 @@ export default function PaymentsPage() {
     {
       key: 'user',
       header: 'Foydalanuvchi',
+      width: '180px',
       render: (row) => (
-        <div>
+        <div className="whitespace-nowrap">
           <div className="font-bold text-sm text-[var(--color-text)]">{row.userName || 'Noma‘lum'}</div>
           <div className="text-xs text-[var(--color-text-muted)] font-mono">{row.userPhone}</div>
         </div>
@@ -180,9 +181,10 @@ export default function PaymentsPage() {
     {
       key: 'amount',
       header: 'Summa',
+      width: '140px',
       align: 'right',
       render: (row) => (
-        <span className="font-extrabold text-sm text-emerald-600 dark:text-emerald-400">
+        <span className="font-extrabold text-sm text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
           +{formatNumber(row.amount)} {row.currency}
         </span>
       ),
@@ -190,6 +192,7 @@ export default function PaymentsPage() {
     {
       key: 'service',
       header: 'To‘lov maqsadi',
+      width: '150px',
       render: (row) => {
         let label = 'Hisob to‘ldirish';
         let badgeColor = 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400';
@@ -204,7 +207,7 @@ export default function PaymentsPage() {
           badgeColor = 'bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-950/40 dark:text-purple-400';
         }
         return (
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${badgeColor}`}>
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border whitespace-nowrap ${badgeColor}`}>
             {label}
           </span>
         );
@@ -213,8 +216,9 @@ export default function PaymentsPage() {
     {
       key: 'cardPan',
       header: 'Karta raqami (boshi & oxiri)',
+      width: '170px',
       render: (row) => (
-        <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-[var(--color-text)]">
+        <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-[var(--color-text)] whitespace-nowrap">
           <CreditCard className="w-3.5 h-3.5 text-blue-500 shrink-0" />
           {row.cardPan || '—'}
         </span>
@@ -223,6 +227,7 @@ export default function PaymentsPage() {
     {
       key: 'provider',
       header: 'To‘lov tizimi',
+      width: '130px',
       render: (row) => {
         const name = (row.provider || '').toUpperCase();
         let badgeStyle = 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300';
@@ -234,7 +239,7 @@ export default function PaymentsPage() {
           badgeStyle = 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300';
         }
         return (
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-bold ${badgeStyle}`}>
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-bold whitespace-nowrap ${badgeStyle}`}>
             <CreditCard className="w-3.5 h-3.5" />
             {name}
           </span>
@@ -244,23 +249,24 @@ export default function PaymentsPage() {
     {
       key: 'status',
       header: 'Holat',
+      width: '140px',
       render: (row) => {
         if (row.status === 'SUCCESS') {
           return (
-            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md">
+            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md whitespace-nowrap">
               <CheckCircle2 className="w-3.5 h-3.5" /> Muvaffaqiyatli
             </span>
           );
         }
         if (row.status === 'PENDING') {
           return (
-            <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md">
+            <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md whitespace-nowrap">
               <Clock className="w-3.5 h-3.5" /> Kutilmoqda
             </span>
           );
         }
         return (
-          <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded-md">
+          <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded-md whitespace-nowrap">
             <XCircle className="w-3.5 h-3.5" /> Bekor qilingan
           </span>
         );
@@ -269,8 +275,9 @@ export default function PaymentsPage() {
     {
       key: 'transId',
       header: 'Tranzaksiya ID',
+      width: '180px',
       render: (row) => (
-        <div className="text-xs font-mono text-[var(--color-text-muted)] space-y-0.5">
+        <div className="text-xs font-mono text-[var(--color-text-muted)] space-y-0.5 whitespace-nowrap">
           {row.clickTransId && <div>Click: {row.clickTransId}</div>}
           {row.paymeTransId && <div>Payme: {row.paymeTransId}</div>}
           {!row.clickTransId && !row.paymeTransId && <div>—</div>}
@@ -280,9 +287,10 @@ export default function PaymentsPage() {
     {
       key: 'date',
       header: 'Sana & Soat',
+      width: '160px',
       align: 'right',
       render: (row) => (
-        <span className="text-xs font-mono text-[var(--color-text-muted)]">
+        <span className="text-xs font-mono text-[var(--color-text-muted)] whitespace-nowrap">
           {dateFormat.format(new Date(row.createdAt))}
         </span>
       ),
@@ -293,8 +301,9 @@ export default function PaymentsPage() {
     {
       key: 'user',
       header: 'Foydalanuvchi (Xaridor)',
+      width: '190px',
       render: (row) => (
-        <div>
+        <div className="whitespace-nowrap">
           <div className="font-bold text-sm text-[var(--color-text)]">{row.userName || 'Noma‘lum'}</div>
           <div className="text-xs text-[var(--color-text-muted)] font-mono">{row.userPhone}</div>
           <div className="text-[10px] text-[var(--color-text-muted)] font-mono">ID: {row.userId?.slice(0, 8)}...</div>
@@ -304,6 +313,7 @@ export default function PaymentsPage() {
     {
       key: 'service',
       header: 'Xizmat turi',
+      width: '190px',
       render: (row) => {
         let label = 'Xizmat';
         let badgeColor = 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400';
@@ -322,7 +332,7 @@ export default function PaymentsPage() {
           icon = <Crown className="w-3 h-3 shrink-0" />;
         }
         return (
-          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${badgeColor}`}>
+          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border whitespace-nowrap ${badgeColor}`}>
             {icon}
             {label}
           </span>
@@ -332,16 +342,17 @@ export default function PaymentsPage() {
     {
       key: 'listing',
       header: 'Qaysi e‘longa sotib olingan?',
+      width: '280px',
       render: (row) => {
         if (!row.listingId && !row.listingTitle) {
           return (
-            <div className="text-xs text-[var(--color-text-muted)] italic">
+            <div className="text-xs text-[var(--color-text-muted)] italic whitespace-nowrap">
               {row.description || 'Profil tasdiqlash uchun (Galochka)'}
             </div>
           );
         }
         return (
-          <div className="space-y-1">
+          <div className="space-y-1 min-w-[240px]">
             <div className="font-semibold text-xs text-[var(--color-text)] flex items-center gap-1.5">
               <Building2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
               <span className="line-clamp-1 max-w-[220px]" title={row.listingTitle || ''}>
@@ -350,16 +361,16 @@ export default function PaymentsPage() {
             </div>
             <div className="flex items-center gap-2 text-[11px] text-[var(--color-text-muted)]">
               {(row.listingDistrict || row.listingCity) && (
-                <span>📍 {[row.listingDistrict, row.listingCity].filter(Boolean).join(', ')}</span>
+                <span className="whitespace-nowrap">📍 {[row.listingDistrict, row.listingCity].filter(Boolean).join(', ')}</span>
               )}
               {row.listingPrice != null && (
-                <span className="font-mono font-medium text-emerald-600 dark:text-emerald-400">
+                <span className="font-mono font-medium text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                   {formatNumber(row.listingPrice)} so‘m
                 </span>
               )}
             </div>
             {row.validUntil && (
-              <div className="text-[10px] font-mono">
+              <div className="text-[10px] font-mono whitespace-nowrap">
                 {row.isStillActive ? (
                   <span className="inline-flex items-center gap-1 text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded font-bold">
                     <CheckCircle2 className="w-3 h-3" /> Faol ({dateFormat.format(new Date(row.validUntil))} gacha)
@@ -378,9 +389,10 @@ export default function PaymentsPage() {
     {
       key: 'amount',
       header: 'Yechilgan summa',
+      width: '140px',
       align: 'right',
       render: (row) => (
-        <span className="font-extrabold text-sm text-rose-600 dark:text-rose-400">
+        <span className="font-extrabold text-sm text-rose-600 dark:text-rose-400 whitespace-nowrap">
           -{formatNumber(row.amount)} so‘m
         </span>
       ),
@@ -388,9 +400,10 @@ export default function PaymentsPage() {
     {
       key: 'balanceAfter',
       header: 'Balans holati',
+      width: '140px',
       align: 'right',
       render: (row) => (
-        <div className="text-right">
+        <div className="text-right whitespace-nowrap">
           <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
             {formatNumber(row.balanceAfter)} so‘m
           </span>
@@ -401,9 +414,10 @@ export default function PaymentsPage() {
     {
       key: 'date',
       header: 'Xarid vaqti',
+      width: '160px',
       align: 'right',
       render: (row) => (
-        <span className="text-xs font-mono text-[var(--color-text-muted)]">
+        <span className="text-xs font-mono text-[var(--color-text-muted)] whitespace-nowrap">
           {dateFormat.format(new Date(row.createdAt))}
         </span>
       ),
@@ -647,13 +661,14 @@ export default function PaymentsPage() {
             />
           </FilterBar>
 
-          <div className="card overflow-hidden">
+          <div className="card overflow-x-auto">
             <DataTable
               columns={columns}
               rows={paymentRows}
               keyOf={(row) => row.id}
               loading={listLoading}
               loadingRows={10}
+              minWidth="1100px"
               empty={
                 <div className="py-16 text-center text-sm text-[var(--color-text-muted)]">
                   Hech qanday to‘lovlar topilmadi
@@ -707,13 +722,14 @@ export default function PaymentsPage() {
             />
           </FilterBar>
 
-          <div className="card overflow-hidden">
+          <div className="card overflow-x-auto">
             <DataTable
               columns={purchaseColumns}
               rows={purchaseRows}
               keyOf={(row) => row.id}
               loading={purchasesLoading}
               loadingRows={10}
+              minWidth="1200px"
               empty={
                 <div className="py-16 text-center text-sm text-[var(--color-text-muted)]">
                   Hali hech qanday pullik xizmatlar xaridi amalga oshirilmagan

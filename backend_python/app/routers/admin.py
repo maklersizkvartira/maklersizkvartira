@@ -1339,7 +1339,25 @@ async def list_listings(
         stmt = stmt.where(Listing.status == filters.status.value)
     if filters.district:
         stmt = stmt.where(Listing.district.ilike(f"%{filters.district}%"))
-    if filters.is_featured is not None:
+    if filters.promotion:
+        now_utc = datetime.now(timezone.utc)
+        if filters.promotion == "TOP":
+            stmt = stmt.where(or_(Listing.is_featured.is_(True), Listing.featured_until > now_utc))
+        elif filters.promotion == "VIP":
+            stmt = stmt.where(or_(Listing.is_vip.is_(True), Listing.vip_until > now_utc))
+        elif filters.promotion == "VERIFIED_OWNER":
+            stmt = stmt.where(User.is_verified.is_(True))
+        elif filters.promotion == "ANY_PROMO":
+            stmt = stmt.where(
+                or_(
+                    Listing.is_featured.is_(True),
+                    Listing.featured_until > now_utc,
+                    Listing.is_vip.is_(True),
+                    Listing.vip_until > now_utc,
+                    User.is_verified.is_(True),
+                )
+            )
+    elif filters.is_featured is not None:
         stmt = stmt.where(Listing.is_featured.is_(filters.is_featured))
     if filters.min_risk_score is not None:
         stmt = stmt.where(Listing.risk_score >= filters.min_risk_score)
@@ -1377,6 +1395,9 @@ async def list_listings(
         row.owner_phone = owner.phone
         row.owner_role = owner.role
         row.owner_trust_score = owner.trust_score
+        row.owner_is_verified = bool(owner.is_verified)
+        row.is_vip = bool(listing.is_vip)
+        row.vip_until = listing.vip_until
         row.report_count = int(reports_n or 0)
         data.append(row.model_dump(by_alias=True))
 
@@ -3353,24 +3374,47 @@ async def get_payment_stats(admin: RequireModerator, db: DbSession) -> dict[str,
     total_revenue = click_revenue + payme_revenue + uzum_revenue
     total_count = click_count + payme_count + uzum_count
 
-    # 4. Verified badges purchased from wallet (20,000 UZS)
-    verified_count_stmt = (
-        select(func.count(distinct(WalletTransaction.user_id)))
-        .where(WalletTransaction.type == "PURCHASE_VERIFIED_BADGE")
+    now_utc = datetime.now(timezone.utc)
+    # 4. Verified badges (active users with is_verified=True or wallet purchases)
+    verified_count_stmt = select(func.count(distinct(User.id))).where(
+        or_(
+            User.is_verified.is_(True),
+            User.id.in_(
+                select(WalletTransaction.user_id).where(
+                    WalletTransaction.type == "PURCHASE_VERIFIED_BADGE"
+                )
+            ),
+        )
     )
     verified_count = (await db.execute(verified_count_stmt)).scalar() or 0
 
-    # 5. VIP listings purchased (12,000 UZS)
-    vip_wallet_stmt = select(func.count(WalletTransaction.id)).where(
-        WalletTransaction.type.in_(["PURCHASE_VIP_LISTING", "PURCHASE_VIP"])
+    # 5. VIP listings count (currently active or purchased)
+    vip_count_stmt = select(func.count(distinct(Listing.id))).where(
+        or_(
+            Listing.is_vip.is_(True),
+            Listing.vip_until > now_utc,
+            Listing.id.in_(
+                select(WalletTransaction.reference_id).where(
+                    WalletTransaction.type.in_(["PURCHASE_VIP_LISTING", "PURCHASE_VIP"])
+                )
+            ),
+        )
     )
-    vip_count = (await db.execute(vip_wallet_stmt)).scalar() or 0
+    vip_count = (await db.execute(vip_count_stmt)).scalar() or 0
 
-    # 6. TOP listings purchased (7,000 UZS)
-    top_wallet_stmt = select(func.count(WalletTransaction.id)).where(
-        WalletTransaction.type.in_(["PURCHASE_TOP_LISTING", "PURCHASE_TOP"])
+    # 6. TOP listings count (currently active or purchased)
+    top_count_stmt = select(func.count(distinct(Listing.id))).where(
+        or_(
+            Listing.is_featured.is_(True),
+            Listing.featured_until > now_utc,
+            Listing.id.in_(
+                select(WalletTransaction.reference_id).where(
+                    WalletTransaction.type.in_(["PURCHASE_TOP_LISTING", "PURCHASE_TOP"])
+                )
+            ),
+        )
     )
-    top_count = (await db.execute(top_wallet_stmt)).scalar() or 0
+    top_count = (await db.execute(top_count_stmt)).scalar() or 0
 
     # 7. Total volume spent on internal services
     spent_top_stmt = select(func.coalesce(func.sum(func.abs(WalletTransaction.amount)), 0.0)).where(

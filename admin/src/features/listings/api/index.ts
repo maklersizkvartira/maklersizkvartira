@@ -54,8 +54,17 @@ export function deleteListing(id: string) {
  * their week ran out.
  */
 export function isFeaturedNow(row: AdminListingRow, now: number = Date.now()): boolean {
-  if (!row.featuredUntil) return false;
+  if (!row.featuredUntil) return Boolean(row.isFeatured);
   const until = new Date(row.featuredUntil).getTime();
+  return Number.isFinite(until) && until > now;
+}
+
+/**
+ * Is this listing VIP promoted right now?
+ */
+export function isVipNow(row: AdminListingRow, now: number = Date.now()): boolean {
+  if (!row.vipUntil) return Boolean(row.isVip);
+  const until = new Date(row.vipUntil).getTime();
   return Number.isFinite(until) && until > now;
 }
 

@@ -61,7 +61,9 @@ def upgrade() -> None:
         AND id NOT IN (
             SELECT listing_id FROM top_requests 
             WHERE status = 'APPROVED' AND granted_until > NOW()
-        );
+        )
+        AND (featured_until IS NULL OR featured_until <= NOW())
+        AND (vip_until IS NULL OR vip_until <= NOW());
     """)
 
 

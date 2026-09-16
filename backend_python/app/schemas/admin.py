@@ -142,6 +142,8 @@ class AdminListingRow(ORMCamelModel):
     safety_badges: list[str]
     is_featured: bool
     featured_until: datetime | None = None
+    is_vip: bool = False
+    vip_until: datetime | None = None
     promotion_weight: int
     views_count: int
     favorites_count: int
@@ -155,6 +157,7 @@ class AdminListingRow(ORMCamelModel):
     owner_phone: str | None = None
     owner_role: str | None = None
     owner_trust_score: int | None = None
+    owner_is_verified: bool = False
     report_count: int = 0
 
 
@@ -163,6 +166,7 @@ class AdminListingFilters(CamelModel):
     status: ListingStatus | None = None
     district: str | None = Field(default=None, max_length=80)
     is_featured: bool | None = None
+    promotion: str | None = None
     min_risk_score: int | None = Field(default=None, ge=0, le=100)
     sort_by: Literal["NEWEST", "OLDEST", "RISK", "VIEWS", "PRICE_HIGH", "PRICE_LOW"] = "NEWEST"
 

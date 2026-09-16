@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
-import { Building2, ShieldAlert, Star } from 'lucide-react';
+import { Building2, ShieldAlert, Star, Crown, Flame, CheckCircle2 } from 'lucide-react';
 
 import type {
   AdminListingRow,
@@ -30,6 +30,7 @@ import {
   featureListing,
   fetchListings,
   isFeaturedNow,
+  isVipNow,
   mergeListingRow,
   moderateListing,
   patchListingCache,
@@ -123,10 +124,8 @@ export default function ListingsPage() {
         search: filters.search || undefined,
         status: (filters.status || undefined) as ListingStatus | undefined,
         district: filters.district || undefined,
-        // Tri-state: '' is "no filter", not "false". Note this asks the server
-        // about the `is_featured` COLUMN, which never expires — the table's own
-        // badge is computed from `featuredUntil` instead.
-        isFeatured: filters.isFeatured === '' ? undefined : filters.isFeatured === 'true',
+        promotion: filters.isFeatured || undefined,
+        isFeatured: filters.isFeatured === 'true' ? true : (filters.isFeatured === 'false' ? false : undefined),
         minRiskScore: filters.minRiskScore ? Number(filters.minRiskScore) : undefined,
         sortBy: (filters.sortBy || undefined) as ListingSort | undefined,
       };
@@ -205,7 +204,7 @@ export default function ListingsPage() {
     {
       key: 'photo',
       header: t('columns.photo'),
-      width: '64px',
+      width: '72px',
       render: (row) => (
         <Thumb
           src={
@@ -217,42 +216,73 @@ export default function ListingsPage() {
             null
           }
           alt={row.title}
-          size={44}
+          size={48}
         />
       ),
     },
     {
       key: 'title',
       header: t('columns.title'),
-      render: (row) => (
-        <div className="min-w-0">
-          <p
-            className="text-sm font-medium"
-            style={{ color: 'var(--color-text-primary)', overflowWrap: 'anywhere' }}
-          >
-            {row.title}
-          </p>
-          {row.aiRiskReasons.length > 0 && (
+      width: '320px',
+      render: (row) => {
+        const isVip = isVipNow(row);
+        const isTop = isFeaturedNow(row);
+        return (
+          <div className="min-w-0 max-w-[340px]">
+            <div className="flex items-center gap-1.5 flex-wrap mb-1">
+              {isVip && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-purple-100 text-purple-700 border border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800 shrink-0">
+                  <Crown size={11} className="text-purple-600" />
+                  VIP E’lon
+                </span>
+              )}
+              {isTop && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800 shrink-0">
+                  <Flame size={11} className="text-amber-600" />
+                  TOP E’lon
+                </span>
+              )}
+            </div>
             <p
-              className="text-xs flex items-center gap-1 mt-0.5"
-              style={{ color: 'var(--color-text-muted)' }}
+              className="text-sm font-semibold leading-snug line-clamp-2 break-words"
+              style={{ color: 'var(--color-text-primary)' }}
+              title={row.title}
             >
-              <ShieldAlert size={11} aria-hidden="true" />
-              {row.aiRiskReasons.length}
+              {row.title}
             </p>
-          )}
-        </div>
-      ),
+            {row.aiRiskReasons && row.aiRiskReasons.length > 0 && (
+              <p
+                className="text-xs flex items-center gap-1 mt-1 text-[var(--color-text-muted)]"
+              >
+                <ShieldAlert size={11} aria-hidden="true" />
+                {row.aiRiskReasons.length} ta xavf
+              </p>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'owner',
       header: t('columns.owner'),
+      width: '200px',
       render: (row) => (
-        <div className="min-w-0">
-          <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
-            {row.ownerName ?? c('unknown')}
-          </p>
-          <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+        <div className="min-w-0 max-w-[220px]">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-sm font-bold truncate max-w-[130px]" style={{ color: 'var(--color-text-primary)' }}>
+              {row.ownerName ?? c('unknown')}
+            </span>
+            {row.ownerIsVerified && (
+              <span
+                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-950/50 dark:text-blue-400 shrink-0"
+                title="Tasdiqlangan profil egasi (Galochka)"
+              >
+                <CheckCircle2 size={10} className="text-blue-500" />
+                Galochka
+              </span>
+            )}
+          </div>
+          <p className="text-xs font-mono mt-0.5 text-[var(--color-text-muted)]">
             {[row.ownerPhone, row.ownerTrustScore === null ? null : `★ ${row.ownerTrustScore}`]
               .filter(Boolean)
               .join(' · ') || c('unknown')}
@@ -260,67 +290,119 @@ export default function ListingsPage() {
         </div>
       ),
     },
-    { key: 'district', header: t('columns.district') },
+    {
+      key: 'district',
+      header: t('columns.district'),
+      width: '130px',
+      render: (row) => (
+        <span className="text-xs font-medium whitespace-nowrap text-[var(--color-text-muted)]">
+          {row.district || '—'}
+        </span>
+      ),
+    },
     {
       key: 'price',
       header: t('columns.price'),
+      width: '130px',
       align: 'right',
-      render: (row) => `${numberFormat.format(row.price)} ${row.currency}`,
+      render: (row) => (
+        <span className="text-sm font-bold whitespace-nowrap text-emerald-600 dark:text-emerald-400">
+          {numberFormat.format(row.price)} {row.currency}
+        </span>
+      ),
     },
     {
       key: 'status',
       header: t('columns.status'),
-      render: (row) => <StatusPill status={row.status} label={statusLabel(row.status)} />,
+      width: '130px',
+      render: (row) => (
+        <div className="whitespace-nowrap">
+          <StatusPill status={row.status} label={statusLabel(row.status)} />
+        </div>
+      ),
     },
     {
       key: 'riskScore',
       header: t('columns.risk'),
+      width: '80px',
       align: 'right',
       render: (row) => <RiskPill score={row.riskScore} label={t('columns.risk')} />,
     },
     {
       key: 'viewsCount',
       header: t('columns.views'),
+      width: '85px',
       align: 'right',
-      render: (row) => numberFormat.format(row.viewsCount),
+      render: (row) => (
+        <span className="font-mono text-xs font-semibold">{numberFormat.format(row.viewsCount)}</span>
+      ),
     },
     {
       key: 'reportCount',
       header: t('columns.reports'),
+      width: '85px',
       align: 'right',
       render: (row) =>
         row.reportCount > 0 ? (
           <Badge variant="danger" label={String(row.reportCount)} />
         ) : (
-          numberFormat.format(0)
+          <span className="font-mono text-xs text-[var(--color-text-muted)]">0</span>
         ),
     },
     {
       key: 'featured',
-      header: t('columns.featured'),
-      // Read from the date, never from `isFeatured`: nothing on the backend
-      // expires a promotion, so the boolean stays true long after the week the
-      // owner paid for has run out.
-      render: (row) =>
-        isFeaturedNow(row) ? (
-          <Badge
-            variant="info"
-            label={
-              <span className="inline-flex items-center gap-1">
-                <Star size={10} aria-hidden="true" />
-                {t('columns.featured')}
+      header: 'Reklama / Xizmat',
+      width: '170px',
+      render: (row) => {
+        const isVip = isVipNow(row);
+        const isTop = isFeaturedNow(row);
+
+        if (isVip) {
+          return (
+            <div className="space-y-0.5 whitespace-nowrap">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-black bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-300">
+                <Crown size={12} className="text-purple-600" />
+                VIP E’lon
               </span>
-            }
-          />
-        ) : (
-          '—'
-        ),
+              {row.vipUntil && (
+                <div className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                  {showDate(row.vipUntil)} gacha
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        if (isTop) {
+          return (
+            <div className="space-y-0.5 whitespace-nowrap">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-black bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300">
+                <Flame size={12} className="text-amber-600" />
+                TOP E’lon
+              </span>
+              {row.featuredUntil && (
+                <div className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                  {showDate(row.featuredUntil)} gacha
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        return <span className="text-xs text-[var(--color-text-muted)]">—</span>;
+      },
     },
     {
       key: 'createdAt',
       header: t('columns.created'),
+      width: '120px',
       hideOnCard: true,
-      render: (row) => showDate(row.createdAt),
+      align: 'right',
+      render: (row) => (
+        <span className="whitespace-nowrap font-mono text-xs text-[var(--color-text-muted)]">
+          {showDate(row.createdAt)}
+        </span>
+      ),
     },
   ];
 
@@ -375,11 +457,13 @@ export default function ListingsPage() {
           className={TOUCH_SELECT}
           value={list.filters.isFeatured}
           onChange={(value) => list.setFilter('isFeatured', value, { immediate: true })}
-          placeholder={t('filters.featuredOnly')}
+          placeholder="Xizmatlar / Reklama"
           options={[
-            { value: '', label: c('all') },
-            { value: 'true', label: c('yes') },
-            { value: 'false', label: c('no') },
+            { value: '', label: 'Barcha e‘lonlar' },
+            { value: 'TOP', label: '🔥 Faqat TOP e’lonlar' },
+            { value: 'VIP', label: '👑 Faqat VIP e’lonlar' },
+            { value: 'VERIFIED_OWNER', label: '✓ Faqat Galochkali egalar' },
+            { value: 'ANY_PROMO', label: '✨ Barcha pullik e’lonlar' },
           ]}
         />
         <Select
@@ -427,6 +511,7 @@ export default function ListingsPage() {
           loading={list.isLoading}
           loadingRows={LISTINGS_PAGE_SIZE}
           onRowClick={(row) => setSelected(row)}
+          minWidth="1350px"
           empty={
             <ListState
               icon={<Building2 size={26} />}

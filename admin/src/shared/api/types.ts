@@ -443,6 +443,8 @@ export interface AdminListingRow {
   safetyBadges: string[];
   isFeatured: boolean;
   featuredUntil: string | null;
+  isVip?: boolean;
+  vipUntil?: string | null;
   promotionWeight: number;
   viewsCount: number;
   favoritesCount: number;
@@ -456,6 +458,7 @@ export interface AdminListingRow {
   ownerPhone: string | null;
   ownerRole: string | null;
   ownerTrustScore: number | null;
+  ownerIsVerified?: boolean;
   reportCount: number;
 }
 

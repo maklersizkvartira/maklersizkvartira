@@ -46,6 +46,7 @@ interface DataTableProps<Row> {
   /** Skeleton rows drawn while loading. Match the page size you request. */
   loadingRows?: number;
   className?: string;
+  minWidth?: string;
 }
 
 function cellValue<Row>(column: Column<Row>, row: Row): ReactNode {
@@ -63,6 +64,7 @@ export function DataTable<Row>({
   onRowClick,
   loadingRows = 8,
   className = '',
+  minWidth = '1050px',
 }: DataTableProps<Row>) {
   const clickable = Boolean(onRowClick);
   const cardColumns = columns.filter((c) => !c.hideOnCard);
@@ -72,8 +74,8 @@ export function DataTable<Row>({
       <div className={className}>
         {/* Desktop: skeletons inside the real table so the column widths the
             data will land in are already settled when it arrives. */}
-        <div className="hidden lg:block card table-scroll">
-          <table className="data-table">
+        <div className="hidden lg:block card table-scroll overflow-x-auto">
+          <table className="data-table" style={{ minWidth }}>
             <thead>
               <tr>
                 {columns.map((column) => (
@@ -120,8 +122,8 @@ export function DataTable<Row>({
   return (
     <div className={className}>
       {/* ── Table (lg and up) ── */}
-      <div className="hidden lg:block card table-scroll">
-        <table className="data-table">
+      <div className="hidden lg:block card table-scroll overflow-x-auto">
+        <table className="data-table" style={{ minWidth }}>
           <thead>
             <tr>
               {columns.map((column) => (

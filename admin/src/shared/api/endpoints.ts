@@ -88,6 +88,8 @@ export interface ListingListParams extends PaginationParams {
   status?: ListingStatus;
   district?: string;
   isFeatured?: boolean;
+  isVip?: boolean;
+  promotion?: string;
   /**
    * 0..100. Shows only listings whose risk score is at least this high.
    *

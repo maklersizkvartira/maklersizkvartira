@@ -471,7 +471,25 @@ select:focus-visible {
    ═══════════════════════════════════════════════════════════════════════════ */
 .flex-center  { display: flex; align-items: center; justify-content: center; }
 
-.table-scroll { overflow-x: auto; border-radius: var(--radius-lg); }
+.table-scroll {
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  -webkit-overflow-scrolling: touch;
+}
+.table-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.table-scroll::-webkit-scrollbar-track {
+  background: var(--color-surface-2);
+  border-radius: 4px;
+}
+.table-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+.table-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
 
 /* Glass layer */
 .glass {
