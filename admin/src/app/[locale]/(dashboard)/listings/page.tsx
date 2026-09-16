@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
-import { Building2, ShieldAlert, Star, Crown, Flame, CheckCircle2 } from 'lucide-react';
+import { Building2, ShieldAlert, Star, Crown, Flame, CheckCircle2, Flag } from 'lucide-react';
 
 import type {
   AdminListingRow,
@@ -204,7 +204,7 @@ export default function ListingsPage() {
     {
       key: 'photo',
       header: t('columns.photo'),
-      width: '72px',
+      width: '54px',
       render: (row) => (
         <Thumb
           src={
@@ -216,30 +216,36 @@ export default function ListingsPage() {
             null
           }
           alt={row.title}
-          size={48}
+          size={42}
         />
       ),
     },
     {
       key: 'title',
       header: t('columns.title'),
-      width: '320px',
+      width: '230px',
       render: (row) => {
         const isVip = isVipNow(row);
         const isTop = isFeaturedNow(row);
         return (
-          <div className="min-w-0 max-w-[340px]">
+          <div className="min-w-0 max-w-[250px]">
             <div className="flex items-center gap-1.5 flex-wrap mb-1">
               {isVip && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-purple-100 text-purple-700 border border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800 shrink-0">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-black bg-purple-100 text-purple-700 border border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800 shrink-0">
                   <Crown size={11} className="text-purple-600" />
-                  VIP E’lon
+                  VIP
                 </span>
               )}
               {isTop && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800 shrink-0">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-black bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800 shrink-0">
                   <Flame size={11} className="text-amber-600" />
-                  TOP E’lon
+                  TOP
+                </span>
+              )}
+              {row.reportCount > 0 && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-black bg-rose-100 text-rose-700 border border-rose-300 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800 shrink-0">
+                  <Flag size={10} className="text-rose-600" />
+                  {row.reportCount} ta shikoyat!
                 </span>
               )}
             </div>
@@ -251,9 +257,7 @@ export default function ListingsPage() {
               {row.title}
             </p>
             {row.aiRiskReasons && row.aiRiskReasons.length > 0 && (
-              <p
-                className="text-xs flex items-center gap-1 mt-1 text-[var(--color-text-muted)]"
-              >
+              <p className="text-xs flex items-center gap-1 mt-1 text-[var(--color-text-muted)]">
                 <ShieldAlert size={11} aria-hidden="true" />
                 {row.aiRiskReasons.length} ta xavf
               </p>
@@ -265,16 +269,16 @@ export default function ListingsPage() {
     {
       key: 'owner',
       header: t('columns.owner'),
-      width: '200px',
+      width: '150px',
       render: (row) => (
-        <div className="min-w-0 max-w-[220px]">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-sm font-bold truncate max-w-[130px]" style={{ color: 'var(--color-text-primary)' }}>
+        <div className="min-w-0 max-w-[170px]">
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-sm font-bold truncate max-w-[110px]" style={{ color: 'var(--color-text-primary)' }}>
               {row.ownerName ?? c('unknown')}
             </span>
             {row.ownerIsVerified && (
               <span
-                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-950/50 dark:text-blue-400 shrink-0"
+                className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-extrabold bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-950/50 dark:text-blue-400 shrink-0"
                 title="Tasdiqlangan profil egasi (Galochka)"
               >
                 <CheckCircle2 size={10} className="text-blue-500" />
@@ -293,7 +297,7 @@ export default function ListingsPage() {
     {
       key: 'district',
       header: t('columns.district'),
-      width: '130px',
+      width: '95px',
       render: (row) => (
         <span className="text-xs font-medium whitespace-nowrap text-[var(--color-text-muted)]">
           {row.district || '—'}
@@ -303,7 +307,7 @@ export default function ListingsPage() {
     {
       key: 'price',
       header: t('columns.price'),
-      width: '130px',
+      width: '110px',
       align: 'right',
       render: (row) => (
         <span className="text-sm font-bold whitespace-nowrap text-emerald-600 dark:text-emerald-400">
@@ -314,7 +318,7 @@ export default function ListingsPage() {
     {
       key: 'status',
       header: t('columns.status'),
-      width: '130px',
+      width: '115px',
       render: (row) => (
         <div className="whitespace-nowrap">
           <StatusPill status={row.status} label={statusLabel(row.status)} />
@@ -324,14 +328,14 @@ export default function ListingsPage() {
     {
       key: 'riskScore',
       header: t('columns.risk'),
-      width: '80px',
+      width: '65px',
       align: 'right',
       render: (row) => <RiskPill score={row.riskScore} label={t('columns.risk')} />,
     },
     {
       key: 'viewsCount',
       header: t('columns.views'),
-      width: '85px',
+      width: '75px',
       align: 'right',
       render: (row) => (
         <span className="font-mono text-xs font-semibold">{numberFormat.format(row.viewsCount)}</span>
@@ -339,12 +343,15 @@ export default function ListingsPage() {
     },
     {
       key: 'reportCount',
-      header: t('columns.reports'),
-      width: '85px',
-      align: 'right',
+      header: 'Shikoyatlar',
+      width: '105px',
+      align: 'center',
       render: (row) =>
         row.reportCount > 0 ? (
-          <Badge variant="danger" label={String(row.reportCount)} />
+          <span className="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-rose-600 text-white shadow-xs">
+            <Flag size={11} className="shrink-0" />
+            {row.reportCount} ta
+          </span>
         ) : (
           <span className="font-mono text-xs text-[var(--color-text-muted)]">0</span>
         ),
@@ -352,7 +359,7 @@ export default function ListingsPage() {
     {
       key: 'featured',
       header: 'Reklama / Xizmat',
-      width: '170px',
+      width: '125px',
       render: (row) => {
         const isVip = isVipNow(row);
         const isTop = isFeaturedNow(row);
@@ -361,12 +368,12 @@ export default function ListingsPage() {
           return (
             <div className="space-y-0.5 whitespace-nowrap">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-black bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-300">
-                <Crown size={12} className="text-purple-600" />
-                VIP E’lon
+                <Crown size={11} className="text-purple-600" />
+                VIP
               </span>
               {row.vipUntil && (
                 <div className="text-[10px] text-[var(--color-text-muted)] font-mono">
-                  {showDate(row.vipUntil)} gacha
+                  {showDate(row.vipUntil)}
                 </div>
               )}
             </div>
@@ -377,12 +384,12 @@ export default function ListingsPage() {
           return (
             <div className="space-y-0.5 whitespace-nowrap">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-black bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300">
-                <Flame size={12} className="text-amber-600" />
-                TOP E’lon
+                <Flame size={11} className="text-amber-600" />
+                TOP
               </span>
               {row.featuredUntil && (
                 <div className="text-[10px] text-[var(--color-text-muted)] font-mono">
-                  {showDate(row.featuredUntil)} gacha
+                  {showDate(row.featuredUntil)}
                 </div>
               )}
             </div>
@@ -395,7 +402,7 @@ export default function ListingsPage() {
     {
       key: 'createdAt',
       header: t('columns.created'),
-      width: '120px',
+      width: '95px',
       hideOnCard: true,
       align: 'right',
       render: (row) => (
@@ -460,6 +467,7 @@ export default function ListingsPage() {
           placeholder="Xizmatlar / Reklama"
           options={[
             { value: '', label: 'Barcha e‘lonlar' },
+            { value: 'REPORTS', label: '🚩 Faqat shikoyat tushganlar' },
             { value: 'TOP', label: '🔥 Faqat TOP e’lonlar' },
             { value: 'VIP', label: '👑 Faqat VIP e’lonlar' },
             { value: 'VERIFIED_OWNER', label: '✓ Faqat Galochkali egalar' },
@@ -511,7 +519,7 @@ export default function ListingsPage() {
           loading={list.isLoading}
           loadingRows={LISTINGS_PAGE_SIZE}
           onRowClick={(row) => setSelected(row)}
-          minWidth="1350px"
+          minWidth="1120px"
           empty={
             <ListState
               icon={<Building2 size={26} />}

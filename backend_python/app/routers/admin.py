@@ -1347,6 +1347,8 @@ async def list_listings(
             stmt = stmt.where(or_(Listing.is_vip.is_(True), Listing.vip_until > now_utc))
         elif filters.promotion == "VERIFIED_OWNER":
             stmt = stmt.where(User.is_verified.is_(True))
+        elif filters.promotion == "REPORTS":
+            stmt = stmt.where(report_count > 0)
         elif filters.promotion == "ANY_PROMO":
             stmt = stmt.where(
                 or_(
