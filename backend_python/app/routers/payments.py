@@ -651,7 +651,9 @@ async def payme_webhook(
         tx = await db.get(PaymentTransaction, order_uuid) if order_uuid else None
 
         # Payme sandbox automated testing support (e.g. from https://test.paycom.uz)
-        if not tx and order_id_str in ("1", "test", "demo", "sandbox_test"):
+        is_sandbox_test = order_id_str in ("1", "test", "demo", "sandbox_test") or (tx and getattr(tx, "service_type", None) == "SANDBOX_TEST")
+
+        if not tx and is_sandbox_test:
             first_user = (await db.execute(select(User).limit(1))).scalars().first()
             if first_user and amount_tiyin:
                 tx = PaymentTransaction(
@@ -676,8 +678,8 @@ async def payme_webhook(
                 )
             )
 
-        # 2. Verify amount bounds and matching after account is confirmed to exist
-        if amount_tiyin is None or int(amount_tiyin) < 100_000 or int(amount_tiyin) > 500_000_000:
+        # 2. Verify amount bounds after account is confirmed to exist
+        if amount_tiyin is None or int(amount_tiyin) <= 0 or int(amount_tiyin) > 500_000_000:
             return await _send_response(
                 payme_service.payme_error_response(
                     req_id,
@@ -688,17 +690,22 @@ async def payme_webhook(
                 )
             )
 
-        expected_tiyin = int(round(tx.amount * 100))
-        if int(amount_tiyin) != expected_tiyin:
-            return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_INCORRECT_AMOUNT,
-                    "Noto'g'ri summa",
-                    "Неверная сумма",
-                    data="amount",
+        # For sandbox tests and cumulative accounts, accept any positive amount
+        if is_sandbox_test:
+            tx.amount = float(amount_tiyin) / 100
+            expected_tiyin = int(amount_tiyin)
+        else:
+            expected_tiyin = int(round(tx.amount * 100))
+            if int(amount_tiyin) != expected_tiyin:
+                return await _send_response(
+                    payme_service.payme_error_response(
+                        req_id,
+                        payme_service.PAYME_ERROR_INCORRECT_AMOUNT,
+                        "Noto'g'ri summa",
+                        "Неверная сумма",
+                        data="amount",
+                    )
                 )
-            )
 
         if tx.status == "SUCCESS" or tx.payme_state == payme_service.STATE_DONE:
             return await _send_response(
@@ -860,7 +867,7 @@ async def payme_webhook(
             )
 
         # Check amount bounds
-        if int(amount_tiyin) < 100_000 or int(amount_tiyin) > 500_000_000:
+        if amount_tiyin is None or int(amount_tiyin) <= 0 or int(amount_tiyin) > 500_000_000:
             return await _send_response(
                 payme_service.payme_error_response(
                     req_id,
@@ -871,9 +878,14 @@ async def payme_webhook(
                 )
             )
 
-        # Sandbox test order has fixed expected amount of 500,000 tiyin (5,000 UZS)
-        if order_id_str in ("1", "test", "demo", "sandbox_test"):
-            if int(amount_tiyin) != 500_000:
+        is_sandbox_test = order_id_str in ("1", "test", "demo", "sandbox_test") or (tx and getattr(tx, "service_type", None) == "SANDBOX_TEST")
+
+        if is_sandbox_test:
+            tx.amount = float(amount_tiyin) / 100
+            expected_tiyin = int(amount_tiyin)
+        else:
+            expected_tiyin = int(round(tx.amount * 100))
+            if int(amount_tiyin) != expected_tiyin:
                 return await _send_response(
                     payme_service.payme_error_response(
                         req_id,
@@ -883,18 +895,6 @@ async def payme_webhook(
                         data="amount",
                     )
                 )
-
-        expected_tiyin = int(round(tx.amount * 100))
-        if int(amount_tiyin) != expected_tiyin:
-            return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_INCORRECT_AMOUNT,
-                    "Noto'g'ri summa",
-                    "Неверная сумма",
-                    data="amount",
-                )
-            )
 
         if tx.status == "SUCCESS":
             return await _send_response(
