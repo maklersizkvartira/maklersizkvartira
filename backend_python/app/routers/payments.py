@@ -1,18 +1,44 @@
-"""Payment router for Click Webhook (Prepare & Complete) and user wallet management."""
+"""Payment router: the Click and Payme webhooks, and the user's wallet.
+
+Money moves through three doors here, and each one is guarded differently:
+
+* **Click** signs every Prepare/Complete with MD5 over the secret key. The
+  signature is checked before anything else is believed — before Click's own
+  `error` field, before the transaction lookup — because an unsigned request
+  is not from Click, whatever it claims.
+* **Payme** authenticates with HTTP Basic and a JSON-RPC body. Sandbox
+  behaviour (arbitrary accounts, arbitrary amounts) exists only behind
+  `PAYME_TEST_MODE`.
+* **The wallet** is spent by the signed-in user. Every credit and every debit
+  is a single `UPDATE users SET balance = balance ± x` — never a Python
+  read-modify-write — and every transaction row is locked (`FOR UPDATE`)
+  while it changes state, so two concurrent Completes credit once and two
+  concurrent purchases cannot overdraw.
+
+The frontend (`src/services/paymentApi.ts`) sends the amount, the gateway
+and a return URL, and reads back a checkout link. Card numbers never pass
+through here in the clear: Click and Payme mask them, and we keep at most
+the last four digits.
+"""
 
 from __future__ import annotations
 
+import json
+import math
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
+from urllib.parse import urlsplit
 
 import structlog
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
-from sqlalchemy import String, cast, desc, func, or_, select
+from fastapi import APIRouter, Form, Request, Response
+from sqlalchemy import String, cast, desc, exists, func, or_, select, update
+from sqlalchemy.orm import lazyload
 
 from app.core.config import settings
 from app.core.deps import CurrentUser, DbSession
-from app.core.errors import BadRequest, NotFound
+from app.core.errors import BadRequest, NotFound, ServiceUnavailable
+from app.core.rate_limit import enforce
 from app.models.listing import Listing
 from app.models.payment import ClickPaymentLog, PaymePaymentLog, PaymentTransaction, WalletTransaction
 from app.models.user import User
@@ -38,6 +64,128 @@ PRICES = {
     "VIP_LISTING": 12_000.0,
 }
 
+#: A top-up that was never paid stops being reusable after this. Click and
+#: Payme both give up on a checkout within hours; a PENDING row a week old is
+#: an abandoned one, and the webhook must not let it be paid into later.
+PENDING_TOPUP_TTL = timedelta(hours=24)
+
+#: How many unpaid top-ups one account may have open at once. Each checkout
+#: link is a row and a rate-limit token; without a cap a script could mint
+#: thousands of PENDING rows and nothing would ever clean them up.
+MAX_OPEN_TOPUPS = 5
+
+#: The keys under which the gateways have been seen to send a masked card
+#: number. Only the last four digits are kept, whatever arrives.
+_CARD_KEYS = ("card_pan", "card_number", "pan", "card_mask", "card")
+
+
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def mask_card(value: Any) -> str | None:
+    """Reduce whatever a gateway sent to `•••• 1234`.
+
+    A full PAN is a thing we are not allowed to store (PCI DSS) and have no
+    use for. The old code kept the string as received and the admin panel
+    then rendered it back out under `rawCardPan`.
+    """
+    if value is None:
+        return None
+    digits = "".join(ch for ch in str(value) if ch.isdigit())
+    if len(digits) < 4:
+        return None
+    return f"•••• {digits[-4:]}"
+
+
+def _amount_ok(amount: float) -> bool:
+    return (
+        math.isfinite(amount)
+        and settings.PAYMENT_MIN_TOPUP_UZS <= amount <= settings.PAYMENT_MAX_TOPUP_UZS
+    )
+
+
+def _safe_return_url(candidate: str | None) -> str:
+    """Only a URL on our own site may be the place a gateway sends the customer back to.
+
+    The gateways redirect to whatever we put in the link. Left unchecked, a
+    payment link generated through our API could deliver the customer, fresh
+    from entering a card, to any page an attacker chose — and Payme's `;`
+    separated parameter string could be extended through it as well.
+    """
+    fallback = f"{settings.SITE_URL.rstrip('/')}/profile"
+    if not candidate:
+        return fallback
+    try:
+        site = urlsplit(settings.SITE_URL)
+        target = urlsplit(candidate.strip())
+    except ValueError:
+        return fallback
+    if target.scheme not in ("https", "http") or not target.netloc:
+        return fallback
+    allowed_hosts = {site.netloc.lower()}
+    allowed_hosts.update(
+        urlsplit(origin).netloc.lower() for origin in settings.cors_origin_list if "://" in origin
+    )
+    if target.netloc.lower() not in allowed_hosts:
+        return fallback
+    if ";" in candidate or "\n" in candidate or "\r" in candidate:
+        return fallback
+    return candidate.strip()
+
+
+async def _credit_wallet(
+    db: DbSession, *, user_id: uuid.UUID, amount: float, description: str, reference_id: uuid.UUID | None
+) -> float:
+    """Add `amount` to a wallet atomically and record it. Returns the new balance."""
+    new_balance = (
+        await db.execute(
+            update(User)
+            .where(User.id == user_id)
+            .values(balance=User.balance + float(amount))
+            .returning(User.balance)
+        )
+    ).scalar_one()
+    db.add(
+        WalletTransaction(
+            user_id=user_id,
+            type="TOPUP",
+            amount=float(amount),
+            balance_after=new_balance,
+            description=description,
+            reference_id=reference_id,
+        )
+    )
+    return float(new_balance)
+
+
+async def _lock_transaction(db: DbSession, tx_id: uuid.UUID) -> PaymentTransaction | None:
+    """Load a transaction row and hold it until the request commits.
+
+    The gateways retry, and they retry concurrently. Two Completes for one
+    transaction that both read `status == PENDING` before either writes
+    would both credit; the lock serialises them so the second sees SUCCESS.
+    """
+    return (
+        await db.execute(
+            select(PaymentTransaction)
+            .where(PaymentTransaction.id == tx_id)
+            .options(lazyload("*"))
+            .with_for_update(of=PaymentTransaction)
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+
+
+def _parse_uuid(value: Any) -> uuid.UUID | None:
+    try:
+        return uuid.UUID(str(value).strip())
+    except (ValueError, TypeError, AttributeError):
+        return None
+
 
 # ---------------------------------------------------------------------------
 # Click Webhook (Prepare & Complete)
@@ -46,14 +194,84 @@ PRICES = {
 @router.get("/click/prepare", summary="Click prepare health check")
 @router.get("/click/complete", summary="Click complete health check")
 async def click_webhook_health() -> dict[str, Any]:
-    """Health check for Click webhook endpoints when checked via GET in a browser."""
+    """Health check for Click webhook endpoints when checked via GET in a browser.
+
+    Says whether the integration is configured, and nothing about how: the
+    service id used to be echoed here to anyone who asked.
+    """
     return {
         "status": "ok",
         "service": "Click Payment Webhook",
-        "message": "Click Webhook endpoint is active and waiting for Click POST requests.",
-        "service_id": settings.CLICK_SERVICE_ID,
+        "configured": click_service.is_configured(),
         "supported_actions": ["PREPARE (action=0)", "COMPLETE (action=1)"],
     }
+
+
+async def _find_direct_payer(db: DbSession, target_param: str) -> User | None:
+    """Resolve the identifier a customer typed into the Click app.
+
+    Click's catalogue lets a customer pay "Uyiz.uz" directly and type any
+    string as the account: a phone, the short id printed on their wallet
+    card, or a referral code. Every match here must be exact or a fixed
+    prefix — a lookup that could match more than one user would credit one
+    of them at random.
+    """
+    if not target_param or len(target_param) > 64:
+        return None
+
+    # 1. Full user UUID
+    if (u_uuid := _parse_uuid(target_param)) is not None:
+        return (await db.execute(select(User).where(User.id == u_uuid))).scalar_one_or_none()
+
+    # 2. UUID prefix, as printed on the wallet card. `ilike` treats `%` and
+    #    `_` as wildcards, so a customer (or anyone) typing "%%%%%%%%" used to
+    #    match every user; only hex characters can be part of a UUID.
+    if len(target_param) >= 8 and all(c in "0123456789abcdefABCDEF-" for c in target_param):
+        rows = (
+            await db.execute(
+                select(User).where(cast(User.id, String).ilike(f"{target_param.lower()}%")).limit(2)
+            )
+        ).scalars().all()
+        if len(rows) == 1:
+            return rows[0]
+        if rows:
+            return None
+
+    # 3. Phone number (+99890..., 99890..., 90..., 890...)
+    clean_digits = "".join(c for c in target_param if c.isdigit())
+    candidate_phones = {target_param}
+    if len(clean_digits) == 9:
+        candidate_phones.add(f"+998{clean_digits}")
+    elif len(clean_digits) == 12 and clean_digits.startswith("998"):
+        candidate_phones.add(f"+{clean_digits}")
+    elif len(clean_digits) == 10 and clean_digits.startswith("8"):
+        candidate_phones.add(f"+998{clean_digits[1:]}")
+    rows = (
+        await db.execute(select(User).where(User.phone.in_(list(candidate_phones))).limit(2))
+    ).scalars().all()
+    if len(rows) == 1:
+        return rows[0]
+    if rows:
+        return None
+
+    # 4. Referral code, with or without the prefix the card prints
+    if len(target_param) <= 20:
+        clean_code = target_param.upper()
+        for prefix in ("UYIZ-", "UYIZ", "ID-", "ID:", "ID"):
+            if clean_code.startswith(prefix):
+                clean_code = clean_code[len(prefix):].strip()
+                break
+        rows = (
+            await db.execute(
+                select(User)
+                .where(or_(User.referral_code == target_param.upper(), User.referral_code == clean_code))
+                .limit(2)
+            )
+        ).scalars().all()
+        if len(rows) == 1:
+            return rows[0]
+
+    return None
 
 
 @router.post("/click/prepare-or-complete", summary="Click webhook endpoint")
@@ -79,7 +297,9 @@ async def click_webhook(
     Complies with docs.click.uz specifications and logs all actions.
     """
     client_ip = request.client.host if request.client else None
-    raw_form = dict(await request.form())
+    raw_form = {k: v for k, v in (await request.form()).items() if isinstance(v, str)}
+    merchant_trans_id = merchant_trans_id.strip()
+    merchant_prepare_id = merchant_prepare_id.strip() if merchant_prepare_id else None
 
     log.info(
         "click.webhook_received",
@@ -93,16 +313,16 @@ async def click_webhook(
     # 1. Base log record (will update with response)
     audit_log = ClickPaymentLog(
         action="PREPARE" if action == 0 else "COMPLETE",
-        click_trans_id=click_trans_id,
-        service_id=service_id,
-        merchant_trans_id=merchant_trans_id,
-        amount=amount,
+        click_trans_id=click_trans_id[:64],
+        service_id=service_id[:64],
+        merchant_trans_id=merchant_trans_id[:64],
+        amount=amount if math.isfinite(amount) else None,
         raw_request=raw_form,
         client_ip=client_ip,
     )
     db.add(audit_log)
 
-    def _respond(err_code: int, err_text: str, extra: dict | None = None) -> dict[str, Any]:
+    async def _respond(err_code: int, err_text: str, extra: dict | None = None) -> dict[str, Any]:
         resp: dict[str, Any] = {
             "click_trans_id": click_trans_id,
             "merchant_trans_id": merchant_trans_id,
@@ -115,249 +335,159 @@ async def click_webhook(
         audit_log.error_code = err_code
         audit_log.error_note = err_text
         audit_log.raw_response = resp
+        await db.commit()
         return resp
 
-    # 2. Check Click Error first
-    if int(error) < 0:
-        log.warning("click.reported_error", error=error, error_note=error_note)
-        await db.commit()
-        return _respond(int(error), error_note or "Click reported error")
+    # 2. Signature first. Nothing below — not even Click's own `error`
+    #    field — is trusted from a request that is not provably Click's.
+    if not click_service.is_configured() or service_id != settings.CLICK_SERVICE_ID:
+        log.error("click.not_configured_or_wrong_service", service_id=service_id)
+        return await _respond(click_service.CLICK_SIGN_CHECK_FAILED, "SIGN CHECK FAILED!")
 
-    # 3. Check Signature
     is_valid = click_service.verify_click_signature(
         click_trans_id=click_trans_id,
         service_id=service_id,
         secret_key=settings.CLICK_SECRET_KEY,
         merchant_trans_id=merchant_trans_id,
         merchant_prepare_id=merchant_prepare_id,
-        amount=amount,
+        amount=raw_form.get("amount", amount),
         action=action,
         sign_time=sign_time,
         sign_string=sign_string,
     )
     if not is_valid:
-        log.error("click.sign_check_failed", sign_string=sign_string)
-        await db.commit()
-        return _respond(click_service.CLICK_SIGN_CHECK_FAILED, "SIGN CHECK FAILED!")
+        log.error("click.sign_check_failed", click_trans_id=click_trans_id)
+        return await _respond(click_service.CLICK_SIGN_CHECK_FAILED, "SIGN CHECK FAILED!")
 
-    # 4. Handle "test" onboarding transaction for Click verification team
-    if str(merchant_trans_id).strip().lower() == "test":
+    if action not in (0, 1):
+        return await _respond(click_service.CLICK_ACTION_NOT_FOUND, "Action not found")
+
+    # 3. Click's onboarding check. Signed, credits nothing, and only while
+    #    the switch is on.
+    if settings.CLICK_TEST_MODE and merchant_trans_id.lower() == "test":
         log.info("click.test_transaction_success", action=action, click_trans_id=click_trans_id)
-        await db.commit()
-        if action == 0:
-            return _respond(
-                click_service.CLICK_SUCCESS,
-                "Success",
-                {"merchant_prepare_id": "test"},
-            )
-        else:
-            return _respond(
-                click_service.CLICK_SUCCESS,
-                "Success",
-                {"merchant_confirm_id": "test"},
-            )
+        key = "merchant_prepare_id" if action == 0 else "merchant_confirm_id"
+        return await _respond(click_service.CLICK_SUCCESS, "Success", {key: "test"})
 
-    # Find the local transaction or user for direct Click app payment
+    # 4. Find the transaction: by merchant_prepare_id (Complete) or by the
+    #    transaction_param we put in the checkout link (Prepare from the web).
     payment_tx: PaymentTransaction | None = None
-    user: User | None = None
+    lookup_uuid = _parse_uuid(merchant_prepare_id or merchant_trans_id)
+    if lookup_uuid is not None:
+        payment_tx = await _lock_transaction(db, lookup_uuid)
+        if payment_tx is not None and payment_tx.provider != "CLICK":
+            # A Payme order id pasted into a Click request. Signed, so it is
+            # Click's mistake rather than an attack, but it is still the
+            # wrong ledger.
+            payment_tx = None
 
-    # A) Try to find existing transaction by merchant_prepare_id (if Complete) or merchant_trans_id (if Web checkout)
-    lookup_id = merchant_prepare_id or merchant_trans_id
-    try:
-        tx_uuid = uuid.UUID(str(lookup_id).strip())
-        payment_tx = (
-            await db.execute(
-                select(PaymentTransaction).where(PaymentTransaction.id == tx_uuid)
-            )
-        ).scalar_one_or_none()
-    except (ValueError, TypeError):
-        payment_tx = None
+    # 5. Click told us the payment failed on its side. Now that we know the
+    #    request is genuine, close the transaction so the link cannot be
+    #    paid into later, and answer with Click's own code.
+    if error < 0:
+        log.warning("click.reported_error", error=error, error_note=error_note)
+        if payment_tx is not None and payment_tx.status == "PENDING":
+            payment_tx.status = "CANCELLED"
+            payment_tx.error_code = error
+            payment_tx.error_note = error_note[:500] if error_note else None
+        return await _respond(click_service.CLICK_TRANSACTION_CANCELLED, error_note or "Click reported error")
 
-    # B) If no existing transaction was found, check if merchant_trans_id is a User identifier (Phone / User ID / Referral code)
-    # This happens when users pay directly via Click App's search (Katalog: Uyiz.uz)
+    if not _amount_ok(amount):
+        log.error("click.amount_out_of_range", amount=amount)
+        return await _respond(click_service.CLICK_INCORRECT_AMOUNT, "Incorrect amount")
+
+    # 6. No transaction: the customer paid us directly from the Click app,
+    #    typing an identifier as the account.
     if payment_tx is None:
-        target_param = str(merchant_trans_id).strip()
+        if action != 0:
+            log.error("click.direct_complete_without_prepare", merchant_trans_id=merchant_trans_id)
+            return await _respond(click_service.CLICK_TRANSACTION_NOT_FOUND, "Transaction not found")
 
-        # Check 1: User UUID (full or prefix)
-        try:
-            u_uuid = uuid.UUID(target_param)
-            user = (await db.execute(select(User).where(User.id == u_uuid))).scalar_one_or_none()
-        except (ValueError, TypeError):
-            user = None
-
-        # Check 2: User UUID prefix (e.g. 8-character ID)
-        if user is None and len(target_param) >= 8 and not target_param.isdigit():
-            user = (
-                await db.execute(
-                    select(User).where(cast(User.id, String).ilike(f"{target_param}%"))
-                )
-            ).scalar_one_or_none()
-
-        # Check 3: Phone number (+99890..., 99890..., 90..., 890...)
-        if user is None:
-            clean_digits = "".join(c for c in target_param if c.isdigit())
-            candidate_phones = {target_param}
-            if len(clean_digits) == 9:
-                candidate_phones.add(f"+998{clean_digits}")
-            elif len(clean_digits) == 12 and clean_digits.startswith("998"):
-                candidate_phones.add(f"+{clean_digits}")
-            elif len(clean_digits) == 10 and clean_digits.startswith("8"):
-                candidate_phones.add(f"+998{clean_digits[1:]}")
-
-            user = (
-                await db.execute(
-                    select(User).where(User.phone.in_(list(candidate_phones)))
-                )
-            ).scalar_one_or_none()
-
-        # Check 4: Referral code / Payment ID (with or without prefix)
-        if user is None and len(target_param) <= 20:
-            clean_code = (
-                target_param.replace("UYIZ-", "")
-                .replace("UYIZ", "")
-                .replace("ID-", "")
-                .replace("ID:", "")
-                .replace("ID", "")
-                .strip()
-            )
-            user = (
-                await db.execute(
-                    select(User).where(
-                        or_(
-                            User.referral_code == target_param.upper(),
-                            User.referral_code == clean_code.upper(),
-                        )
-                    )
-                )
-            ).scalar_one_or_none()
-
+        user = await _find_direct_payer(db, merchant_trans_id)
         if user is None:
             log.error("click.user_or_tx_not_found", merchant_trans_id=merchant_trans_id)
-            await db.commit()
-            return _respond(click_service.CLICK_USER_NOT_FOUND, "User or transaction not found")
+            return await _respond(click_service.CLICK_USER_NOT_FOUND, "User or transaction not found")
 
-        # In Prepare (action 0): create a pending transaction for this direct Click App payment
-        if action == 0:
-            payment_tx = PaymentTransaction(
-                user_id=user.id,
-                provider="CLICK",
-                status="PENDING",
-                amount=amount,
-                service_type="TOPUP_DIRECT_CLICK",
-            )
-            db.add(payment_tx)
-            await db.flush()
-        else:
-            log.error("click.direct_complete_without_prepare", merchant_trans_id=merchant_trans_id)
-            await db.commit()
-            return _respond(click_service.CLICK_TRANSACTION_NOT_FOUND, "Transaction not found")
+        payment_tx = PaymentTransaction(
+            user_id=user.id,
+            provider="CLICK",
+            status="PENDING",
+            amount=amount,
+            service_type="TOPUP_DIRECT_CLICK",
+        )
+        db.add(payment_tx)
+        await db.flush()
 
-    # If transaction exists, load associated user
-    if user is None and payment_tx is not None:
-        user = (
-            await db.execute(select(User).where(User.id == payment_tx.user_id))
-        ).scalar_one_or_none()
-        if user is None:
-            log.error("click.user_not_found", user_id=str(payment_tx.user_id))
-            await db.commit()
-            return _respond(click_service.CLICK_USER_NOT_FOUND, "User not found")
-
-    # Check Amount (allow small float deviation)
-    if payment_tx is not None and abs(float(payment_tx.amount) - float(amount)) > 0.01:
+    # 7. Amount must be exactly what the transaction was opened for.
+    if abs(float(payment_tx.amount) - float(amount)) > 0.01:
         log.error("click.incorrect_amount", expected=payment_tx.amount, received=amount)
-        await db.commit()
-        return _respond(click_service.CLICK_INCORRECT_AMOUNT, "Incorrect amount")
+        return await _respond(click_service.CLICK_INCORRECT_AMOUNT, "Incorrect amount")
 
-    # 5. Handle Actions
-    now = datetime.now(timezone.utc)
+    card = next((raw_form[k] for k in _CARD_KEYS if raw_form.get(k)), None)
+    if card:
+        payment_tx.card_pan = mask_card(card)
 
     # ACTION 0: PREPARE
     if action == 0:
         if payment_tx.status == "SUCCESS":
-            await db.commit()
-            return _respond(click_service.CLICK_ALREADY_PAID, "Already paid")
-        if payment_tx.status == "CANCELLED":
-            await db.commit()
-            return _respond(click_service.CLICK_TRANSACTION_CANCELLED, "Transaction cancelled")
+            return await _respond(click_service.CLICK_ALREADY_PAID, "Already paid")
+        if payment_tx.status != "PENDING":
+            return await _respond(click_service.CLICK_TRANSACTION_CANCELLED, "Transaction cancelled")
+        if payment_tx.service_type == "TOPUP" and _now() - payment_tx.created_at > PENDING_TOPUP_TTL:
+            payment_tx.status = "CANCELLED"
+            payment_tx.error_note = "expired"
+            return await _respond(click_service.CLICK_TRANSACTION_CANCELLED, "Transaction expired")
 
-        extracted_pan = (
-            raw_form.get("card_pan")
-            or raw_form.get("card_number")
-            or raw_form.get("pan")
-            or raw_form.get("card_mask")
-            or raw_form.get("card")
-        )
-        if extracted_pan:
-            payment_tx.card_pan = str(extracted_pan)
-
-        payment_tx.click_trans_id = click_trans_id
-        payment_tx.click_paydoc_id = click_paydoc_id
+        payment_tx.click_trans_id = click_trans_id[:64]
+        payment_tx.click_paydoc_id = click_paydoc_id[:64]
         payment_tx.merchant_prepare_id = str(payment_tx.id)
-        await db.commit()
-
-        return _respond(
+        return await _respond(
             click_service.CLICK_SUCCESS,
             "Success",
             {"merchant_prepare_id": str(payment_tx.id)},
         )
 
     # ACTION 1: COMPLETE
-    elif action == 1:
-        if payment_tx.status == "SUCCESS":
-            await db.commit()
-            return _respond(
-                click_service.CLICK_SUCCESS,
-                "Success (already processed)",
-                {"merchant_confirm_id": str(payment_tx.id)},
-            )
-
-        # Mark Payment as Success
-        payment_tx.status = "SUCCESS"
-        payment_tx.click_trans_id = click_trans_id
-        payment_tx.click_paydoc_id = click_paydoc_id
-        payment_tx.completed_at = now
-
-        extracted_pan = (
-            raw_form.get("card_pan")
-            or raw_form.get("card_number")
-            or raw_form.get("pan")
-            or raw_form.get("card_mask")
-            or raw_form.get("card")
-        )
-        if extracted_pan:
-            payment_tx.card_pan = str(extracted_pan)
-
-        # Credit to user wallet balance
-        user.balance = float(user.balance) + float(payment_tx.amount)
-
-        # Record wallet transaction
-        wallet_tx = WalletTransaction(
-            user_id=user.id,
-            type="TOPUP",
-            amount=payment_tx.amount,
-            balance_after=user.balance,
-            description=f"Click orqali hisob to‘ldirildi (+{int(payment_tx.amount):,} so'm)",
-            reference_id=payment_tx.id,
-        )
-        db.add(wallet_tx)
-
-        await db.commit()
-        log.info(
-            "click.payment_completed",
-            user_id=str(user.id),
-            amount=payment_tx.amount,
-            new_balance=user.balance,
-        )
-
-        return _respond(
+    if payment_tx.status == "SUCCESS":
+        return await _respond(
             click_service.CLICK_SUCCESS,
-            "Success",
+            "Success (already processed)",
             {"merchant_confirm_id": str(payment_tx.id)},
         )
+    if payment_tx.status != "PENDING":
+        return await _respond(click_service.CLICK_TRANSACTION_CANCELLED, "Transaction cancelled")
+    # A Complete must follow a Prepare of the same transaction: Click sends
+    # back the merchant_prepare_id we answered with, and it must match.
+    if not payment_tx.merchant_prepare_id or merchant_prepare_id != payment_tx.merchant_prepare_id:
+        log.error("click.complete_prepare_mismatch", merchant_prepare_id=merchant_prepare_id)
+        return await _respond(click_service.CLICK_TRANSACTION_NOT_FOUND, "Transaction not found")
+    if payment_tx.click_trans_id and payment_tx.click_trans_id != click_trans_id:
+        log.error("click.complete_trans_id_mismatch", click_trans_id=click_trans_id)
+        return await _respond(click_service.CLICK_TRANSACTION_NOT_FOUND, "Transaction not found")
 
-    else:
-        await db.commit()
-        return _respond(click_service.CLICK_ACTION_NOT_FOUND, "Action not found")
+    payment_tx.status = "SUCCESS"
+    payment_tx.click_trans_id = click_trans_id[:64]
+    payment_tx.click_paydoc_id = click_paydoc_id[:64]
+    payment_tx.completed_at = _now()
+
+    new_balance = await _credit_wallet(
+        db,
+        user_id=payment_tx.user_id,
+        amount=payment_tx.amount,
+        description=f"Click orqali hisob to‘ldirildi (+{int(payment_tx.amount):,} so'm)",
+        reference_id=payment_tx.id,
+    )
+    log.info(
+        "click.payment_completed",
+        user_id=str(payment_tx.user_id),
+        amount=payment_tx.amount,
+        new_balance=new_balance,
+    )
+    return await _respond(
+        click_service.CLICK_SUCCESS,
+        "Success",
+        {"merchant_confirm_id": str(payment_tx.id)},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -370,26 +500,50 @@ async def create_topup(
     db: DbSession,
 ) -> CreateTopUpResponse:
     """Create a pending payment transaction and return gateway payment URLs."""
-    gateway = (payload.gateway or "click").lower()
-    provider = "PAYME" if gateway == "payme" else "CLICK"
+    await enforce("payment_topup", str(user.id))
+
+    if not _amount_ok(payload.amount):
+        raise BadRequest(
+            "topup_amount_out_of_range",
+            params={
+                "min": f"{settings.PAYMENT_MIN_TOPUP_UZS:,}".replace(",", " "),
+                "max": f"{settings.PAYMENT_MAX_TOPUP_UZS:,}".replace(",", " "),
+            },
+            field="amount",
+        )
+
+    provider = "PAYME" if payload.gateway == "payme" else "CLICK"
+    configured = payme_service.is_configured() if provider == "PAYME" else click_service.is_configured()
+    if not configured:
+        raise ServiceUnavailable("payments_unavailable")
+
+    open_count = (
+        await db.execute(
+            select(func.count(PaymentTransaction.id)).where(
+                PaymentTransaction.user_id == user.id,
+                PaymentTransaction.status == "PENDING",
+                PaymentTransaction.service_type == "TOPUP",
+                PaymentTransaction.created_at > _now() - PENDING_TOPUP_TTL,
+            )
+        )
+    ).scalar_one()
+    if open_count >= MAX_OPEN_TOPUPS:
+        raise BadRequest("topup_too_many_pending")
 
     tx = PaymentTransaction(
         user_id=user.id,
         provider=provider,
         status="PENDING",
-        amount=payload.amount,
+        amount=round(float(payload.amount), 2),
         service_type="TOPUP",
-        card_pan=payload.card_pan,
     )
     db.add(tx)
     await db.flush()
 
-    return_url = payload.return_url or f"{settings.SITE_URL}/profile"
+    return_url = _safe_return_url(payload.return_url)
 
     click_url: str | None = None
-    click_card_url: str | None = None
     payme_url: str | None = None
-
     if provider == "PAYME":
         payme_url = payme_service.generate_payme_checkout_url(
             amount_uzs=tx.amount,
@@ -402,7 +556,6 @@ async def create_topup(
             transaction_param=str(tx.id),
             return_url=return_url,
         )
-        click_card_url = click_url
 
     await db.commit()
 
@@ -410,7 +563,7 @@ async def create_topup(
         transaction_id=tx.id,
         amount=tx.amount,
         click_url=click_url,
-        click_card_url=click_card_url,
+        click_card_url=click_url,
         payme_url=payme_url,
     )
 
@@ -429,12 +582,22 @@ async def get_wallet_info(
     )
     txs = (await db.execute(stmt)).scalars().all()
 
-    has_badge_purchase = any(t.type == "PURCHASE_VERIFIED_BADGE" for t in txs)
-    is_verified_badge = user.is_verified and has_badge_purchase
+    # Asked of the whole ledger, not the fifty rows above: the badge used to
+    # vanish from this response once its purchase scrolled out of the page.
+    has_badge_purchase = (
+        await db.execute(
+            select(
+                exists().where(
+                    WalletTransaction.user_id == user.id,
+                    WalletTransaction.type == "PURCHASE_VERIFIED_BADGE",
+                )
+            )
+        )
+    ).scalar_one()
 
     return WalletInfoResponse(
-        balance=user.balance,
-        is_verified=is_verified_badge,
+        balance=float(user.balance),
+        is_verified=bool(user.is_verified and has_badge_purchase),
         transactions=[WalletTransactionOut.model_validate(t) for t in txs],
     )
 
@@ -446,49 +609,68 @@ async def buy_service(
     db: DbSession,
 ) -> BuyServiceResponse:
     """Spend wallet balance to purchase services (Verified badge, Top listing, VIP listing)."""
+    await enforce("payment_buy", str(user.id))
+
     cost = PRICES.get(payload.service_type)
     if cost is None:
         raise BadRequest("invalid_service_type")
 
-    if user.balance < cost:
-        raise BadRequest("insufficient_balance")
-
-    now = datetime.now(timezone.utc)
+    now = _now()
     description = ""
+    listing: Listing | None = None
 
     if payload.service_type == "VERIFIED_BADGE":
         if user.is_verified:
             raise BadRequest("already_verified")
-        user.is_verified = True
-        user.verification_level = max(user.verification_level, 2)
-        description = "Tasdiqlanganlik (Galochka) sotib olindi"
-
-    elif payload.service_type in ("TOP_LISTING", "VIP_LISTING"):
+    else:
         if not payload.listing_id:
-            raise BadRequest("listing_id_required")
-
+            raise BadRequest("listing_id_required", field="listing_id")
         listing = (
             await db.execute(
-                select(Listing).where(Listing.id == payload.listing_id, Listing.owner_id == user.id)
+                select(Listing)
+                .where(Listing.id == payload.listing_id, Listing.owner_id == user.id)
+                .options(lazyload("*"))
+                .with_for_update(of=Listing)
             )
         ).scalar_one_or_none()
         if not listing:
             raise NotFound("listing_not_found")
+        if not listing.is_public:
+            raise BadRequest("top_listing_not_public")
 
+    # The debit is one conditional UPDATE: it succeeds only if the balance
+    # covers the cost at the moment it runs, so two purchases racing for the
+    # same money cannot both go through. Checking `user.balance` in Python
+    # first was exactly that race.
+    new_balance = (
+        await db.execute(
+            update(User)
+            .where(User.id == user.id, User.balance >= float(cost))
+            .values(balance=User.balance - float(cost))
+            .returning(User.balance)
+        )
+    ).scalar_one_or_none()
+    if new_balance is None:
+        raise BadRequest("insufficient_balance")
+
+    if payload.service_type == "VERIFIED_BADGE":
+        user.is_verified = True
+        user.verification_level = max(user.verification_level, 2)
+        description = "Tasdiqlanganlik (Galochka) sotib olindi"
+    else:
+        assert listing is not None
         days = 7
         expire_at = (
             max(listing.featured_until, now) + timedelta(days=days)
             if listing.featured_until and listing.featured_until > now
             else now + timedelta(days=days)
         )
-
         if payload.service_type == "TOP_LISTING":
             listing.is_featured = True
             listing.featured_until = expire_at
             listing.promotion_weight = max(listing.promotion_weight, 10)
             description = f"Top e'lon xarid qilindi: '{listing.title[:30]}'"
-
-        elif payload.service_type == "VIP_LISTING":
+        else:
             listing.is_vip = True
             listing.vip_until = expire_at
             listing.is_featured = True
@@ -496,25 +678,22 @@ async def buy_service(
             listing.promotion_weight = max(listing.promotion_weight, 20)
             description = f"VIP e'lon xarid qilindi: '{listing.title[:30]}'"
 
-    # Deduct balance
-    user.balance = float(user.balance) - float(cost)
-
-    # Record wallet transaction
-    wallet_tx = WalletTransaction(
-        user_id=user.id,
-        type=f"PURCHASE_{payload.service_type}",
-        amount=-cost,
-        balance_after=user.balance,
-        description=description,
-        reference_id=payload.listing_id,
+    db.add(
+        WalletTransaction(
+            user_id=user.id,
+            type=f"PURCHASE_{payload.service_type}",
+            amount=-cost,
+            balance_after=float(new_balance),
+            description=description,
+            reference_id=payload.listing_id,
+        )
     )
-    db.add(wallet_tx)
     await db.commit()
 
     return BuyServiceResponse(
         status="success",
         message=f"{description}. Balansingizdan {int(cost):,} so'm yechildi.",
-        balance_after=user.balance,
+        balance_after=float(new_balance),
     )
 
 
@@ -523,7 +702,7 @@ async def buy_service(
 # ---------------------------------------------------------------------------
 @router.options("/payme")
 @router.options("/payme/")
-async def payme_webhook_options():
+async def payme_webhook_options() -> Response:
     return Response(status_code=200)
 
 
@@ -534,7 +713,7 @@ async def payme_webhook_health() -> dict[str, Any]:
     return {
         "status": "ok",
         "service": "Payme Merchant API Webhook (JSON-RPC 2.0)",
-        "merchant_id": settings.PAYME_MERCHANT_ID,
+        "configured": payme_service.is_configured(),
         "supported_methods": [
             "CheckPerformTransaction",
             "CreateTransaction",
@@ -544,6 +723,23 @@ async def payme_webhook_health() -> dict[str, Any]:
             "GetStatement",
         ],
     }
+
+
+def _as_int(value: Any) -> int | None:
+    """Payme sends integers, but a malformed request must produce an error
+    response, not a traceback: every `int(params[...])` used to be a 500."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, str) and value.strip().lstrip("-").isdigit():
+        return int(value.strip())
+    return None
+
+
+_SANDBOX_ORDER_IDS = frozenset({"1", "test", "demo", "sandbox_test"})
 
 
 @router.post("/payme", summary="Payme Merchant API JSON-RPC 2.0 endpoint")
@@ -559,23 +755,22 @@ async def payme_webhook(
     # 1. Read raw JSON body first so we always have req_id for Payme responses
     body: dict[str, Any] = {}
     try:
-        body = await request.json()
-    except Exception:
-        try:
-            raw = await request.body()
-            if raw:
-                import json
-                body = json.loads(raw.decode("utf-8"))
-        except Exception:
-            body = {}
+        raw = await request.body()
+        parsed = json.loads(raw.decode("utf-8")) if raw else {}
+        body = parsed if isinstance(parsed, dict) else {}
+    except (ValueError, UnicodeDecodeError):
+        body = {}
 
     req_id = body.get("id")
     method = body.get("method")
-    params = body.get("params") or {}
+    params = body.get("params") if isinstance(body.get("params"), dict) else {}
+    account = params.get("account") if isinstance(params.get("account"), dict) else {}
 
-    # 2. Verify Basic Auth with matching req_id
-    if not payme_service.verify_payme_auth(auth_header):
-        log.warning("payme.auth_failed", auth_header=auth_header, client_ip=client_ip, req_id=req_id)
+    # 2. Verify Basic Auth. The header itself is never logged: on a failed
+    #    attempt it is somebody's guess at our secret, and on a typo it is
+    #    the secret with one character wrong.
+    if not payme_service.is_configured() or not payme_service.verify_payme_auth(auth_header):
+        log.warning("payme.auth_failed", client_ip=client_ip, req_id=req_id, method=method)
         return payme_service.payme_error_response(
             req_id,
             payme_service.PAYME_ERROR_INSUFFICIENT_PRIVILEGE,
@@ -591,24 +786,18 @@ async def payme_webhook(
             "Ошибка парсинга JSON",
         )
 
-    req_id = body.get("id")
-    method = body.get("method")
-    params = body.get("params") or {}
+    log.info("payme.webhook_received", method=method, req_id=req_id, client_ip=client_ip)
 
-    log.info(
-        "payme.webhook_received",
-        method=method,
-        req_id=req_id,
-        params=params,
-        client_ip=client_ip,
-    )
+    amount_tiyin = _as_int(params.get("amount"))
+    order_id_str = str(account.get("order_id")).strip() if account.get("order_id") is not None else None
+    payme_trans_id = str(params.get("id")).strip()[:64] if params.get("id") is not None else None
 
     # 3. Audit log entry (will be saved at completion)
     audit_log = PaymePaymentLog(
-        method=str(method or "UNKNOWN"),
-        payme_trans_id=params.get("id"),
-        account_param=str(params.get("account", {}).get("order_id", "")) if isinstance(params.get("account"), dict) else None,
-        amount=float(params.get("amount") / 100) if params.get("amount") else None,
+        method=str(method or "UNKNOWN")[:64],
+        payme_trans_id=payme_trans_id,
+        account_param=order_id_str[:128] if order_id_str else None,
+        amount=amount_tiyin / 100 if amount_tiyin is not None else None,
         raw_request=body,
         client_ip=client_ip,
     )
@@ -622,589 +811,375 @@ async def payme_webhook(
         await db.commit()
         return resp
 
+    def _err(code: int, uz: str, ru: str, data: Any = None) -> dict[str, Any]:
+        return payme_service.payme_error_response(req_id, code, uz, ru, data=data)
+
+    def _ok(result: dict[str, Any]) -> dict[str, Any]:
+        return payme_service.payme_success_response(req_id, result)
+
+    async def _find_by_payme_id(lock: bool = False) -> PaymentTransaction | None:
+        if not payme_trans_id:
+            return None
+        stmt = select(PaymentTransaction).where(PaymentTransaction.payme_trans_id == payme_trans_id)
+        if lock:
+            # The row's `user`/`listing` relationships are joined eagerly,
+            # and Postgres refuses FOR UPDATE across an outer join; lock
+            # this table only, and load nothing else.
+            stmt = stmt.options(lazyload("*")).with_for_update(of=PaymentTransaction)
+        return (await db.execute(stmt)).scalars().first()
+
+    def _amount_error() -> dict[str, Any]:
+        return _err(payme_service.PAYME_ERROR_INCORRECT_AMOUNT, "Noto'g'ri summa", "Неверная сумма", data="amount")
+
+    def _order_not_found() -> dict[str, Any]:
+        return _err(payme_service.PAYME_ERROR_ORDER_NOT_FOUND, "Buyurtma topilmadi", "Заказ не найден", data="order_id")
+
+    def _tx_not_found() -> dict[str, Any]:
+        return _err(payme_service.PAYME_ERROR_TRANSACTION_NOT_FOUND, "Tranzaksiya topilmadi", "Транзакция не найдена")
+
+    def _missing_id() -> dict[str, Any]:
+        return _err(payme_service.PAYME_ERROR_INVALID_JSON_RPC, "id ko'rsatilmadi", "Не указан id транзакции")
+
+    def _is_sandbox(tx: PaymentTransaction | None) -> bool:
+        if not settings.PAYME_TEST_MODE:
+            return False
+        return (order_id_str in _SANDBOX_ORDER_IDS) or (tx is not None and tx.service_type == "SANDBOX_TEST")
+
+    async def _sandbox_transaction(order_uuid: uuid.UUID | None) -> PaymentTransaction | None:
+        """The sandbox runner on test.paycom.uz pays into accounts it invents.
+        Only with PAYME_TEST_MODE on, and such rows never touch a wallet."""
+        if not settings.PAYME_TEST_MODE or amount_tiyin is None or amount_tiyin <= 0:
+            return None
+        if payme_trans_id:
+            existing = (
+                await db.execute(
+                    select(PaymentTransaction).where(
+                        PaymentTransaction.service_type == "SANDBOX_TEST",
+                        PaymentTransaction.payme_trans_id == payme_trans_id,
+                    )
+                )
+            ).scalars().first()
+            if existing:
+                return existing
+        first_user = (await db.execute(select(User).limit(1))).scalars().first()
+        if not first_user:
+            return None
+        tx = PaymentTransaction(
+            id=order_uuid or uuid.uuid4(),
+            user_id=first_user.id,
+            provider="PAYME",
+            status="PENDING",
+            amount=amount_tiyin / 100,
+            service_type="SANDBOX_TEST",
+        )
+        db.add(tx)
+        await db.flush()
+        return tx
+
+    async def _load_order(lock: bool) -> PaymentTransaction | None:
+        """The order behind `account.order_id`, real or sandbox, PAYME only."""
+        order_uuid = _parse_uuid(order_id_str) if order_id_str else None
+        tx = None
+        if order_uuid is not None:
+            tx = await _lock_transaction(db, order_uuid) if lock else await db.get(PaymentTransaction, order_uuid)
+            if tx is not None and tx.provider != "PAYME":
+                tx = None
+        if tx is None and _is_sandbox(None):
+            tx = await _sandbox_transaction(order_uuid)
+        return tx
+
+    def _check_amount(tx: PaymentTransaction) -> tuple[int | None, dict[str, Any] | None]:
+        """Returns (expected_tiyin, error)."""
+        if amount_tiyin is None or amount_tiyin <= 0 or amount_tiyin > settings.PAYMENT_MAX_TOPUP_UZS * 100:
+            return None, _amount_error()
+        if _is_sandbox(tx):
+            tx.amount = amount_tiyin / 100
+            return amount_tiyin, None
+        expected = int(round(tx.amount * 100))
+        if amount_tiyin != expected:
+            return None, _amount_error()
+        return expected, None
+
+    now_ms = payme_service.current_time_ms()
+
     # -----------------------------------------------------------------------
     # METHOD: CheckPerformTransaction
     # -----------------------------------------------------------------------
     if method == "CheckPerformTransaction":
-        account = params.get("account") or {}
-        order_id_str = account.get("order_id")
-        amount_tiyin = params.get("amount")
-
-        # 1. Verify account parameter first (account verification must precede amount check)
         if not order_id_str:
             return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_ORDER_NOT_FOUND,
-                    "account.order_id ko'rsatilmadi",
-                    "Не указан параметр order_id",
-                    data="order_id",
-                )
+                _err(payme_service.PAYME_ERROR_ORDER_NOT_FOUND, "account.order_id ko'rsatilmadi", "Не указан параметр order_id", data="order_id")
             )
-
-        order_uuid = None
-        try:
-            order_uuid = uuid.UUID(order_id_str)
-        except Exception:
-            pass
-
-        tx = await db.get(PaymentTransaction, order_uuid) if order_uuid else None
-
-        # Payme sandbox automated testing support (e.g. from https://test.paycom.uz)
-        is_sandbox_test = order_id_str in ("1", "test", "demo", "sandbox_test") or (tx and getattr(tx, "service_type", None) == "SANDBOX_TEST")
-
-        if not tx and is_sandbox_test:
-            first_user = (await db.execute(select(User).limit(1))).scalars().first()
-            if first_user and amount_tiyin:
-                tx = PaymentTransaction(
-                    id=order_uuid or uuid.uuid4(),
-                    user_id=first_user.id,
-                    provider="PAYME",
-                    status="PENDING",
-                    amount=float(amount_tiyin) / 100,
-                    service_type="SANDBOX_TEST",
-                )
-                db.add(tx)
-                await db.flush()
-
+        tx = await _load_order(lock=False)
         if not tx:
-            return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_ORDER_NOT_FOUND,
-                    "Buyurtma topilmadi",
-                    "Заказ не найден",
-                    data="order_id",
-                )
-            )
+            return await _send_response(_order_not_found())
 
-        # 2. Verify amount bounds after account is confirmed to exist
-        if amount_tiyin is None or int(amount_tiyin) <= 0 or int(amount_tiyin) > 500_000_000:
-            return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_INCORRECT_AMOUNT,
-                    "Noto'g'ri summa",
-                    "Неверная сумма",
-                    data="amount",
-                )
-            )
-
-        # For sandbox tests and cumulative accounts, accept any positive amount
-        if is_sandbox_test:
-            tx.amount = float(amount_tiyin) / 100
-            expected_tiyin = int(amount_tiyin)
-        else:
-            expected_tiyin = int(round(tx.amount * 100))
-            if int(amount_tiyin) != expected_tiyin:
-                return await _send_response(
-                    payme_service.payme_error_response(
-                        req_id,
-                        payme_service.PAYME_ERROR_INCORRECT_AMOUNT,
-                        "Noto'g'ri summa",
-                        "Неверная сумма",
-                        data="amount",
-                    )
-                )
+        expected_tiyin, amount_err = _check_amount(tx)
+        if amount_err:
+            return await _send_response(amount_err)
 
         if tx.status == "SUCCESS" or tx.payme_state == payme_service.STATE_DONE:
             return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_ALREADY_PAID,
-                    "Tranzaksiya allaqachon bajarilgan",
-                    "Транзакция уже выполнена",
-                )
+                _err(payme_service.PAYME_ERROR_ALREADY_PAID, "Tranzaksiya allaqachon bajarilgan", "Транзакция уже выполнена")
             )
+        if tx.status not in ("PENDING",) and not _is_sandbox(tx):
+            return await _send_response(_order_not_found())
+        if tx.service_type == "TOPUP" and _now() - tx.created_at > PENDING_TOPUP_TTL:
+            return await _send_response(_order_not_found())
 
         return await _send_response(
-            payme_service.payme_success_response(
-                req_id,
-                {
-                    "allow": True,
-                    "detail": payme_service.get_payme_fiscal_detail(expected_tiyin),
-                },
-            )
+            _ok({"allow": True, "detail": payme_service.get_payme_fiscal_detail(expected_tiyin or 0)})
         )
 
     # -----------------------------------------------------------------------
     # METHOD: CreateTransaction
     # -----------------------------------------------------------------------
-    elif method == "CreateTransaction":
-        payme_trans_id = params.get("id")
-        trans_time = params.get("time")
-        amount_tiyin = params.get("amount")
-        account = params.get("account") or {}
-        order_id_str = account.get("order_id")
-
-        if not payme_trans_id or not trans_time or amount_tiyin is None:
+    if method == "CreateTransaction":
+        trans_time = _as_int(params.get("time"))
+        if not payme_trans_id or trans_time is None or amount_tiyin is None:
             return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_INVALID_JSON_RPC,
-                    "Kerakli parametrlar yetarli emas",
-                    "Недостаточно параметров",
-                )
+                _err(payme_service.PAYME_ERROR_INVALID_JSON_RPC, "Kerakli parametrlar yetarli emas", "Недостаточно параметров")
             )
 
-        # Check if transaction with payme_trans_id already exists
-        stmt = select(PaymentTransaction).where(PaymentTransaction.payme_trans_id == str(payme_trans_id))
-        existing_tx = (await db.execute(stmt)).scalars().first()
-
-        now_ms = payme_service.current_time_ms()
-
+        # Payme retries CreateTransaction with the same id: answer for the
+        # transaction it already opened.
+        existing_tx = await _find_by_payme_id(lock=True)
         if existing_tx:
             if existing_tx.payme_state == payme_service.STATE_IN_PROGRESS:
-                # Check 12 hour expiration timeout
-                if (now_ms - (existing_tx.payme_time or 0)) > 12 * 3600 * 1000:
+                if (now_ms - (existing_tx.payme_time or 0)) > payme_service.TRANSACTION_TIMEOUT_MS:
                     existing_tx.payme_state = payme_service.STATE_CANCELED
                     existing_tx.payme_reason = payme_service.REASON_CANCELLED_BY_TIMEOUT
+                    existing_tx.payme_cancel_time = now_ms
                     existing_tx.status = "CANCELLED"
                     return await _send_response(
-                        payme_service.payme_error_response(
-                            req_id,
-                            payme_service.PAYME_ERROR_COULD_NOT_PERFORM,
-                            "Tranzaksiya muddati tugagan",
-                            "Срок транзакции истек",
-                        )
+                        _err(payme_service.PAYME_ERROR_COULD_NOT_PERFORM, "Tranzaksiya muddati tugagan", "Срок транзакции истек")
                     )
                 return await _send_response(
-                    payme_service.payme_success_response(
-                        req_id,
-                        {
-                            "create_time": existing_tx.payme_time,
-                            "transaction": str(existing_tx.id),
-                            "state": existing_tx.payme_state,
-                            "receivers": None,
-                        },
-                    )
+                    _ok({
+                        "create_time": existing_tx.payme_time,
+                        "transaction": str(existing_tx.id),
+                        "state": existing_tx.payme_state,
+                        "receivers": None,
+                    })
                 )
-            elif existing_tx.payme_state == payme_service.STATE_DONE:
+            if existing_tx.payme_state == payme_service.STATE_DONE:
                 return await _send_response(
-                    payme_service.payme_error_response(
-                        req_id,
-                        payme_service.PAYME_ERROR_COULD_NOT_PERFORM,
-                        "Tranzaksiya allaqachon bajarilgan",
-                        "Транзакция уже выполнена",
-                    )
+                    _err(payme_service.PAYME_ERROR_COULD_NOT_PERFORM, "Tranzaksiya allaqachon bajarilgan", "Транзакция уже выполнена")
                 )
-            else:
-                return await _send_response(
-                    payme_service.payme_error_response(
-                        req_id,
-                        payme_service.PAYME_ERROR_COULD_NOT_PERFORM,
-                        "Tranzaksiya bekor qilingan",
-                        "Транзакция отменена",
-                    )
-                )
+            return await _send_response(
+                _err(payme_service.PAYME_ERROR_COULD_NOT_PERFORM, "Tranzaksiya bekor qilingan", "Транзакция отменена")
+            )
 
-        # New transaction by order_id: verify account/order existence first
         if not order_id_str:
             return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_ORDER_NOT_FOUND,
-                    "order_id ko'rsatilmadi",
-                    "Не указан order_id",
-                    data="account",
-                )
+                _err(payme_service.PAYME_ERROR_ORDER_NOT_FOUND, "order_id ko'rsatilmadi", "Не указан order_id", data="account")
             )
 
-        order_uuid = None
-        try:
-            order_uuid = uuid.UUID(order_id_str)
-        except Exception:
-            pass
-
-        tx = await db.get(PaymentTransaction, order_uuid) if order_uuid else None
-
-        is_sandbox_test = order_id_str in ("1", "test", "demo", "sandbox_test") or (tx and getattr(tx, "service_type", None) == "SANDBOX_TEST")
-
-        # Payme sandbox automated testing support
-        if not tx and is_sandbox_test:
-            stmt_sb = (
-                select(PaymentTransaction)
-                .where(
-                    PaymentTransaction.service_type == "SANDBOX_TEST",
-                    PaymentTransaction.payme_trans_id == str(payme_trans_id),
-                )
-            )
-            tx = (await db.execute(stmt_sb)).scalars().first()
-
-            if not tx:
-                first_user = (await db.execute(select(User).limit(1))).scalars().first()
-                if first_user and amount_tiyin:
-                    tx = PaymentTransaction(
-                        id=uuid.uuid4(),
-                        user_id=first_user.id,
-                        provider="PAYME",
-                        status="PENDING",
-                        amount=float(amount_tiyin) / 100,
-                        service_type="SANDBOX_TEST",
-                    )
-                    db.add(tx)
-                    await db.flush()
-
+        tx = await _load_order(lock=True)
         if not tx:
-            return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_ORDER_NOT_FOUND,
-                    "Buyurtma topilmadi",
-                    "Заказ не найден",
-                    data="order_id",
-                )
-            )
+            return await _send_response(_order_not_found())
 
-        # Check amount bounds
-        if amount_tiyin is None or int(amount_tiyin) <= 0 or int(amount_tiyin) > 500_000_000:
-            return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_INCORRECT_AMOUNT,
-                    "Noto'g'ri summa",
-                    "Неверная сумма",
-                    data="amount",
-                )
-            )
-
-        if is_sandbox_test:
-            tx.amount = float(amount_tiyin) / 100
-            expected_tiyin = int(amount_tiyin)
-        else:
-            expected_tiyin = int(round(tx.amount * 100))
-            if int(amount_tiyin) != expected_tiyin:
-                return await _send_response(
-                    payme_service.payme_error_response(
-                        req_id,
-                        payme_service.PAYME_ERROR_INCORRECT_AMOUNT,
-                        "Noto'g'ri summa",
-                        "Неверная сумма",
-                        data="amount",
-                    )
-                )
+        _, amount_err = _check_amount(tx)
+        if amount_err:
+            return await _send_response(amount_err)
 
         if tx.status == "SUCCESS":
             return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_COULD_NOT_PERFORM,
-                    "Buyurtma allaqachon to'langan",
-                    "Заказ уже оплачен",
-                )
+                _err(payme_service.PAYME_ERROR_COULD_NOT_PERFORM, "Buyurtma allaqachon to'langan", "Заказ уже оплачен")
             )
+        if tx.status != "PENDING" and not _is_sandbox(tx):
+            return await _send_response(_order_not_found())
+        if tx.service_type == "TOPUP" and _now() - tx.created_at > PENDING_TOPUP_TTL:
+            return await _send_response(_order_not_found())
 
-        if not is_sandbox_test and tx.payme_trans_id and tx.payme_trans_id != str(payme_trans_id):
-            return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_ORDER_NOT_FOUND,  # -31050 (in range -31050 to -31099)
-                    "Buyurtma uchun boshqa tranzaksiya mavjud",
-                    "Другая транзакция заняла этот счет",
-                    data="order_id",
+        # One Payme transaction per order. A second one for an order that is
+        # still in progress is Payme's -31050 "account taken" case.
+        if not _is_sandbox(tx) and tx.payme_trans_id and tx.payme_trans_id != payme_trans_id:
+            if tx.payme_state == payme_service.STATE_IN_PROGRESS:
+                return await _send_response(
+                    _err(payme_service.PAYME_ERROR_ORDER_NOT_FOUND, "Buyurtma uchun boshqa tranzaksiya mavjud", "Другая транзакция заняла этот счет", data="order_id")
                 )
-            )
+            # A cancelled attempt may be retried under a fresh Payme id.
 
-        extracted_card = (
-            params.get("card")
-            or params.get("card_pan")
-            or params.get("card_mask")
-            or params.get("pan")
-            or (params.get("account", {}).get("card") if isinstance(params.get("account"), dict) else None)
-        )
-        if extracted_card:
-            tx.card_pan = str(extracted_card)
-        tx.payme_trans_id = str(payme_trans_id)
-        tx.payme_time = int(trans_time)
+        card = next((params[k] for k in _CARD_KEYS if params.get(k)), None) or account.get("card")
+        if card:
+            tx.card_pan = mask_card(card)
+        tx.payme_trans_id = payme_trans_id
+        tx.payme_time = trans_time
         tx.payme_state = payme_service.STATE_IN_PROGRESS
+        tx.payme_reason = None
+        tx.payme_cancel_time = None
         tx.provider = "PAYME"
-        await db.commit()
 
         return await _send_response(
-            payme_service.payme_success_response(
-                req_id,
-                {
-                    "create_time": tx.payme_time,
-                    "transaction": str(tx.id),
-                    "state": tx.payme_state,
-                    "receivers": None,
-                },
-            )
+            _ok({
+                "create_time": tx.payme_time,
+                "transaction": str(tx.id),
+                "state": tx.payme_state,
+                "receivers": None,
+            })
         )
 
     # -----------------------------------------------------------------------
     # METHOD: PerformTransaction
     # -----------------------------------------------------------------------
-    elif method == "PerformTransaction":
-        payme_trans_id = params.get("id")
+    if method == "PerformTransaction":
         if not payme_trans_id:
-            return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_INVALID_JSON_RPC,
-                    "id ko'rsatilmadi",
-                    "Не указан id транзакции",
-                )
-            )
-
-        stmt = select(PaymentTransaction).where(PaymentTransaction.payme_trans_id == str(payme_trans_id))
-        tx = (await db.execute(stmt)).scalars().first()
-
+            return await _send_response(_missing_id())
+        tx = await _find_by_payme_id(lock=True)
         if not tx:
-            return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_TRANSACTION_NOT_FOUND,
-                    "Tranzaksiya topilmadi",
-                    "Транзакция не найдена",
-                )
-            )
-
-        now_ms = payme_service.current_time_ms()
+            return await _send_response(_tx_not_found())
 
         if tx.payme_state == payme_service.STATE_IN_PROGRESS:
-            # Check 12 hours timeout
-            if (now_ms - (tx.payme_time or 0)) > 12 * 3600 * 1000:
+            if (now_ms - (tx.payme_time or 0)) > payme_service.TRANSACTION_TIMEOUT_MS:
                 tx.payme_state = payme_service.STATE_CANCELED
                 tx.payme_reason = payme_service.REASON_CANCELLED_BY_TIMEOUT
+                tx.payme_cancel_time = now_ms
                 tx.status = "CANCELLED"
                 return await _send_response(
-                    payme_service.payme_error_response(
-                        req_id,
-                        payme_service.PAYME_ERROR_COULD_NOT_PERFORM,
-                        "Tranzaksiya muddati tugagan",
-                        "Срок транзакции истек",
-                    )
+                    _err(payme_service.PAYME_ERROR_COULD_NOT_PERFORM, "Tranzaksiya muddati tugagan", "Срок транзакции истек")
                 )
 
-            # Success execution
             tx.payme_state = payme_service.STATE_DONE
             tx.payme_perform_time = now_ms
             tx.status = "SUCCESS"
-            tx.completed_at = datetime.now(timezone.utc)
+            tx.completed_at = _now()
 
-            extracted_card = (
-                params.get("card")
-                or params.get("card_pan")
-                or params.get("card_mask")
-                or params.get("pan")
-            )
-            if extracted_card:
-                tx.card_pan = str(extracted_card)
+            card = next((params[k] for k in _CARD_KEYS if params.get(k)), None)
+            if card:
+                tx.card_pan = mask_card(card)
 
-            # Credit user wallet balance (only for real payments, never for automated sandbox tests)
-            if getattr(tx, "service_type", None) != "SANDBOX_TEST":
-                user = await db.get(User, tx.user_id)
-                if user:
-                    user.balance = float(user.balance) + float(tx.amount)
-                    wallet_tx = WalletTransaction(
-                        user_id=user.id,
-                        type="TOPUP",
-                        amount=tx.amount,
-                        balance_after=user.balance,
-                        description=f"Payme orqali hisob to‘ldirildi (+{int(tx.amount):,} so'm)",
-                        reference_id=tx.id,
-                    )
-                    db.add(wallet_tx)
-
-            await db.commit()
-            log.info(
-                "payme.payment_completed",
-                user_id=str(tx.user_id),
-                amount=tx.amount,
-                payme_trans_id=payme_trans_id,
-            )
+            # Only real payments reach a wallet; sandbox rows never do.
+            if tx.service_type != "SANDBOX_TEST":
+                await _credit_wallet(
+                    db,
+                    user_id=tx.user_id,
+                    amount=tx.amount,
+                    description=f"Payme orqali hisob to‘ldirildi (+{int(tx.amount):,} so'm)",
+                    reference_id=tx.id,
+                )
+            log.info("payme.payment_completed", user_id=str(tx.user_id), amount=tx.amount, payme_trans_id=payme_trans_id)
 
             return await _send_response(
-                payme_service.payme_success_response(
-                    req_id,
-                    {
-                        "transaction": str(tx.id),
-                        "perform_time": now_ms,
-                        "state": payme_service.STATE_DONE,
-                    },
-                )
+                _ok({"transaction": str(tx.id), "perform_time": now_ms, "state": payme_service.STATE_DONE})
             )
 
-        elif tx.payme_state == payme_service.STATE_DONE:
-            # Already performed (idempotent response)
+        if tx.payme_state == payme_service.STATE_DONE:
             return await _send_response(
-                payme_service.payme_success_response(
-                    req_id,
-                    {
-                        "transaction": str(tx.id),
-                        "perform_time": tx.payme_perform_time or tx.payme_time or now_ms,
-                        "state": payme_service.STATE_DONE,
-                    },
-                )
+                _ok({
+                    "transaction": str(tx.id),
+                    "perform_time": tx.payme_perform_time or tx.payme_time or now_ms,
+                    "state": payme_service.STATE_DONE,
+                })
             )
 
-        else:
-            return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_COULD_NOT_PERFORM,
-                    "Tranzaksiya bekor qilingan",
-                    "Транзакция отменена",
-                )
-            )
+        return await _send_response(
+            _err(payme_service.PAYME_ERROR_COULD_NOT_PERFORM, "Tranzaksiya bekor qilingan", "Транзакция отменена")
+        )
 
     # -----------------------------------------------------------------------
     # METHOD: CancelTransaction
     # -----------------------------------------------------------------------
-    elif method == "CancelTransaction":
-        payme_trans_id = params.get("id")
-        reason = params.get("reason", payme_service.REASON_UNKNOWN)
-
+    if method == "CancelTransaction":
         if not payme_trans_id:
-            return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_INVALID_JSON_RPC,
-                    "id ko'rsatilmadi",
-                    "Не указан id транзакции",
-                )
-            )
+            return await _send_response(_missing_id())
+        reason = _as_int(params.get("reason"))
+        if reason is None:
+            reason = payme_service.REASON_UNKNOWN
 
-        stmt = select(PaymentTransaction).where(PaymentTransaction.payme_trans_id == str(payme_trans_id))
-        tx = (await db.execute(stmt)).scalars().first()
-
+        tx = await _find_by_payme_id(lock=True)
         if not tx:
-            return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_TRANSACTION_NOT_FOUND,
-                    "Tranzaksiya topilmadi",
-                    "Транзакция не найдена",
-                )
-            )
-
-        now_ms = payme_service.current_time_ms()
+            return await _send_response(_tx_not_found())
 
         if tx.payme_state == payme_service.STATE_IN_PROGRESS:
             tx.payme_state = payme_service.STATE_CANCELED
             tx.payme_cancel_time = now_ms
-            tx.payme_reason = int(reason)
+            tx.payme_reason = reason
             tx.status = "CANCELLED"
-            await db.commit()
-
             return await _send_response(
-                payme_service.payme_success_response(
-                    req_id,
-                    {
-                        "transaction": str(tx.id),
-                        "cancel_time": now_ms,
-                        "state": payme_service.STATE_CANCELED,
-                    },
-                )
+                _ok({"transaction": str(tx.id), "cancel_time": now_ms, "state": payme_service.STATE_CANCELED})
             )
 
-        elif tx.payme_state == payme_service.STATE_DONE:
-            # Transaction was performed, refund if possible
+        if tx.payme_state == payme_service.STATE_DONE:
+            # Payme is refunding the customer; take the money back out of
+            # the wallet it went into. A sandbox row never credited one, so
+            # it must not debit one either — it used to.
             tx.payme_state = payme_service.STATE_POST_CANCELED
             tx.payme_cancel_time = now_ms
-            tx.payme_reason = int(reason)
+            tx.payme_reason = reason
             tx.status = "REFUNDED"
 
-            user = await db.get(User, tx.user_id)
-            if user:
-                user.balance = max(0.0, float(user.balance) - float(tx.amount))
-                wallet_tx = WalletTransaction(
-                    user_id=user.id,
-                    type="REFUND",
-                    amount=-tx.amount,
-                    balance_after=user.balance,
-                    description=f"Payme to'lovi bekor qilindi (-{int(tx.amount):,} so'm)",
-                    reference_id=tx.id,
-                )
-                db.add(wallet_tx)
-
-            await db.commit()
+            if tx.service_type != "SANDBOX_TEST":
+                new_balance = (
+                    await db.execute(
+                        update(User)
+                        .where(User.id == tx.user_id)
+                        .values(balance=func.greatest(0.0, User.balance - float(tx.amount)))
+                        .returning(User.balance)
+                    )
+                ).scalar_one_or_none()
+                if new_balance is not None:
+                    db.add(
+                        WalletTransaction(
+                            user_id=tx.user_id,
+                            type="REFUND",
+                            amount=-float(tx.amount),
+                            balance_after=float(new_balance),
+                            description=f"Payme to'lovi bekor qilindi (-{int(tx.amount):,} so'm)",
+                            reference_id=tx.id,
+                        )
+                    )
 
             return await _send_response(
-                payme_service.payme_success_response(
-                    req_id,
-                    {
-                        "transaction": str(tx.id),
-                        "cancel_time": now_ms,
-                        "state": payme_service.STATE_POST_CANCELED,
-                    },
-                )
+                _ok({"transaction": str(tx.id), "cancel_time": now_ms, "state": payme_service.STATE_POST_CANCELED})
             )
 
-        else:
-            # Already cancelled
-            return await _send_response(
-                payme_service.payme_success_response(
-                    req_id,
-                    {
-                        "transaction": str(tx.id),
-                        "cancel_time": tx.payme_cancel_time or now_ms,
-                        "state": tx.payme_state,
-                    },
-                )
-            )
+        return await _send_response(
+            _ok({"transaction": str(tx.id), "cancel_time": tx.payme_cancel_time or now_ms, "state": tx.payme_state})
+        )
 
     # -----------------------------------------------------------------------
     # METHOD: CheckTransaction
     # -----------------------------------------------------------------------
-    elif method == "CheckTransaction":
-        payme_trans_id = params.get("id")
+    if method == "CheckTransaction":
         if not payme_trans_id:
-            return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_INVALID_JSON_RPC,
-                    "id ko'rsatilmadi",
-                    "Не указан id транзакции",
-                )
-            )
-
-        stmt = select(PaymentTransaction).where(PaymentTransaction.payme_trans_id == str(payme_trans_id))
-        tx = (await db.execute(stmt)).scalars().first()
-
+            return await _send_response(_missing_id())
+        tx = await _find_by_payme_id()
         if not tx:
-            return await _send_response(
-                payme_service.payme_error_response(
-                    req_id,
-                    payme_service.PAYME_ERROR_TRANSACTION_NOT_FOUND,
-                    "Tranzaksiya topilmadi",
-                    "Транзакция не найдена",
-                )
-            )
-
+            return await _send_response(_tx_not_found())
         return await _send_response(
-            payme_service.payme_success_response(
-                req_id,
-                {
-                    "create_time": tx.payme_time or 0,
-                    "perform_time": tx.payme_perform_time or 0,
-                    "cancel_time": tx.payme_cancel_time or 0,
-                    "transaction": str(tx.id),
-                    "state": tx.payme_state or 0,
-                    "reason": tx.payme_reason,
-                },
-            )
+            _ok({
+                "create_time": tx.payme_time or 0,
+                "perform_time": tx.payme_perform_time or 0,
+                "cancel_time": tx.payme_cancel_time or 0,
+                "transaction": str(tx.id),
+                "state": tx.payme_state or 0,
+                "reason": tx.payme_reason,
+            })
         )
 
     # -----------------------------------------------------------------------
     # METHOD: GetStatement
     # -----------------------------------------------------------------------
-    elif method == "GetStatement":
-        from_time = params.get("from", 0)
-        to_time = params.get("to", payme_service.current_time_ms())
-
+    if method == "GetStatement":
+        from_time = _as_int(params.get("from"))
+        to_time = _as_int(params.get("to"))
+        if from_time is None or to_time is None:
+            return await _send_response(
+                _err(payme_service.PAYME_ERROR_INVALID_JSON_RPC, "from/to ko'rsatilmadi", "Не указаны from/to")
+            )
         stmt = (
             select(PaymentTransaction)
             .where(
                 PaymentTransaction.provider == "PAYME",
-                PaymentTransaction.payme_time >= int(from_time),
-                PaymentTransaction.payme_time <= int(to_time),
+                PaymentTransaction.payme_trans_id.is_not(None),
+                PaymentTransaction.payme_time >= from_time,
+                PaymentTransaction.payme_time <= to_time,
             )
             .order_by(PaymentTransaction.payme_time.asc())
+            .limit(5000)
         )
         tx_list = (await db.execute(stmt)).scalars().all()
-
         transactions = [
             {
                 "id": t.payme_trans_id,
@@ -1219,25 +1194,12 @@ async def payme_webhook(
                 "reason": t.payme_reason,
             }
             for t in tx_list
-            if t.payme_trans_id
         ]
-
-        return await _send_response(
-            payme_service.payme_success_response(
-                req_id,
-                {"transactions": transactions},
-            )
-        )
+        return await _send_response(_ok({"transactions": transactions}))
 
     # -----------------------------------------------------------------------
     # UNKNOWN METHOD
     # -----------------------------------------------------------------------
-    else:
-        return await _send_response(
-            payme_service.payme_error_response(
-                req_id,
-                payme_service.PAYME_ERROR_METHOD_NOT_FOUND,
-                f"Noma'lum usul: {method}",
-                f"Метод не найден: {method}",
-            )
-        )
+    return await _send_response(
+        _err(payme_service.PAYME_ERROR_METHOD_NOT_FOUND, f"Noma'lum usul: {method}", f"Метод не найден: {method}")
+    )

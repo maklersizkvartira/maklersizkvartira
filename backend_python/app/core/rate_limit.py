@@ -213,6 +213,12 @@ def _rules() -> dict[str, RateLimitRule]:
         # authenticated and ownership-checked, so the account is the subject.
         "top_request": RateLimitRule("top_request", 10, 3600),
         "admin_login_ip": RateLimitRule("admin_login_ip", 8, 900),
+        # Keyed on the account. Each top-up creates a PENDING row and a
+        # checkout link; a real person opens a handful an hour, a script
+        # would open thousands. Purchases are cheaper but each one is a
+        # conditional debit against the same row, so they are capped too.
+        "payment_topup": RateLimitRule("payment_topup", 15, 3600),
+        "payment_buy": RateLimitRule("payment_buy", 30, 3600),
         "password_reveal": RateLimitRule("password_reveal", 30, 3600),
     }
 

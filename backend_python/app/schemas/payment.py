@@ -12,10 +12,16 @@ from app.schemas.common import CamelModel, ORMCamelModel
 
 
 class CreateTopUpRequest(CamelModel):
-    amount: float = Field(ge=1000, le=100_000_000, description="Amount in UZS")
-    return_url: str | None = None
-    gateway: str | None = "click"
-    card_pan: str | None = None
+    #: Bounded again by settings in the router, where the real limits live;
+    #: these only stop nonsense before it reaches a database.
+    amount: float = Field(gt=0, le=100_000_000, description="Amount in UZS")
+    #: Where the gateway sends the customer afterwards. Only URLs on our own
+    #: site are honoured; anything else falls back to the profile page.
+    return_url: str | None = Field(default=None, max_length=512)
+    gateway: Literal["click", "payme"] = "click"
+    # There is deliberately no card field. The card is entered on the
+    # gateway's page and never on ours; a client-supplied "card_pan" used to
+    # be written to the database verbatim.
 
 
 class CreateTopUpResponse(CamelModel):

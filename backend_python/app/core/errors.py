@@ -314,6 +314,44 @@ MESSAGES: dict[str, dict[str, str]] = {
         "ru": "Эта заявка уже рассмотрена.",
         "en": "This request has already been reviewed.",
     },
+    # -- Wallet and payments -------------------------------------------------
+    # These used to surface as their bare codes ("insufficient_balance") in the
+    # toast, because nothing translated them.
+    "payments_unavailable": {
+        "uz": "Bu to‘lov tizimi hozircha ulanmagan. Boshqa usulni tanlang.",
+        "ru": "Эта платёжная система пока не подключена. Выберите другой способ.",
+        "en": "This payment method is not connected yet. Please choose another.",
+    },
+    "topup_amount_out_of_range": {
+        "uz": "To‘lov summasi {min} so‘mdan {max} so‘mgacha bo‘lishi kerak.",
+        "ru": "Сумма пополнения должна быть от {min} до {max} сум.",
+        "en": "The top-up amount must be between {min} and {max} so'm.",
+    },
+    "topup_too_many_pending": {
+        "uz": "Sizda tugallanmagan to‘lovlar ko‘p. Avval ularni yakunlang yoki birozdan so‘ng urinib ko‘ring.",
+        "ru": "У вас слишком много незавершённых платежей. Завершите их или попробуйте позже.",
+        "en": "You have too many unfinished payments. Finish them or try again later.",
+    },
+    "insufficient_balance": {
+        "uz": "Balansingizda mablag‘ yetarli emas. Avval hisobni to‘ldiring.",
+        "ru": "На балансе недостаточно средств. Сначала пополните счёт.",
+        "en": "Your balance is not enough. Top up first.",
+    },
+    "invalid_service_type": {
+        "uz": "Bunday xizmat mavjud emas.",
+        "ru": "Такой услуги не существует.",
+        "en": "No such service.",
+    },
+    "already_verified": {
+        "uz": "Sizda tasdiqlanganlik belgisi allaqachon bor.",
+        "ru": "У вас уже есть значок подтверждения.",
+        "en": "You already have the verified badge.",
+    },
+    "listing_id_required": {
+        "uz": "Qaysi e’lon uchun ekanini tanlang.",
+        "ru": "Выберите, для какого объявления.",
+        "en": "Choose which listing this is for.",
+    },
     # -- Admin --------------------------------------------------------------
     "admin_unauthorized": {
         "uz": "Admin paneliga kirish uchun avtorizatsiyadan o‘ting.",

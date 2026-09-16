@@ -17,23 +17,33 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Data clean-up only. Guarded so a fresh database, where the wallet
+    # tables are created by a later migration, passes straight through.
     # Reset is_verified on all users who never actually bought the VERIFIED_BADGE
     # This cleans up the 17 users who automatically received is_verified=True on registration.
     # Verification level (tasdiqlash darajasi) is kept completely intact.
     op.execute("""
-        UPDATE users 
-        SET is_verified = false 
-        WHERE id NOT IN (
-            SELECT user_id FROM wallet_transactions WHERE type = 'PURCHASE_VERIFIED_BADGE'
-        );
+        DO $$ BEGIN
+        IF to_regclass('public.wallet_transactions') IS NOT NULL THEN
+            UPDATE users 
+            SET is_verified = false 
+            WHERE id NOT IN (
+                SELECT user_id FROM wallet_transactions WHERE type = 'PURCHASE_VERIFIED_BADGE'
+            );
+        END IF;
+        END $$;
     """)
     # Also remove VERIFIED_OWNER badge from listings whose owners have not purchased the verified badge
     op.execute("""
-        UPDATE listings 
-        SET safety_badges = array_remove(safety_badges, 'VERIFIED_OWNER')
-        WHERE owner_id NOT IN (
-            SELECT user_id FROM wallet_transactions WHERE type = 'PURCHASE_VERIFIED_BADGE'
-        );
+        DO $$ BEGIN
+        IF to_regclass('public.wallet_transactions') IS NOT NULL THEN
+            UPDATE listings 
+            SET safety_badges = array_remove(safety_badges, 'VERIFIED_OWNER')
+            WHERE owner_id NOT IN (
+                SELECT user_id FROM wallet_transactions WHERE type = 'PURCHASE_VERIFIED_BADGE'
+            );
+        END IF;
+        END $$;
     """)
 
 

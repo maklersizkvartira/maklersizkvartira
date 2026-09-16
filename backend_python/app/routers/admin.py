@@ -17,7 +17,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, Query, Request
-from pydantic import BaseModel
+import structlog
+from pydantic import BaseModel, Field
 from sqlalchemy import String, and_, cast, distinct, func, or_, select, true, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
@@ -43,6 +44,7 @@ from app.core.errors import (
     Unauthorized,
 )
 from app.core.phone import mask_phone
+from app.routers.payments import mask_card
 from app.core.rate_limit import enforce
 from app.core.security import (
     PasswordPolicyError,
@@ -77,7 +79,7 @@ from app.models.chat import (
 )
 from app.models.listing import Favorite, Listing, TopRequest
 from app.models.moderation import Report, VerificationRequest
-from app.models.payment import ClickPaymentLog, PaymentTransaction, WalletTransaction
+from app.models.payment import PaymentTransaction, WalletTransaction
 from app.models.user import AdminUser, User
 from app.schemas.chat import (
     SupportConversationDetailOut,
@@ -121,6 +123,8 @@ from app.schemas.listing import ListingFeatureRequest, ListingModerationRequest
 from app.services import admin as admin_service
 from app.services import ai_settings
 from app.services import sms as sms_service
+
+log = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -3216,16 +3220,9 @@ async def list_payments(
 
     data = []
     for r in rows:
-        card_pan_display = None
-        if r.card_pan:
-            cleaned = "".join(ch for ch in str(r.card_pan) if ch.isdigit())
-            if len(cleaned) >= 8:
-                card_pan_display = f"{cleaned[:4]} •••• •••• {cleaned[-4:]}"
-            elif len(cleaned) >= 4:
-                card_pan_display = f"•••• {cleaned[-4:]}"
-            else:
-                card_pan_display = r.card_pan
-
+        # Never more than the last four digits. Rows written before the
+        # webhook started masking may hold more, and this used to send the
+        # stored string back out whole under `rawCardPan`.
         data.append({
             "id": str(r.id),
             "userId": str(r.user_id),
@@ -3236,8 +3233,7 @@ async def list_payments(
             "amount": r.amount,
             "currency": r.currency,
             "serviceType": r.service_type,
-            "cardPan": card_pan_display,
-            "rawCardPan": r.card_pan,
+            "cardPan": mask_card(r.card_pan),
             "clickTransId": r.click_trans_id,
             "clickPaydocId": r.click_paydoc_id,
             "paymeTransId": r.payme_trans_id,
@@ -3454,8 +3450,11 @@ async def get_payment_stats(admin: RequireModerator, db: DbSession) -> dict[str,
 
 
 class AdjustBalanceRequest(BaseModel):
-    amount: float
-    reason: str
+    #: One manual correction is at most the largest top-up the site accepts,
+    #: in either direction. Anything larger is a mistake or a stolen admin
+    #: session, and either way it should take more than one request.
+    amount: float = Field(ge=-5_000_000, le=5_000_000, allow_inf_nan=False)
+    reason: str = Field(min_length=3, max_length=200)
 
 
 @router.post("/users/{user_id}/adjust-balance", summary="Manually add or deduct balance")
@@ -3466,7 +3465,14 @@ async def adjust_user_balance(
     db: DbSession,
 ) -> dict[str, Any]:
     """Admin can adjust user wallet balance directly."""
-    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if payload.amount == 0:
+        raise BadRequest("validation_error", field="amount")
+
+    # Locked, so a correction cannot interleave with a webhook credit and
+    # overwrite it with a stale figure.
+    user = (
+        await db.execute(select(User).where(User.id == user_id).with_for_update())
+    ).scalar_one_or_none()
     if not user:
         raise NotFound("user_not_found")
 
@@ -3474,24 +3480,32 @@ async def adjust_user_balance(
     new_bal = max(0.0, old_bal + payload.amount)
     user.balance = new_bal
 
-    tx_type = "ADMIN_ADD" if payload.amount >= 0 else "ADMIN_DEDUCT"
-    desc = f"Admin ({admin.username}): {payload.reason}"
+    tx_type = "ADMIN_ADD" if payload.amount > 0 else "ADMIN_DEDUCT"
+    desc = f"Admin ({admin.username}): {payload.reason.strip()}"[:255]
 
     wallet_tx = WalletTransaction(
         user_id=user.id,
         type=tx_type,
-        amount=payload.amount,
+        amount=new_bal - old_bal,
         balance_after=new_bal,
         description=desc,
     )
     db.add(wallet_tx)
     await db.commit()
 
+    log.info(
+        "admin.balance_adjusted",
+        admin=admin.username,
+        user_id=str(user.id),
+        old_balance=old_bal,
+        new_balance=new_bal,
+    )
+
     return {
         "status": "success",
         "oldBalance": old_bal,
         "newBalance": new_bal,
-        "adjusted": payload.amount,
+        "adjusted": new_bal - old_bal,
     }
 
 

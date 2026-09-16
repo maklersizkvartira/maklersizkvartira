@@ -234,19 +234,42 @@ class Settings(BaseSettings):
     SMS_ENABLED: bool = True
 
     # -- Click Payment Gateway -----------------------------------------------
-    CLICK_SERVICE_ID: str = "112055"
-    CLICK_MERCHANT_ID: str = "64716"
-    CLICK_SECRET_KEY: str = "TyAfhhVWnkXhYh"
-    CLICK_MERCHANT_USER_ID: str = "91391"
+    #: No defaults, on purpose. The merchant ids and the secret key were
+    #: committed here as literals, in a public repository, on 2026-09-13; the
+    #: secret is what signs every Prepare/Complete request, so anyone holding
+    #: it could credit any wallet. They live only in the environment now, and
+    #: an empty secret means the webhook refuses every request rather than
+    #: verifying signatures against "".
+    CLICK_SERVICE_ID: str = ""
+    CLICK_MERCHANT_ID: str = ""
+    CLICK_SECRET_KEY: str = ""
+    CLICK_MERCHANT_USER_ID: str = ""
+    #: Click's onboarding team sends a request whose merchant_trans_id is the
+    #: literal word "test" and expects a success answer. That is a signed
+    #: request that credits nothing, but it is still a special case in a
+    #: money path, so it exists only while this is on.
+    CLICK_TEST_MODE: bool = False
 
     # -- Payme Payment Gateway -----------------------------------------------
-    PAYME_MERCHANT_ID: str = "6aa934ceee30563de3a1aea6"
-    PAYME_SECRET_KEY: str = "kDce4ijPPZe9ZN8P3B64%s3K#eBwzPsj#IRk"
-    PAYME_TEST_SECRET_KEY: str = "C6kxzR29k4VWSxpsbOZCD99U#2kVr#NggAIU"
+    PAYME_MERCHANT_ID: str = ""
+    PAYME_SECRET_KEY: str = ""
+    #: The sandbox key from test.paycom.uz. Honoured only while
+    #: PAYME_TEST_MODE is on: the sandbox runner creates transactions against
+    #: an arbitrary account with arbitrary amounts, and can cancel a done
+    #: transaction, which debits a wallet — none of which a leaked test key
+    #: should be able to do against the live site.
+    PAYME_TEST_SECRET_KEY: str = ""
+    PAYME_TEST_MODE: bool = False
     PAYME_CHECKOUT_URL: str = "https://checkout.paycom.uz"
-    PAYME_MXIK_CODE: str = "06820001001000000"
-    PAYME_PACKAGE_CODE: str = "1417745"
+    PAYME_MXIK_CODE: str = ""
+    PAYME_PACKAGE_CODE: str = ""
     PAYME_VAT_PERCENT: int = 0
+
+    #: Bounds for one top-up, in so'm. The lower bound is the smallest amount
+    #: the gateways accept; the upper one is there so a typo or a stolen card
+    #: cannot load a wallet with a sum nobody will ever spend on a listing.
+    PAYMENT_MIN_TOPUP_UZS: int = 1_000
+    PAYMENT_MAX_TOPUP_UZS: int = 5_000_000
 
     TELEGRAM_BOT_TOKEN: str = "8760567987:AAF5Qg1jVk7xClHJuTkxOSWvgDs9WEptL_M"
     TELEGRAM_GROUP_ID: str = "-1004486550551"

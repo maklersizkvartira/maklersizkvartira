@@ -32,6 +32,25 @@ interface TopUpModalProps {
 
 const PRESET_AMOUNTS = [5_000, 10_000, 20_000, 50_000, 100_000];
 
+/**
+ * The only places this modal will send a customer to.
+ *
+ * The checkout link comes from our own API, but the API answer travels
+ * through a proxy and a CDN, and a customer who has just pressed "pay" will
+ * type a card into whatever page opens next. Refusing anything that is not
+ * the gateway's own https origin costs nothing and closes that door.
+ */
+const GATEWAY_HOSTS = new Set(['my.click.uz', 'checkout.paycom.uz', 'checkout.test.paycom.uz']);
+
+function isGatewayUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw);
+    return url.protocol === 'https:' && GATEWAY_HOSTS.has(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 interface GatewayConfig {
   id: PaymentGateway;
   name: string;
@@ -164,7 +183,7 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
         targetUrl = type === 'card' ? (res.clickCardUrl || res.clickUrl) : (res.clickUrl || res.clickCardUrl);
       }
 
-      if (!targetUrl) {
+      if (!targetUrl || !isGatewayUrl(targetUrl)) {
         throw new Error('To‘lov havolasi olinmadi');
       }
 

@@ -64,7 +64,9 @@ async def clean_tables():
                 "TRUNCATE users, admin_users, listings, top_requests, favorites, "
                 "reports, verification_requests, refresh_tokens, otp_codes, "
                 "pending_registrations, login_attempts, audit_logs, "
-                "ai_sessions, ai_messages, sms_logs, traffic_events "
+                "ai_sessions, ai_messages, sms_logs, traffic_events, "
+                "payment_transactions, wallet_transactions, "
+                "click_payment_logs, payme_payment_logs "
                 "RESTART IDENTITY CASCADE"
             )
         )
