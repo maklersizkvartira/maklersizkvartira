@@ -120,4 +120,26 @@ export const account = {
     confirmAll: 'Barcha qurilmalardan chiqmoqchimisiz?',
     failed: 'Chiqishda xatolik yuz berdi.',
   },
+
+  // The balance top-up sheet (TopUpModal). Every string the sheet shows,
+  // because it used to be Uzbek only while the rest of the profile page
+  // followed the visitor's language.
+  topUp: {
+    title: 'Balansni to‘ldirish',
+    subtitle: 'To‘lov {gateway}ning himoyalangan sahifasida amalga oshiriladi',
+    gateway: 'To‘lov tizimi',
+    clickHint: 'Uzcard · Humo',
+    paymeHint: 'Ilova · karta',
+    amount: 'Summa',
+    customPlaceholder: 'Boshqa summa',
+    currency: 'so‘m',
+    range: '{min} dan {max} so‘mgacha',
+    amountTooLow: 'Kamida {min} so‘m',
+    amountTooHigh: 'Ko‘pi bilan {max} so‘m',
+    pay: '{gateway} orqali {amount} so‘m to‘lash',
+    redirecting: 'To‘lov sahifasi ochilmoqda…',
+    noLink: 'To‘lov havolasi olinmadi. Birozdan so‘ng qayta urinib ko‘ring.',
+    cardNote: 'Karta ma’lumotlari saytga tushmaydi. To‘lov tasdiqlangach balans bir zumda yangilanadi.',
+    close: 'Yopish',
+  },
 } as const;

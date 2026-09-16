@@ -117,4 +117,23 @@ export const account = {
     confirmAll: 'Sign out on all devices?',
     failed: 'Something went wrong while signing out.',
   },
+
+  topUp: {
+    title: 'Top up balance',
+    subtitle: 'Payment happens on {gateway}’s secure page',
+    gateway: 'Payment method',
+    clickHint: 'Uzcard · Humo',
+    paymeHint: 'App · card',
+    amount: 'Amount',
+    customPlaceholder: 'Other amount',
+    currency: 'so‘m',
+    range: '{min} to {max} so‘m',
+    amountTooLow: 'At least {min} so‘m',
+    amountTooHigh: 'At most {max} so‘m',
+    pay: 'Pay {amount} so‘m with {gateway}',
+    redirecting: 'Opening the payment page…',
+    noLink: 'Could not get a payment link. Please try again shortly.',
+    cardNote: 'Your card details never reach this site. The balance updates as soon as the payment is confirmed.',
+    close: 'Close',
+  },
 } as const;

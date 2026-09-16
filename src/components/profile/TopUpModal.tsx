@@ -1,26 +1,35 @@
 /**
- * TopUpModal: Ultra-modern Mobile-First Balance Top-Up gateway
- * supporting Click, Payme, and Uzum Bank with native app feel (Bottom Sheet on mobile).
+ * The balance top-up sheet: pick Click or Payme, pick an amount, pay.
+ *
+ * It is built on `Sheet` rather than on its own overlay, and that is most of
+ * the fix. The previous version was a hand-rolled `fixed inset-0
+ * overflow-y-auto` overlay with a `max-h-[90vh]` panel inside it; the panel's
+ * body could not shrink, so the *overlay* scrolled instead — a scrollbar down
+ * the right edge of the screen, the sheet floating loose from the bottom
+ * edge, and the pay buttons cut off below the fold on a phone. `Sheet` gives
+ * the body its own scroll, locks the page behind, pads the footer for the
+ * home indicator, closes on Escape and backdrop, and returns focus.
+ *
+ * It is also shorter on purpose. Three gateways became two: "Uzum Bank —
+ * Ulanmoqda" was a card that opened a paragraph explaining it did nothing.
+ * Two Click buttons became one: "via the app" and "via a card" both led to
+ * the same URL. The total-summary card, the "100% xavfsiz" line and the
+ * "256-bit SSL" footer are gone — the amount is on the pay button, and the
+ * one true sentence about safety (the card is entered on the gateway's page,
+ * not ours) is under it.
+ *
+ * All copy goes through `account.topUp.*`. It was hard-coded Uzbek in a
+ * profile page that otherwise follows the visitor's language.
  */
 
-import React, { useEffect, useState } from 'react';
-import {
-  AlertCircle,
-  ArrowRight,
-  CheckCircle2,
-  Clock,
-  CreditCard,
-  ExternalLink,
-  Info,
-  Loader2,
-  Lock,
-  RotateCcw,
-  ShieldCheck,
-  Sparkles,
-  X,
-} from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Loader2, ShieldCheck } from 'lucide-react';
+
+import { useTranslation } from '../../i18n';
+import { cn } from '../../lib/cn';
 import { PaymentApi, type PaymentGateway } from '../../services/paymentApi';
 import { useAppStore } from '../../stores/useAppStore';
+import { Sheet } from '../ui/Sheet';
 
 interface TopUpModalProps {
   isOpen: boolean;
@@ -30,10 +39,46 @@ interface TopUpModalProps {
   initialAmount?: number;
 }
 
-const PRESET_AMOUNTS = [5_000, 10_000, 20_000, 50_000, 100_000];
+/** Mirrors PAYMENT_MIN/MAX_TOPUP_UZS on the backend, which is what actually decides. */
+const MIN_AMOUNT = 1_000;
+const MAX_AMOUNT = 5_000_000;
+
+const PRESET_AMOUNTS = [10_000, 20_000, 50_000, 100_000];
+
+type Gateway = Extract<PaymentGateway, 'click' | 'payme'>;
+
+interface GatewayConfig {
+  id: Gateway;
+  name: string;
+  iconSrc: string;
+  hintKey: 'account.topUp.clickHint' | 'account.topUp.paymeHint';
+  /** The brand colour, used for the selected state and the pay button. */
+  accent: string;
+  /** Text colour that reads on `accent`. Payme's cyan needs dark text. */
+  onAccent: string;
+}
+
+const GATEWAYS: GatewayConfig[] = [
+  {
+    id: 'click',
+    name: 'Click',
+    iconSrc: '/brand/click-icon.svg',
+    hintKey: 'account.topUp.clickHint',
+    accent: '#0065FF',
+    onAccent: '#ffffff',
+  },
+  {
+    id: 'payme',
+    name: 'Payme',
+    iconSrc: '/brand/payme-app-icon.png',
+    hintKey: 'account.topUp.paymeHint',
+    accent: '#00CCCC',
+    onAccent: '#062a2a',
+  },
+];
 
 /**
- * The only places this modal will send a customer to.
+ * The only places this sheet will send a customer to.
  *
  * The checkout link comes from our own API, but the API answer travels
  * through a proxy and a CDN, and a customer who has just pressed "pay" will
@@ -51,69 +96,11 @@ function isGatewayUrl(raw: string): boolean {
   }
 }
 
-interface GatewayConfig {
-  id: PaymentGateway;
-  name: string;
-  badge: string;
-  isReady: boolean;
-  iconSrc: string;
-  logoWhiteSrc: string;
-  primaryColor: string;
-  gradientFrom: string;
-  gradientTo: string;
-  activeBorder: string;
-  activeBg: string;
-  shadowColor: string;
-  description: string;
+/** "35000" → "35 000". Digits only in, grouped out; the thousands separator
+ *  is a no-break space so the number never wraps. */
+function groupDigits(digits: string): string {
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
-
-const GATEWAYS: GatewayConfig[] = [
-  {
-    id: 'click',
-    name: 'Click',
-    badge: 'Faol',
-    isReady: true,
-    iconSrc: '/brand/click-icon.svg',
-    logoWhiteSrc: '/brand/click-logo-white.svg',
-    primaryColor: '#0065FF',
-    gradientFrom: '#0065FF',
-    gradientTo: '#0047b3',
-    activeBorder: 'border-[#0065FF] dark:border-[#0065FF]',
-    activeBg: 'bg-blue-50/90 dark:bg-blue-950/50',
-    shadowColor: 'rgba(0, 101, 255, 0.35)',
-    description: 'Click Up ilovasi yoki barcha bank kartalari',
-  },
-  {
-    id: 'payme',
-    name: 'Payme',
-    badge: 'Faol',
-    isReady: true,
-    iconSrc: '/brand/payme-app-icon.png',
-    logoWhiteSrc: '/brand/payme-logo-white.svg',
-    primaryColor: '#00CCCC',
-    gradientFrom: '#00CCCC',
-    gradientTo: '#009999',
-    activeBorder: 'border-[#00CCCC] dark:border-[#00CCCC]',
-    activeBg: 'bg-teal-50/90 dark:bg-teal-950/50',
-    shadowColor: 'rgba(0, 204, 204, 0.35)',
-    description: 'Payme ilovasi yoki Payme kartalari',
-  },
-  {
-    id: 'uzum',
-    name: 'Uzum Bank',
-    badge: 'Ulanmoqda',
-    isReady: false,
-    iconSrc: '/brand/uzum-app-icon.png',
-    logoWhiteSrc: '/brand/uzum-brand.png',
-    primaryColor: '#7000FF',
-    gradientFrom: '#7000FF',
-    gradientTo: '#4d00b3',
-    activeBorder: 'border-[#7000FF] dark:border-[#7000FF]',
-    activeBg: 'bg-purple-50/90 dark:bg-purple-950/50',
-    shadowColor: 'rgba(112, 0, 255, 0.35)',
-    description: 'Uzum ilovasi yoki Uzum Bank kartasi',
-  },
-];
 
 export const TopUpModal: React.FC<TopUpModalProps> = ({
   isOpen,
@@ -121,515 +108,207 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
   initialGateway = 'click',
   initialAmount,
 }) => {
-  const [selectedGateway, setSelectedGateway] = useState<PaymentGateway>(initialGateway);
-  const [selectedAmount, setSelectedAmount] = useState<number>(initialAmount || 20_000);
-  const [customAmount, setCustomAmount] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
-  const [activePaymentType, setActivePaymentType] = useState<'app' | 'card' | null>(null);
-  const [infoNotice, setInfoNotice] = useState<string | null>(null);
+  const { t, formatNumber } = useTranslation();
   const pushToast = useAppStore((s) => s.pushToast);
 
+  const [gateway, setGateway] = useState<Gateway>(initialGateway === 'payme' ? 'payme' : 'click');
+  /** The amount as typed, digits only. A preset writes into it too, so
+   *  there is one source of truth rather than a preset AND a custom field
+   *  that had to be reconciled on every read. */
+  const [amountDigits, setAmountDigits] = useState<string>(String(initialAmount || 20_000));
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Re-seed when the sheet is reopened with a different suggestion, e.g. the
+  // exact shortfall for a badge purchase.
   useEffect(() => {
-    if (initialGateway) {
-      setSelectedGateway(initialGateway);
-    }
-    if (initialAmount) {
-      setSelectedAmount(initialAmount);
-      setCustomAmount('');
-    }
-  }, [initialGateway, initialAmount, isOpen]);
+    if (!isOpen) return;
+    setGateway(initialGateway === 'payme' ? 'payme' : 'click');
+    if (initialAmount) setAmountDigits(String(Math.round(initialAmount)));
+    setError(null);
+    setLoading(false);
+  }, [isOpen, initialGateway, initialAmount]);
 
-  if (!isOpen) return null;
+  const amount = Number(amountDigits) || 0;
+  const config = GATEWAYS.find((g) => g.id === gateway) ?? GATEWAYS[0];
 
-  const currentAmount = customAmount ? parseFloat(customAmount) || 0 : selectedAmount;
-  const currentGatewayConfig = GATEWAYS.find((g) => g.id === selectedGateway) || GATEWAYS[0];
+  const amountError = useMemo(() => {
+    if (!amountDigits) return null;
+    if (amount < MIN_AMOUNT) return t('account.topUp.amountTooLow', { min: formatNumber(MIN_AMOUNT) });
+    if (amount > MAX_AMOUNT) return t('account.topUp.amountTooHigh', { max: formatNumber(MAX_AMOUNT) });
+    return null;
+  }, [amount, amountDigits, formatNumber, t]);
 
-  const handleSelectPreset = (amount: number) => {
-    setSelectedAmount(amount);
-    setCustomAmount('');
-    setInfoNotice(null);
+  const canPay = amount >= MIN_AMOUNT && amount <= MAX_AMOUNT && !loading;
+
+  const handleAmountInput = (raw: string) => {
+    // Digits only, and never more than the maximum has: a seventh digit on a
+    // phone keyboard is far more often a slip than a real 10-million top-up.
+    const digits = raw.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 7);
+    setAmountDigits(digits);
+    setError(null);
   };
 
-  const handleGatewayChange = (gw: PaymentGateway) => {
-    setSelectedGateway(gw);
-    setInfoNotice(null);
-  };
-
-  const handlePay = async (type: 'app' | 'card') => {
-    if (currentAmount < 1_000) {
-      pushToast('common.error.generic', 'warning');
-      return;
-    }
-
-    if (!currentGatewayConfig.isReady) {
-      const gwName = currentGatewayConfig.name;
-      setInfoNotice(
-        `${gwName} to‘lov tizimi hozirda rasmiy merchant integratsiyasi bosqichida. Tez kunda ushbu tizim to‘liq ishga tushadi. Hozircha Click orqali Uzcard yoki Humo kartangiz bilan bir zumda to‘ldirishingiz mumkin!`
-      );
-      return;
-    }
-
+  const handlePay = async () => {
+    if (!canPay) return;
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setActivePaymentType(type);
-
       const returnUrl = typeof window !== 'undefined' ? `${window.location.origin}/profile` : undefined;
-      const res = await PaymentApi.createTopUp(currentAmount, returnUrl, selectedGateway);
-
-      let targetUrl: string | undefined;
-      if (selectedGateway === 'payme') {
-        targetUrl = res.paymeUrl;
-      } else {
-        targetUrl = type === 'card' ? (res.clickCardUrl || res.clickUrl) : (res.clickUrl || res.clickCardUrl);
-      }
-
+      const res = await PaymentApi.createTopUp(amount, returnUrl, gateway);
+      const targetUrl = gateway === 'payme' ? res.paymeUrl : res.clickUrl || res.clickCardUrl;
       if (!targetUrl || !isGatewayUrl(targetUrl)) {
-        throw new Error('To‘lov havolasi olinmadi');
+        throw new Error(t('account.topUp.noLink'));
       }
-
+      // The page is leaving; the spinner stays until it has.
       window.location.href = targetUrl;
-    } catch (err: any) {
-      console.error('To‘lovda xatolik:', err);
-      const errMsg = err?.message || err?.detail || 'common.error.generic';
-      pushToast(errMsg, 'error');
-    } finally {
+    } catch (err) {
+      const message = err instanceof Error && err.message ? err.message : t('common.error.generic');
+      setError(message);
+      pushToast(message, 'error');
       setLoading(false);
-      setActivePaymentType(null);
     }
   };
+
+  const payLabel = loading
+    ? t('account.topUp.redirecting')
+    : t('account.topUp.pay', { gateway: config.name, amount: formatNumber(Math.max(amount, 0)) });
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6 sm:py-10 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
-      {/* Modal Container: Bottom Sheet on Mobile, Centered Dialog on Desktop */}
-      <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[32px] sm:rounded-3xl p-5 sm:p-7 shadow-2xl border-t sm:border border-slate-100 dark:border-slate-800 max-h-[90vh] sm:max-h-[86vh] flex flex-col my-auto animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 duration-200">
-        
-        {/* Mobile Drag Indicator */}
-        <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-3 sm:hidden shrink-0" />
-
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          disabled={loading}
-          aria-label="Yopish"
-          className="absolute top-4 right-4 sm:top-5 sm:right-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors z-30 shadow-sm border border-slate-200/80 dark:border-slate-700/80 active:scale-95"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* Scrollable Content */}
-        <div className="overflow-y-auto pr-0.5 space-y-4 sm:space-y-5">
-          
-          {/* Header */}
-          <div className="flex items-center gap-3 pr-8">
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center p-2 shrink-0 shadow-sm border transition-all duration-300"
-              style={{
-                backgroundColor: `${currentGatewayConfig.primaryColor}18`,
-                borderColor: `${currentGatewayConfig.primaryColor}35`,
-              }}
-            >
-              <img
-                src={currentGatewayConfig.iconSrc}
-                alt={currentGatewayConfig.name}
-                className="w-full h-full object-contain rounded-lg"
-              />
-            </div>
-            <div>
-              <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-tight">
-                Balansni to‘ldirish
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
-                <span>{currentGatewayConfig.name} orqali tezkor to‘lov</span>
-                <span
-                  className={`inline-block w-2 h-2 rounded-full ${
-                    currentGatewayConfig.isReady
-                      ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]'
-                      : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]'
-                  }`}
-                />
-              </p>
-            </div>
-          </div>
-
-          {/* 1. Payment Provider Cards (Click, Payme, Uzum Bank) */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                To‘lov tizimini tanlang
-              </label>
-              <span className="text-[10px] text-slate-400">
-                100% xavfsiz to‘lov
-              </span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-              {GATEWAYS.map((gw) => {
-                const isSelected = selectedGateway === gw.id;
-                return (
-                  <button
-                    key={gw.id}
-                    type="button"
-                    onClick={() => handleGatewayChange(gw.id)}
-                    className={`relative p-2.5 sm:p-3 rounded-2xl border text-center transition-all duration-200 flex flex-col items-center justify-between gap-1.5 sm:gap-2 active:scale-95 group ${
-                      isSelected
-                        ? `${gw.activeBorder} ${gw.activeBg} shadow-md ring-2 dark:ring-offset-slate-900 scale-[1.02]`
-                        : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/70 hover:border-slate-300 dark:hover:border-slate-600'
-                    }`}
-                    style={
-                      isSelected
-                        ? {
-                            boxShadow: `0 8px 20px -4px ${gw.shadowColor}`,
-                            outlineColor: gw.primaryColor,
-                          }
-                        : {}
-                    }
-                  >
-                    {/* Live Status indicator */}
-                    <div className="absolute top-1.5 right-1.5">
-                      {gw.isReady ? (
-                        <span className="inline-flex items-center gap-0.5 text-[8px] sm:text-[9px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          Faol
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-0.5 text-[8px] sm:text-[9px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
-                          <Clock className="w-2.5 h-2.5" />
-                          Kutilmoqda
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Official App Icon */}
-                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white dark:bg-slate-900 p-1 shadow-xs border border-slate-100 dark:border-slate-800 flex items-center justify-center shrink-0 mt-2 overflow-hidden">
-                      <img
-                        src={gw.iconSrc}
-                        alt={gw.name}
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                    </div>
-
-                    {/* Provider Name */}
-                    <div>
-                      <div className="text-xs font-black text-slate-900 dark:text-white leading-tight">
-                        {gw.name}
-                      </div>
-                      <div className="text-[10px] text-slate-400 font-medium">
-                        {gw.id === 'click' ? 'Click Up' : gw.id === 'payme' ? 'Payme App' : 'Uzum App'}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 2. Amount Presets (Thumb-friendly buttons on mobile) */}
-          <div>
-            <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-              Tavsiya etilgan summalar
-            </label>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 sm:gap-2">
-              {PRESET_AMOUNTS.map((amt) => {
-                const active = !customAmount && selectedAmount === amt;
-                return (
-                  <button
-                    key={amt}
-                    type="button"
-                    onClick={() => handleSelectPreset(amt)}
-                    className={`h-10 sm:h-9 px-1.5 rounded-xl text-xs font-black border transition-all active:scale-95 flex items-center justify-center ${
-                      active
-                        ? 'text-white shadow-md'
-                        : 'bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700/60 hover:border-slate-300'
-                    }`}
-                    style={
-                      active
-                        ? {
-                            backgroundColor: currentGatewayConfig.primaryColor,
-                            borderColor: currentGatewayConfig.primaryColor,
-                            boxShadow: `0 4px 12px ${currentGatewayConfig.shadowColor}`,
-                          }
-                        : {}
-                    }
-                  >
-                    {amt.toLocaleString()}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 3. Custom Amount Input */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Yoki boshqa summa kiriting
-              </label>
-              {customAmount && (
-                <button
-                  type="button"
-                  onClick={() => setCustomAmount('')}
-                  className="text-[11px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center gap-0.5"
-                >
-                  <RotateCcw className="w-3 h-3" /> Tozalash
-                </button>
-              )}
-            </div>
-            <div className="relative">
-              <input
-                type="number"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                placeholder="Masalan: 35000"
-                value={customAmount}
-                onChange={(e) => {
-                  setCustomAmount(e.target.value);
-                  setInfoNotice(null);
-                }}
-                className="w-full h-12 px-4 pr-16 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-xl text-slate-900 dark:text-white font-black text-base focus:ring-2 focus:border-transparent outline-none transition-all"
-                style={{
-                  ['--tw-ring-color' as any]: currentGatewayConfig.primaryColor,
-                }}
-              />
-              <span className="absolute right-4 top-3.5 text-xs font-black text-slate-400">
-                SO‘M
-              </span>
-            </div>
-            <span className="block text-[10px] text-slate-400 mt-1">
-              Minimal to‘lov summasi: 1 000 so‘m
-            </span>
-          </div>
-
-          {/* 4. Total Display Card */}
-          <div
-            className="p-3.5 rounded-2xl border flex items-center justify-between transition-all duration-300"
-            style={{
-              backgroundColor: `${currentGatewayConfig.primaryColor}0d`,
-              borderColor: `${currentGatewayConfig.primaryColor}30`,
-            }}
-          >
-            <div className="flex items-center gap-2">
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center p-1"
-                style={{ backgroundColor: `${currentGatewayConfig.primaryColor}20` }}
-              >
-                <img
-                  src={currentGatewayConfig.iconSrc}
-                  alt={currentGatewayConfig.name}
-                  className="w-full h-full object-contain rounded-xs"
-                />
-              </div>
-              <span className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300">
-                To‘lov summasi:
-              </span>
-            </div>
-            <span
-              className="text-xl sm:text-2xl font-black tracking-tight"
-              style={{ color: currentGatewayConfig.primaryColor }}
-            >
-              {currentAmount.toLocaleString()} so‘m
-            </span>
-          </div>
-
-          {/* Pending Gateway Notice (if user clicks Payme or Uzum Bank) */}
-          {infoNotice && (
-            <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 flex items-start gap-3 animate-in fade-in">
-              <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-              <div className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
-                {infoNotice}
-                <button
-                  type="button"
-                  onClick={() => setSelectedGateway('click')}
-                  className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm active:scale-95 transition-all"
-                >
-                  Click orqali to‘lash <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
+    <Sheet
+      open={isOpen}
+      onClose={loading ? () => undefined : onClose}
+      title={t('account.topUp.title')}
+      description={t('account.topUp.subtitle', { gateway: config.name })}
+      size="sm"
+      dismissOnBackdrop={!loading}
+      footer={
+        <div className="space-y-2.5">
+          {error && (
+            <p role="alert" className="text-xs font-semibold text-danger">
+              {error}
+            </p>
           )}
-
-          {/* 5. Dynamic Payment Action Buttons according to Selected Provider */}
-          <div className="space-y-2.5">
-            {/* PROVIDER 1: CLICK (Fully Active) */}
-            {selectedGateway === 'click' && (
-              <>
-                {/* Button: Click Official App */}
-                <button
-                  type="button"
-                  disabled={loading || currentAmount < 1_000}
-                  onClick={() => handlePay('app')}
-                  className="w-full flex items-center justify-between px-4 py-3.5 sm:py-4 rounded-2xl bg-[#0065FF] hover:bg-[#0052cc] text-white font-bold shadow-lg shadow-blue-500/25 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 px-2.5 rounded-xl bg-white/15 flex items-center justify-center border border-white/20 shrink-0">
-                      <img
-                        src="/brand/click-logo-white.svg"
-                        alt="Click"
-                        className="h-4 sm:h-5 w-auto object-contain"
-                      />
-                    </div>
-                    <div className="text-left">
-                      <div className="text-xs sm:text-sm font-black leading-tight">
-                        Click ilovasi orqali to‘lash
-                      </div>
-                      <div className="text-[10px] sm:text-[11px] text-blue-100/90 font-normal">
-                        Click Up ilovasi yoki hisob raqami
-                      </div>
-                    </div>
-                  </div>
-                  {loading && activePaymentType === 'app' ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <ExternalLink className="w-4 h-4 text-blue-200 group-hover:translate-x-0.5 transition-transform" />
-                  )}
-                </button>
-
-                {/* Button: Plastic Card via Click */}
-                <button
-                  type="button"
-                  disabled={loading || currentAmount < 1_000}
-                  onClick={() => handlePay('card')}
-                  className="w-full flex items-center justify-between px-4 py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 text-white font-bold shadow-lg shadow-slate-900/25 hover:from-slate-800 hover:to-slate-750 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none border border-slate-700/60 group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center border border-white/10 shrink-0 text-emerald-400">
-                      <CreditCard className="w-5 h-5" />
-                    </div>
-                    <div className="text-left">
-                      <div className="text-xs sm:text-sm font-black leading-tight flex items-center gap-1.5">
-                        Plastik karta orqali
-                        <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/20 px-1.5 py-0.5 rounded">
-                          Uzcard / Humo
-                        </span>
-                      </div>
-                      <div className="text-[10px] sm:text-[11px] text-slate-400 font-normal">
-                        Barcha bank kartalari bir zumda qabul qilinadi
-                      </div>
-                    </div>
-                  </div>
-                  {loading && activePaymentType === 'card' ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <ExternalLink className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                  )}
-                </button>
-
-                <div className="p-2.5 sm:p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40 flex items-start gap-2 text-left">
-                  <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-                    <span className="font-bold text-slate-800 dark:text-white">Karta bilan to‘lash:</span> Click sahifasida <strong className="text-blue-600 dark:text-blue-400">«Karta orqali / Оплата без регистрации»</strong> tugmasini bosib, Uzcard yoki Humo kartangizni kiritasiz.
-                  </p>
-                </div>
-              </>
+          <button
+            type="button"
+            onClick={handlePay}
+            disabled={!canPay}
+            style={{ backgroundColor: config.accent, color: config.onAccent }}
+            className="press flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl px-4 text-sm font-black shadow-lg transition-opacity disabled:opacity-50"
+          >
+            {loading ? (
+              <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+            ) : (
+              <img src={config.iconSrc} alt="" className="h-6 w-6 rounded-md object-cover" />
             )}
-
-            {/* PROVIDER 2: PAYME (Official Setup Ready) */}
-            {selectedGateway === 'payme' && (
-              <>
-                {/* Button: Payme Official App */}
+            <span>{payLabel}</span>
+          </button>
+          <p className="flex items-start gap-1.5 text-[11px] leading-snug text-subtle">
+            <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
+            <span>{t('account.topUp.cardNote')}</span>
+          </p>
+        </div>
+      }
+    >
+      <div className="space-y-5 pt-1">
+        {/* 1. Gateway */}
+        <fieldset>
+          <legend className="mb-2 text-[11px] font-bold uppercase tracking-wider text-subtle">
+            {t('account.topUp.gateway')}
+          </legend>
+          <div className="grid grid-cols-2 gap-2">
+            {GATEWAYS.map((gw) => {
+              const selected = gw.id === gateway;
+              return (
                 <button
+                  key={gw.id}
                   type="button"
-                  disabled={loading || currentAmount < 1_000}
-                  onClick={() => handlePay('app')}
-                  className="w-full flex items-center justify-between px-4 py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-[#00CCCC] to-[#00b3b3] hover:from-[#00b3b3] hover:to-[#009999] text-slate-950 font-black shadow-lg shadow-teal-500/25 active:scale-[0.98] transition-all disabled:opacity-50 group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-xl bg-black/10 flex items-center justify-center border border-black/10 shrink-0 overflow-hidden p-1">
-                      <img
-                        src="/brand/payme-app-icon.png"
-                        alt="Payme"
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                    </div>
-                    <div className="text-left">
-                      <div className="text-xs sm:text-sm font-black leading-tight text-slate-950">
-                        Payme orqali to‘lash
-                      </div>
-                      <div className="text-[10px] sm:text-[11px] text-slate-800/80 font-medium">
-                        Payme ilovasi yoki bank kartasi bilan
-                      </div>
-                    </div>
-                  </div>
-                  {loading && activePaymentType === 'app' ? (
-                    <Loader2 className="w-5 h-5 animate-spin text-slate-900" />
-                  ) : (
-                    <ExternalLink className="w-4 h-4 text-slate-900 group-hover:translate-x-0.5 transition-transform" />
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => {
+                    setGateway(gw.id);
+                    setError(null);
+                  }}
+                  style={selected ? { borderColor: gw.accent, boxShadow: `0 0 0 1px ${gw.accent}` } : undefined}
+                  className={cn(
+                    'press flex min-h-[64px] items-center gap-2.5 rounded-2xl border px-2.5 py-3 text-left transition-colors',
+                    selected ? 'bg-surface-2' : 'border-line bg-surface hover:bg-surface-2',
                   )}
-                </button>
-
-                <div className="p-3.5 rounded-2xl bg-teal-50/80 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-900/50 flex items-start gap-2.5 text-left">
-                  <Info className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
-                  <div className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                    <p className="font-bold text-slate-900 dark:text-white mb-0.5">
-                      Rasmiy Payme to‘lov sahifasi
-                    </p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Tugmani bosganingizda to‘g‘ridan-to‘g‘ri Payme ilovasi yoki veb-sahifasiga yo‘naltirilasiz. To‘lov amalga oshirilishi bilan hisobingiz bir zumda to‘ldiriladi.
-                    </p>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* PROVIDER 3: UZUM BANK (Official Setup Ready) */}
-            {selectedGateway === 'uzum' && (
-              <>
-                {/* Button: Uzum Bank Official App */}
-                <button
-                  type="button"
-                  disabled={loading || currentAmount < 1_000}
-                  onClick={() => handlePay('app')}
-                  className="w-full flex items-center justify-between px-4 py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-[#7000FF] to-[#5900CC] hover:from-[#6200e0] hover:to-[#4d00b3] text-white font-black shadow-lg shadow-purple-500/25 active:scale-[0.98] transition-all disabled:opacity-50 group"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-xl bg-white/15 flex items-center justify-center border border-white/20 shrink-0 overflow-hidden p-1">
-                      <img
-                        src="/brand/uzum-app-icon.png"
-                        alt="Uzum Bank"
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                    </div>
-                    <div className="text-left">
-                      <div className="text-xs sm:text-sm font-black leading-tight text-white">
-                        Uzum Bank ilovasi orqali to‘lash
-                      </div>
-                      <div className="text-[10px] sm:text-[11px] text-purple-200/90 font-medium">
-                        Uzum Bank ilovasi yoki Uzum karta
-                      </div>
-                    </div>
-                  </div>
-                  <ExternalLink className="w-4 h-4 text-purple-200 group-hover:translate-x-0.5 transition-transform" />
+                  <img
+                    src={gw.iconSrc}
+                    alt=""
+                    className="h-9 w-9 shrink-0 rounded-xl object-cover shadow-sm"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-black text-content">{gw.name}</span>
+                    <span className="block whitespace-nowrap text-[10px] leading-tight text-muted">
+                      {t(gw.hintKey)}
+                    </span>
+                  </span>
                 </button>
-
-                <div className="p-3.5 rounded-2xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900/50 flex items-start gap-2.5 text-left">
-                  <Info className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
-                  <div className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                    <p className="font-bold text-slate-900 dark:text-white mb-0.5">
-                      Uzum Bank to‘lov tizimi sozlanmoqda
-                    </p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Uzum Bank merchant ma‘lumotlari tasdiqlangach, Uzum ilovasi orqali bir tugma bilan to‘lash yo‘lga qo‘yiladi. Hozirda Click orqali Uzcard va Humo kartalari to‘liq faol.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedGateway('click')}
-                      className="mt-2 text-xs font-black text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-                    >
-                      Click orqali to‘ldirish <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
+              );
+            })}
           </div>
+        </fieldset>
 
-          {/* Trust Guarantee Footer */}
-          <div className="pt-3 pb-1 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-center gap-1.5 text-center text-[10px] sm:text-[11px] text-slate-400">
-            <Lock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-            <span>256-bit SSL xavfsiz shifrlangan to‘lov protokoli</span>
+        {/* 2. Amount */}
+        <div>
+          <label
+            htmlFor="topup-amount"
+            className="mb-2 block text-[11px] font-bold uppercase tracking-wider text-subtle"
+          >
+            {t('account.topUp.amount')}
+          </label>
+          <div className="mb-2 grid grid-cols-4 gap-2">
+            {PRESET_AMOUNTS.map((preset) => {
+              const active = amount === preset;
+              return (
+                <button
+                  key={preset}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => handleAmountInput(String(preset))}
+                  style={active ? { backgroundColor: config.accent, color: config.onAccent, borderColor: config.accent } : undefined}
+                  className={cn(
+                    'press min-h-11 rounded-xl border text-xs font-black transition-colors',
+                    active ? 'shadow-md' : 'border-line bg-surface text-content hover:bg-surface-2',
+                  )}
+                >
+                  {formatNumber(preset)}
+                </button>
+              );
+            })}
           </div>
-
+          <div className="relative">
+            <input
+              id="topup-amount"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder={t('account.topUp.customPlaceholder')}
+              value={groupDigits(amountDigits)}
+              onChange={(e) => handleAmountInput(e.target.value)}
+              aria-invalid={amountError ? true : undefined}
+              aria-describedby="topup-amount-hint"
+              className={cn(
+                'h-12 w-full rounded-xl border bg-surface pl-4 pr-16 text-base font-black text-content outline-none transition-colors placeholder:font-semibold placeholder:text-subtle focus:border-brand',
+                amountError ? 'border-danger' : 'border-line',
+              )}
+            />
+            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-subtle">
+              {t('account.topUp.currency')}
+            </span>
+          </div>
+          <p
+            id="topup-amount-hint"
+            className={cn('mt-1.5 text-[11px]', amountError ? 'font-semibold text-danger' : 'text-subtle')}
+          >
+            {amountError ??
+              t('account.topUp.range', { min: formatNumber(MIN_AMOUNT), max: formatNumber(MAX_AMOUNT) })}
+          </p>
         </div>
       </div>
-    </div>
+    </Sheet>
   );
 };

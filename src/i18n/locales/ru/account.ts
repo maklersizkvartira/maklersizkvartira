@@ -117,4 +117,23 @@ export const account = {
     confirmAll: 'Выйти на всех устройствах?',
     failed: 'При выходе произошла ошибка.',
   },
+
+  topUp: {
+    title: 'Пополнить баланс',
+    subtitle: 'Оплата проходит на защищённой странице {gateway}',
+    gateway: 'Платёжная система',
+    clickHint: 'Uzcard · Humo',
+    paymeHint: 'Карта · приложение',
+    amount: 'Сумма',
+    customPlaceholder: 'Другая сумма',
+    currency: 'сум',
+    range: 'От {min} до {max} сум',
+    amountTooLow: 'Минимум {min} сум',
+    amountTooHigh: 'Максимум {max} сум',
+    pay: 'Оплатить {amount} сум через {gateway}',
+    redirecting: 'Открываем страницу оплаты…',
+    noLink: 'Не удалось получить ссылку на оплату. Попробуйте чуть позже.',
+    cardNote: 'Данные карты на сайт не попадают. Баланс обновится сразу после подтверждения платежа.',
+    close: 'Закрыть',
+  },
 } as const;
