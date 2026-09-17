@@ -474,7 +474,9 @@ export interface ListingModerationPayload {
  * backend zeroes the weight and clears `featuredUntil` itself.
  */
 export interface ListingFeaturePayload {
-  isFeatured: boolean;
+  isFeatured?: boolean;
+  isVip?: boolean;
+  tier?: 'NONE' | 'TOP' | 'VIP';
   /** 1..365, default 7. */
   days?: number;
   /** 0..1000, default 0. */

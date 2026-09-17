@@ -285,6 +285,9 @@
       "reject": "Reject",
       "feature": "Promote",
       "unfeature": "Remove promotion",
+      "setVip": "Make VIP",
+      "setTop": "Promote to TOP",
+      "removePromotion": "Make regular (remove promotion)",
       "delete": "Delete",
       "viewOnSite": "View on site"
     },

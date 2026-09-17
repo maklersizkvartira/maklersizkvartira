@@ -285,6 +285,9 @@
       "reject": "Rad etish",
       "feature": "Reklamaga qoʻyish",
       "unfeature": "Reklamadan olish",
+      "setVip": "VIP ga chiqarish",
+      "setTop": "TOP ga chiqarish",
+      "removePromotion": "Oddiy qilish (reklamadan olish)",
       "delete": "Oʻchirish",
       "viewOnSite": "Saytda koʻrish"
     },

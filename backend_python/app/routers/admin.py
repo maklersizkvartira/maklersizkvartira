@@ -1463,14 +1463,49 @@ async def feature_listing(
     db: DbSession,
 ) -> dict:
     listing = await _load_listing(db, listing_id)
-    before = {"is_featured": listing.is_featured, "promotion_weight": listing.promotion_weight}
+    before = {
+        "is_featured": listing.is_featured,
+        "featured_until": listing.featured_until.isoformat() if listing.featured_until else None,
+        "is_vip": listing.is_vip,
+        "vip_until": listing.vip_until.isoformat() if listing.vip_until else None,
+        "promotion_weight": listing.promotion_weight,
+    }
 
-    listing.is_featured = payload.is_featured
-    listing.promotion_weight = payload.promotion_weight if payload.is_featured else 0
-    listing.featured_until = (
-        _now() + timedelta(days=payload.days) if payload.is_featured else None
-    )
+    tier = (payload.tier or "").upper()
+    now_dt = _now()
+    expire_at = now_dt + timedelta(days=payload.days)
+
+    if tier == "VIP" or (not tier and payload.is_vip):
+        listing.is_vip = True
+        listing.vip_until = expire_at
+        listing.is_featured = True
+        listing.featured_until = expire_at
+        listing.promotion_weight = payload.promotion_weight if payload.promotion_weight > 0 else 20
+        action_label = f"VIP ({payload.days} kun)"
+    elif tier == "TOP" or (not tier and payload.is_featured):
+        listing.is_featured = True
+        listing.featured_until = expire_at
+        listing.is_vip = False
+        listing.vip_until = None
+        listing.promotion_weight = payload.promotion_weight if payload.promotion_weight > 0 else 10
+        action_label = f"TOP ({payload.days} kun)"
+    else:
+        listing.is_featured = False
+        listing.featured_until = None
+        listing.is_vip = False
+        listing.vip_until = None
+        listing.promotion_weight = 0
+        action_label = "Oddiy (reklamadan olindi)"
+
     await db.flush()
+
+    after = {
+        "is_featured": listing.is_featured,
+        "featured_until": listing.featured_until.isoformat() if listing.featured_until else None,
+        "is_vip": listing.is_vip,
+        "vip_until": listing.vip_until.isoformat() if listing.vip_until else None,
+        "promotion_weight": listing.promotion_weight,
+    }
 
     await audit_log.record(
         db,
@@ -1478,16 +1513,13 @@ async def feature_listing(
         entity_type="listing",
         entity_id=listing.id,
         entity_label=listing.title,
-        summary=(
-            f"{admin.full_name} {'promoted' if payload.is_featured else 'unpromoted'} "
-            f"'{listing.title}'"
-        ),
-        changes=audit_log.diff(
-            before,
-            {"is_featured": listing.is_featured, "promotion_weight": listing.promotion_weight},
-        ),
+        summary=f"{admin.full_name} '{listing.title}' e'lonini {action_label} ga o'tkazdi",
+        changes=audit_log.diff(before, after),
     )
-    return _ok(AdminListingRow.model_validate(listing).model_dump(by_alias=True))
+    row = AdminListingRow.model_validate(listing)
+    row.is_vip = bool(listing.is_vip)
+    row.vip_until = listing.vip_until
+    return _ok(row.model_dump(by_alias=True))
 
 
 @router.delete("/listings/{listing_id}", summary="Delete a listing")

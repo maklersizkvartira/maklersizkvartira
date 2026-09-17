@@ -459,7 +459,9 @@ class ListingModerationRequest(CamelModel):
 
 
 class ListingFeatureRequest(CamelModel):
-    is_featured: bool
+    is_featured: bool = False
+    is_vip: bool = False
+    tier: str | None = None  # "NONE" | "TOP" | "VIP"
     days: int = Field(default=7, ge=1, le=365)
     promotion_weight: int = Field(default=0, ge=0, le=1000)
 

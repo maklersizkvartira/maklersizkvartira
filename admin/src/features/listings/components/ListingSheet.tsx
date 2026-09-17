@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { AlertTriangle, BedDouble, Eye, Flag, Ruler, Star, Trash2 } from 'lucide-react';
+import { AlertTriangle, BedDouble, Crown, Eye, Flag, Flame, Ruler, Star, Trash2 } from 'lucide-react';
 
 import type { AdminListingRow, ListingFeaturePayload } from '@/shared/api/types';
 import { Button } from '@/shared/ui/Button';
@@ -14,7 +14,7 @@ import { USER_ROLES } from '@/features/users/constants';
 import { useConfirm } from '@/providers/confirm-provider';
 
 import type { ListingModerationBody } from '../api';
-import { isFeaturedNow } from '../api';
+import { isFeaturedNow, isVipNow } from '../api';
 import {
   APPROVE_STATUS,
   FEATURE_DAYS_DEFAULT,
@@ -130,7 +130,7 @@ export function ListingSheet({
    * whole sheet either way.
    */
   const [decided, setDecided] = useState<typeof APPROVE_STATUS | typeof REJECT_STATUS | null>(null);
-  const [promotingTo, setPromotingTo] = useState<boolean | null>(null);
+  const [promotingTo, setPromotingTo] = useState<'VIP' | 'TOP' | 'NONE' | null>(null);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -153,7 +153,9 @@ export function ListingSheet({
    */
   const forSale = row.dealType === 'SALE';
 
-  const featured = isFeaturedNow(row);
+  const isVip = isVipNow(row);
+  const isTop = isFeaturedNow(row);
+  const featured = isVip || isTop;
   const busy = moderating || featuring || removing;
 
   /**
@@ -430,64 +432,164 @@ export function ListingSheet({
             unfeaturing: the backend zeroes the weight and clears the date. */}
         {canFeature && (
           <SheetSection title={t('actions.feature')}>
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label={t('moderation.featureDays')}
-                type="number"
-                inputMode="numeric"
-                min={FEATURE_DAYS_MIN}
-                max={FEATURE_DAYS_MAX}
-                value={days}
-                disabled={busy}
-                onChange={(event) => setDays(event.target.value)}
-                hint={`${FEATURE_DAYS_MIN}–${FEATURE_DAYS_MAX}`}
-              />
-              <Input
-                label={t('moderation.promotionWeight')}
-                type="number"
-                inputMode="numeric"
-                min={FEATURE_WEIGHT_MIN}
-                max={FEATURE_WEIGHT_MAX}
-                value={weight}
-                disabled={busy}
-                onChange={(event) => setWeight(event.target.value)}
-                hint={`${FEATURE_WEIGHT_MIN}–${FEATURE_WEIGHT_MAX}`}
-              />
+            {/* Current status banner */}
+            <div
+              className="mb-3 rounded-[var(--radius-md)] p-3 border text-xs flex items-center justify-between"
+              style={{
+                background: isVip
+                  ? 'rgba(168, 85, 247, 0.08)'
+                  : isTop
+                  ? 'rgba(245, 158, 11, 0.08)'
+                  : 'var(--color-bg-subtle, #f9fafb)',
+                borderColor: isVip
+                  ? 'rgba(168, 85, 247, 0.3)'
+                  : isTop
+                  ? 'rgba(245, 158, 11, 0.3)'
+                  : 'var(--color-border, #e5e7eb)',
+              }}
+            >
+              <div className="flex items-center gap-2">
+                {isVip ? (
+                  <span className="inline-flex items-center gap-1.5 font-bold text-purple-700 dark:text-purple-300">
+                    <Crown size={15} className="text-purple-600" />
+                    VIP eʼlon (faol)
+                  </span>
+                ) : isTop ? (
+                  <span className="inline-flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-300">
+                    <Flame size={15} className="text-amber-600" />
+                    TOP eʼlon (faol)
+                  </span>
+                ) : (
+                  <span className="text-[var(--color-text-muted)] font-medium">
+                    Oddiy eʼlon (reklamasiz)
+                  </span>
+                )}
+              </div>
+              <div className="font-mono text-[11px] text-[var(--color-text-muted)]">
+                {isVip && row.vipUntil
+                  ? `${showDate(row.vipUntil)} gacha`
+                  : isTop && row.featuredUntil
+                  ? `${showDate(row.featuredUntil)} gacha`
+                  : 'Amal qilish muddati yoʻq'}
+              </div>
+            </div>
+
+            {/* Quick days picker & inputs */}
+            <div className="space-y-2 mb-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-[var(--color-text-secondary)]">
+                  {t('moderation.featureDays')}
+                </span>
+                <div className="flex gap-1.5">
+                  {[7, 14, 30].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setDays(String(preset))}
+                      className={`px-2 py-0.5 text-xs rounded border transition-colors ${
+                        days === String(preset)
+                          ? 'bg-blue-600 text-white border-blue-600 font-semibold'
+                          : 'bg-[var(--color-bg-subtle)] text-[var(--color-text-secondary)] border-[var(--color-border)] hover:bg-[var(--color-bg-hover)]'
+                      }`}
+                    >
+                      {preset} kun
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label={t('moderation.featureDays')}
+                  type="number"
+                  inputMode="numeric"
+                  min={FEATURE_DAYS_MIN}
+                  max={FEATURE_DAYS_MAX}
+                  value={days}
+                  disabled={busy}
+                  onChange={(event) => setDays(event.target.value)}
+                  hint={`${FEATURE_DAYS_MIN}–${FEATURE_DAYS_MAX}`}
+                />
+                <Input
+                  label={t('moderation.promotionWeight')}
+                  type="number"
+                  inputMode="numeric"
+                  min={FEATURE_WEIGHT_MIN}
+                  max={FEATURE_WEIGHT_MAX}
+                  value={weight}
+                  disabled={busy}
+                  onChange={(event) => setWeight(event.target.value)}
+                  hint={`${FEATURE_WEIGHT_MIN}–${FEATURE_WEIGHT_MAX}`}
+                />
+              </div>
             </div>
 
             <div className={`flex flex-col sm:flex-row gap-2.5 mt-3 ${TOUCH_BUTTONS}`}>
+              {/* VIP button */}
               <Button
                 variant="secondary"
-                icon={<Star size={14} />}
-                loading={featuring && promotingTo === true}
+                icon={<Crown size={14} className="text-purple-600" />}
+                loading={featuring && promotingTo === 'VIP'}
                 disabled={busy}
+                className="!border-purple-300 dark:!border-purple-800 !bg-purple-50 hover:!bg-purple-100 dark:!bg-purple-950/40 dark:hover:!bg-purple-900/50 !text-purple-700 dark:!text-purple-300 font-semibold"
                 onClick={() => {
-                  setPromotingTo(true);
+                  setPromotingTo('VIP');
                   onFeature({
+                    tier: 'VIP',
+                    isVip: true,
                     isFeatured: true,
                     days: clamp(Number(days), FEATURE_DAYS_MIN, FEATURE_DAYS_MAX, FEATURE_DAYS_DEFAULT),
                     promotionWeight: clamp(
                       Number(weight),
                       FEATURE_WEIGHT_MIN,
                       FEATURE_WEIGHT_MAX,
-                      FEATURE_WEIGHT_DEFAULT,
+                      20,
                     ),
                   });
                 }}
               >
-                {t('actions.feature')}
+                {t('actions.setVip')}
               </Button>
-              {featured && (
+
+              {/* TOP button */}
+              <Button
+                variant="secondary"
+                icon={<Flame size={14} className="text-amber-600" />}
+                loading={featuring && promotingTo === 'TOP'}
+                disabled={busy}
+                className="!border-amber-300 dark:!border-amber-800 !bg-amber-50 hover:!bg-amber-100 dark:!bg-amber-950/40 dark:hover:!bg-amber-900/50 !text-amber-700 dark:!text-amber-300 font-semibold"
+                onClick={() => {
+                  setPromotingTo('TOP');
+                  onFeature({
+                    tier: 'TOP',
+                    isFeatured: true,
+                    isVip: false,
+                    days: clamp(Number(days), FEATURE_DAYS_MIN, FEATURE_DAYS_MAX, FEATURE_DAYS_DEFAULT),
+                    promotionWeight: clamp(
+                      Number(weight),
+                      FEATURE_WEIGHT_MIN,
+                      FEATURE_WEIGHT_MAX,
+                      10,
+                    ),
+                  });
+                }}
+              >
+                {t('actions.setTop')}
+              </Button>
+
+              {/* Unfeature button */}
+              {(isVip || isTop) && (
                 <Button
                   variant="ghost"
-                  loading={featuring && promotingTo === false}
+                  loading={featuring && promotingTo === 'NONE'}
                   disabled={busy}
                   onClick={() => {
-                    setPromotingTo(false);
-                    onFeature({ isFeatured: false });
+                    setPromotingTo('NONE');
+                    onFeature({ tier: 'NONE', isFeatured: false, isVip: false });
                   }}
                 >
-                  {t('actions.unfeature')}
+                  {t('actions.removePromotion')}
                 </Button>
               )}
             </div>
