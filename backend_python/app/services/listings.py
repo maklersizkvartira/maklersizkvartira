@@ -172,6 +172,24 @@ def apply_filters(stmt: Select, filters: ListingFilters, rate: float) -> Select:
         value = getattr(filters, field_name)
         if value is True:
             stmt = stmt.where(getattr(Listing, field_name).is_(True))
+
+    if getattr(filters, "vip_only", False):
+        live_vip = and_(
+            Listing.is_vip.is_(True),
+            or_(Listing.vip_until.is_(None), Listing.vip_until > _now()),
+        )
+        stmt = stmt.where(live_vip)
+    elif getattr(filters, "promoted_only", False):
+        live_vip = and_(
+            Listing.is_vip.is_(True),
+            or_(Listing.vip_until.is_(None), Listing.vip_until > _now()),
+        )
+        live_top = and_(
+            Listing.is_featured.is_(True),
+            or_(Listing.featured_until.is_(None), Listing.featured_until > _now()),
+        )
+        stmt = stmt.where(or_(live_vip, live_top))
+
     return stmt
 
 
@@ -189,18 +207,20 @@ def apply_sort(stmt: Select, sort_by: str, rate: float) -> Select:
         )
     if sort_by == "NEWEST":
         return stmt.order_by(Listing.created_at.desc())
-    # RECOMMENDED: promoted first, then reliability, then freshness.
+    # RECOMMENDED: VIP first, then TOP, then weight, trust, freshness.
     #
-    # The promotion arm tests the DATE, not just the boolean. Nothing clears
-    # `is_featured` when `featured_until` passes, so sorting on the flag alone
-    # would let every listing ever promoted outrank the whole catalogue for
-    # ever - which is exactly the rule `list_featured` already applies to the
-    # rail. Now that owners can ask for Top, the two have to agree.
+    # The promotion arms test the DATE, not just the boolean flag.
+    # VIP strictly outranks TOP.
+    live_vip = and_(
+        Listing.is_vip.is_(True),
+        or_(Listing.vip_until.is_(None), Listing.vip_until > _now()),
+    )
     live_top = and_(
         Listing.is_featured.is_(True),
         or_(Listing.featured_until.is_(None), Listing.featured_until > _now()),
     )
     return stmt.order_by(
+        live_vip.desc(),
         live_top.desc(),
         Listing.promotion_weight.desc(),
         Listing.trust_score.desc(),
@@ -235,16 +255,28 @@ async def list_public(
     return list(rows), total
 
 
-async def list_featured(db: AsyncSession, limit: int = 8) -> list[Listing]:
-    """The promoted rail on the listings page."""
+async def list_featured(db: AsyncSession, limit: int = 12) -> list[Listing]:
+    """The promoted rail on the listings page (VIP strictly first, then TOP)."""
+    live_vip = and_(
+        Listing.is_vip.is_(True),
+        or_(Listing.vip_until.is_(None), Listing.vip_until > _now()),
+    )
+    live_top = and_(
+        Listing.is_featured.is_(True),
+        or_(Listing.featured_until.is_(None), Listing.featured_until > _now()),
+    )
     stmt = (
         select(Listing)
         .where(
             _visible_clause(),
-            Listing.is_featured.is_(True),
-            or_(Listing.featured_until.is_(None), Listing.featured_until > _now()),
+            or_(live_vip, live_top),
         )
-        .order_by(Listing.promotion_weight.desc(), Listing.created_at.desc())
+        .order_by(
+            live_vip.desc(),
+            live_top.desc(),
+            Listing.promotion_weight.desc(),
+            Listing.created_at.desc(),
+        )
         .limit(limit)
     )
     return list((await db.execute(stmt)).unique().scalars().all())

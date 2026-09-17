@@ -1152,7 +1152,7 @@ const store = createStore<AppState>((set, get) => ({
 
   fetchFeatured: async () => {
     try {
-      const result = await ListingsApi.featured(8);
+      const result = await ListingsApi.featured(12);
       set({ featured: result?.data || [] });
     } catch {
       set({ featured: [] });

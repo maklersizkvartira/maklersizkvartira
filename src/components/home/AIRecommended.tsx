@@ -107,32 +107,39 @@ export const AIRecommended: React.FC = () => {
       else setLoading(true);
       setFailed(false);
       try {
-        const result = await ListingsApi.list({
+        const query: ListingQuery = {
           sortBy: 'RECOMMENDED',
           page: nextPage,
           pageSize: PAGE_SIZE,
-          // Rentals AND sales. The home page says "E'lonlar", not "Ijara", and
-          // omitting this asks the server for its RENT default — so the day a
-          // property for sale is approved it would be missing from the only
-          // listing section the home page has, with nothing saying so.
           dealType: 'ALL',
-          // Everyone, always. This used to read the store's shared
-          // `filters.audience` and, for a signed-in student, to override it
-          // with STUDENT outright — so a filter chosen on the catalogue, or
-          // merely the role on the account, silently removed listings from the
-          // home page. There is no chip, no badge and no reset control on this
-          // page, so nothing said a filter was on and nothing could turn it
-          // off; a student account could not see the whole site at all.
-          //
-          // The home page is a shop window. It shows what there is, and the
-          // catalogue is where a search gets narrowed.
           audience: 'ALL',
-        }, controller.signal);
+        };
+        if (isMonetizationEnabled) {
+          query.promotedOnly = true;
+        }
+        const result = await ListingsApi.list(query, controller.signal);
         // A superseded request must not paint. `alive` covers the unmount that
         // no abort can catch: the request that resolved first is still holding
         // this closure.
         if (!alive.current || ticket !== sequence.current) return;
-        const rows = result?.data ?? [];
+        const rawRows = result?.data ?? [];
+        const isPaidVip = (item: Listing) => Boolean(
+          item.isVip && (!item.vipUntil || new Date(item.vipUntil).getTime() > Date.now())
+        );
+        const isPaidTop = (item: Listing) => Boolean(
+          item.isFeatured && (!item.featuredUntil || new Date(item.featuredUntil).getTime() > Date.now())
+        );
+        const rows = isMonetizationEnabled
+          ? rawRows
+              .filter((item) => isPaidVip(item) || isPaidTop(item))
+              .sort((a, b) => {
+                const aVip = isPaidVip(a);
+                const bVip = isPaidVip(b);
+                if (aVip && !bVip) return -1;
+                if (!aVip && bVip) return 1;
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+              })
+          : rawRows;
         setListings((current) => {
           if (!appendingNow) return rows;
           // A page boundary can repeat a row when something is published
@@ -163,7 +170,7 @@ export const AIRecommended: React.FC = () => {
         }
       }
     },
-    [pushToast],
+    [pushToast, isMonetizationEnabled],
   );
 
   useEffect(() => {
@@ -195,12 +202,8 @@ export const AIRecommended: React.FC = () => {
                 : t('home.recommended.title' as never)}
             </h2>
             {isMonetizationEnabled && (
-              // `warning`, not a `yellow-500` literal: the token flips with the
-              // theme and a palette class does not, so this badge used to stay
-              // light-mode ochre while the identical TOP badge on the catalogue
-              // lifted to the dark-mode amber beside it.
-              <span className="rounded-md border border-warning/20 bg-warning-soft px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-warning">
-                VIP
+              <span className="rounded-md border border-amber-400/40 bg-amber-400/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-500">
+                VIP & TOP
               </span>
             )}
           </div>
@@ -257,7 +260,11 @@ export const AIRecommended: React.FC = () => {
         </div>
       ) : listings.length === 0 ? (
         <div className="space-y-3 rounded-3xl border border-line bg-surface p-8 text-center">
-          <p className="text-xs font-bold text-muted sm:text-sm">{t('home.recommended.empty')}</p>
+          <p className="text-xs font-bold text-muted sm:text-sm">
+            {isMonetizationEnabled
+              ? "Hozircha VIP yoki TOP e’lonlar mavjud emas"
+              : t('home.recommended.empty')}
+          </p>
           {canPost && (
             <Button type="button" onClick={() => setCurrentView('CREATE_LISTING')}>
               {t('home.recommended.emptyCta')}

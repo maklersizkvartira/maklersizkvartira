@@ -115,7 +115,7 @@ async def list_listings(
 async def featured(
     db: DbSession,
     viewer: OptionalUser,
-    limit: int = Query(default=8, ge=1, le=24),
+    limit: int = Query(default=12, ge=1, le=50),
 ) -> dict:
     rows = await listing_service.list_featured(db, limit=limit)
     favorite_ids = await listing_service.favorite_ids_for(db, viewer)

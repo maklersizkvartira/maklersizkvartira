@@ -170,7 +170,6 @@ export const ListingCard: React.FC<ListingCardProps> = ({
     (listing.vipUntil && new Date(listing.vipUntil).getTime() > Date.now())
   );
   const isTopListing = Boolean(
-    promoted ||
     listing.isFeatured ||
     (listing.featuredUntil && new Date(listing.featuredUntil).getTime() > Date.now())
   );

@@ -413,10 +413,46 @@ export const ListingsPage: React.FC = () => {
     });
   });
 
-  const promoted = useMemo(
-    () => featured.filter((item) => !listings.some((listed) => listed.id === item.id)).slice(0, 4),
-    [featured, listings],
-  );
+  const isPaidVip = useCallback((item: Listing) => Boolean(
+    item.isVip && (!item.vipUntil || new Date(item.vipUntil).getTime() > Date.now())
+  ), []);
+
+  const isPaidTop = useCallback((item: Listing) => Boolean(
+    item.isFeatured && (!item.featuredUntil || new Date(item.featuredUntil).getTime() > Date.now())
+  ), []);
+
+  const promoted = useMemo(() => {
+    if (!isMonetizationEnabled) return [];
+
+    const candidateMap = new Map<string, Listing>();
+    featured.forEach((item) => {
+      if (isPaidVip(item) || isPaidTop(item)) {
+        candidateMap.set(item.id, item);
+      }
+    });
+    listings.forEach((item) => {
+      if (isPaidVip(item) || isPaidTop(item)) {
+        candidateMap.set(item.id, item);
+      }
+    });
+
+    // Strictly sort: VIP FIRST, then TOP. Within same tier, newest first.
+    return Array.from(candidateMap.values()).sort((a, b) => {
+      const aVip = isPaidVip(a);
+      const bVip = isPaidVip(b);
+      if (aVip && !bVip) return -1;
+      if (!aVip && bVip) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [isMonetizationEnabled, featured, listings, isPaidVip, isPaidTop]);
+
+  const displayedListings = useMemo(() => {
+    if (!isMonetizationEnabled || promoted.length === 0) {
+      return listings;
+    }
+    const promotedIds = new Set(promoted.map((p) => p.id));
+    return listings.filter((item) => !promotedIds.has(item.id));
+  }, [isMonetizationEnabled, promoted, listings]);
 
   const showSkeletons = loading && !appending;
 
@@ -1009,19 +1045,24 @@ export const ListingsPage: React.FC = () => {
       {/* ---------------------------------------------------------------- */}
       {isMonetizationEnabled && promoted.length > 0 && (
         <section className="gutter-safe mx-auto max-w-7xl pb-2 pt-6">
-          <div className="mb-3 flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-warning" aria-hidden="true" />
-            <h2 className="text-lg font-black text-content sm:text-xl">
-              {t('listings.featured.vipTitle')}
-            </h2>
-            <span className="rounded-md border border-warning/20 bg-warning-soft px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-warning">
-              {t('listings.featured.topBadge')}
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-warning" aria-hidden="true" />
+              <h2 className="text-lg font-black text-content sm:text-xl">
+                {t('listings.featured.vipTitle')}
+              </h2>
+              <span className="rounded-md border border-amber-400/40 bg-amber-400/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-500">
+                VIP & TOP
+              </span>
+            </div>
+            <span className="rounded-md bg-surface-2 px-2 py-0.5 text-xs font-bold text-muted">
+              {t('listings.page.resultCount', { count: formatNumber(promoted.length) })}
             </span>
           </div>
           <div className="hide-scrollbar -mx-4 flex snap-x snap-mandatory gap-3.5 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-4">
             {promoted.map((listing) => (
               <div key={listing.id} className="w-[85vw] shrink-0 snap-start sm:w-auto">
-                <ListingCard listing={listing} promoted priority />
+                <ListingCard listing={listing} priority />
               </div>
             ))}
           </div>
@@ -1042,32 +1083,13 @@ export const ListingsPage: React.FC = () => {
       </section>
 
       <section className="gutter-safe mx-auto max-w-7xl py-6 sm:py-8">
-        {/* How the results are drawn belongs with the results.
-
-            The grid/list toggle used to be the first control in the sticky
-            bar, above the search box: the most prominent thing on the page,
-            for a preference that is set once and then never touched again,
-            holding 44px of a phone's screen open on every scroll of every
-            visit. Down here it sits beside the count whose shape it changes,
-            and the row it gave up is the one the applied-filter chips now
-            stand in.
-
-            The count is new on this page. `totalCount` was reachable only
-            from the sheet's footer button and a line underneath the last card,
-            so a visitor who had filtered the catalogue down to four listings
-            had to work that out from the length of the grid.
-
-            Nothing to draw, nothing to say: the empty and error cards below
-            both already explain themselves, and a toolbar reading "0 listings
-            found" over the top of one of them is a second voice saying the
-            same thing less well. */}
-        {(showSkeletons || listings.length > 0) && (
+        {(showSkeletons || displayedListings.length > 0) && (
           <div className="mb-4 flex items-center justify-between gap-3">
             <p className="min-w-0 truncate text-sm font-bold text-muted">
               {showSkeletons
                 ? t('common.sheet.loading')
                 : filterCount > 0
-                  ? t('listings.page.resultCountFiltered', { count: formatNumber(totalCount) })
+                  ? t('listings.page.resultCountFiltered', { count: formatNumber(displayedListings.length) })
                   : t('listings.page.resultCount', { count: formatNumber(totalCount) })}
             </p>
             <div className="flex shrink-0 gap-1 rounded-2xl bg-surface-2 p-1">
@@ -1100,7 +1122,7 @@ export const ListingsPage: React.FC = () => {
             </div>
           </div>
         )}
-        {error && !loading && listings.length === 0 ? (
+        {error && !loading && displayedListings.length === 0 && promoted.length === 0 ? (
           <div className="rounded-2xl border border-danger/30 bg-danger-soft p-8 text-center">
             <p className="text-sm font-bold text-danger">
               {error === 'network' ? t('common.error.network') : t('common.error.generic')}
@@ -1115,44 +1137,42 @@ export const ListingsPage: React.FC = () => {
             </Button>
           </div>
         ) : showSkeletons ? (
-          // Skeletons, not the previous query's rows. Leaving stale results up
-          // while a new filter is in flight is the same lie the mock listings
-          // told: cards that are about to be replaced by a different number of
-          // cards, which is what "everything vanished" looked like.
           <div className={grid} aria-busy="true" aria-label={t('common.sheet.loading')}>
             {Array.from({ length: 8 }).map((_, index) => (
               <ListingCardSkeleton key={index} variant={view} />
             ))}
           </div>
-        ) : listings.length === 0 ? (
-          <div className="rounded-2xl border border-line bg-surface p-10 text-center">
-            <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-2 text-subtle">
-              <MapPin className="h-7 w-7" aria-hidden="true" />
-            </span>
-            <h3 className="text-base font-black text-content">
-              {filterCount > 0 ? t('listings.empty.title') : t('listings.empty.noListingsTitle')}
-            </h3>
-            <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted">
-              {filterCount > 0 ? t('listings.empty.body') : t('listings.empty.noListingsBody')}
-            </p>
-            <Button
-              variant={filterCount > 0 ? 'secondary' : 'primary'}
-              onClick={() =>
-                filterCount > 0
-                  ? clearEverything()
-                  : currentUser
-                    ? setCurrentView('CREATE_LISTING')
-                    : setShowAuth(true, 'REGISTER')
-              }
-              className="mt-5"
-            >
-              {filterCount > 0 ? t('listings.empty.cta') : t('listings.empty.noListingsCta')}
-            </Button>
-          </div>
+        ) : displayedListings.length === 0 ? (
+          promoted.length > 0 ? null : (
+            <div className="rounded-2xl border border-line bg-surface p-10 text-center">
+              <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-2 text-subtle">
+                <MapPin className="h-7 w-7" aria-hidden="true" />
+              </span>
+              <h3 className="text-base font-black text-content">
+                {filterCount > 0 ? t('listings.empty.title') : t('listings.empty.noListingsTitle')}
+              </h3>
+              <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted">
+                {filterCount > 0 ? t('listings.empty.body') : t('listings.empty.noListingsBody')}
+              </p>
+              <Button
+                variant={filterCount > 0 ? 'secondary' : 'primary'}
+                onClick={() =>
+                  filterCount > 0
+                    ? clearEverything()
+                    : currentUser
+                      ? setCurrentView('CREATE_LISTING')
+                      : setShowAuth(true, 'REGISTER')
+                }
+                className="mt-5"
+              >
+                {filterCount > 0 ? t('listings.empty.cta') : t('listings.empty.noListingsCta')}
+              </Button>
+            </div>
+          )
         ) : (
           <>
             <div className={grid}>
-              {listings.map((listing, index) => (
+              {displayedListings.map((listing, index) => (
                 <ListingCard
                   key={listing.id}
                   listing={listing}

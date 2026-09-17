@@ -421,6 +421,8 @@ class ListingFilters(CamelModel):
     #: back. Rent-only in meaning — `_normalise_deal` clears it on every sale
     #: row — so asking for it on the sale side legitimately matches nothing.
     utilities_included: bool | None = None
+    promoted_only: bool | None = None
+    vip_only: bool | None = None
     sort_by: Literal[
         "RECOMMENDED", "NEWEST", "PRICE_LOW", "PRICE_HIGH", "TRUST", "POPULAR"
     ] = "RECOMMENDED"

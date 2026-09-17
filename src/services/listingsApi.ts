@@ -53,6 +53,8 @@ export interface ListingQuery {
    * amenity missing from it is a filter nobody can see is missing.
    */
   utilitiesIncluded?: boolean;
+  promotedOnly?: boolean;
+  vipOnly?: boolean;
   sortBy?: 'RECOMMENDED' | 'NEWEST' | 'PRICE_LOW' | 'PRICE_HIGH' | 'TRUST' | 'POPULAR';
   page?: number;
   pageSize?: number;
@@ -166,7 +168,7 @@ export const ListingsApi = {
   list: (query: ListingQuery = {}, signal?: AbortSignal) =>
     http.get<ListingPage>('/listings', { query: toQuery(query), signal }),
 
-  featured: (limit = 8) =>
+  featured: (limit = 12) =>
     http.get<{ data: Listing[] }>('/listings/featured', { query: { limit } }),
 
   byId: async (id: string): Promise<Listing> => {
