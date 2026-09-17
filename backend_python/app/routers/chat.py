@@ -604,4 +604,17 @@ async def send_support_message(
 
     await db.commit()
     await db.refresh(msg)
+
+    import asyncio
+    from app.services.support_ai import process_incoming_support_message
+
+    asyncio.create_task(
+        process_incoming_support_message(
+            conversation_id=conversation.id,
+            user_id=user.id,
+            message_text=payload.text.strip(),
+        )
+    )
+
     return msg
+

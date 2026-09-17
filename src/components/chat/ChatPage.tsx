@@ -585,10 +585,13 @@ export const ChatPage: React.FC = () => {
               <div className="flex items-center gap-1.5">
                 <h1 className="truncate text-[15px] font-black leading-tight text-content">{t('chat.support.brand')}</h1>
                 <OfficialBadge size="sm" />
+                <span className="inline-flex items-center rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-bold text-brand ring-1 ring-inset ring-brand/20">
+                  AI + Jonli
+                </span>
               </div>
               <p className="flex items-center gap-1.5 text-[11px] font-medium text-muted">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />
-                {t('chat.support.status')}
+                {t('chat.support.status')} · AI yordamchi va mutaxassislar onlayn
               </p>
             </div>
           </header>

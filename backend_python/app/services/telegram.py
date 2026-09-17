@@ -280,3 +280,39 @@ async def send_ai_chat_to_telegram(
             log.warning("telegram.ai_chat_failed", detail=detail, chat_id=chat_id)
 
     return any_ok
+
+
+async def send_support_escalation_alert(
+    *,
+    user_name: str,
+    user_phone: str | None,
+    user_id: str | None = None,
+    message_text: str,
+    ai_reply: str | None = None,
+) -> bool:
+    """Send an escalation alert to @Uyiz_ai_chat_bot / operations group when a user contacts support."""
+    token = (settings.telegram_ai_bot_token or settings.TELEGRAM_BOT_TOKEN or "").strip()
+    chat_id = (settings.telegram_ai_chat_id or settings.telegram_chat_id or "").strip()
+    if not token or not chat_id:
+        log.warning("telegram.not_configured", context="support_escalation")
+        return False
+
+    now = datetime.now(TASHKENT).strftime("%d.%m.%Y %H:%M")
+    phone = format_display(user_phone) if user_phone else "Kiritilmadi"
+
+    admin_link = "https://admin.maklersiz.uz/support"
+
+    text = (
+        "🔔 <b>YANGI SUPPORT XABARI</b> 🎧\n\n"
+        f"👤 <b>Mijoz:</b> {_esc(user_name)}\n"
+        f"📞 <b>Telefon:</b> {_esc(phone)}\n"
+        f"💬 <b>Murojaat:</b> <i>{_esc(message_text[:500])}</i>\n"
+        f"⏰ <b>Vaqt:</b> {_esc(now)}\n\n"
+        "⚠️ <i>Supportdan xabar keldi, admin panelga o‘tib mijozlar bilan ishlash bo‘limiga o‘tishingizni so‘rab qolaman.</i>\n\n"
+        f"🔗 <a href=\"{admin_link}\">Mijozlar bilan ishlash bo‘limiga o‘tish</a>"
+    )
+
+    ok, detail = await _post(token=token, chat_id=chat_id, text=text)
+    if not ok:
+        log.warning("telegram.support_escalation_failed", detail=detail, chat_id=chat_id)
+    return ok
