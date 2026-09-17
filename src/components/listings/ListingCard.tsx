@@ -296,7 +296,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
       onTouchCancel={swipe.handlers.onTouchCancel}
       className={cn(
         'relative shrink-0 overflow-hidden bg-surface-2',
-        isList ? 'h-full w-36 sm:w-52' : 'aspect-[4/3] w-full',
+        isList ? 'h-full w-36 sm:w-52' : 'aspect-[16/11] sm:aspect-[4/3] w-full',
       )}
     >
       {hasPhoto ? (
@@ -432,7 +432,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
   );
 
   const body = (
-    <div className={`flex min-w-0 flex-1 flex-col gap-1.5 ${isList ? 'p-3' : 'p-3.5 sm:p-4'}`}>
+    <div className={`flex min-w-0 flex-1 flex-col gap-1 sm:gap-1.5 ${isList ? 'p-3' : 'p-2.5 sm:p-4'}`}>
       {/* `flex-wrap`, and the number itself never breaks.
 
           This card was written for the catalogue's one-column phone layout;
@@ -445,7 +445,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
           to say readable in one piece. Dollar listings, which are most of the
           catalogue today, are unaffected either way. */}
       <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
-        <p className="text-base sm:text-lg font-black leading-tight text-content">
+        <p className="text-[15px] sm:text-lg font-black leading-tight text-content">
           {/* The listing's own currency, not a converted one. A price set in
               dollars is a dollar price — rewriting it into so'm at today's
               rate would restate the owner's terms as something they never
@@ -490,8 +490,8 @@ export const ListingCard: React.FC<ListingCardProps> = ({
           title line is what pushed the meta rows out of the bottom of it. */}
       <h3
         className={cn(
-          'text-[13px] sm:text-sm font-bold leading-snug text-content',
-          isList ? 'line-clamp-1 min-h-[1.375em]' : 'line-clamp-2 min-h-[2.75em]',
+          'text-[12.5px] sm:text-sm font-bold leading-snug text-content',
+          isList ? 'line-clamp-1 min-h-[1.375em]' : 'line-clamp-1 sm:line-clamp-2 min-h-[1.375em] sm:min-h-[2.75em]',
         )}
       >
         <AppLink
@@ -527,7 +527,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
           `truncate`s) instead of the card losing its last line. */}
       <div
         className={cn(
-          'flex items-center gap-x-2 sm:gap-x-3 gap-y-1 text-[11px] sm:text-xs text-muted',
+          'flex items-center gap-x-2 sm:gap-x-3 gap-y-0.5 text-[11px] sm:text-xs text-muted',
           isList ? 'min-w-0 flex-nowrap overflow-hidden' : 'flex-wrap',
         )}
       >
@@ -547,24 +547,20 @@ export const ListingCard: React.FC<ListingCardProps> = ({
           </span>
         ) : null}
         {listing.district ? (
-          <span className="inline-flex min-w-0 items-center gap-1 truncate max-w-[80px] sm:max-w-none">
+          <span className="inline-flex min-w-0 items-center gap-1 truncate max-w-[85px] sm:max-w-none">
             <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" aria-hidden="true" />
             {listing.district}
           </span>
         ) : null}
+        {listing.metroStation && (
+          <span className="inline-flex min-w-0 items-center gap-1 font-semibold text-brand-text truncate max-w-[85px] sm:max-w-none">
+            <Train className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" aria-hidden="true" />
+            {listing.metroDistanceMinutes
+              ? `${listing.metroStation} (${listing.metroDistanceMinutes}m)`
+              : listing.metroStation}
+          </span>
+        )}
       </div>
-
-      {listing.metroStation && (
-        <p className="inline-flex items-center gap-1 text-[11px] sm:text-xs font-semibold text-brand-text truncate">
-          <Train className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
-          {listing.metroDistanceMinutes
-            ? t('listings.card.metro', {
-                station: listing.metroStation,
-                minutes: listing.metroDistanceMinutes,
-              })
-            : listing.metroStation}
-        </p>
-      )}
 
       <div className="mt-auto flex items-center justify-between gap-2 pt-1">
         {/* This slot promised "direct contact" on every card in the grid,
@@ -657,7 +653,7 @@ export const ListingCardSkeleton: React.FC<{ variant?: 'grid' | 'list' }> = ({
   >
     <div
       className={`animate-shimmer shrink-0 ${
-        variant === 'list' ? 'h-full w-36 sm:w-52' : 'aspect-[4/3] w-full'
+        variant === 'list' ? 'h-full w-36 sm:w-52' : 'aspect-[16/11] sm:aspect-[4/3] w-full'
       }`}
     />
     <div className="flex-1 space-y-2.5 p-4">
