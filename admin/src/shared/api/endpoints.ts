@@ -352,6 +352,8 @@ export const api = {
       `/admin/support/conversations/${userId}/messages`,
     updateStatus: (userId: string) =>
       `/admin/support/conversations/${userId}/status`,
+    aiStatus: '/admin/support/ai-status',
+    toggleAi: '/admin/support/toggle-ai',
   },
 
   push: {

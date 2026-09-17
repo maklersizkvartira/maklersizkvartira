@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import session_scope
 from app.models.chat import SupportConversation, SupportMessage
+from app.models.settings import SystemSetting
 from app.models.user import User
 from app.services import ai_settings
 from app.services.telegram import send_support_escalation_alert
@@ -212,6 +213,29 @@ async def process_incoming_support_message(
 
             if not user or not conversation:
                 return None
+
+            # Check if admin has enabled or disabled AI assistant
+            status_row = (
+                await db.execute(
+                    select(SystemSetting.value).where(SystemSetting.key == "is_support_ai_enabled")
+                )
+            ).scalar_one_or_none()
+            ai_enabled = (status_row == "true") if status_row is not None else True
+
+            if not ai_enabled:
+                # AI auto-reply is disabled by admin. Send Telegram alert so operators handle manually!
+                try:
+                    await send_support_escalation_alert(
+                        user_name=user.name or "Mijoz",
+                        user_phone=getattr(user, "phone", None),
+                        user_id=str(user.id),
+                        message_text=message_text,
+                        ai_reply=None,
+                    )
+                except Exception as e:
+                    log.warning("support_ai.manual_alert_failed", error=str(e))
+                return None
+
 
             # Fetch recent messages for context
             recent_rows = (

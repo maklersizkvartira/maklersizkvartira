@@ -14,6 +14,7 @@ import {
   MessageSquare,
   RefreshCw,
   ArrowLeft,
+  Bot,
 } from 'lucide-react';
 import { http } from '@/shared/lib/http';
 import { api } from '@/shared/api/endpoints';
@@ -125,7 +126,43 @@ export default function SupportPage() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'RESOLVED'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [replyText, setReplyText] = useState('');
+  const [aiEnabled, setAiEnabled] = useState<boolean>(true);
+  const [togglingAi, setTogglingAi] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Fetch initial AI status
+  useEffect(() => {
+    http.get<{ enabled: boolean }>(api.support.aiStatus)
+      .then((res) => {
+        if (typeof res?.enabled === 'boolean') {
+          setAiEnabled(res.enabled);
+        }
+      })
+      .catch(() => null);
+  }, []);
+
+  const handleToggleAi = async () => {
+    if (togglingAi) return;
+    setTogglingAi(true);
+    const nextState = !aiEnabled;
+    setAiEnabled(nextState);
+    try {
+      const res = await http.post<{ enabled: boolean; message?: string }>(
+        api.support.toggleAi,
+        { enabled: nextState },
+      );
+      if (typeof res?.enabled === 'boolean') {
+        setAiEnabled(res.enabled);
+      }
+      toast.success(nextState ? t('aiToggledOn') : t('aiToggledOff'));
+    } catch {
+      setAiEnabled(!nextState);
+      toast.error(t('errors.status'));
+    } finally {
+      setTogglingAi(false);
+    }
+  };
+
   /**
    * Which customer the pane is FOR, readable from a callback that has already
    * closed over a stale value.
@@ -442,15 +479,71 @@ export default function SupportPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => void reloadConversations()}
-          disabled={loadingList}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-xs hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
-        >
-          <RefreshCw className={cn('h-3.5 w-3.5', loadingList && 'animate-spin')} />
-          {t('refresh')}
-        </button>
+        <div className="flex items-center gap-2.5">
+          {/* AI Toggle Switch */}
+          <div className="flex items-center gap-2.5 rounded-xl border border-neutral-200/80 bg-white px-3 py-1.5 shadow-xs dark:border-neutral-800 dark:bg-neutral-900">
+            <div className="flex items-center gap-2">
+              <div
+                className={cn(
+                  'flex h-7 w-7 items-center justify-center rounded-lg transition-colors',
+                  aiEnabled
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400'
+                    : 'bg-neutral-100 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-500',
+                )}
+              >
+                <Bot className="h-4 w-4" />
+              </div>
+              <div className="text-left">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">
+                    {t('aiAssistant')}
+                  </span>
+                  <span
+                    className={cn(
+                      'inline-block h-1.5 w-1.5 rounded-full',
+                      aiEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-neutral-400',
+                    )}
+                  />
+                </div>
+                <p className="hidden sm:block text-[10px] text-neutral-500 dark:text-neutral-400">
+                  {aiEnabled ? t('aiEnabledDesc') : t('aiDisabledDesc')}
+                </p>
+              </div>
+            </div>
+
+            {/* Switch Control */}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={aiEnabled}
+              disabled={togglingAi}
+              onClick={() => void handleToggleAi()}
+              title={aiEnabled ? t('aiEnabled') : t('aiDisabled')}
+              className={cn(
+                'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 disabled:opacity-50',
+                aiEnabled ? 'bg-emerald-600' : 'bg-neutral-300 dark:bg-neutral-700',
+              )}
+            >
+              <span
+                className={cn(
+                  'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out',
+                  aiEnabled ? 'translate-x-5' : 'translate-x-0',
+                )}
+              />
+            </button>
+          </div>
+
+          <button
+            onClick={() => void reloadConversations()}
+            disabled={loadingList}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-xs hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          >
+            <RefreshCw className={cn('h-3.5 w-3.5', loadingList && 'animate-spin')} />
+            {t('refresh')}
+          </button>
+        </div>
       </div>
+
 
       {/* Main Container */}
       <div className="flex flex-1 min-h-0 overflow-hidden rounded-2xl border border-neutral-200/80 bg-white shadow-xs dark:border-neutral-800 dark:bg-neutral-900">

@@ -921,8 +921,16 @@
     "quick1": "Hello! How can we help you?",
     "quick2": "We have received your message. We will look into it and reply shortly.",
     "quick3": "Please send the title or the ID of your listing.",
-    "quick4": "The problem has been resolved. Thank you for using our platform!"
+    "quick4": "The problem has been resolved. Thank you for using our platform!",
+    "aiAssistant": "AI Assistant",
+    "aiEnabled": "AI: Enabled",
+    "aiDisabled": "AI: Disabled",
+    "aiEnabledDesc": "AI answers automatically when admins are busy",
+    "aiDisabledDesc": "Admins answer manually",
+    "aiToggledOn": "AI auto-reply enabled",
+    "aiToggledOff": "AI auto-reply disabled"
   },
+
   "chat": {
     "title": "AI chats",
     "subtitle": "Watch a visitor's conversation with the AI and step in yourself when it needs you",

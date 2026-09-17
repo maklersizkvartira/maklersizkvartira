@@ -921,8 +921,16 @@
     "quick1": "Assalomu alaykum! Sizga qanday yordam bera olamiz?",
     "quick2": "Murojaatingiz qabul qilindi. Tez orada masalani ko‘rib chiqib javob beramiz.",
     "quick3": "Iltimos, e’loningiz sarlavhasi yoki ID raqamini yozib yuborsangiz.",
-    "quick4": "Muammo muvaffaqiyatli bartaraf etildi. Platformamizdan foydalanganingiz uchun rahmat!"
+    "quick4": "Muammo muvaffaqiyatli bartaraf etildi. Platformamizdan foydalanganingiz uchun rahmat!",
+    "aiAssistant": "AI Yordamchi",
+    "aiEnabled": "AI: Yoqilgan",
+    "aiDisabled": "AI: Oʻchirilgan",
+    "aiEnabledDesc": "Adminlar band payti AI avtomatik javob beradi",
+    "aiDisabledDesc": "Adminlar oʻzlari javob berishadi",
+    "aiToggledOn": "AI avtomatik javob berishi yoqildi",
+    "aiToggledOff": "AI avtomatik javob berishi oʻchirildi"
   },
+
   "chat": {
     "title": "AI suhbatlari",
     "subtitle": "Mijozlar bilan AI suhbatini kuzating va kerak boʻlsa oʻzingiz javob bering",

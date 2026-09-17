@@ -2920,7 +2920,63 @@ async def admin_update_support_status(
     return _ok(out.model_dump(mode="json"))
 
 
+class SupportAiTogglePayload(BaseModel):
+    enabled: bool | None = None
+
+
+@router.get("/support/ai-status")
+async def get_support_ai_status(admin: RequireModerator, db: DbSession) -> dict[str, Any]:
+    """Check if AI auto-reply is enabled for Uyiz Support."""
+    from sqlalchemy import text
+    result = await db.execute(
+        text("SELECT value FROM system_settings WHERE key = 'is_support_ai_enabled'")
+    )
+    row = result.fetchone()
+    enabled = (row[0] == "true") if row else True
+    return _ok({"enabled": enabled})
+
+
+@router.post("/support/toggle-ai")
+async def toggle_support_ai(
+    admin: RequireModerator,
+    db: DbSession,
+    payload: SupportAiTogglePayload | None = None,
+) -> dict[str, Any]:
+    """Toggle or explicitly set AI auto-reply for customer support."""
+    from sqlalchemy import text
+    result = await db.execute(
+        text("SELECT value FROM system_settings WHERE key = 'is_support_ai_enabled'")
+    )
+    row = result.fetchone()
+    current = (row[0] == "true") if row else True
+
+    if payload and payload.enabled is not None:
+        new_enabled = payload.enabled
+    else:
+        new_enabled = not current
+
+    new_val = "true" if new_enabled else "false"
+
+    if row is None:
+        await db.execute(
+            text("INSERT INTO system_settings (key, value) VALUES ('is_support_ai_enabled', :val)"),
+            {"val": new_val},
+        )
+    else:
+        await db.execute(
+            text("UPDATE system_settings SET value = :val WHERE key = 'is_support_ai_enabled'"),
+            {"val": new_val},
+        )
+    await db.commit()
+
+    return _ok({
+        "enabled": new_enabled,
+        "message": "AI javob berishi yoqildi" if new_enabled else "AI javob berishi o'chirildi",
+    })
+
+
 # ─── Push Notifications Management ──────────────────────────────────────────
+
 
 class AdminPushCreate(BaseModel):
     title: str
