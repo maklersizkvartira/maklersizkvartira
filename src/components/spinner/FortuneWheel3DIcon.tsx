@@ -4,12 +4,14 @@ interface FortuneWheel3DIconProps {
   className?: string;
   size?: number;
   isHovered?: boolean;
+  isSpinning?: boolean;
 }
 
 export const FortuneWheel3DIcon: React.FC<FortuneWheel3DIconProps> = ({
   className = '',
   size = 56,
   isHovered = false,
+  isSpinning = false,
 }) => {
   return (
     <div
@@ -69,7 +71,7 @@ export const FortuneWheel3DIcon: React.FC<FortuneWheel3DIconProps> = ({
         {/* ROTATING WHEEL BODY (CHIRPIRAK AYLANYAPTI) */}
         <g
           className={`origin-[60px_60px] ${
-            isHovered
+            isHovered || isSpinning
               ? 'animate-[spin_2s_linear_infinite]'
               : 'animate-[spin_6s_linear_infinite]'
           }`}
