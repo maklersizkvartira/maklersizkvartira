@@ -81,8 +81,13 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         UUID(as_uuid=True), nullable=True
     )
 
-    # -- Wallet / Balance (in UZS) -------------------------------------------
+    # -- Wallet / Balance (in UZS) & Coins -----------------------------------
     balance: Mapped[float] = mapped_column(Float, default=0.0, server_default="0.0", nullable=False)
+    coins: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    last_free_spin_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    paid_spins_available: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
 
     # -- Preferences (drive i18n + theme on every device) --------------------
     language: Mapped[str] = mapped_column(

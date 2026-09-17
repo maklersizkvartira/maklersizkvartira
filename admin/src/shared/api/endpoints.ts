@@ -365,4 +365,11 @@ export const api = {
       `/admin/push/listings${qs({ ...params })}`,
     send: '/admin/push/send',
   },
+
+  spinner: {
+    withdrawals: (params?: { status?: string }) =>
+      `/admin/spinner/withdrawals${qs({ ...params })}`,
+    updateWithdrawal: (id: string) =>
+      `/admin/spinner/withdrawals/${id}`,
+  },
 } as const;

@@ -14,6 +14,7 @@ from app.models.listing import Favorite, Listing, TopRequest
 from app.models.moderation import Report, VerificationRequest
 from app.models.payment import ClickPaymentLog, PaymentTransaction, WalletTransaction
 from app.models.settings import SystemSetting
+from app.models.spinner import CoinExchangeTransaction, CoinWithdrawalRequest, SpinHistory
 from app.models.user import AdminUser, User
 
 __all__ = [
@@ -23,6 +24,8 @@ __all__ = [
     "AuditLog",
     "ChatMessage",
     "ClickPaymentLog",
+    "CoinExchangeTransaction",
+    "CoinWithdrawalRequest",
     "Conversation",
     "Base",
     "Favorite",
@@ -34,6 +37,7 @@ __all__ = [
     "RefreshToken",
     "Report",
     "SmsLog",
+    "SpinHistory",
     "SupportConversation",
     "SupportMessage",
     "SystemSetting",

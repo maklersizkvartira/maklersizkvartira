@@ -3597,3 +3597,74 @@ async def adjust_user_balance(
     }
 
 
+# ===========================================================================
+# Omad Spinner & Coin Withdrawals Admin
+# ===========================================================================
+class ProcessWithdrawalRequest(BaseModel):
+    status: str  # "APPROVED" or "REJECTED"
+    admin_note: str | None = None
+
+
+@router.get("/spinner/withdrawals", summary="List coin withdrawal requests")
+async def list_spinner_withdrawals(
+    admin: RequireModerator,
+    db: DbSession,
+    status: str | None = None,
+    limit: int = 50,
+) -> dict[str, Any]:
+    from app.models.spinner import CoinWithdrawalRequest
+
+    stmt = select(CoinWithdrawalRequest, User).join(User, CoinWithdrawalRequest.user_id == User.id)
+    if status:
+        stmt = stmt.where(CoinWithdrawalRequest.status == status.upper())
+    stmt = stmt.order_by(CoinWithdrawalRequest.created_at.desc()).limit(limit)
+
+    rows = (await db.execute(stmt)).all()
+    data = []
+    for req, u in rows:
+        data.append({
+            "id": str(req.id),
+            "userId": str(req.user_id),
+            "userName": u.name,
+            "userPhone": u.phone,
+            "cardNumber": req.card_number,
+            "cardHolder": req.card_holder,
+            "amountUzs": req.amount_uzs,
+            "coinsSpent": req.coins_spent,
+            "status": req.status,
+            "adminNote": req.admin_note,
+            "createdAt": req.created_at.isoformat(),
+            "processedAt": req.processed_at.isoformat() if req.processed_at else None,
+        })
+    return {"status": "success", "data": data}
+
+
+@router.patch("/spinner/withdrawals/{request_id}", summary="Process coin withdrawal request")
+async def process_spinner_withdrawal(
+    request_id: uuid.UUID,
+    payload: ProcessWithdrawalRequest,
+    admin: RequireModerator,
+    db: DbSession,
+) -> dict[str, Any]:
+    from app.models.spinner import CoinWithdrawalRequest
+
+    req = await db.get(CoinWithdrawalRequest, request_id)
+    if not req:
+        raise NotFound("withdrawal_request_not_found")
+
+    old_status = req.status
+    req.status = payload.status.upper()
+    req.admin_note = payload.admin_note
+    req.processed_by_id = admin.id
+    req.processed_at = _now()
+
+    # If rejected, refund coins back to user
+    if req.status == "REJECTED" and old_status != "REJECTED":
+        user = await db.get(User, req.user_id)
+        if user:
+            user.coins += req.coins_spent
+
+    await db.commit()
+    return {"status": "success", "id": str(req.id), "newStatus": req.status}
+
+

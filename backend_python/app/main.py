@@ -19,7 +19,7 @@ from app.core.config import settings
 from app.core.database import dispose_engine
 from app.core.deps import DbSession
 from app.core.errors import APIError, MESSAGES, translate
-from app.routers import admin, ai, auth, chat, listings, meta, payments, seo, uploads
+from app.routers import admin, ai, auth, chat, listings, meta, payments, seo, spinner, uploads
 
 
 def configure_logging() -> None:
@@ -188,6 +188,54 @@ async def lifespan(app: FastAPI):
                     -- Payment card tracking
                     ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS card_pan VARCHAR(32);
 
+                    -- Omad Spinner & Coin Rewards
+                    ALTER TABLE users ADD COLUMN IF NOT EXISTS coins INTEGER NOT NULL DEFAULT 0;
+                    ALTER TABLE users ADD COLUMN IF NOT EXISTS last_free_spin_at TIMESTAMPTZ;
+                    ALTER TABLE users ADD COLUMN IF NOT EXISTS paid_spins_available INTEGER NOT NULL DEFAULT 0;
+
+                    CREATE TABLE IF NOT EXISTS spin_history (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        spin_type VARCHAR(20) NOT NULL DEFAULT 'FREE',
+                        sector_index INTEGER NOT NULL,
+                        prize_type VARCHAR(30) NOT NULL DEFAULT 'COINS',
+                        coins_won INTEGER NOT NULL DEFAULT 0,
+                        meta_info VARCHAR(255),
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_spin_history_user_id ON spin_history(user_id);
+
+                    CREATE TABLE IF NOT EXISTS coin_withdrawal_requests (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        card_number VARCHAR(32) NOT NULL,
+                        card_holder VARCHAR(120),
+                        amount_uzs DOUBLE PRECISION NOT NULL,
+                        coins_spent INTEGER NOT NULL,
+                        status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+                        admin_note TEXT,
+                        processed_by_id UUID,
+                        processed_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_coin_withdrawal_requests_user_id ON coin_withdrawal_requests(user_id);
+                    CREATE INDEX IF NOT EXISTS ix_coin_withdrawal_requests_status ON coin_withdrawal_requests(status);
+
+                    CREATE TABLE IF NOT EXISTS coin_exchange_transactions (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        exchange_type VARCHAR(30) NOT NULL,
+                        coins_spent INTEGER NOT NULL,
+                        amount_uzs DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+                        listing_id UUID,
+                        description VARCHAR(255) NOT NULL,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_coin_exchange_transactions_user_id ON coin_exchange_transactions(user_id);
+
                     -- Web Push Subscriptions & Persistent History
                     CREATE TABLE IF NOT EXISTS push_subscriptions (
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -338,6 +386,7 @@ def create_app() -> FastAPI:
     app.include_router(ai.router, prefix=prefix)
     app.include_router(admin.router, prefix=prefix)
     app.include_router(payments.router, prefix=prefix)
+    app.include_router(spinner.router, prefix=prefix)
     # Direct alias so Click & Payme webhooks also work at /payments/...
     app.include_router(payments.router, include_in_schema=False)
 
