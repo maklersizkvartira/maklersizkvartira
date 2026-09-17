@@ -271,10 +271,10 @@ class Settings(BaseSettings):
     PAYMENT_MIN_TOPUP_UZS: int = 1_000
     PAYMENT_MAX_TOPUP_UZS: int = 5_000_000
 
-    TELEGRAM_BOT_TOKEN: str = "8760567987:AAF5Qg1jVk7xClHJuTkxOSWvgDs9WEptL_M"
+    TELEGRAM_BOT_TOKEN: str = "8760567987:AAHcTk6EozLrx4gKsdaOMy3gZDmrn3y9sF4"
     TELEGRAM_GROUP_ID: str = "-1004486550551"
     #: A SECOND bot and chat, for the AI transcripts only.
-    TELEGRAM_AI_BOT_TOKEN: str = "8760567987:AAF5Qg1jVk7xClHJuTkxOSWvgDs9WEptL_M"
+    TELEGRAM_AI_BOT_TOKEN: str = "8760567987:AAHcTk6EozLrx4gKsdaOMy3gZDmrn3y9sF4"
     TELEGRAM_AI_CHAT_ID: str = "-1004486550551"
 
     OPENAI_API_KEY: str = ""
@@ -345,7 +345,7 @@ class Settings(BaseSettings):
     def telegram_ai_bot_token(self) -> str:
         """The bot the AI transcripts go through; the ops bot when unset."""
         token = (self.TELEGRAM_AI_BOT_TOKEN or self.TELEGRAM_BOT_TOKEN).strip()
-        return token or "8760567987:AAF5Qg1jVk7xClHJuTkxOSWvgDs9WEptL_M"
+        return token or "8760567987:AAHcTk6EozLrx4gKsdaOMy3gZDmrn3y9sF4"
 
     @property
     def telegram_ai_chat_id(self) -> str:
