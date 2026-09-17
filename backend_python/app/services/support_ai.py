@@ -103,12 +103,15 @@ async def generate_ai_reply(
     if _detect_escalation_intent(message_text, lang):
         return ESCALATION_REPLIES.get(lang, ESCALATION_REPLIES["uz"]), True
 
-    api_key = settings.OPENAI_API_KEY.strip()
+    api_key = (getattr(settings, "OPENAI_API_KEY", "") or "").strip()
     if not api_key:
         # Fallback intelligent responder without external API
         return _heuristic_reply(message_text, lang)
 
-    model = ai_settings.model_for("EVERYDAY") or "gpt-4o-mini"
+    try:
+        model = ai_settings.cached().chat_model or getattr(settings, "OPENAI_MODEL", "gpt-4o-mini")
+    except Exception:
+        model = getattr(settings, "OPENAI_MODEL", "gpt-4o-mini") or "gpt-4o-mini"
 
     messages_payload: list[dict[str, str]] = [
         {"role": "system", "content": SUPPORT_SYSTEM_PROMPT},
@@ -118,7 +121,7 @@ async def generate_ai_reply(
         for m in recent_messages[-6:]:
             messages_payload.append({
                 "role": "user" if m.get("sender_type") == "USER" else "assistant",
-                "content": m.get("text", "")[:400],
+                "content": str(m.get("text", ""))[:400],
             })
 
     messages_payload.append({"role": "user", "content": message_text})
@@ -157,27 +160,37 @@ def _heuristic_reply(text: str, lang: str) -> tuple[str, bool]:
     """Heuristic offline support replies for common inquiries."""
     t_lower = text.lower()
 
-    if any(k in t_lower for k in ("assalom", "salom", "qalesiz", "privet", "hello", "hi")):
+    if any(k in t_lower for k in ("assalom", "salom", "qalesiz", "privet", "hello", "hi", "salom alaykum")):
         if lang == "ru":
             return "Здравствуйте! Чем служба поддержки Uyiz может вам помочь?", False
         elif lang == "en":
             return "Hello! How can Uyiz Support assist you today?", False
         return "Assalomu alaykum! Uyiz qo‘llab-quvvatlash xizmati sizga qanday yordam bera oladi?", False
 
-    if any(k in t_lower for k in ("elon", "e'lon", "joylash", "qoyish", "qo'yish", "объявление", "подать")):
+    if any(k in t_lower for k in ("elon", "e'lon", "joylash", "qoyish", "qo'yish", "bepul", "объявление", "подать")):
         if lang == "ru":
             return "Размещение объявлений на Uyiz абсолютно бесплатное. Нажмите кнопку «E'lon berish» вверху сайта и заполните форму.", False
         return "Uyiz platformasida e'lon berish mutlaqo bepul. Sayt yuqorisidagi «E'lon joylash» tugmasini bosing va ma'lumotlarni kiriting.", False
 
-    if any(k in t_lower for k in ("vip", "top", "tarif", "narx", "ko'tarish")):
+    if any(k in t_lower for k in ("vip", "top", "tarif", "narx", "ko'tarish", "kotarish", "reklama")):
         if lang == "ru":
             return "VIP объявления всегда отображаются на самом верху каталога, а TOP — сразу после них. Подключить их можно через Профиль -> Кошелек.", False
         return "VIP e'lonlar katalogning eng yuqori bo'limida birinchi bo'lib turadi, TOP esa ulardan keyin joylashadi. Profil -> Hamyon orqali balansingizni to'ldirib xizmatni yoqishingiz mumkin.", False
 
-    if any(k in t_lower for k in ("hamyon", "balans", "payme", "click", "pul", "oplata", "to'lov")):
+    if any(k in t_lower for k in ("hamyon", "balans", "payme", "click", "pul", "oplata", "to'lov", "tolov")):
         if lang == "ru":
             return "Пополнить баланс можно в Профиль -> Кошелек через Payme или Click. Если возникли трудности с платежом, напишите подробнее.", False
         return "Balansni Profil -> Hamyon bo'limida Click yoki Payme orqali to'ldirishingiz mumkin. Agar to'lovda qiyinchilik bo'lsa, xabar bering.", False
+
+    if any(k in t_lower for k in ("makler", "komissiya", "vositachi", "foiz")):
+        if lang == "ru":
+            return "Uyiz.uz — платформа без посредников. Все объявления размещаются напрямую от собственников без маклерской комиссии.", False
+        return "Uyiz.uz — vositachisiz platforma bo‘lib, e'lonlar bevosita egalaridan joylashtiriladi va maklerlik komissiyasi yo‘q.", False
+
+    if any(k in t_lower for k in ("raqam", "telefon", "bog'lanish", "aloqa")):
+        if lang == "ru":
+            return "На странице любого объявления нажмите кнопку «Показать номер», чтобы напрямую связаться с владельцем жилья.", False
+        return "Har qanday e'lon sahifasida «Telefon raqamni ko‘rish» tugmasini bosib uy egasi bilan to‘g‘ridan-to‘g‘ri bog‘lanishingiz mumkin.", False
 
     # Default fallback to human specialist
     return ESCALATION_REPLIES.get(lang, ESCALATION_REPLIES["uz"]), True
@@ -189,75 +202,80 @@ async def process_incoming_support_message(
     message_text: str,
 ) -> SupportMessage | None:
     """Handle incoming user message to Uyiz Support: generate AI reply, escalate to Telegram if needed."""
-    async with session_scope() as db:
-        # Load user and conversation
-        user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
-        conversation = (
-            await db.execute(select(SupportConversation).where(SupportConversation.id == conversation_id))
-        ).scalar_one_or_none()
+    try:
+        async with session_scope() as db:
+            # Load user and conversation
+            user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+            conversation = (
+                await db.execute(select(SupportConversation).where(SupportConversation.id == conversation_id))
+            ).scalar_one_or_none()
 
-        if not user or not conversation:
-            return None
+            if not user or not conversation:
+                return None
 
-        # Fetch recent messages for context
-        recent_rows = (
-            await db.execute(
-                select(SupportMessage)
-                .where(SupportMessage.conversation_id == conversation_id)
-                .order_by(SupportMessage.created_at.desc())
-                .limit(6)
-            )
-        ).scalars().all()
-
-        history = [
-            {"sender_type": r.sender_type, "text": r.text}
-            for r in reversed(recent_rows)
-        ]
-
-        user_lang = getattr(user, "language", None) or "uz"
-        reply_text, is_escalated = await generate_ai_reply(
-            message_text=message_text,
-            language=user_lang,
-            recent_messages=history,
-        )
-
-        # Save AI reply as SupportMessage (sender_type ADMIN)
-        ai_msg = SupportMessage(
-            conversation_id=conversation_id,
-            sender_type="ADMIN",
-            sender_id=user.id,
-            text=reply_text,
-        )
-        db.add(ai_msg)
-        await db.flush()
-
-        conversation.updated_at = ai_msg.created_at
-        conversation.status = "OPEN"
-        await db.commit()
-        await db.refresh(ai_msg)
-
-        # If escalated or always on new customer inquiry: send Telegram alert to @Uyiz_ai_chat_bot
-        if is_escalated:
-            try:
-                await send_support_escalation_alert(
-                    user_name=user.name or "Mijoz",
-                    user_phone=getattr(user, "phone", None),
-                    user_id=str(user.id),
-                    message_text=message_text,
-                    ai_reply=reply_text,
+            # Fetch recent messages for context
+            recent_rows = (
+                await db.execute(
+                    select(SupportMessage)
+                    .where(SupportMessage.conversation_id == conversation_id)
+                    .order_by(SupportMessage.created_at.desc())
+                    .limit(6)
                 )
-            except Exception as e:
-                log.warning("support_ai.telegram_alert_failed", error=str(e))
+            ).scalars().all()
 
-        # Also dispatch Web Push so user receives notification if backgrounded
-        try:
-            from app.routers.chat import _dispatch_web_push
-            push_title = "Uyiz Support"
-            push_body = reply_text[:100]
-            asyncio.create_task(
-                _dispatch_web_push(str(user.id), push_title, push_body, "/?view=CHAT&conversation=support")
+            history = [
+                {"sender_type": r.sender_type, "text": r.text}
+                for r in reversed(recent_rows)
+            ]
+
+            user_lang = getattr(user, "language", None) or "uz"
+            reply_text, is_escalated = await generate_ai_reply(
+                message_text=message_text,
+                language=user_lang,
+                recent_messages=history,
             )
-        except Exception:
-            pass
 
-        return ai_msg
+            # Save AI reply as SupportMessage (sender_type ADMIN)
+            ai_msg = SupportMessage(
+                conversation_id=conversation_id,
+                sender_type="ADMIN",
+                sender_id=user.id,
+                text=reply_text,
+            )
+            db.add(ai_msg)
+            await db.flush()
+
+            conversation.updated_at = ai_msg.created_at
+            conversation.status = "OPEN"
+            await db.commit()
+            await db.refresh(ai_msg)
+
+            # If escalated: send Telegram alert to @Uyiz_ai_chat_bot
+            if is_escalated:
+                try:
+                    await send_support_escalation_alert(
+                        user_name=user.name or "Mijoz",
+                        user_phone=getattr(user, "phone", None),
+                        user_id=str(user.id),
+                        message_text=message_text,
+                        ai_reply=reply_text,
+                    )
+                except Exception as e:
+                    log.warning("support_ai.telegram_alert_failed", error=str(e))
+
+            # Also dispatch Web Push so user receives notification if backgrounded
+            try:
+                from app.routers.chat import _dispatch_web_push
+                push_title = "Uyiz Support"
+                push_body = reply_text[:100]
+                asyncio.create_task(
+                    _dispatch_web_push(str(user.id), push_title, push_body, "/?view=CHAT&conversation=support")
+                )
+            except Exception:
+                pass
+
+            return ai_msg
+    except Exception as exc:
+        log.exception("support_ai.process_error", error=str(exc))
+        return None
+

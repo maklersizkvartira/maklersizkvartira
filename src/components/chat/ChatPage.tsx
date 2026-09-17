@@ -280,6 +280,31 @@ export const ChatPage: React.FC = () => {
               }
             : prev
         );
+        // Promptly check for AI response without waiting full 4s interval
+        setTimeout(async () => {
+          try {
+            const fresh = await chatApi.getSupportConversation();
+            setSupportConv((prev) => {
+              if (!prev) return fresh;
+              const known = new Set(prev.messages.map((m) => m.id));
+              const arrived = fresh.messages.filter((m) => !known.has(m.id));
+              if (arrived.some((m) => m.sender_type === 'ADMIN')) playNotificationSound();
+              return fresh;
+            });
+          } catch {}
+        }, 1200);
+        setTimeout(async () => {
+          try {
+            const fresh = await chatApi.getSupportConversation();
+            setSupportConv((prev) => {
+              if (!prev) return fresh;
+              const known = new Set(prev.messages.map((m) => m.id));
+              const arrived = fresh.messages.filter((m) => !known.has(m.id));
+              if (arrived.some((m) => m.sender_type === 'ADMIN')) playNotificationSound();
+              return fresh;
+            });
+          } catch {}
+        }, 2600);
       } else {
         const newMsg = await chatApi.sendMessage(activeConversationId, draft.trim());
         setDraft('');
