@@ -1,6 +1,7 @@
 'use client';
 
-import { type ReactNode } from 'react';
+import { type ReactNode, useRef, useState, useEffect, useCallback } from 'react';
+import { ChevronLeft, ChevronRight, ArrowLeftRight } from 'lucide-react';
 import { Skeleton } from './Skeleton';
 
 /**
@@ -64,10 +65,49 @@ export function DataTable<Row>({
   onRowClick,
   loadingRows = 8,
   className = '',
-  minWidth = '1050px',
+  minWidth = '980px',
 }: DataTableProps<Row>) {
   const clickable = Boolean(onRowClick);
   const cardColumns = columns.filter((c) => !c.hideOnCard);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setCanScrollLeft(scrollLeft > 6);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 6);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    checkScroll();
+
+    el.addEventListener('scroll', checkScroll, { passive: true });
+    window.addEventListener('resize', checkScroll, { passive: true });
+
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => checkScroll());
+      observer.observe(el);
+    }
+
+    return () => {
+      el.removeEventListener('scroll', checkScroll);
+      window.removeEventListener('resize', checkScroll);
+      if (observer) observer.disconnect();
+    };
+  }, [checkScroll, rows, loading]);
+
+  const scrollByDirection = (direction: 'left' | 'right') => {
+    if (!scrollRef.current) return;
+    const delta = direction === 'left' ? -320 : 320;
+    scrollRef.current.scrollBy({ left: delta, behavior: 'smooth' });
+  };
 
   if (loading) {
     return (
@@ -122,61 +162,104 @@ export function DataTable<Row>({
   return (
     <div className={className}>
       {/* ── Table (lg and up) ── */}
-      <div className="hidden lg:block card table-scroll overflow-x-auto">
-        <table className="data-table" style={{ minWidth }}>
-          <thead>
-            <tr>
-              {columns.map((column) => (
-                <th key={column.key} style={{ width: column.width, textAlign: column.align ?? 'left' }}>
-                  {column.header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {/* A clickable row is a tab stop and answers Enter / Space, so the
-                table branch is operable by keyboard at all — until this, a
-                moderator on a desktop could not open a row from /listings,
-                /reports, /users or /verifications by any key, and narrowing the
-                window below lg to reach the card branch was the only way in.
-
-                Deliberately NOT `role="button"`: that would override the
-                implicit `row` role, leaving the cells without a `row` parent
-                and the table without owned rows, at which point a screen reader
-                stops offering row/column navigation and flattens all fourteen
-                cells into one announcement. The row keeps its table semantics
-                and merely gains activation.
-
-                The target guard is because DataTable is shared: rows that carry
-                their own buttons in a cell (StaffScreen's activate/deactivate)
-                must keep Space for those buttons. */}
-            {rows.map((row) => (
-              <tr
-                key={keyOf(row)}
-                data-clickable={clickable}
-                tabIndex={clickable ? 0 : undefined}
-                onClick={clickable ? () => onRowClick?.(row) : undefined}
-                onKeyDown={
-                  clickable
-                    ? (event) => {
-                        if (event.target !== event.currentTarget) return;
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          onRowClick?.(row);
-                        }
-                      }
-                    : undefined
-                }
+      <div className="hidden lg:block relative rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card)] overflow-hidden">
+        {/* Horizontal scroll hint & navigation bar when table overflows */}
+        {(canScrollLeft || canScrollRight) && (
+          <div className="flex items-center justify-between px-3.5 py-1.5 bg-[var(--color-surface-2)]/90 backdrop-blur border-b border-[var(--color-border)] text-xs select-none">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-secondary)]">
+              <ArrowLeftRight size={13} className="text-blue-500 shrink-0" />
+              <span>Jadval keng:</span>
+              <span className="text-[var(--color-text-muted)] font-normal">
+                yonga surish uchun tugmalardan yoki trekpaddan foydalaning
+              </span>
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => scrollByDirection('left')}
+                disabled={!canScrollLeft}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] disabled:opacity-30 disabled:pointer-events-none transition-all border border-[var(--color-border)] text-[var(--color-text-primary)] shadow-sm active:scale-95"
+                title="Chapga surish"
               >
+                <ChevronLeft size={13} />
+                <span>Chapga</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollByDirection('right')}
+                disabled={!canScrollRight}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] disabled:opacity-30 disabled:pointer-events-none transition-all border border-[var(--color-border)] text-[var(--color-text-primary)] shadow-sm active:scale-95"
+                title="Oʻngga surish"
+              >
+                <span>Oʻngga</span>
+                <ChevronRight size={13} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Left and Right Fade Indicators */}
+        {canScrollLeft && (
+          <div
+            className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 z-10 transition-opacity"
+            style={{
+              background: 'linear-gradient(to right, rgba(0, 0, 0, 0.08), transparent)',
+            }}
+          />
+        )}
+        {canScrollRight && (
+          <div
+            className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 z-10 transition-opacity"
+            style={{
+              background: 'linear-gradient(to left, rgba(0, 0, 0, 0.08), transparent)',
+            }}
+          />
+        )}
+
+        <div
+          ref={scrollRef}
+          onScroll={checkScroll}
+          className="table-scroll overflow-x-auto"
+        >
+          <table className="data-table" style={{ minWidth }}>
+            <thead>
+              <tr>
                 {columns.map((column) => (
-                  <td key={column.key} style={{ textAlign: column.align ?? 'left' }}>
-                    {cellValue(column, row)}
-                  </td>
+                  <th key={column.key} style={{ width: column.width, textAlign: column.align ?? 'left' }}>
+                    {column.header}
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr
+                  key={keyOf(row)}
+                  data-clickable={clickable}
+                  tabIndex={clickable ? 0 : undefined}
+                  onClick={clickable ? () => onRowClick?.(row) : undefined}
+                  onKeyDown={
+                    clickable
+                      ? (event) => {
+                          if (event.target !== event.currentTarget) return;
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            onRowClick?.(row);
+                          }
+                        }
+                      : undefined
+                  }
+                >
+                  {columns.map((column) => (
+                    <td key={column.key} style={{ textAlign: column.align ?? 'left' }}>
+                      {cellValue(column, row)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* ── Stacked cards (below lg) ── */}
@@ -189,8 +272,6 @@ export function DataTable<Row>({
             </div>
           ));
 
-          // A real <button> when the row is actionable, so it is reachable by
-          // keyboard and announced as activatable; a plain div otherwise.
           return clickable ? (
             <button
               key={keyOf(row)}

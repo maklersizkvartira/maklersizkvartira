@@ -259,7 +259,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             `env(safe-area-inset-bottom)` resolves to 0 today because no layout
             exports a viewport with `viewportFit: 'cover'`; it is in the calc so
             that the home indicator is cleared the moment one does. */}
-        <div className="px-6 sm:px-10 lg:px-16 pt-8 lg:pt-12 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[1025px]:pb-12 max-w-[1600px] mx-auto animate-fade-in">
+        <div className="px-4 sm:px-6 md:px-8 lg:px-6 xl:px-10 2xl:px-14 pt-6 lg:pt-8 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[1025px]:pb-12 max-w-[1600px] mx-auto animate-fade-in">
           {children}
         </div>
       </main>

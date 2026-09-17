@@ -101,8 +101,9 @@ export default function UsersPage() {
     {
       key: 'name',
       header: t('columns.name'),
+      width: '190px',
       render: (row) => (
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0 max-w-[210px]">
           <Avatar src={row.avatar} name={row.name} size="sm" />
           <div className="min-w-0">
             <p className="text-sm font-medium truncate" style={{ color: 'var(--color-text-primary)' }}>
@@ -115,26 +116,29 @@ export default function UsersPage() {
         </div>
       ),
     },
-    { key: 'phone', header: t('columns.phone') },
+    { key: 'phone', header: t('columns.phone'), width: '125px' },
     {
       key: 'role',
       header: t('columns.role'),
+      width: '85px',
       render: (row) => roleLabel(row.role),
     },
     {
       key: 'status',
       header: t('columns.status'),
+      width: '95px',
       render: (row) => <StatusPill status={row.status} label={statusLabel(row.status)} />,
     },
-    { key: 'trustScore', header: t('columns.trust'), align: 'right' },
-    { key: 'listingsCount', header: t('columns.listings'), align: 'right' },
+    { key: 'trustScore', header: t('columns.trust'), width: '65px', align: 'right' },
+    { key: 'listingsCount', header: t('columns.listings'), width: '65px', align: 'right' },
     {
       key: 'balance',
       header: 'Balans',
+      width: '115px',
       align: 'right',
       render: (row) => (
         <span
-          className={`font-mono font-bold text-xs ${
+          className={`font-mono font-bold text-xs whitespace-nowrap ${
             (row.balance || 0) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--color-text-muted)]'
           }`}
         >
@@ -145,14 +149,23 @@ export default function UsersPage() {
     {
       key: 'lastLoginAt',
       header: t('columns.lastLogin'),
-      hideOnCard: true,
-      render: (row) => showDate(row.lastLoginAt),
+      width: '115px',
+      render: (row) => (
+        <span className="text-xs whitespace-nowrap font-mono text-[var(--color-text-muted)]">
+          {showDate(row.lastLoginAt)}
+        </span>
+      ),
     },
     {
       key: 'createdAt',
       header: t('columns.created'),
+      width: '110px',
       hideOnCard: true,
-      render: (row) => showDate(row.createdAt),
+      render: (row) => (
+        <span className="text-xs whitespace-nowrap font-mono text-[var(--color-text-muted)]">
+          {showDate(row.createdAt)}
+        </span>
+      ),
     },
   ];
 
@@ -244,6 +257,7 @@ export default function UsersPage() {
           loading={list.isLoading}
           loadingRows={PAGE_SIZE}
           onRowClick={(row) => router.push(`/users/${row.id}`)}
+          minWidth="965px"
           empty={
             <ListState
               icon={<UsersIcon size={26} />}
