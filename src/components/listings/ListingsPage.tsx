@@ -55,6 +55,7 @@ import {
   type Filters,
   type QuickFilterId,
 } from '../../stores/useAppStore';
+import type { Listing } from '../../types';
 import { useSeoCopy } from '../../seo/useSeoCopy';
 import { hubLinks } from '../../seo/links';
 import { Button, SelectInput, TextInput } from '../ui/Field';
