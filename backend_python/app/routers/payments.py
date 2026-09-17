@@ -69,10 +69,6 @@ PRICES = {
 #: an abandoned one, and the webhook must not let it be paid into later.
 PENDING_TOPUP_TTL = timedelta(hours=24)
 
-#: How many unpaid top-ups one account may have open at once. Each checkout
-#: link is a row and a rate-limit token; without a cap a script could mint
-#: thousands of PENDING rows and nothing would ever clean them up.
-MAX_OPEN_TOPUPS = 5
 
 #: The keys under which the gateways have been seen to send a masked card
 #: number. Only the last four digits are kept, whatever arrives.
@@ -517,18 +513,17 @@ async def create_topup(
     if not configured:
         raise ServiceUnavailable("payments_unavailable")
 
-    open_count = (
-        await db.execute(
-            select(func.count(PaymentTransaction.id)).where(
-                PaymentTransaction.user_id == user.id,
-                PaymentTransaction.status == "PENDING",
-                PaymentTransaction.service_type == "TOPUP",
-                PaymentTransaction.created_at > _now() - PENDING_TOPUP_TTL,
-            )
+    # Cancel previous uncompleted pending top-ups for this user so they never
+    # pile up or block the customer from completing their payment.
+    await db.execute(
+        update(PaymentTransaction)
+        .where(
+            PaymentTransaction.user_id == user.id,
+            PaymentTransaction.status == "PENDING",
+            PaymentTransaction.service_type == "TOPUP",
         )
-    ).scalar_one()
-    if open_count >= MAX_OPEN_TOPUPS:
-        raise BadRequest("topup_too_many_pending")
+        .values(status="CANCELLED")
+    )
 
     tx = PaymentTransaction(
         user_id=user.id,
