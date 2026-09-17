@@ -22,7 +22,6 @@ import { Toaster } from './components/layout/Toaster';
 import { WelcomeCelebration } from './components/auth/WelcomeCelebration';
 import { ListingsPage } from './components/listings/ListingsPage';
 import { AiMascot } from './components/common/AiMascot';
-import { SpinnerWidget } from './components/spinner/SpinnerWidget';
 import { GlobalAINotification } from './components/common/GlobalAINotification';
 import { OfflineDetector } from './components/common/OfflineDetector';
 import { notificationService } from './services/notificationService';
@@ -503,10 +502,7 @@ export const App: React.FC = () => {
           every one of its states, so this costs an entry point on one view and
           buys back a control the view cannot work without. */}
       {currentView !== 'CHAT' && currentView !== 'MAP' && !bare && (
-        <>
-          <AiMascot />
-          <SpinnerWidget />
-        </>
+        <AiMascot />
       )}
       {/*
         Rendered from the shell, not from the page that earned it. The sign-in

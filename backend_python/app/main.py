@@ -386,7 +386,6 @@ def create_app() -> FastAPI:
     app.include_router(ai.router, prefix=prefix)
     app.include_router(admin.router, prefix=prefix)
     app.include_router(payments.router, prefix=prefix)
-    app.include_router(spinner.router, prefix=prefix)
     # Direct alias so Click & Payme webhooks also work at /payments/...
     app.include_router(payments.router, include_in_schema=False)
 
