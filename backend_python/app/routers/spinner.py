@@ -11,8 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.deps import CurrentUser, DbSession, OptionalUser
 from app.models.chat import SupportConversation, SupportMessage
 from app.models.listing import Listing
 from app.models.payment import WalletTransaction
@@ -34,9 +33,6 @@ from app.schemas.spinner import (
 from app.services.telegram import send_message
 
 router = APIRouter(prefix="/spinner", tags=["spinner"])
-
-DbSession = Annotated[AsyncSession, Depends(get_db)]
-CurrentUser = Annotated[User, Depends(get_current_user)]
 
 # Default 8 sectors on the wheel
 SECTORS: list[dict] = [
@@ -74,9 +70,20 @@ async def _get_user_rank(db: AsyncSession, user_id: uuid.UUID, user_coins: int) 
 
 
 @router.get("/status", response_model=SpinnerStatusOut, summary="Get spinner status for user")
-async def get_spinner_status(user: CurrentUser, db: DbSession) -> SpinnerStatusOut:
-    can_free, seconds_left = _can_free_spin(user)
-    rank = await _get_user_rank(db, user.id, user.coins)
+async def get_spinner_status(user: OptionalUser, db: DbSession) -> SpinnerStatusOut:
+    if user:
+        can_free, seconds_left = _can_free_spin(user)
+        rank = await _get_user_rank(db, user.id, user.coins)
+        coins = user.coins
+        paid_spins = user.paid_spins_available
+        balance = float(user.balance)
+    else:
+        can_free = True
+        seconds_left = 0
+        rank = 1
+        coins = 0
+        paid_spins = 0
+        balance = 0.0
 
     sectors_out = [
         SpinnerSector(
@@ -89,11 +96,11 @@ async def get_spinner_status(user: CurrentUser, db: DbSession) -> SpinnerStatusO
     ]
 
     return SpinnerStatusOut(
-        coins=user.coins,
+        coins=coins,
         can_free_spin=can_free,
         seconds_until_next_free_spin=seconds_left,
-        paid_spins_available=user.paid_spins_available,
-        balance_uzs=float(user.balance),
+        paid_spins_available=paid_spins,
+        balance_uzs=balance,
         user_rank=rank,
         sectors=sectors_out,
         spin_cost_uzs=1000,
@@ -200,7 +207,7 @@ async def buy_spins(user: CurrentUser, db: DbSession) -> BuySpinsResponse:
 
 
 @router.get("/leaderboard", response_model=LeaderboardOut, summary="Get coin leaderboard")
-async def get_leaderboard(user: CurrentUser, db: DbSession) -> LeaderboardOut:
+async def get_leaderboard(user: OptionalUser, db: DbSession) -> LeaderboardOut:
     # Fetch top 50 users by coins
     stmt = (
         select(User)
@@ -220,18 +227,23 @@ async def get_leaderboard(user: CurrentUser, db: DbSession) -> LeaderboardOut:
                 name=u.name,
                 avatar=u.avatar,
                 coins=u.coins,
-                is_current_user=(u.id == user.id),
+                is_current_user=(user is not None and u.id == user.id),
             )
         )
 
     # Total participants
     total = await db.scalar(select(func.count(User.id)).where(User.coins > 0)) or 0
-    my_rank = await _get_user_rank(db, user.id, user.coins)
+    if user:
+        my_rank = await _get_user_rank(db, user.id, user.coins)
+        my_coins = user.coins
+    else:
+        my_rank = 0
+        my_coins = 0
 
     return LeaderboardOut(
         top_users=items,
         my_rank=my_rank,
-        my_coins=user.coins,
+        my_coins=my_coins,
         total_participants=int(total),
     )
 
