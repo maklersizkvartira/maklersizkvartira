@@ -25,7 +25,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight, RefreshCw, Star } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
-import { ListingsApi } from '../../services/listingsApi';
+import { ListingsApi, type ListingQuery } from '../../services/listingsApi';
 import { MAX_PAGE_SIZE, useAppStore } from '../../stores/useAppStore';
 import type { Listing } from '../../types';
 import { Button } from '../ui/Field';
