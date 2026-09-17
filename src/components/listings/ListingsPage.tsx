@@ -1060,9 +1060,9 @@ export const ListingsPage: React.FC = () => {
               {t('listings.page.resultCount', { count: formatNumber(promoted.length) })}
             </span>
           </div>
-          <div className="hide-scrollbar -mx-4 flex snap-x snap-mandatory gap-3.5 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-4">
+          <div className="hide-scrollbar -mx-4 flex snap-x snap-mandatory gap-3.5 overflow-x-auto px-4 pb-3 sm:mx-0 sm:px-0">
             {promoted.map((listing) => (
-              <div key={listing.id} className="w-[85vw] shrink-0 snap-start sm:w-auto">
+              <div key={listing.id} className="w-[280px] sm:w-[310px] shrink-0 snap-start">
                 <ListingCard listing={listing} priority />
               </div>
             ))}

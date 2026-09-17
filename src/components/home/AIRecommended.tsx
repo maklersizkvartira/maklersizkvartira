@@ -53,6 +53,7 @@ export const AIRecommended: React.FC = () => {
   const pushToast = useAppStore((state) => state.pushToast);
   const isMonetizationEnabled = useAppStore((state) => state.isMonetizationEnabled);
 
+  const [promotedListings, setPromotedListings] = useState<Listing[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -63,17 +64,6 @@ export const AIRecommended: React.FC = () => {
 
   /**
    * Which request is allowed to write, and how to cancel the rest.
-   *
-   * The section had neither. It took no `AbortSignal` — `ListingsApi.list`
-   * accepts one for exactly this — and no unmount guard, so a "load more" tap
-   * followed by a fast reload raced two responses into the same state, and a
-   * request that failed after the visitor had already navigated away pushed an
-   * error toast onto a page they were no longer looking at.
-   *
-   * `alive` is set on the way IN as well as cleared on the way out. StrictMode
-   * mounts every component twice, so a flag only ever cleared would be false
-   * for the whole of the second mount — the one that stays — and the grid
-   * would never paint in development.
    */
   const sequence = useRef(0);
   const inFlight = useRef<AbortController | null>(null);
@@ -86,15 +76,6 @@ export const AIRecommended: React.FC = () => {
     };
   }, []);
 
-  /**
-   * Its own request, deliberately not the store's `fetchListings`.
-   *
-   * That action writes the shared `listings` array and shares one abort
-   * controller with the catalogue and the map, so calling it from the home
-   * page would abort whatever those had in flight and replace their rows with
-   * a query they did not ask for. The home page is a shop window; it does not
-   * get to move the shop.
-   */
   const load = useCallback(
     async (nextPage: number) => {
       const appendingNow = nextPage > 1;
@@ -114,50 +95,67 @@ export const AIRecommended: React.FC = () => {
           dealType: 'ALL',
           audience: 'ALL',
         };
-        if (isMonetizationEnabled) {
-          query.promotedOnly = true;
-        }
-        const result = await ListingsApi.list(query, controller.signal);
-        // A superseded request must not paint. `alive` covers the unmount that
-        // no abort can catch: the request that resolved first is still holding
-        // this closure.
+
+        const [result, featuredResult] = await Promise.all([
+          ListingsApi.list(query, controller.signal),
+          isMonetizationEnabled && nextPage === 1
+            ? ListingsApi.featured(16).catch(() => null)
+            : Promise.resolve(null),
+        ]);
+
         if (!alive.current || ticket !== sequence.current) return;
         const rawRows = result?.data ?? [];
+        const featuredRows = featuredResult?.data ?? [];
+
         const isPaidVip = (item: Listing) => Boolean(
           item.isVip && (!item.vipUntil || new Date(item.vipUntil).getTime() > Date.now())
         );
         const isPaidTop = (item: Listing) => Boolean(
           item.isFeatured && (!item.featuredUntil || new Date(item.featuredUntil).getTime() > Date.now())
         );
-        const rows = isMonetizationEnabled
-          ? rawRows
-              .filter((item) => isPaidVip(item) || isPaidTop(item))
-              .sort((a, b) => {
-                const aVip = isPaidVip(a);
-                const bVip = isPaidVip(b);
-                if (aVip && !bVip) return -1;
-                if (!aVip && bVip) return 1;
-                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-              })
+
+        let currentPromoted = promotedListings;
+        if (isMonetizationEnabled && nextPage === 1) {
+          const candidatePromoted = [
+            ...featuredRows,
+            ...rawRows.filter((item) => isPaidVip(item) || isPaidTop(item)),
+          ];
+          const uniqueMap = new Map<string, Listing>();
+          candidatePromoted.forEach((item) => uniqueMap.set(item.id, item));
+          currentPromoted = Array.from(uniqueMap.values()).sort((a, b) => {
+            const aVip = isPaidVip(a);
+            const bVip = isPaidVip(b);
+            if (aVip && !bVip) return -1;
+            if (!aVip && bVip) return 1;
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          });
+          setPromotedListings(currentPromoted);
+        }
+
+        const promotedIdSet = new Set(
+          (isMonetizationEnabled ? currentPromoted : []).map((p) => p.id)
+        );
+
+        // Remaining/regular listings go to the main grid below
+        const regularRows = isMonetizationEnabled && currentPromoted.length > 0
+          ? rawRows.filter((item) => !promotedIdSet.has(item.id))
           : rawRows;
+
         setListings((current) => {
-          if (!appendingNow) return rows;
-          // A page boundary can repeat a row when something is published
-          // mid-browse; two cards with one id is a duplicate React key.
+          if (!appendingNow) return regularRows;
           const seen = new Set(current.map((item) => item.id));
-          return [...current, ...rows.filter((item) => !seen.has(item.id))];
+          return [...current, ...regularRows.filter((item) => !seen.has(item.id))];
         });
-        setTotal(result?.totalCount ?? rows.length);
+        setTotal(result?.totalCount ?? regularRows.length);
         setHasMore(result?.meta?.hasNext ?? false);
         setPage(nextPage);
       } catch {
-        // A cancelled request is not a failure — it is this component
-        // superseding itself — so it must not empty the grid or raise a toast.
         if (controller.signal.aborted || !alive.current || ticket !== sequence.current) {
           return;
         }
         if (!appendingNow) {
           setListings([]);
+          setPromotedListings([]);
           setTotal(0);
           setHasMore(false);
         }
@@ -173,6 +171,7 @@ export const AIRecommended: React.FC = () => {
     [pushToast, isMonetizationEnabled],
   );
 
+
   useEffect(() => {
     void load(1);
   }, [load]);
@@ -182,38 +181,51 @@ export const AIRecommended: React.FC = () => {
   return (
     <section
       aria-labelledby="home-recommended-title"
-      // `gutter-safe`, not `px-3`: the categories grid directly below uses it,
-      // and a 12px gutter both stepped 4px away from that neighbour and stayed
-      // 12px when a landscape notch ate the left edge.
       className="gutter-safe mx-auto w-full max-w-7xl overflow-x-hidden py-6 sm:py-10"
     >
-      <div className="mb-4 flex flex-row items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            {isMonetizationEnabled && (
+      {/* ---------------------------------------------------------------- */}
+      {/* 1. VIP & TOP Promoted Horizontal Row                             */}
+      {/* ---------------------------------------------------------------- */}
+      {isMonetizationEnabled && promotedListings.length > 0 && (
+        <div className="mb-8 border-b border-line/60 pb-6">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
               <Star className="h-5 w-5 text-warning" fill="currentColor" aria-hidden="true" />
-            )}
-            <h2
-              id="home-recommended-title"
-              className="text-lg font-black tracking-tight text-content sm:text-2xl"
-            >
-              {isMonetizationEnabled
-                ? t('home.recommended.titleVIP' as never)
-                : t('home.recommended.title' as never)}
-            </h2>
-            {isMonetizationEnabled && (
+              <h2 className="text-lg font-black tracking-tight text-content sm:text-xl">
+                VIP & TOP eʼlonlar
+              </h2>
               <span className="rounded-md border border-amber-400/40 bg-amber-400/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-500">
                 VIP & TOP
               </span>
-            )}
+            </div>
+            <span className="rounded-md bg-surface-2 px-2 py-0.5 text-xs font-bold text-muted">
+              {formatNumber(promotedListings.length)} ta
+            </span>
           </div>
+
+          <div className="hide-scrollbar -mx-4 flex snap-x snap-mandatory gap-3.5 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+            {promotedListings.map((listing) => (
+              <div key={listing.id} className="w-[280px] sm:w-[310px] shrink-0 snap-start">
+                <ListingCard listing={listing} priority />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------------------- */}
+      {/* 2. All Regular Listings Header & Controls                         */}
+      {/* ---------------------------------------------------------------- */}
+      <div className="mb-4 flex flex-row items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h2
+            id="home-recommended-title"
+            className="text-lg font-black tracking-tight text-content sm:text-2xl"
+          >
+            {t('home.recommended.title' as never)}
+          </h2>
           <p className="text-[11px] text-subtle sm:text-xs">
-            {isMonetizationEnabled
-              ? t('home.recommended.subtitleVIP' as never)
-              : t('home.recommended.subtitle' as never)}
-            {/* The count, once there is one. It is the difference between a
-                page that looks like it is showing you a sample and one that
-                says how much it is showing you. */}
+            {t('home.recommended.subtitle' as never)}
             {total > 0 && (
               <span className="ml-1.5 font-bold text-muted">
                 · {t('home.recommended.count', { count: formatNumber(total) })}
@@ -225,9 +237,6 @@ export const AIRecommended: React.FC = () => {
         <button
           type="button"
           onClick={() => setCurrentView('LISTINGS')}
-          // `min-h-11`, not `py-1.5`. This is the home page's only route into
-          // the full catalogue and it was a ~30px target on the device most of
-          // this site is read on.
           className="group flex min-h-11 shrink-0 items-center gap-1 rounded-xl border border-line bg-brand-soft px-3 py-1.5 text-xs font-extrabold text-brand-text transition-colors hover:bg-brand-soft-2"
         >
           <span>{t('home.recommended.viewAll')}</span>
@@ -261,9 +270,7 @@ export const AIRecommended: React.FC = () => {
       ) : listings.length === 0 ? (
         <div className="space-y-3 rounded-3xl border border-line bg-surface p-8 text-center">
           <p className="text-xs font-bold text-muted sm:text-sm">
-            {isMonetizationEnabled
-              ? "Hozircha VIP yoki TOP e’lonlar mavjud emas"
-              : t('home.recommended.empty')}
+            {t('home.recommended.empty')}
           </p>
           {canPost && (
             <Button type="button" onClick={() => setCurrentView('CREATE_LISTING')}>
@@ -279,12 +286,11 @@ export const AIRecommended: React.FC = () => {
           >
             {listings.map((listing, index) => (
               <li key={listing.id} className="min-w-0">
-                {/* Only the first screenful is worth prioritising. Marking a
-                    hundred images high-priority is the same as marking none. */}
                 <ListingCard listing={listing} priority={index < 4} />
               </li>
             ))}
           </ul>
+
 
           {/* An append that failed keeps the rows it has and says so, rather
               than collapsing the grid back to the first page. */}
