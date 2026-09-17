@@ -50,7 +50,8 @@ export const FortuneWheelModal: React.FC<FortuneWheelModalProps> = ({
   onClose,
   onOpenTutorial,
 }) => {
-  const { currentUser, setShowAuth } = useAppStore();
+  const currentUser = useAppStore((state) => state.currentUser);
+  const setShowAuth = useAppStore((state) => state.setShowAuth);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('WHEEL');
   const [status, setStatus] = useState<SpinnerStatus | null>(null);

@@ -17,7 +17,7 @@ export const SpinnerWidget: React.FC<SpinnerWidgetProps> = ({
   variant = 'floating',
   className = '',
 }) => {
-  const { currentUser } = useAppStore();
+  const currentUser = useAppStore((state) => state.currentUser);
   const [status, setStatus] = useState<SpinnerStatus | null>(null);
   const [isGameOpen, setIsGameOpen] = useState<boolean>(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState<boolean>(false);
