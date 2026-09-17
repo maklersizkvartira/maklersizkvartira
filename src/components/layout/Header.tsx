@@ -93,7 +93,6 @@ import { AppLink } from '../../router/AppLink';
 import { authTabForView } from '../../router/views';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
-import { SpinnerWidget } from '../spinner/SpinnerWidget';
 
 interface NavItem {
   view: ViewState;
@@ -1081,8 +1080,6 @@ export const Header: React.FC = () => {
               only does anything below `lg`, where the nav that would otherwise
               absorb the free space is not rendered. */}
           <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
-            {/* Omad Barabani Widget */}
-            <SpinnerWidget variant="header" />
             {/* 3 — "your stuff". The one bordered object in the bar. It
                 renders only for a signed-in visitor — a heart that opens a
                 login dialog is a control that blocks the person pressing it —

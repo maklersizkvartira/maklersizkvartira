@@ -20,6 +20,7 @@ import {
   Loader2,
   RefreshCw,
 } from 'lucide-react';
+import { FortuneWheel3DIcon } from './FortuneWheel3DIcon';
 import {
   fetchSpinnerStatus,
   spinWheel,
@@ -399,8 +400,8 @@ export const FortuneWheelModal: React.FC<FortuneWheelModalProps> = ({
           <div className="relative px-5 py-4 border-b border-white/10 flex items-center justify-between bg-slate-900/60 backdrop-blur-sm shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-300 p-0.5 shadow-md shadow-amber-500/30">
-                <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-xl">
-                  🎡
+                <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center p-1">
+                  <FortuneWheel3DIcon size={30} isSpinning={false} />
                 </div>
               </div>
               <div>
@@ -451,7 +452,8 @@ export const FortuneWheelModal: React.FC<FortuneWheelModalProps> = ({
                   : 'bg-white/5 text-slate-300 hover:bg-white/10'
               }`}
             >
-              <span>🎡 Baraban</span>
+              <FortuneWheel3DIcon size={18} isSpinning={false} />
+              <span>Baraban</span>
               {status?.canFreeSpin && (
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
               )}

@@ -12,6 +12,7 @@ import {
   ArrowRight, 
   CheckCircle2 
 } from 'lucide-react';
+import { FortuneWheel3DIcon } from './FortuneWheel3DIcon';
 
 interface SpinnerTutorialModalProps {
   isOpen: boolean;
@@ -69,8 +70,8 @@ export const SpinnerTutorialModal: React.FC<SpinnerTutorialModalProps> = ({
                 className="inline-flex items-center justify-center relative mb-3"
               >
                 <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-amber-500 to-yellow-300 p-0.5 shadow-lg shadow-amber-500/40">
-                  <div className="w-full h-full bg-slate-900 rounded-[22px] flex items-center justify-center">
-                    <span className="text-4xl animate-bounce">🎡</span>
+                  <div className="w-full h-full bg-slate-900 rounded-[22px] flex items-center justify-center p-2">
+                    <FortuneWheel3DIcon size={56} isSpinning={true} />
                   </div>
                 </div>
                 <span className="absolute -top-1 -right-2 flex h-6 w-6">

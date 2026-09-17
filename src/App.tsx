@@ -505,7 +505,7 @@ export const App: React.FC = () => {
       {currentView !== 'CHAT' && currentView !== 'MAP' && !bare && (
         <>
           <AiMascot />
-          <SpinnerWidget variant="floating" />
+          <SpinnerWidget />
         </>
       )}
       {/*
