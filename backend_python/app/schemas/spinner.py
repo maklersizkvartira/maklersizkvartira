@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from pydantic import Field
 
-from app.schemas.base import CamelModel, ORMCamelModel
+from app.schemas.common import CamelModel, ORMCamelModel
 
 
 class SpinnerSector(CamelModel):
