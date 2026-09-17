@@ -28,6 +28,18 @@ import { Button } from '../ui/Field';
 import { Sheet } from '../ui/Sheet';
 import { TopUpModal } from './TopUpModal';
 
+function formatDisplayPhone(rawPhone?: string): string {
+  if (!rawPhone) return '+998 •• ••• •• ••';
+  const digits = rawPhone.replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('998')) {
+    return `+998 ${digits.slice(3, 5)} ${digits.slice(5, 8)} ${digits.slice(8, 10)} ${digits.slice(10, 12)}`;
+  }
+  if (digits.length === 9) {
+    return `+998 ${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 7)} ${digits.slice(7, 9)}`;
+  }
+  return rawPhone;
+}
+
 /** Mirrors PRICES["VERIFIED_BADGE"] on the backend, which is what decides. */
 const VERIFIED_BADGE_PRICE = 20_000;
 
@@ -104,35 +116,134 @@ export const WalletCard: React.FC<WalletCardProps> = ({ embedded = false }) => {
 
   const body = (
     <div className="space-y-5">
-      {/* 1. Balance — the reason the page exists. */}
-      <div className="rounded-2xl bg-brand p-5 text-on-brand shadow-brand">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-bold uppercase tracking-wider text-on-brand/80">{t('account.wallet.balance')}</p>
-          <button
-            type="button"
-            onClick={() => void fetchWallet()}
-            disabled={loading}
-            aria-label={t('account.sessions.reload')}
-            className="press flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 text-on-brand disabled:opacity-60"
-          >
-            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} aria-hidden="true" />
-          </button>
+      {/* 1. 3D Plastic VIP Bank Card — Luxury FinTech Representation of Balance */}
+      <div className="space-y-3">
+        <div className="group relative aspect-[1.586] w-full min-h-[220px] sm:min-h-[245px] overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-[#0a0f1d] via-[#0f1d24] to-[#042825] p-5 sm:p-6 text-white shadow-[0_20px_50px_-10px_rgba(0,0,0,0.65),0_10px_30px_rgba(16,185,129,0.25),inset_0_1px_1px_rgba(255,255,255,0.35)] transition-all duration-300 hover:scale-[1.01] flex flex-col justify-between select-none">
+          
+          {/* Holographic Gloss & Ambient Glow Accents */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.06] to-white/[0.18]" />
+          <div className="pointer-events-none absolute -bottom-14 -right-14 h-64 w-64 rounded-full bg-emerald-500/25 blur-3xl" />
+          <div className="pointer-events-none absolute -left-14 -top-14 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
+          <div className="pointer-events-none absolute inset-0 opacity-[0.03] bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
+
+          {/* Card Top Row: Brand, NFC, Gateway Badges & Reload */}
+          <div className="relative z-10 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-xs sm:text-sm font-black text-white shadow-md shadow-emerald-950/60">
+                U
+              </div>
+              <div>
+                <span className="block text-xs sm:text-sm font-black tracking-wider text-white">
+                  UYIZ WALLET
+                </span>
+                <span className="block text-[8px] sm:text-[9px] font-bold tracking-widest text-emerald-400 uppercase">
+                  PREMIUM FINTECH CARD
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* NFC Contactless waves */}
+              <svg
+                className="hidden xs:block h-5 w-5 text-white/70"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="M8.5 16.5a5 5 0 0 1 0-9" />
+                <path d="M12 19a8.5 8.5 0 0 0 0-14" />
+                <path d="M15.5 21.5a12 12 0 0 0 0-19" />
+              </svg>
+
+              {/* Multi-gateway badges pill */}
+              <div className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-2 py-1 backdrop-blur-md shadow-xs">
+                <img src="/brand/click-icon.svg" alt="Click" className="h-4 w-4 object-contain" />
+                <img src="/brand/payme-app-icon.png" alt="Payme" className="h-4 w-4 rounded object-cover" />
+              </div>
+
+              {/* Refresh button */}
+              <button
+                type="button"
+                onClick={() => void fetchWallet()}
+                disabled={loading}
+                aria-label={t('account.sessions.reload')}
+                className="press flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white disabled:opacity-50"
+              >
+                <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+
+          {/* Card Middle: Realistic Golden EMV Chip & Balance */}
+          <div className="relative z-10 my-auto flex items-center justify-between gap-3 pt-2">
+            <div className="flex items-center gap-3">
+              {/* 3D Golden EMV Chip */}
+              <div className="relative flex h-8 w-11 sm:h-9 sm:w-13 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-yellow-300/80 bg-gradient-to-br from-yellow-200 via-amber-400 to-yellow-600 shadow-md">
+                <div className="absolute top-2.5 h-[1px] w-full bg-amber-900/40" />
+                <div className="absolute bottom-2.5 h-[1px] w-full bg-amber-900/40" />
+                <div className="absolute left-3.5 h-full w-[1px] bg-amber-900/40" />
+                <div className="absolute right-3.5 h-full w-[1px] bg-amber-900/40" />
+                <div className="h-3 w-3 sm:h-3.5 sm:w-3.5 rounded border border-amber-900/45 bg-amber-300/30" />
+              </div>
+
+              {/* Debossed card digits */}
+              <div className="font-mono text-[11px] sm:text-xs font-bold tracking-widest text-slate-300/75">
+                •••• {currentUser?.phone ? currentUser.phone.replace(/\D/g, '').slice(-4) : '8899'}
+              </div>
+            </div>
+
+            {/* Current Balance */}
+            <div className="text-right">
+              <span className="block text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-emerald-300/90">
+                {t('account.wallet.balance')}
+              </span>
+              <div className="text-2xl sm:text-3xl font-black tracking-tight text-white drop-shadow-[0_2px_12px_rgba(16,185,129,0.6)]">
+                {loading && !wallet ? '...' : formatNumber(balance)}{' '}
+                <span className="text-sm sm:text-base font-bold text-emerald-200/90">
+                  {t('account.topUp.currency')}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card Bottom Row: Cardholder Name & Phone */}
+          <div className="relative z-10 flex items-end justify-between border-t border-white/15 pt-2.5 sm:pt-3">
+            <div className="min-w-0 pr-3">
+              <span className="block text-[8px] sm:text-[9px] font-bold uppercase tracking-widest text-slate-400">
+                {t('account.wallet.cardHolder')}
+              </span>
+              <span className="block truncate font-mono text-xs sm:text-sm font-bold tracking-wider text-slate-100">
+                {(currentUser?.name || 'UYIZ FOYDALANUVCHISI').toUpperCase()}
+              </span>
+            </div>
+
+            <div className="text-right shrink-0">
+              <span className="block text-[8px] sm:text-[9px] font-bold uppercase tracking-widest text-emerald-400">
+                {t('account.wallet.phone')}
+              </span>
+              <span className="block font-mono text-xs sm:text-sm font-bold tracking-wider text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">
+                {formatDisplayPhone(currentUser?.phone)}
+              </span>
+            </div>
+          </div>
         </div>
-        <p className="mt-1 text-3xl font-black tracking-tight sm:text-4xl">
-          {formatNumber(balance)} <span className="text-lg font-bold text-on-brand/85">{t('account.topUp.currency')}</span>
-        </p>
+
+        {/* Top-up action button & payment methods */}
         <button
           type="button"
           onClick={() => openTopUp('click')}
-          className="press mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-white text-sm font-black text-brand shadow-sm"
+          className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-brand text-sm font-black text-on-brand shadow-brand hover:brightness-105 active:scale-[0.99] transition-all"
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
           {t('account.wallet.topUp')}
         </button>
-        <p className="mt-2.5 flex items-center gap-2 text-[11px] text-on-brand/80">
-          <img src="/brand/click-icon.svg" alt="Click" className="h-4 w-4 rounded" />
-          <img src="/brand/payme-app-icon.png" alt="Payme" className="h-4 w-4 rounded" />
-          {t('account.wallet.methods')}
+        <p className="flex items-center justify-center gap-2 text-center text-[11px] text-muted">
+          <img src="/brand/click-icon.svg" alt="Click" className="h-3.5 w-3.5 rounded object-contain" />
+          <img src="/brand/payme-app-icon.png" alt="Payme" className="h-3.5 w-3.5 rounded object-cover" />
+          <span>{t('account.wallet.methods')}</span>
         </p>
       </div>
 

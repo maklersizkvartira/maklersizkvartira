@@ -170,5 +170,7 @@ export const account = {
     historyEmpty: 'No payments yet. Your first top-up will show here.',
     remaining: 'left: {amount}',
     openWallet: 'Open wallet',
+    cardHolder: 'Card holder',
+    phone: 'Phone number',
   },
 } as const;

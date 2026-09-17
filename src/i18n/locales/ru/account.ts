@@ -170,5 +170,7 @@ export const account = {
     historyEmpty: 'Платежей пока нет. Первое пополнение появится здесь.',
     remaining: 'остаток: {amount}',
     openWallet: 'Открыть кошелёк',
+    cardHolder: 'Держатель карты',
+    phone: 'Номер телефона',
   },
 } as const;

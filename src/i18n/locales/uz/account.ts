@@ -180,5 +180,7 @@ export const account = {
     historyEmpty: 'Hali to‘lovlar yo‘q. Birinchi to‘ldirish shu yerda ko‘rinadi.',
     remaining: 'qoldiq: {amount}',
     openWallet: 'Hamyonni ochish',
+    cardHolder: 'Karta egasi',
+    phone: 'Telefon raqam',
   },
 } as const;
