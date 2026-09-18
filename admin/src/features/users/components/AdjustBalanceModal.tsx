@@ -3,14 +3,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  Wallet,
   Plus,
   Minus,
   Search,
   CheckCircle2,
   AlertCircle,
-  ArrowRight,
-  User as UserIcon,
   Loader2,
 } from 'lucide-react';
 
@@ -67,8 +64,11 @@ export function AdjustBalanceModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Sync selected user when targetUser prop changes
-  useEffect(() => {
+  // Sync selected user when the target or the open flag changes — done
+  // during render (the "derive from previous props" pattern), not in an effect.
+  const [syncKey, setSyncKey] = useState<[UserBalanceTarget | null | undefined, boolean]>([targetUser, open]);
+  if (syncKey[0] !== targetUser || syncKey[1] !== open) {
+    setSyncKey([targetUser, open]);
     if (targetUser) {
       setSelectedUser(targetUser);
       setSearchQuery('');
@@ -76,18 +76,18 @@ export function AdjustBalanceModal({
     } else {
       setSelectedUser(null);
     }
-  }, [targetUser, open]);
+  }
 
   // Debounced live user search if no target user selected
   useEffect(() => {
     if (!open || selectedUser) return;
     const query = searchQuery.trim();
-    if (query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
 
     const timer = setTimeout(async () => {
+      if (query.length < 2) {
+        setSearchResults([]);
+        return;
+      }
       setIsSearching(true);
       try {
         const { data } = await http.page<AdminUserRow>(
@@ -167,10 +167,11 @@ export function AdjustBalanceModal({
 
       onSuccess?.(finalBalance, { ...selectedUser, balance: finalBalance });
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: unknown } }; message?: string } | null;
       const message =
-        err?.response?.data?.detail ||
-        err?.message ||
+        e?.response?.data?.detail ||
+        e?.message ||
         'Balansni yangilashda xatolik yuz berdi';
       setErrorMsg(typeof message === 'string' ? message : JSON.stringify(message));
     } finally {

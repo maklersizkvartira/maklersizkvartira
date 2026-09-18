@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Users, UserX, Smartphone, Monitor, Clock, Send, Search, Loader2 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
 
 import { http } from '@/shared/lib/http';
 import { api } from '@/shared/api/endpoints';
@@ -15,27 +15,17 @@ interface GuestSubscribersTableProps {
 }
 
 export function GuestSubscribersTable({ onSendToGuest, refreshTrigger = 0 }: GuestSubscribersTableProps) {
-  const t = useTranslations('pushPage');
-
-  const [guests, setGuests] = useState<GuestSubscriberItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
 
-  const fetchGuests = async () => {
-    setLoading(true);
-    try {
+  // refreshTrigger is part of the key so a bump from the parent refetches.
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['push', 'guests', refreshTrigger],
+    queryFn: async () => {
       const res = await http.get<GuestSubscriberItem[]>(api.push.guests);
-      setGuests(Array.isArray(res) ? res : []);
-    } catch {
-      setGuests([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchGuests();
-  }, [refreshTrigger]);
+      return Array.isArray(res) ? res : [];
+    },
+  });
+  const guests = data ?? [];
 
   const parseDevice = (ua: string | null) => {
     if (!ua) return { name: 'Nomaʼlum qurilma', isMobile: false };

@@ -18,7 +18,6 @@ import {
   Zap,
   MapPin,
   UserX,
-  Compass,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -160,10 +159,10 @@ export function PushComposer({ onSent, initialAudience, initialTargetUserId }: P
       setCustomUrl('');
       setTargetUserId('');
       if (onSent) onSent();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setFeedback({
         type: 'error',
-        message: err?.message || 'Xatolik yuz berdi. Iltimos qaytadan urinib koʻring.',
+        message: (err instanceof Error && err.message) || 'Xatolik yuz berdi. Iltimos qaytadan urinib koʻring.',
       });
     } finally {
       setSending(false);
@@ -222,21 +221,21 @@ export function PushComposer({ onSent, initialAudience, initialTargetUserId }: P
               {t('audienceLabel')}
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {[
+              {([
                 { id: 'all', label: t('allUsers'), icon: Layers },
                 { id: 'guests', label: 'Mehmonlar (Saytga kirib ketganlar)', icon: UserX },
                 { id: 'students', label: t('students'), icon: GraduationCap },
                 { id: 'tenants', label: t('tenants'), icon: Home },
                 { id: 'owners', label: t('owners'), icon: Building },
                 { id: 'specific', label: t('specific'), icon: Users },
-              ].map((opt) => {
+              ] as const).map((opt) => {
                 const Icon = opt.icon;
                 const active = audience === opt.id;
                 return (
                   <button
                     key={opt.id}
                     type="button"
-                    onClick={() => setAudience(opt.id as any)}
+                    onClick={() => setAudience(opt.id)}
                     className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-medium text-left transition ${
                       active
                         ? 'border-indigo-600 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-semibold ring-1 ring-indigo-500'

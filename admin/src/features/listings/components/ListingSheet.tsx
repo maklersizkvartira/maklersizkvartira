@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { AlertTriangle, BedDouble, Crown, Eye, Flag, Flame, Ruler, Star, Trash2 } from 'lucide-react';
+import { AlertTriangle, BedDouble, Crown, Eye, Flag, Flame, Ruler, Trash2 } from 'lucide-react';
 
 import type { AdminListingRow, ListingFeaturePayload } from '@/shared/api/types';
 import { Button } from '@/shared/ui/Button';
@@ -218,12 +218,14 @@ export function ListingSheet({
             legacy rows carry base64 data URIs of several megabytes each, and
             the full-size decode happens only when one is tapped. */}
         {(() => {
-          const rowImages = Array.isArray(row.images)
+          // Legacy rows may carry a single string, or only a coverImage.
+          const loose = row as { images?: unknown; coverImage?: unknown };
+          const rowImages: string[] = Array.isArray(row.images)
             ? row.images
-            : typeof (row as any).images === 'string'
-              ? [(row as any).images]
-              : (row as any).coverImage
-                ? [(row as any).coverImage]
+            : typeof loose.images === 'string'
+              ? [loose.images]
+              : typeof loose.coverImage === 'string'
+                ? [loose.coverImage]
                 : [];
 
           return (

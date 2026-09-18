@@ -397,10 +397,12 @@ interface ThumbProps {
 export function Thumb({ src, alt, size = 44, className = '', style }: ThumbProps) {
   const resolved = resolveThumbUrl(src);
   const [error, setError] = useState(false);
-
-  useEffect(() => {
+  // A new src gets a fresh attempt; reset during render, not in an effect.
+  const [errorSrc, setErrorSrc] = useState(src);
+  if (errorSrc !== src) {
+    setErrorSrc(src);
     setError(false);
-  }, [src]);
+  }
 
   return (
     <span

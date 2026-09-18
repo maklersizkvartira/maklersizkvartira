@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Bell, Users, Smartphone, Send, RefreshCw, UserX, UserCheck, MessageSquare } from 'lucide-react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Users, Send, RefreshCw, UserX, UserCheck, MessageSquare } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { http } from '@/shared/lib/http';
@@ -9,6 +10,7 @@ import { api } from '@/shared/api/endpoints';
 import type { PushStats } from '@/shared/api/types';
 import { SectionHeader } from '@/features/hubs/SectionHeader';
 import { Button } from '@/shared/ui/Button';
+import { PageTabs } from '@/shared/ui/PageTabs';
 import { KpiCard } from '@/shared/ui/KpiCard';
 import { PushComposer } from './PushComposer';
 import { PushHistoryTable } from './PushHistoryTable';
@@ -17,36 +19,32 @@ import { GuestSubscribersTable } from './GuestSubscribersTable';
 export function PushScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useTranslations('pushPage');
 
-  const [stats, setStats] = useState<PushStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Tab state: 'composer' | 'guests'
   const [activeTab, setActiveTab] = useState<'composer' | 'guests'>('composer');
   const [targetGuestId, setTargetGuestId] = useState<string | undefined>(undefined);
 
-  const fetchStats = async () => {
-    setStatsLoading(true);
-    try {
-      const data = await http.get<PushStats>(api.push.stats);
-      setStats(data);
-    } catch {
-      setStats({
-        active_subscribers: 0,
-        total_subscribers: 0,
-        registered_subscribers: 0,
-        guest_subscribers: 0,
-        total_devices: 0,
-        total_sent: 0,
-      });
-    } finally {
-      setStatsLoading(false);
-    }
+  const EMPTY_STATS: PushStats = {
+    active_subscribers: 0,
+    total_subscribers: 0,
+    registered_subscribers: 0,
+    guest_subscribers: 0,
+    total_devices: 0,
+    total_sent: 0,
   };
 
-  useEffect(() => {
-    fetchStats();
-  }, [refreshTrigger]);
+  const { data: statsData, isFetching: statsLoading } = useQuery({
+    queryKey: ['push', 'stats', refreshTrigger],
+    queryFn: async () => {
+      try {
+        return await http.get<PushStats>(api.push.stats);
+      } catch {
+        return EMPTY_STATS;
+      }
+    },
+  });
+  const stats = statsData ?? null;
 
   const handleRefresh = () => {
     setRefreshTrigger((prev) => prev + 1);
@@ -112,43 +110,22 @@ export function PushScreen({ embedded = false }: { embedded?: boolean } = {}) {
         />
       </div>
 
-      {/* Tabs Navigation */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-1">
-        <button
-          type="button"
-          onClick={() => setActiveTab('composer')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition ${
-            activeTab === 'composer'
-              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <MessageSquare className="w-4 h-4" />
-          <span>Push xabar yuborish va tarix</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('guests')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition relative ${
-            activeTab === 'guests'
-              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <UserX className="w-4 h-4" />
-          <span>Mehmon foydalanuvchilar</span>
-          {stats && stats.guest_subscribers > 0 && (
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                activeTab === 'guests' ? 'bg-white text-indigo-700' : 'bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300'
-              }`}
-            >
-              {stats.guest_subscribers}
-            </span>
-          )}
-        </button>
-      </div>
+      {/* Tabs Navigation — same pill recipe as the hub tabs above */}
+      <PageTabs
+        className="mb-5"
+        aria-label="Push bo‘limlari"
+        value={activeTab}
+        onChange={setActiveTab}
+        tabs={[
+          { key: 'composer', label: 'Push xabar yuborish va tarix', icon: <MessageSquare size={14} /> },
+          {
+            key: 'guests',
+            label: 'Mehmon foydalanuvchilar',
+            icon: <UserX size={14} />,
+            count: stats && stats.guest_subscribers > 0 ? stats.guest_subscribers : undefined,
+          },
+        ]}
+      />
 
       {/* Tab 1: Push Composer & History */}
       {activeTab === 'composer' && (

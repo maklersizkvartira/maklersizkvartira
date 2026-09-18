@@ -1,14 +1,11 @@
 'use client';
 
 import React from 'react';
-import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Game2048 } from '@/features/game/Game2048';
-import { Sparkles, Gamepad2 } from 'lucide-react';
+import { Gamepad2 } from 'lucide-react';
 
 export default function GamePage() {
-  const t = useTranslations('nav');
-
   return (
     <div className="space-y-6 pb-12">
       <PageHeader

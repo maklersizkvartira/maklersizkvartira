@@ -8,12 +8,10 @@ import {
   VolumeX,
   Trophy,
   Bot,
-  Flame,
   ArrowUp,
   ArrowDown,
   ArrowLeft,
   ArrowRight,
-  HelpCircle,
   Building2,
   Palette,
   Play,
@@ -22,7 +20,7 @@ import {
 } from 'lucide-react';
 import { sound } from './sound';
 import { getAiRecommendation, AiEvaluation } from './ai-solver';
-import { Direction, GameTheme, TileData, Achievement } from './types';
+import { Direction, GameTheme, Achievement } from './types';
 
 // Real Estate theme mapping
 interface TileMetadata {
@@ -111,14 +109,15 @@ export function Game2048() {
   const [aiAdvice, setAiAdvice] = useState<AiEvaluation | null>(null);
   const [autoPlay, setAutoPlay] = useState(false);
   const [achievements, setAchievements] = useState<Achievement[]>(INITIAL_ACHIEVEMENTS);
-  const [showAchievements, setShowAchievements] = useState(false);
 
   const boardRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
-  // Initialize and load saved state
+  // Load saved state after mount. The board is random, so it cannot be a
+  // lazy initializer (SSR and client would disagree); deferring one tick
+  // also keeps the first paint free of a cascade of setState calls.
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    const t = setTimeout(() => {
       const savedBest = localStorage.getItem('uyiz_2048_best');
       if (savedBest) setBestScore(Number(savedBest));
 
@@ -136,7 +135,8 @@ export function Game2048() {
 
       sound.init();
       setMuted(sound.isMuted());
-    }
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   // Check achievements
@@ -210,9 +210,10 @@ export function Game2048() {
     sound.playMove();
   }, [spawnRandomTile]);
 
-  // Initial spawn on mount
+  // Initial spawn on mount (deferred a tick — see the load effect above)
   useEffect(() => {
-    resetGame();
+    const t = setTimeout(resetGame, 0);
+    return () => clearTimeout(t);
   }, [resetGame]);
 
   // Check game over
@@ -676,7 +677,6 @@ export function Game2048() {
               let textColor = 'inherit';
               let glow: string | undefined;
               let title = '';
-              let sub = '';
               let icon = '';
 
               if (!isEmpty) {
@@ -692,7 +692,6 @@ export function Game2048() {
                   textColor = meta.textColor;
                   glow = meta.glow;
                   title = meta.label;
-                  sub = meta.sub;
                   icon = meta.icon;
                 } else if (theme === 'classic') {
                   const meta = CLASSIC_TILES[val] || CLASSIC_TILES[4096];

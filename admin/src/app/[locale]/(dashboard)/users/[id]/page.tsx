@@ -334,7 +334,7 @@ export default function UserDetailPage() {
               value={
                 <div className="flex items-center justify-end gap-2 flex-wrap">
                   <span className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
-                    {((user as any).balance || 0).toLocaleString('uz-UZ')} so‘m
+                    {(user.balance || 0).toLocaleString('uz-UZ')} so‘m
                   </span>
                   <button
                     type="button"

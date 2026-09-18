@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { History, Bell, Home, Users, CheckCircle2, Clock, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -16,34 +17,22 @@ interface PushHistoryTableProps {
 export function PushHistoryTable({ refreshTrigger = 0 }: PushHistoryTableProps) {
   const t = useTranslations('pushPage.history');
 
-  const [items, setItems] = useState<PushHistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
 
-  const fetchHistory = async () => {
-    setLoading(true);
-    try {
-      const res = await http.get<{ items: PushHistoryItem[]; total: number }>(
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['push', 'history', page, refreshTrigger],
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const res = await http.get<{ items: PushHistoryItem[]; total: number } | PushHistoryItem[]>(
         api.push.history({ page, limit: 10 })
       );
-      if (res && Array.isArray(res.items)) {
-        setItems(res.items);
-        setTotal(res.total || res.items.length);
-      } else if (Array.isArray(res)) {
-        setItems(res);
-        setTotal(res.length);
-      }
-    } catch {
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchHistory();
-  }, [page, refreshTrigger]);
+      if (Array.isArray(res)) return { items: res, total: res.length };
+      if (res && Array.isArray(res.items)) return { items: res.items, total: res.total || res.items.length };
+      return { items: [], total: 0 };
+    },
+  });
+  const items = data?.items ?? [];
+  const total = data?.total ?? 0;
 
   const audienceLabels: Record<string, { label: string; color: string }> = {
     all: { label: 'Barcha foydalanuvchilar', color: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800' },
