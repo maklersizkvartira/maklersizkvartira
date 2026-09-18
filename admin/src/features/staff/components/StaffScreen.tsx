@@ -10,7 +10,7 @@ import { api } from '@/shared/api/endpoints';
 import type { AdminStaffRow, CreateStaffPayload } from '@/shared/api/types';
 import { useAuthStore } from '@/store/auth.store';
 import { useConfirm } from '@/providers/confirm-provider';
-import { PageHeader } from '@/shared/ui/PageHeader';
+import { SectionHeader } from '@/features/hubs/SectionHeader';
 import { Button } from '@/shared/ui/Button';
 import { DataTable, type Column } from '@/shared/ui/DataTable';
 import { ListErrorBanner, ListState } from '@/shared/ui/ListState';
@@ -57,7 +57,7 @@ function policyKey(code: string | undefined): string | null {
   return PASSWORD_POLICY_KEYS.has(camel) ? camel : null;
 }
 
-export function StaffScreen() {
+export function StaffScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useTranslations('staff');
   const c = useTranslations('common');
   const tu = useTranslations('users');
@@ -219,7 +219,8 @@ export function StaffScreen() {
 
   return (
     <div>
-      <PageHeader
+      <SectionHeader
+        embedded={embedded}
         title={t('title')}
         subtitle={t('subtitle')}
         actions={

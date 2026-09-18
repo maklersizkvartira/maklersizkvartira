@@ -2,23 +2,25 @@
 
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useLocale, useTranslations } from 'next-intl';
+import { useLocale } from 'next-intl';
 import {
   CreditCard,
   DollarSign,
   CheckCircle2,
   Clock,
-  XCircle,
   ShieldCheck,
   Crown,
   Flame,
   Building2,
   Wallet,
-  Plus,
 } from 'lucide-react';
 
 import { http } from '@/shared/lib/http';
 import { PageHeader } from '@/shared/ui/PageHeader';
+import { PageTabs } from '@/shared/ui/PageTabs';
+import { Button } from '@/shared/ui/Button';
+import { StatusPill } from '@/shared/ui/StatusPill';
+import { PremiumStatCard } from '@/features/dashboard/components/PremiumStatCard';
 import { FilterBar } from '@/shared/ui/FilterBar';
 import { Select } from '@/shared/ui/Select';
 import { DataTable, type Column } from '@/shared/ui/DataTable';
@@ -85,7 +87,6 @@ interface PaymentStats {
 }
 
 export default function PaymentsPage() {
-  const c = useTranslations('common');
   const locale = useLocale();
 
   const [activeTab, setActiveTab] = useState<'click' | 'purchases'>('click');
@@ -188,7 +189,7 @@ export default function PaymentsPage() {
       width: '140px',
       align: 'right',
       render: (row) => (
-        <span className="font-extrabold text-sm text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+        <span className="font-extrabold text-sm whitespace-nowrap" style={{ color: 'var(--color-success)' }}>
           +{formatNumber(row.amount)} {row.currency}
         </span>
       ),
@@ -223,7 +224,7 @@ export default function PaymentsPage() {
       width: '170px',
       render: (row) => (
         <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-[var(--color-text)] whitespace-nowrap">
-          <CreditCard className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+          <CreditCard className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--accent)' }} />
           {row.cardPan || '—'}
         </span>
       ),
@@ -255,25 +256,9 @@ export default function PaymentsPage() {
       header: 'Holat',
       width: '140px',
       render: (row) => {
-        if (row.status === 'SUCCESS') {
-          return (
-            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md whitespace-nowrap">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Muvaffaqiyatli
-            </span>
-          );
-        }
-        if (row.status === 'PENDING') {
-          return (
-            <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md whitespace-nowrap">
-              <Clock className="w-3.5 h-3.5" /> Kutilmoqda
-            </span>
-          );
-        }
-        return (
-          <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded-md whitespace-nowrap">
-            <XCircle className="w-3.5 h-3.5" /> Bekor qilingan
-          </span>
-        );
+        if (row.status === 'SUCCESS') return <StatusPill status="SUCCESS" label="Muvaffaqiyatli" />;
+        if (row.status === 'PENDING') return <StatusPill status="PENDING" label="Kutilmoqda" pulse />;
+        return <StatusPill status="FAILED" label="Bekor qilingan" />;
       },
     },
     {
@@ -358,7 +343,7 @@ export default function PaymentsPage() {
         return (
           <div className="space-y-1 min-w-[240px]">
             <div className="font-semibold text-xs text-[var(--color-text)] flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+              <Building2 className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--accent)' }} />
               <span className="line-clamp-1 max-w-[220px]" title={row.listingTitle || ''}>
                 {row.listingTitle || 'E‘lon'}
               </span>
@@ -368,7 +353,7 @@ export default function PaymentsPage() {
                 <span className="whitespace-nowrap">📍 {[row.listingDistrict, row.listingCity].filter(Boolean).join(', ')}</span>
               )}
               {row.listingPrice != null && (
-                <span className="font-mono font-medium text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                <span className="font-mono font-medium whitespace-nowrap" style={{ color: 'var(--color-success)' }}>
                   {formatNumber(row.listingPrice)} so‘m
                 </span>
               )}
@@ -376,11 +361,11 @@ export default function PaymentsPage() {
             {row.validUntil && (
               <div className="text-[10px] font-mono whitespace-nowrap">
                 {row.isStillActive ? (
-                  <span className="inline-flex items-center gap-1 text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded font-bold">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-bold" style={{ color: 'var(--color-success)', background: 'var(--color-success-bg)' }}>
                     <CheckCircle2 className="w-3 h-3" /> Faol ({dateFormat.format(new Date(row.validUntil))} gacha)
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--color-text-muted)] bg-[var(--color-surface-2)]">
                     <Clock className="w-3 h-3" /> Muddati tugagan ({dateFormat.format(new Date(row.validUntil))})
                   </span>
                 )}
@@ -396,7 +381,7 @@ export default function PaymentsPage() {
       width: '140px',
       align: 'right',
       render: (row) => (
-        <span className="font-extrabold text-sm text-rose-600 dark:text-rose-400 whitespace-nowrap">
+        <span className="font-extrabold text-sm whitespace-nowrap" style={{ color: 'var(--color-danger)' }}>
           -{formatNumber(row.amount)} so‘m
         </span>
       ),
@@ -408,7 +393,7 @@ export default function PaymentsPage() {
       align: 'right',
       render: (row) => (
         <div className="text-right whitespace-nowrap">
-          <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
+          <span className="font-mono font-bold text-xs" style={{ color: 'var(--color-success)' }}>
             {formatNumber(row.balanceAfter)} so‘m
           </span>
           <div className="text-[10px] text-[var(--color-text-muted)]">qolgan balans</div>
@@ -428,255 +413,134 @@ export default function PaymentsPage() {
     },
   ];
 
+  const sum = (n?: number) => `${formatNumber(n ?? 0)} so‘m`;
+  const cnt = (n?: number) => `${formatNumber(n ?? 0)} ta`;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-[1400px] mx-auto pb-10 animate-fade-in">
       <PageHeader
-        title="To‘lovlar & Daromad boshqaruvi"
-        subtitle="Click, Payme va Uzum Bank real tushumlari, pullik xizmatlar xaridi va shaffof balans auditi"
+        icon={<CreditCard size={18} />}
+        title="To‘lovlar & Daromad"
+        subtitle="Click, Payme va Uzum Bank tushumlari, pullik xizmatlar xaridi va balans auditi"
         actions={
-          <button
-            type="button"
-            onClick={() => setIsBalanceModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
-          >
+          <Button variant="primary" onClick={() => setIsBalanceModalOpen(true)} className="flex items-center gap-2">
             <Wallet className="w-4 h-4" />
-            + Balans to‘ldirish
-          </button>
+            Balans to‘ldirish
+          </Button>
         }
       />
 
-      {/* KPI Stats Cards - Row 1: Tizimlar bo'yicha Tushumlar */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-extrabold uppercase tracking-wider text-[var(--color-text-muted)]">
-            Kassaga Real Tushumlar (To‘lov tizimlari)
+      {/* Row 1: real money in, by provider */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+            Kassaga real tushumlar
           </h2>
-          <span className="text-[11px] text-[var(--color-text-muted)] font-medium">
-            Faqat muvaffaqiyatli to‘langan real pullar
-          </span>
+          <span className="text-[11px] text-[var(--color-text-muted)]">Faqat muvaffaqiyatli to‘langan pullar</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: Jami Real Tushum */}
-          <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs relative overflow-hidden">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-                Jami Real Tushum
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <PremiumStatCard
+            variant="hero"
+            label="Jami real tushum"
+            value={sum(statsData?.totalRevenue)}
+            sublabel={<>Jami tranzaksiyalar: <b>{statsData?.totalCount ?? 0} ta</b></>}
+            icon={<DollarSign size={18} />}
+            loading={statsLoading}
+          />
+          <PremiumStatCard
+            label="Click orqali"
+            value={sum(statsData?.clickRevenue)}
+            sublabel={<span className="text-[var(--color-text-muted)]">Muvaffaqiyatli: {statsData?.clickCount ?? 0} ta to‘lov</span>}
+            icon={<span className="text-[11px] font-black">CL</span>}
+            loading={statsLoading}
+          />
+          <PremiumStatCard
+            label="Payme orqali"
+            value={sum(statsData?.paymeRevenue)}
+            sublabel={
+              <span className="inline-flex items-center gap-1.5 font-semibold" style={{ color: 'var(--color-success)' }}>
+                <span className="inline-flex h-2 w-2 rounded-full animate-pulse" style={{ background: 'var(--color-success)' }} />
+                Faol ulangan {statsData?.paymeCount ? `· ${statsData.paymeCount} ta to‘lov` : '· to‘lovga tayyor'}
               </span>
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600">
-                <DollarSign className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
-              {statsLoading ? '...' : `${formatNumber(statsData?.totalRevenue ?? 0)} so‘m`}
-            </div>
-            <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
-              Jami tranzaksiyalar: <b className="text-[var(--color-text)]">{statsData?.totalCount ?? 0} ta</b>
-            </p>
-          </div>
-
-          {/* Card 2: Click Tushumi */}
-          <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">
-                Click orqali
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-sky-50 dark:bg-sky-950/40 flex items-center justify-center text-sky-600 font-black text-xs">
-                CL
-              </div>
-            </div>
-            <div className="text-2xl font-black text-[var(--color-text)]">
-              {statsLoading ? '...' : `${formatNumber(statsData?.clickRevenue ?? 0)} so‘m`}
-            </div>
-            <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
-              Muvaffaqiyatli: <b className="text-[var(--color-text)]">{statsData?.clickCount ?? 0} ta to‘lov</b>
-            </p>
-          </div>
-
-          {/* Card 3: Payme Tushumi */}
-          <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-                Payme orqali
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-cyan-50 dark:bg-cyan-950/40 flex items-center justify-center text-cyan-600 font-black text-xs">
-                PM
-              </div>
-            </div>
-            <div className="text-2xl font-black text-[var(--color-text)]">
-              {statsLoading ? '...' : `${formatNumber(statsData?.paymeRevenue ?? 0)} so‘m`}
-            </div>
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                Faol ulangan {statsData?.paymeCount ? `· ${statsData.paymeCount} ta to‘lov` : '· To‘lovga tayyor'}
-              </span>
-            </div>
-          </div>
-
-          {/* Card 4: Uzum Bank */}
-          <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
-                Uzum Bank orqali
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-purple-600 font-black text-xs">
-                UB
-              </div>
-            </div>
-            <div className="text-2xl font-black text-[var(--color-text)]">
-              {statsLoading ? '...' : `${formatNumber(statsData?.uzumRevenue ?? 0)} so‘m`}
-            </div>
-            <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
-              Muvaffaqiyatli: <b className="text-[var(--color-text)]">{statsData?.uzumCount ?? 0} ta to‘lov</b>
-            </p>
-          </div>
+            }
+            icon={<span className="text-[11px] font-black">PM</span>}
+            loading={statsLoading}
+          />
+          <PremiumStatCard
+            label="Uzum Bank orqali"
+            value={sum(statsData?.uzumRevenue)}
+            sublabel={<span className="text-[var(--color-text-muted)]">Muvaffaqiyatli: {statsData?.uzumCount ?? 0} ta to‘lov</span>}
+            icon={<span className="text-[11px] font-black">UB</span>}
+            loading={statsLoading}
+          />
         </div>
-      </div>
+      </section>
 
-      {/* KPI Stats Cards - Row 2: Sotilgan pullik xizmatlar (TOP / VIP / Verified) */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-extrabold uppercase tracking-wider text-[var(--color-text-muted)]">
-            Pullik Xizmatlar Xaridi (TOP, VIP, Galochka)
+      {/* Row 2: paid services bought from balances */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+            Pullik xizmatlar xaridi
           </h2>
-          <span className="text-[11px] text-[var(--color-text-muted)] font-medium">
-            Foydalanuvchilar balansidan sotib olingan haqiqiy xizmatlar
-          </span>
+          <span className="text-[11px] text-[var(--color-text-muted)]">Foydalanuvchilar balansidan sotib olingan xizmatlar</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Card 5: TOP e'lonlar */}
-          <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                TOP E’lonlar
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-amber-600">
-                <Flame className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="text-2xl font-black text-[var(--color-text)]">
-              {statsLoading ? '...' : `${formatNumber(statsData?.topListingsCount ?? 0)} ta`}
-            </div>
-            <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
-              Jami sarflangan: <b className="text-amber-600 dark:text-amber-400">{formatNumber(statsData?.spentTop ?? 0)} so‘m</b> (7 000 so‘m/ta)
-            </p>
-          </div>
-
-          {/* Card 6: VIP e'lonlar */}
-          <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
-                VIP E’lonlar
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-purple-600">
-                <Crown className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="text-2xl font-black text-[var(--color-text)]">
-              {statsLoading ? '...' : `${formatNumber(statsData?.vipListingsCount ?? 0)} ta`}
-            </div>
-            <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
-              Jami sarflangan: <b className="text-purple-600 dark:text-purple-400">{formatNumber(statsData?.spentVip ?? 0)} so‘m</b> (12 000 so‘m/ta)
-            </p>
-          </div>
-
-          {/* Card 7: Galochka */}
-          <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                Galochka (Tasdiqlangan)
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-600">
-                <ShieldCheck className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="text-2xl font-black text-[var(--color-text)]">
-              {statsLoading ? '...' : `${formatNumber(statsData?.verifiedUsersCount ?? 0)} ta`}
-            </div>
-            <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
-              Jami sarflangan: <b className="text-indigo-600 dark:text-indigo-400">{formatNumber(statsData?.spentVerified ?? 0)} so‘m</b> (20 000 so‘m/ta)
-            </p>
-          </div>
+          <PremiumStatCard
+            label="TOP e’lonlar"
+            value={cnt(statsData?.topListingsCount)}
+            sublabel={<span className="text-[var(--color-text-muted)]">Sarflangan: <b className="text-[var(--color-text-primary)]">{sum(statsData?.spentTop)}</b> · 7 000 so‘m/ta</span>}
+            icon={<Flame size={16} />}
+            loading={statsLoading}
+          />
+          <PremiumStatCard
+            label="VIP e’lonlar"
+            value={cnt(statsData?.vipListingsCount)}
+            sublabel={<span className="text-[var(--color-text-muted)]">Sarflangan: <b className="text-[var(--color-text-primary)]">{sum(statsData?.spentVip)}</b> · 12 000 so‘m/ta</span>}
+            icon={<Crown size={16} />}
+            loading={statsLoading}
+          />
+          <PremiumStatCard
+            label="Galochka (tasdiqlangan)"
+            value={cnt(statsData?.verifiedUsersCount)}
+            sublabel={<span className="text-[var(--color-text-muted)]">Sarflangan: <b className="text-[var(--color-text-primary)]">{sum(statsData?.spentVerified)}</b> · 20 000 so‘m/ta</span>}
+            icon={<ShieldCheck size={16} />}
+            loading={statsLoading}
+          />
         </div>
-      </div>
+      </section>
 
-      {/* Tab Switcher */}
-      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] w-fit shadow-xs">
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab('click');
-            setPage(1);
-          }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'click'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-          }`}
-        >
-          <CreditCard className="w-4 h-4" />
-          Barcha Tushumlar (Click, Payme, Uzum)
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab('purchases');
-            setPage(1);
-          }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'purchases'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-          }`}
-        >
-          <Crown className="w-4 h-4 text-amber-400" />
-          Xarid qilingan xizmatlar (TOP / VIP / Galochka auditi)
-        </button>
-      </div>
+      <PageTabs
+        aria-label="To‘lovlar bo‘limlari"
+        value={activeTab}
+        onChange={(key) => {
+          setActiveTab(key);
+          setPage(1);
+        }}
+        tabs={[
+          { key: 'click', label: 'Tushumlar (Click, Payme, Uzum)', icon: <CreditCard size={13} /> },
+          { key: 'purchases', label: 'Xarid qilingan xizmatlar', icon: <Crown size={13} /> },
+        ]}
+      />
 
       {/* Tab 1: Payments */}
       {activeTab === 'click' && (
         <>
-          {/* Tezkor to'lov tizimlari filtri */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-bold text-[var(--color-text-muted)]">To‘lov tizimi:</span>
-            {[
-              { id: '', label: 'Barchasi' },
-              { id: 'CLICK', label: 'Click' },
-              { id: 'PAYME', label: 'Payme' },
-              { id: 'UZUM', label: 'Uzum Bank' },
-            ].map((p) => {
-              const active = providerFilter === p.id;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => {
-                    setProviderFilter(p.id);
-                    setPage(1);
-                  }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    active
-                      ? p.id === 'PAYME'
-                        ? 'bg-cyan-600 text-white shadow-sm'
-                        : p.id === 'CLICK'
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : p.id === 'UZUM'
-                            ? 'bg-purple-600 text-white shadow-sm'
-                            : 'bg-slate-800 text-white shadow-sm'
-                      : 'bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-                  }`}
-                >
-                  {p.label}
-                  {p.id === 'PAYME' && (
-                    <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-cyan-300"></span>
-                  )}
-                  {p.id === 'CLICK' && (
-                    <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-sky-300"></span>
-                  )}
-                </button>
-              );
-            })}
+            <PageTabs
+              aria-label="To‘lov tizimi"
+              value={providerFilter}
+              onChange={(key) => {
+                setProviderFilter(key);
+                setPage(1);
+              }}
+              tabs={[
+                { key: '', label: 'Barchasi' },
+                { key: 'CLICK', label: 'Click' },
+                { key: 'PAYME', label: 'Payme' },
+                { key: 'UZUM', label: 'Uzum Bank' },
+              ]}
+            />
           </div>
 
           <FilterBar
@@ -718,7 +582,7 @@ export default function PaymentsPage() {
             />
           </FilterBar>
 
-          <div className="card overflow-x-auto">
+          <div className="card overflow-x-auto p-0">
             <DataTable
               columns={columns}
               rows={paymentRows}
@@ -779,7 +643,7 @@ export default function PaymentsPage() {
             />
           </FilterBar>
 
-          <div className="card overflow-x-auto">
+          <div className="card overflow-x-auto p-0">
             <DataTable
               columns={purchaseColumns}
               rows={purchaseRows}

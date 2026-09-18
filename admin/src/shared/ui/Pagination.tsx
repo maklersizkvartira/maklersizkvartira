@@ -108,7 +108,7 @@ export function Pagination({
 
       <div className="flex items-center gap-1.5">
         <button
-          className="page-btn"
+          className="page-btn h-8 min-w-8 rounded-[var(--radius-md)]"
           onClick={() => {
             setRequested({ page: current - 1, from: meta });
             onPage(current - 1);
@@ -128,7 +128,7 @@ export function Pagination({
             ) : (
               <button
                 key={entry}
-                className={`page-btn ${entry === page ? 'page-btn-active' : ''}`}
+                className={`page-btn h-8 min-w-8 rounded-[var(--radius-md)] ${entry === page ? 'page-btn-active' : ''}`}
                 onClick={() => {
                   setRequested({ page: entry, from: meta });
                   onPage(entry);
@@ -142,7 +142,7 @@ export function Pagination({
         </div>
 
         <button
-          className="page-btn"
+          className="page-btn h-8 min-w-8 rounded-[var(--radius-md)]"
           onClick={() => {
             setRequested({ page: current + 1, from: meta });
             onPage(current + 1);

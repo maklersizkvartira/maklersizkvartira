@@ -113,6 +113,15 @@ const ROUTE_TABLE = {
    */
   '/ai': 'MODERATOR',
   '/audit': 'MODERATOR',
+  /**
+   * The three hubs. Each takes the LEAST strict rung of the pages it folds
+   * in, so nobody loses a page they could open before; the stricter tabs
+   * are hidden inside the hub by the same `atLeast` check the old routes
+   * used, and the backend still refuses their calls on its own.
+   */
+  '/conversations': 'MODERATOR',
+  '/notifications': 'MODERATOR',
+  '/system': 'MODERATOR',
   '/users': 'MODERATOR',
   /** Both halves are ADMIN on the backend: `/admin/sms` and
    *  `/admin/sms/overview`. Unchanged. */
@@ -202,7 +211,8 @@ export function canPerform(
  * Returns `null` for a path with no entry in the table, e.g. `/login`.
  */
 export function minRoleForPath(pathname: string): AdminRole | null {
-  const segments = pathname.split('/').filter(Boolean);
+  // Hub tabs live in the query (`/listings?tab=reports`); the role is the page's.
+  const segments = pathname.split(/[?#]/, 1)[0].split('/').filter(Boolean);
   // Drop a leading locale segment; `routing.localePrefix` is 'always', so one
   // is present on every in-app URL.
   const head = segments[0] && LOCALE_SEGMENTS.has(segments[0]) ? segments[1] : segments[0];

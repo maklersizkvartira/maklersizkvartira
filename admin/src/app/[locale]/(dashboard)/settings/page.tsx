@@ -13,7 +13,8 @@ import { useAuthStore } from '@/store/auth.store';
 import { useRole } from '@/providers/role-provider';
 import { useTheme, useLocale as useLocaleSwitcher } from '@/providers';
 import { useLogout } from '@/features/auth/hooks';
-import { PageHeader } from '@/shared/ui/PageHeader';
+import { SectionHeader } from '@/features/hubs/SectionHeader';
+import { SettingsHub } from '@/features/hubs/SettingsHub';
 import { Button } from '@/shared/ui/Button';
 import { StatusPill } from '@/shared/ui/StatusPill';
 import { Avatar } from '@/shared/ui/Avatar';
@@ -39,7 +40,7 @@ const LOCALES = [
   { code: 'en', label: 'English' },
 ] as const;
 
-export default function SettingsPage() {
+export function SettingsBody({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useTranslations('settings');
   const c = useTranslations('common');
   // The on/off words for monetization live in the `dashboard` namespace, beside
@@ -73,7 +74,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <PageHeader title={t('title')} subtitle={t('subtitle')} />
+      <SectionHeader embedded={embedded} title={t('title')} subtitle={t('subtitle')} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* ── Monetization ────────────────────────────────────────────────
@@ -208,4 +209,8 @@ export default function SettingsPage() {
       {paletteOpen && <ThemePalette onClose={() => setPaletteOpen(false)} />}
     </div>
   );
+}
+
+export default function SettingsPage() {
+  return <SettingsHub />;
 }

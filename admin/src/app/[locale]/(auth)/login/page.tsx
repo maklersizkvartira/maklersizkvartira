@@ -253,57 +253,40 @@ export default function LoginPage() {
     <div className="w-full animate-fade-in-up">
       {/* Login modal card */}
       <div
-        className="relative overflow-hidden rounded-[34px]"
+        className="relative overflow-hidden rounded-[var(--radius-xl)]"
         style={{
           background: 'var(--color-surface)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
           border: '1px solid var(--color-border)',
-          boxShadow: '0 24px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.04) inset',
+          boxShadow: 'var(--shadow-modal)',
         }}
       >
-        {/* Top gradient accent strip */}
-        <div
-          className="absolute top-0 left-0 right-0 h-[3px]"
-          style={{
-            background: 'var(--gradient-brand)',
-            backgroundSize: '200% 100%',
-          }}
-        />
-
-        <div
-          className="absolute inset-x-0 top-0 h-44 pointer-events-none"
-          style={{
-            background: 'linear-gradient(180deg, var(--accent-subtle) 0%, transparent 100%)',
-          }}
-        />
+        {/* Top accent strip */}
+        <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'var(--accent)' }} />
 
         <div className="relative px-8 py-10">
           {/* Logo & Header */}
           <div className="flex flex-col items-center mb-7">
             <div
-              className="relative mb-5 flex items-center justify-center"
-              style={{ width: '90px', height: '90px' }}
+              className="relative mb-5 flex items-center justify-center rounded-[24px]"
+              style={{
+                width: '96px',
+                height: '96px',
+                background: 'var(--accent-subtle)',
+                border: '1px solid var(--accent-border)',
+              }}
             >
               <div
-                className="absolute inset-0 rounded-[28px] animate-glow"
+                className="relative z-10 rounded-[20px] flex items-center justify-center"
                 style={{
-                  background: 'var(--accent-subtle)',
-                  border: '1px solid var(--accent-border)',
-                }}
-              />
-              <div
-                className="relative z-10 rounded-[26px] flex items-center justify-center"
-                style={{
-                  width: '74px',
-                  height: '74px',
+                  width: '78px',
+                  height: '78px',
                   background: 'var(--color-surface)',
                   border: '1px solid var(--color-border)',
-                  boxShadow: '0 10px 32px var(--accent-glow), 0 0 0 1px rgba(255,255,255,0.08) inset',
+                  boxShadow: 'var(--shadow-card)',
                 }}
               >
                 {step === '2FA' ? (
-                  <KeyRound className="h-9 w-9 text-brand animate-pulse" />
+                  <KeyRound className="h-9 w-9 animate-pulse" style={{ color: 'var(--accent)' }} />
                 ) : (
                   <Image
                     src="/brand/mark-lockup@2x.png"
@@ -318,13 +301,13 @@ export default function LoginPage() {
             </div>
 
             <h1
-              className="text-[24px] font-black text-center mb-1.5 leading-[1.1] px-4 tracking-[-0.03em]"
-              style={{ color: 'var(--color-text-primary)' }}
+              className="text-[28px] font-black text-center mb-1.5 leading-[1.1] px-4 tracking-[-0.04em]"
+              style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-heading)' }}
             >
               {step === '2FA' ? t('twoFactorTitle') : t('signInTitle')}
             </h1>
             <p
-              className="text-xs text-center max-w-[300px]"
+              className="text-sm text-center max-w-[300px]"
               style={{ color: 'var(--color-text-muted)' }}
             >
               {step === '2FA' ? t('twoFactorSubtitle') : t('signInSubtitle')}
@@ -450,14 +433,12 @@ export default function LoginPage() {
                   id="login-submit"
                   className="w-full h-12 rounded-xl font-bold text-sm relative overflow-hidden transition-all flex items-center justify-center gap-2 cursor-pointer"
                   style={{
-                    background: canSubmitCreds ? 'var(--gradient-brand)' : 'rgba(255, 255, 255, 0.05)',
+                    background: canSubmitCreds ? 'var(--accent)' : 'var(--color-surface-3)',
                     cursor: canSubmitCreds ? 'pointer' : 'not-allowed',
-                    boxShadow: canSubmitCreds
-                      ? '0 4px 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.15)'
-                      : 'none',
+                    boxShadow: canSubmitCreds ? '0 8px 20px -6px rgba(var(--accent-rgb), 0.45)' : 'none',
                     transform: isCheckingCredentials ? 'scale(0.99)' : 'scale(1)',
-                    color: canSubmitCreds ? '#ffffff' : 'rgba(255, 255, 255, 0.35)',
-                    border: canSubmitCreds ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
+                    color: canSubmitCreds ? '#ffffff' : 'var(--color-text-muted)',
+                    border: canSubmitCreds ? 'none' : '1px solid var(--color-border)',
                   }}
                 >
                   {isCheckingCredentials || isLoggingIn ? (
@@ -578,19 +559,19 @@ export default function LoginPage() {
                   style={{
                     background:
                       twoFactorCode.trim().length === 6 && !isVerifying2FA && !isLoggingIn
-                        ? 'var(--gradient-brand)'
-                        : 'rgba(255, 255, 255, 0.05)',
+                        ? 'var(--accent)'
+                        : 'var(--color-surface-3)',
                     cursor:
                       twoFactorCode.trim().length === 6 && !isVerifying2FA && !isLoggingIn
                         ? 'pointer'
                         : 'not-allowed',
                     boxShadow:
                       twoFactorCode.trim().length === 6
-                        ? '0 4px 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.15)'
+                        ? '0 8px 20px -6px rgba(var(--accent-rgb), 0.45)'
                         : 'none',
                     transform: isVerifying2FA || isLoggingIn ? 'scale(0.99)' : 'scale(1)',
-                    color: twoFactorCode.trim().length === 6 ? '#ffffff' : 'rgba(255, 255, 255, 0.35)',
-                    border: twoFactorCode.trim().length === 6 ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
+                    color: twoFactorCode.trim().length === 6 ? '#ffffff' : 'var(--color-text-muted)',
+                    border: twoFactorCode.trim().length === 6 ? 'none' : '1px solid var(--color-border)',
                   }}
                 >
                   {isVerifying2FA || isLoggingIn ? (
@@ -613,7 +594,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={handleBackToCredentials}
                   disabled={isVerifying2FA || isLoggingIn}
-                  className="w-full h-10 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer hover:bg-surface-hover"
+                  className="w-full h-10 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer hover:bg-[var(--color-surface-2)]"
                   style={{ color: 'var(--color-text-muted)' }}
                 >
                   <ArrowLeft size={13} />

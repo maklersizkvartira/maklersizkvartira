@@ -17,6 +17,7 @@ const dotColor: Record<BadgeVariant, string> = {
   danger: 'var(--color-danger)',
   info: 'var(--accent)',
   neutral: 'var(--color-text-muted)',
+  purple: '#9333ea',
 };
 
 interface StatusPillProps {

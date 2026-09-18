@@ -35,46 +35,8 @@ export async function generateMetadata({
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden"
-      style={{
-        background: 'radial-gradient(ellipse at 30% 20%, var(--accent-subtle) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, var(--accent-subtle) 0%, transparent 50%), var(--color-surface-2)',
-      }}
-    >
-      {/* Animated grid bg */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: 'linear-gradient(var(--color-border) 1px, transparent 1px), linear-gradient(90deg, var(--color-border) 1px, transparent 1px)',
-          backgroundSize: '48px 48px',
-        }}
-      />
-
-      {/* Blur blobs */}
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          width: '600px', height: '600px',
-          top: '-150px', left: '-150px',
-          background: 'radial-gradient(circle, var(--accent-glow) 0%, transparent 70%)',
-          filter: 'blur(60px)',
-          opacity: 0.5,
-        }}
-      />
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          width: '500px', height: '500px',
-          bottom: '-100px', right: '-100px',
-          background: 'radial-gradient(circle, var(--accent-glow) 0%, transparent 70%)',
-          filter: 'blur(60px)',
-          opacity: 0.3,
-        }}
-      />
-
-      <div className="w-full max-w-md relative z-10">
-        {children}
-      </div>
+    <div className="auth-shell min-h-screen flex items-center justify-center p-6">
+      <div className="w-full max-w-md">{children}</div>
     </div>
   );
 }

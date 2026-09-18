@@ -43,7 +43,7 @@ export function RiskCard({ stats }: { stats?: AdminStats }) {
   const clear = Boolean(stats) && failedLogins === 0 && smsFailed === 0;
 
   return (
-    <div className={`card card-cut-br rail ${TONE_CLASS[tone]} flex h-full flex-col p-5`}>
+    <div className={`card ${TONE_CLASS[tone]} flex h-full flex-col p-5`}>
       <IconTile size={32}>
         <LockKeyhole size={16} />
       </IconTile>

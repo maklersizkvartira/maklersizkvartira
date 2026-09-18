@@ -75,13 +75,17 @@ export function Modal({
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0"
-        style={{ background: 'rgba(5,11,22,0.6)', backdropFilter: 'blur(6px)' }}
+        className="absolute inset-0 animate-fade-in"
+        style={{
+          background: 'rgba(4, 22, 43, 0.66)',
+          backdropFilter: 'blur(10px) saturate(120%)',
+          WebkitBackdropFilter: 'blur(10px) saturate(120%)',
+        }}
       />
 
       {/* Panel */}
       <div
-        className={`relative w-full ${sizeMap[size]} animate-scale-in`}
+        className={`modal-panel relative w-full ${sizeMap[size]} animate-scale-in`}
         style={{
           background: 'var(--color-surface)',
           borderRadius: 'var(--radius-xl)',
@@ -98,18 +102,6 @@ export function Modal({
         role="dialog"
         aria-modal="true"
       >
-        {/* Gradient top accent */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '3px',
-            background: 'var(--gradient-brand)',
-          }}
-        />
-
         {/* Header */}
         {title && (
           <div

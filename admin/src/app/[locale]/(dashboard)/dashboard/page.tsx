@@ -1,15 +1,28 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations, useLocale } from 'next-intl';
-import { ShieldAlert } from 'lucide-react';
+import {
+  Activity,
+  Building2,
+  Flag,
+  Inbox,
+  Layers,
+  ShieldAlert,
+  ShieldCheck,
+  Star,
+  TrendingUp,
+} from 'lucide-react';
 
+import { Link } from '@/i18n/routing';
 import { http } from '@/shared/lib/http';
 import { api } from '@/shared/api/endpoints';
 import type {
   AdminBalances,
   AdminStats,
   PublicSettings,
+  RegistrationPoint,
   TrafficPoint,
 } from '@/shared/api/types';
 import { useRole } from '@/providers/role-provider';
@@ -20,75 +33,43 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { toast } from '@/shared/ui/Toast';
 import { STAT_COUNT } from '@/features/dashboard/dashboard-groups';
 import { Reveal } from '@/features/dashboard/components/Reveal';
-import { Storey } from '@/features/dashboard/components/Storey';
 import { BalancesCard } from '@/features/dashboard/components/BalancesCard';
-import { TriageCard } from '@/features/dashboard/components/TriageCard';
 import { RiskCard } from '@/features/dashboard/components/RiskCard';
 import { TodayCard } from '@/features/dashboard/components/TodayCard';
 import { ListingFlowCard } from '@/features/dashboard/components/ListingFlowCard';
 import { MonetizationCard } from '@/features/dashboard/components/MonetizationCard';
 import { StatBand } from '@/features/dashboard/components/StatBand';
+import { LineChart } from '@/features/dashboard/components/LineChart';
+import {
+  AnimatedCounter,
+  CardHeader,
+  PremiumStatCard,
+} from '@/features/dashboard/components/PremiumStatCard';
 
 /**
- * The overview screen, arranged as a descending answer to one question: is
- * there work for me this morning.
+ * The overview, composed the way SotuvchiAi's dashboard is: a page header
+ * with an icon tile, a row of four KPI cards whose first is the hero (the
+ * one number the page is about — how much is waiting for a decision), then
+ * bento rows of `.card` panels — a wide chart with a side card beside it,
+ * then the queues, balances, risk, today and the platform switch — and the
+ * reference band of every counter at the foot.
  *
- * It used to be a wall of twenty-five identically weighted tiles, in the order
- * the API happens to serialise them, where `pendingListings`, `openReports`
- * and `pendingVerifications` sat at positions 12, 16 and 17 drawn exactly as
- * loudly as `totalViews`, and none of the three was clickable. Now the three
- * queues are the first thing on screen as tappable rows that link into the
- * page which clears them, and everything merely informational moved into the
- * reference band at the bottom. Nothing was removed: all 25 counters are still
- * on the page, one tap away at every width.
- *
- * The deep charts are no longer here. Registrations, traffic, activity and
- * districts moved to /analytics, which is what they were always for: they
- * answer questions worth a minute, not the question this page answers, and
- * four extra reads over cellular data delayed every counter above them while
- * pushing the queues below the fold on a phone. What is left is what needs
- * watching — the queues, what the paid services cost, today, and the platform
- * mode — with the twenty-five counters still one tap away at the bottom. The
- * one chart that stayed is the visitor sparkline inside the Today card, which
- * is a shape rather than a chart and is drawn from a series this page fetches
- * anyway.
- *
- * Every number here is still a plain count from the backend. There is no trend
- * endpoint, so nothing on this page prints a delta — inventing one from the
- * "today" and "week" counters would be arithmetic the API never did. The one
- * derived figure is the hero's sum of the three queue depths, which is three
- * integers of the same kind with all three parts printed underneath it.
+ * All the data is what the page always read: `/admin/stats`, `/admin/balances`,
+ * the seven-day traffic and registration series (shared with /analytics by
+ * query key), and `/settings` for the monetization mode. Nothing is invented
+ * for a delta: every trend line here is the series itself.
  */
 
-/**
- * The window behind the Today card's visitor sparkline, and the only reason
- * this page still reads a chart endpoint.
- *
- * Seven days because that is the shape a single day needs to be read against,
- * and because it matches the window /analytics opens on — the two pages share
- * one react-query cache entry, so arriving here from there costs no request at
- * all.
- */
-const SPARKLINE_DAYS = 7;
-
-/**
- * How often the stats spine re-reads itself.
- *
- * Two minutes, not one. `/admin/stats` runs about two dozen uncached
- * sequential COUNTs under a per-IP ceiling, the primary reader is on a phone
- * on cellular data, and the manual refresh below — which invalidates every
- * query on the page rather than only this one — is the appropriate path for
- * someone who wants a number NOW. Background polling is off for the same
- * reason.
- */
+const WINDOW_DAYS = 7;
 const STATS_POLL_MS = 120_000;
-/** The sparkline's series moves far more slowly than the counters do. */
 const CHART_POLL_MS = 300_000;
 
 export default function DashboardPage() {
   const t = useTranslations('dashboard');
   const c = useTranslations('common');
   const e = useTranslations('errors');
+  const n = useTranslations('nav');
+  const an = useTranslations('analytics');
   const locale = useLocale();
   const { can, canAccess } = useRole();
   const confirm = useConfirm();
@@ -101,14 +82,6 @@ export default function DashboardPage() {
     refetchIntervalInBackground: false,
   });
 
-  /**
-   * Fetched on its own, and allowed to fail on its own.
-   *
-   * This one leaves the building twice — the SMS provider for credit, OpenAI
-   * for spend — so it is slower and less reliable than the database counters
-   * beside it. Folded into `stats` a struggling provider would have delayed
-   * every number on the page.
-   */
   const balancesQuery = useQuery({
     queryKey: ['balances'],
     queryFn: ({ signal }) => http.get<AdminBalances>(api.balances, { signal }),
@@ -116,24 +89,21 @@ export default function DashboardPage() {
     refetchIntervalInBackground: false,
   });
 
-  /**
-   * The last chart read on this page, and it is here for the sparkline alone.
-   *
-   * Same query key /analytics uses for its default window, so the two pages
-   * share one cache entry instead of asking the same question twice.
-   */
   const trafficQuery = useQuery({
-    queryKey: ['chart', 'traffic', SPARKLINE_DAYS],
-    queryFn: ({ signal }) =>
-      http.get<TrafficPoint[]>(api.charts.traffic(SPARKLINE_DAYS), { signal }),
+    queryKey: ['chart', 'traffic', WINDOW_DAYS],
+    queryFn: ({ signal }) => http.get<TrafficPoint[]>(api.charts.traffic(WINDOW_DAYS), { signal }),
     refetchInterval: CHART_POLL_MS,
     refetchIntervalInBackground: false,
   });
 
-  /**
-   * `GET /settings` is the one unauthenticated, un-enveloped, snake_case route
-   * in the API — hence `http.raw.get` and `skipAuth`.
-   */
+  const registrationsQuery = useQuery({
+    queryKey: ['chart', 'registrations', WINDOW_DAYS],
+    queryFn: ({ signal }) =>
+      http.get<RegistrationPoint[]>(api.charts.registrations(WINDOW_DAYS), { signal }),
+    refetchInterval: CHART_POLL_MS,
+    refetchIntervalInBackground: false,
+  });
+
   const monetizationQuery = useQuery({
     queryKey: ['public-settings'],
     queryFn: ({ signal }) =>
@@ -144,32 +114,14 @@ export default function DashboardPage() {
 
   const toggleMonetization = useMutation({
     mutationFn: () => http.post(api.settings.toggleMonetization),
-    // The toggle route answers with an acknowledgement and no new value, so the
-    // only way to learn the result is to read /settings again.
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['public-settings'] });
-      // Said out loud, because the status pill several lines up the card is
-      // otherwise the only sign that the site's billing mode just changed —
-      // and it does not move until that refetch lands. `monetizationOn` still
-      // holds the state before the tap here, so the message names the state
-      // the platform is now in.
       toast.success(c('success'), monetizationOn ? t('monetizationOff') : t('monetizationOn'));
     },
     onError: (error: Error) => toast.error(c('error'), error.message),
   });
 
-  /**
-   * Refresh means refresh. It used to refetch only `['stats']` while the
-   * charts and the monetization state went on showing whatever they had, so
-   * the button silently did a fifth of what it said.
-   *
-   * `balancesQuery` belongs in here too, and was the last omission: SMS credit
-   * and the assistant's spend are the two numbers on the page that come from
-   * outside, so they are both the most likely to have failed and the ones an
-   * admin most wants to re-read on demand — after topping the account up, the
-   * button has to reach them rather than leave the card on its 120s poll.
-   */
-  const queries = [statsQuery, balancesQuery, trafficQuery, monetizationQuery];
+  const queries = [statsQuery, balancesQuery, trafficQuery, registrationsQuery, monetizationQuery];
   const refreshing = queries.some((query) => query.isFetching);
   const refreshAll = () => {
     void Promise.all(queries.map((query) => query.refetch()));
@@ -177,10 +129,17 @@ export default function DashboardPage() {
 
   const stats = statsQuery.data;
   const traffic = trafficQuery.data ?? [];
+  const registrations = registrationsQuery.data ?? [];
+  const queueTotal = stats
+    ? stats.pendingListings + stats.openReports + stats.pendingVerifications + stats.pendingTopRequests
+    : 0;
 
-  // The page's own gate, alongside the sidebar's. Every other guarded page
-  // carries one; this is the eleventh. A rank that cannot reach the route must
-  // not be able to type the URL into a browser either.
+  const dayLabel = useMemo(
+    () => (iso: string) =>
+      new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short' }),
+    [locale],
+  );
+
   if (!canAccess('/dashboard')) {
     return (
       <div className="card">
@@ -189,44 +148,39 @@ export default function DashboardPage() {
     );
   }
 
+  const updatedChip = (statsQuery.dataUpdatedAt > 0 || statsQuery.isError) && (
+    <span
+      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-semibold"
+      style={{
+        background: statsQuery.isError ? 'var(--color-danger-bg)' : 'var(--color-surface-2)',
+        border: `1px solid ${statsQuery.isError ? 'var(--color-danger-border)' : 'var(--color-border)'}`,
+        color: statsQuery.isError ? 'var(--color-danger)' : 'var(--color-text-secondary)',
+      }}
+    >
+      <span
+        className={`status-dot ${refreshing ? 'animate-pulse-status' : ''}`}
+        style={{ background: statsQuery.isError ? 'var(--color-danger)' : 'var(--color-success)' }}
+      />
+      {statsQuery.isError
+        ? t('live.error')
+        : t('refreshedAt', {
+            time: new Date(statsQuery.dataUpdatedAt).toLocaleTimeString(locale, {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+          })}
+    </span>
+  );
+
   return (
-    <div>
+    <div className="space-y-6 max-w-[1400px] mx-auto pb-10 animate-fade-in">
       <PageHeader
+        icon={<Layers size={18} />}
         title={t('title')}
         subtitle={t('subtitle')}
         actions={
           <>
-            {/* Staleness made visible rather than inferred: the dot says the
-                page is keeping itself current, the timestamp says how current,
-                and a failed read turns both red instead of leaving an old
-                time on screen looking authoritative. */}
-            {(statsQuery.dataUpdatedAt > 0 || statsQuery.isError) && (
-              <span
-                className="chip inline-flex items-center gap-1.5"
-                style={
-                  statsQuery.isError
-                    ? { color: 'var(--color-danger)', borderColor: 'var(--color-danger-border)' }
-                    : undefined
-                }
-              >
-                <span
-                  className={`status-dot ${refreshing ? 'animate-pulse-status' : ''}`}
-                  style={{
-                    width: 6,
-                    height: 6,
-                    background: statsQuery.isError ? 'var(--color-danger)' : 'var(--color-success)',
-                  }}
-                />
-                {statsQuery.isError
-                  ? t('live.error')
-                  : t('refreshedAt', {
-                      time: new Date(statsQuery.dataUpdatedAt).toLocaleTimeString(locale, {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      }),
-                    })}
-              </span>
-            )}
+            {updatedChip}
             <Button variant="secondary" size="sm" onClick={refreshAll} loading={refreshing}>
               {c('refresh')}
             </Button>
@@ -234,127 +188,199 @@ export default function DashboardPage() {
         }
       />
 
-      {/* One gutter for the whole page — 16px, everywhere, so the vertical
-          rhythm cannot drift the way it did when each block carried its own
-          mb-6/mb-8. There is deliberately no bottom padding here any more: the
-          mobile dock's clearance moved into DashboardLayout, which now reserves
-          it once for every page. The `pb-24 lg:pb-4` that used to live on this
-          div stacked on top of that and left ~192px of dead space under the
-          reference band on a phone. */}
-      <div className="flex flex-col gap-4">
-        {/* ── 1 · Triage ───────────────────────────────────────────────────
-            A failed /admin/stats says nothing about the traffic series or the
-            balances, so the error replaces this floor only and everything
-            below still renders. */}
-        {statsQuery.error ? (
-          <div className="card card-cut-bl flex flex-wrap items-center gap-4 p-5">
-            <div className="flex-1">
-              <p className="text-sm font-semibold" style={{ color: 'var(--color-danger)' }}>
-                {c('error')}
-              </p>
-              <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
-                {statsQuery.error instanceof Error ? statsQuery.error.message : e('network')}
-              </p>
-            </div>
-            <Button variant="secondary" size="sm" className="max-sm:w-full" onClick={() => statsQuery.refetch()}>
-              {c('retry')}
-            </Button>
+      {/* ── KPI row ─────────────────────────────────────────────────────── */}
+      {statsQuery.error ? (
+        <div className="card flex flex-wrap items-center gap-4 p-5">
+          <div className="flex-1">
+            <p className="text-sm font-semibold" style={{ color: 'var(--color-danger)' }}>
+              {c('error')}
+            </p>
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+              {statsQuery.error instanceof Error ? statsQuery.error.message : e('network')}
+            </p>
           </div>
-        ) : (
-          /* 27:20:20 is 1.35:1:1 written without a decimal point — Tailwind's
-             scanner silently drops an arbitrary grid template containing a
-             `.`, and a dropped class here would collapse the hero row to a
-             single column on desktop with nothing in the build to say so. */
-          <section id="triage" className="scroll-mt-[76px] grid gap-4 xl:grid-cols-[27fr_20fr_20fr]">
-            <Reveal index={0} className="xl:row-span-2">
-              <TriageCard stats={stats} />
-            </Reveal>
-
-            <Reveal index={1}>
-              <BalancesCard
-                data={balancesQuery.data}
-                isError={balancesQuery.isError}
-                onRetry={() => void balancesQuery.refetch()}
-              />
-            </Reveal>
-
-            {/* Full width at 360px, two-up from sm, then dissolved by
-                `xl:contents` so both cards become direct children of the outer
-                template. Two 148px cards on the narrowest phone would truncate
-                "Muvaffaqiyatsiz kirishlar" to four characters, and a label
-                nobody can read is a number nobody can use. */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:contents">
-              <Reveal index={1}>
-                <RiskCard stats={stats} />
-              </Reveal>
-              <Reveal index={2}>
-                <TodayCard stats={stats} traffic={traffic} />
-              </Reveal>
-            </div>
-
-            <Reveal index={3} className="xl:col-span-2">
-              <ListingFlowCard stats={stats} />
-            </Reveal>
-          </section>
-        )}
-
-        {/* ── 2 · Platform mode ────────────────────────────────────────────
-            Headless on purpose: the card's own label says "Monetization", and
-            a Storey heading above it would be a second label for one thing.
-            Held to a third of the width on a desktop so it keeps reading as
-            one switch rather than as a banner — it is the only control on the
-            page, not the subject of it. */}
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <Reveal index={4}>
-            <MonetizationCard
-              enabled={monetizationOn}
-              loading={monetizationQuery.isLoading}
-              error={monetizationQuery.isError}
-              onRetry={() => void monetizationQuery.refetch()}
-              canToggle={can('monetizationToggle')}
-              toggling={toggleMonetization.isPending}
-              // Confirmed in BOTH directions, unlike the staff switch that
-              // skips the dialog for the harmless one — neither direction is
-              // harmless here. This is a full-width button in the scroll
-              // path of a phone, and one accidental contact either publishes
-              // paid promotion to every visitor of a live site or takes it
-              // away. Only `isDestructive` differs.
-              onToggle={async () => {
-                const ok = await confirm({
-                  title: t('monetization'),
-                  message: monetizationOn
-                    ? t('monetizationOffConfirm')
-                    : t('monetizationOnConfirm'),
-                  isDestructive: monetizationOn,
-                  confirmLabel: monetizationOn
-                    ? t('monetizationDisable')
-                    : t('monetizationEnable'),
-                });
-                if (ok) toggleMonetization.mutate();
-              }}
+          <Button variant="secondary" size="sm" className="max-sm:w-full" onClick={() => statsQuery.refetch()}>
+            {c('retry')}
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Reveal index={0} className="h-full">
+            <PremiumStatCard
+              variant="hero"
+              label={t('triage.title')}
+              value={stats ? <AnimatedCounter value={queueTotal} /> : '—'}
+              sublabel={
+                <span className="font-semibold">{queueTotal === 0 ? t('triage.clear') : t('triage.caption')}</span>
+              }
+              icon={<Inbox size={18} />}
+              loading={statsQuery.isLoading}
+              href="#triage"
+            />
+          </Reveal>
+          <Reveal index={1} className="h-full">
+            <PremiumStatCard
+              label={t('kpi.openReports')}
+              value={stats ? <AnimatedCounter value={stats.openReports} /> : '—'}
+              sublabel={<span style={{ color: 'var(--color-text-muted)' }}>{n('reports')}</span>}
+              icon={<Flag size={16} />}
+              loading={statsQuery.isLoading}
+              href="/listings?tab=reports"
+            />
+          </Reveal>
+          <Reveal index={2} className="h-full">
+            <PremiumStatCard
+              label={t('kpi.pendingVerifications')}
+              value={stats ? <AnimatedCounter value={stats.pendingVerifications} /> : '—'}
+              sublabel={<span style={{ color: 'var(--color-text-muted)' }}>{n('verifications')}</span>}
+              icon={<ShieldCheck size={16} />}
+              loading={statsQuery.isLoading}
+              href="/users?tab=verifications"
+            />
+          </Reveal>
+          <Reveal index={3} className="h-full">
+            <PremiumStatCard
+              label={t('kpi.pendingTopRequests')}
+              value={stats ? <AnimatedCounter value={stats.pendingTopRequests} /> : '—'}
+              sublabel={<span style={{ color: 'var(--color-text-muted)' }}>{n('topRequests')}</span>}
+              icon={<Star size={16} />}
+              loading={statsQuery.isLoading}
+              href="/listings?tab=top"
             />
           </Reveal>
         </div>
+      )}
 
-        {/* ── 3 · Everything else ──────────────────────────────────────── */}
-        <Storey
-          id="reference"
-          label={t('allMetrics')}
-          right={
-            <span className="shrink-0 text-[11px] tabular-nums" style={{ color: 'var(--color-text-muted)' }}>
+      {/* ── Bento row 1: traffic chart + today ───────────────────────────── */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        <Reveal index={4} className="lg:col-span-2">
+          <div className="card p-0 h-full flex flex-col">
+            <div className="p-6 pb-2">
+              <CardHeader
+                icon={<TrendingUp size={18} />}
+                title={an('charts.traffic')}
+                subtitle={t('trend.window', { days: WINDOW_DAYS })}
+                action={
+                  <Link
+                    href="/analytics"
+                    className="text-xs font-semibold hover:underline"
+                    style={{ color: 'var(--accent)' }}
+                  >
+                    {n('analytics')} →
+                  </Link>
+                }
+              />
+            </div>
+            <div className="px-6 pb-6 flex-1">
+              {trafficQuery.isLoading ? (
+                <div className="skeleton h-[220px] w-full" />
+              ) : traffic.length === 0 ? (
+                <EmptyState size="sm" title={c('noData')} />
+              ) : (
+                <LineChart
+                  labels={traffic.map((point) => dayLabel(point.date))}
+                  series={[
+                    { key: 'visitors', label: an('summary.visitors'), values: traffic.map((p) => p.visitors) },
+                    { key: 'views', label: an('summary.views'), values: traffic.map((p) => p.views) },
+                  ]}
+                />
+              )}
+            </div>
+          </div>
+        </Reveal>
+        <Reveal index={5}>
+          <TodayCard stats={stats} traffic={traffic} />
+        </Reveal>
+      </div>
+
+      {/* ── Bento row 2: queues + balances + risk ───────────────────────── */}
+      <section id="triage" className="scroll-mt-[76px] grid lg:grid-cols-2 gap-6">
+        <Reveal index={7}>
+          <BalancesCard
+            data={balancesQuery.data}
+            isError={balancesQuery.isError}
+            onRetry={() => void balancesQuery.refetch()}
+          />
+        </Reveal>
+        <Reveal index={8}>
+          <RiskCard stats={stats} />
+        </Reveal>
+      </section>
+
+      {/* ── Bento row 3: registrations chart + listing flow + mode ───────── */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        <Reveal index={9}>
+          <div className="card p-0 h-full flex flex-col">
+            <div className="p-6 pb-2">
+              <CardHeader
+                icon={<Activity size={18} />}
+                title={an('charts.registrations')}
+                subtitle={t('trend.window', { days: WINDOW_DAYS })}
+              />
+            </div>
+            <div className="px-6 pb-6 flex-1">
+              {registrationsQuery.isLoading ? (
+                <div className="skeleton h-[180px] w-full" />
+              ) : registrations.length === 0 ? (
+                <EmptyState size="sm" title={c('noData')} />
+              ) : (
+                <LineChart
+                  area
+                  labels={registrations.map((point) => dayLabel(point.date))}
+                  series={[
+                    {
+                      key: 'registrations',
+                      label: an('summary.registrations'),
+                      values: registrations.map((p) => p.count),
+                    },
+                  ]}
+                />
+              )}
+            </div>
+          </div>
+        </Reveal>
+        <Reveal index={10}>
+          <ListingFlowCard stats={stats} />
+        </Reveal>
+        <Reveal index={11}>
+          <MonetizationCard
+            enabled={monetizationOn}
+            loading={monetizationQuery.isLoading}
+            error={monetizationQuery.isError}
+            onRetry={() => void monetizationQuery.refetch()}
+            canToggle={can('monetizationToggle')}
+            toggling={toggleMonetization.isPending}
+            onToggle={async () => {
+              const ok = await confirm({
+                title: t('monetization'),
+                message: monetizationOn ? t('monetizationOffConfirm') : t('monetizationOnConfirm'),
+                isDestructive: monetizationOn,
+                confirmLabel: monetizationOn ? t('monetizationDisable') : t('monetizationEnable'),
+              });
+              if (ok) toggleMonetization.mutate();
+            }}
+          />
+        </Reveal>
+      </div>
+
+      {/* ── Reference band: every counter ───────────────────────────────── */}
+      <Reveal index={12}>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h3
+              className="text-sm font-bold flex items-center gap-2"
+              style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-heading)' }}
+            >
+              <Building2 size={15} style={{ color: 'var(--accent)' }} />
+              {t('allMetrics')}
+            </h3>
+            <span className="text-[11px] tabular-nums" style={{ color: 'var(--color-text-muted)' }}>
               {STAT_COUNT}
             </span>
-          }
-        >
-          <Reveal index={5}>
-            <StatBand
-              stats={stats}
-              error={statsQuery.isError}
-              onRetry={() => void statsQuery.refetch()}
-            />
-          </Reveal>
-        </Storey>
-      </div>
+          </div>
+          <StatBand stats={stats} error={statsQuery.isError} onRetry={() => void statsQuery.refetch()} />
+        </div>
+      </Reveal>
     </div>
   );
 }

@@ -49,7 +49,7 @@ export function MonetizationCard({
   const c = useTranslations('common');
 
   return (
-    <div className="card card-cut-tr card-wash rail tone-accent flex h-full flex-col p-5">
+    <div className="card tone-accent flex h-full flex-col p-5">
       <StatLabel className="block truncate">{t('monetization')}</StatLabel>
 
       <div className="mt-3">

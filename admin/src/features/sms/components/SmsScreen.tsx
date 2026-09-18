@@ -10,7 +10,7 @@ import { api, type PaginationParams } from '@/shared/api/endpoints';
 import type { AdminSmsRow, SmsOverview } from '@/shared/api/types';
 import { maskPhone } from '@/shared/lib/mask';
 import { useAdminList, type AdminFilters } from '@/shared/hooks/useAdminList';
-import { PageHeader } from '@/shared/ui/PageHeader';
+import { SectionHeader } from '@/features/hubs/SectionHeader';
 import { Button } from '@/shared/ui/Button';
 import { DataTable, type Column } from '@/shared/ui/DataTable';
 import { ListErrorBanner, ListState } from '@/shared/ui/ListState';
@@ -76,7 +76,7 @@ const KNOWN_STATUSES = new Set<string>([
   'UNKNOWN',
 ]);
 
-export function SmsScreen() {
+export function SmsScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useTranslations('sms');
   const c = useTranslations('common');
   const locale = useLocale();
@@ -174,7 +174,8 @@ export function SmsScreen() {
 
   return (
     <div>
-      <PageHeader
+      <SectionHeader
+        embedded={embedded}
         title={t('overview.title')}
         subtitle={t('overview.subtitle')}
         actions={

@@ -1,18 +1,20 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter, Link } from '@/i18n/routing';
-import { ChevronDown, Search, Sun, Moon, LogOut, User, Palette, CornerDownLeft, Smile, Sparkles } from 'lucide-react';
+import { Link } from '@/i18n/routing';
+import { ChevronDown, Search, Sun, Moon, LogOut, User, Palette, Shield } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
-import { useUIStore } from '@/store/ui.store';
+import { useUIStore, type HeaderPosition } from '@/store/ui.store';
 import { useRole } from '@/providers/role-provider';
-import { atLeast, ROUTE_MIN_ROLE } from '@/shared/lib/permissions';
 import { useLogout } from '@/features/auth/hooks';
 import { Avatar } from '@/shared/ui/Avatar';
 import { useTheme, useLocale } from '@/providers';
-import { NAV_GROUPS } from './Sidebar';
+import { useDockDrag } from './useDockDrag';
+import { DockHint } from './DockHint';
+
+const HEADER_POSITIONS = ['top', 'bottom'] as const satisfies readonly HeaderPosition[];
 
 const ThemePalette = dynamic(
   () => import('@/features/dashboard/components/ThemePalette').then((mod) => mod.ThemePalette),
@@ -25,127 +27,105 @@ const LOCALES = [
   { code: 'en', label: '🇬🇧 English' },
 ] as const;
 
-interface HeaderProps {
-  /** Owned by DashboardLayout so the sidebar's palette button toggles the
-   *  same panel this header renders. */
-  paletteOpen: boolean;
-  onTogglePalette: () => void;
-  onClosePalette: () => void;
-}
-
-export function Header({ paletteOpen, onTogglePalette, onClosePalette }: HeaderProps) {
+/**
+ * Floating glass header. Press-and-hold anywhere on it to pick it up and dock
+ * it at the top or bottom edge; the search pill opens the ⌘K command palette.
+ */
+export function Header() {
   const navT = useTranslations('nav');
+  const tDock = useTranslations('dock');
+  const tPalette = useTranslations('commandPalette');
   // Role labels live in the staff namespace, next to the screen that assigns
   // them, so this chip and the staff table can never disagree.
   const roleT = useTranslations('staff');
   const admin = useAuthStore((s) => s.admin);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
-  const router = useRouter();
+  const paletteOpen = useUIStore((s) => s.paletteOpen);
+  const setPaletteOpen = useUIStore((s) => s.setPaletteOpen);
+  const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
+  const sidebarPosition = useUIStore((s) => s.sidebarPosition);
+  const headerPosition = useUIStore((s) => s.headerPosition);
+  const setHeaderPosition = useUIStore((s) => s.setHeaderPosition);
   const { theme, toggleTheme } = useTheme();
   const { locale, setLocale } = useLocale();
   const { role } = useRole();
   const logout = useLogout();
 
-  const [userDropOpen, setUserDropOpen] = useState(false);
-  const [searchFocused, setSearchFocused] = useState(false);
-  const [query, setQuery] = useState('');
-  const [highlight, setHighlight] = useState(0);
-  const searchRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const userRef = useRef<HTMLDivElement>(null);
-
   const displayName = admin?.fullName || admin?.username || '—';
   const displayRole = role ? roleT(`role.${role}` as Parameters<typeof roleT>[0]) : '';
+  const isSuperadmin = role === 'SUPERADMIN';
 
-  /* ── Command palette ───────────────────────────────────────────────────────
-     The search box used to be an inert input. It now searches the same nav the
-     sidebar renders — role-gated by the same rule, so a moderator can never
-     type their way to a page that would 403 them. */
-  const routes = useMemo(
-    () =>
-      NAV_GROUPS.flatMap((group) =>
-        group.items
-          .filter((item) => atLeast(role, ROUTE_MIN_ROLE[item.href] ?? 'MODERATOR'))
-          .map((item) => ({
-            href: item.href,
-            label: navT(item.key as Parameters<typeof navT>[0]),
-            group: navT(group.key as Parameters<typeof navT>[0]),
-          })),
-      ),
-    [role, navT],
-  );
-
-  const matches = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase();
-    if (!q) return routes;
-    return routes.filter(
-      (r) => r.label.toLocaleLowerCase().includes(q) || r.href.includes(q),
-    );
-  }, [routes, query]);
-
-  const paletteVisible = searchFocused && matches.length > 0;
-
-  // ⌘K / Ctrl-K focuses the box — the kbd hint next to it has always promised
-  // this shortcut, so make it true rather than removing the hint.
+  const [isDesktop, setIsDesktop] = useState(false);
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        inputRef.current?.focus();
-      }
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
+    const check = () => setIsDesktop(window.innerWidth >= 1024);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
   }, []);
+
+  const panelRef = useRef<HTMLElement | null>(null);
+  const dock = useDockDrag<HeaderPosition>({
+    axis: 'vertical',
+    positions: HEADER_POSITIONS,
+    current: headerPosition,
+    onDrop: setHeaderPosition,
+    panelRef,
+    panelSize: 56,
+    disabled: !isDesktop,
+  });
+
+  // When the header is docked at the bottom, its menus must open upward so
+  // they don't fall off the bottom of the screen.
+  const dropSide = headerPosition === 'bottom' ? 'bottom-full mb-3' : 'top-full mt-3';
+
+  const [settling, setSettling] = useState(false);
+  const prevHeaderPosRef = useRef(headerPosition);
+  useEffect(() => {
+    if (prevHeaderPosRef.current !== headerPosition) {
+      prevHeaderPosRef.current = headerPosition;
+      setSettling(true);
+      const id = setTimeout(() => setSettling(false), 380);
+      return () => clearTimeout(id);
+    }
+  }, [headerPosition]);
+
+  const [userDropOpen, setUserDropOpen] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const userRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (userRef.current && !userRef.current.contains(e.target as Node)) setUserDropOpen(false);
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchFocused(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const go = (href: string) => {
-    setQuery('');
-    setSearchFocused(false);
-    inputRef.current?.blur();
-    router.push(href);
-  };
-
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Escape') {
-      setSearchFocused(false);
-      inputRef.current?.blur();
-      return;
-    }
-    if (!paletteVisible) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setHighlight((i) => (i + 1) % matches.length);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setHighlight((i) => (i - 1 + matches.length) % matches.length);
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      const target = matches[highlight] ?? matches[0];
-      if (target) go(target.href);
-    }
-  };
-
   return (
     <>
       <header
+        ref={panelRef}
+        data-tour="header"
+        onPointerDown={dock.onPointerDown}
         style={{
           height: 'var(--header-height)',
-          left: 'var(--sidebar-width)',
-          background: 'var(--color-surface)',
-          borderBottom: '1px solid var(--color-border)',
-          boxShadow: '0 1px 0 var(--color-border)',
+          left: sidebarPosition === 'left' ? 'calc(var(--sidebar-width) + var(--shell-gutter))' : 'var(--shell-gutter)',
+          right: sidebarPosition === 'right' ? 'calc(var(--sidebar-width) + var(--shell-gutter))' : 'var(--shell-gutter)',
+          top: headerPosition === 'top' ? 'var(--shell-gutter)' : 'auto',
+          bottom: headerPosition === 'bottom' ? 'var(--shell-gutter)' : 'auto',
+          background: 'var(--shell-bg)',
+          backdropFilter: 'var(--shell-glass-blur)',
+          WebkitBackdropFilter: 'var(--shell-glass-blur)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-xl)',
+          boxShadow: dock.armed || dock.dropping
+            ? '0 32px 70px -18px rgba(2, 64, 105, 0.5), 0 0 0 2px var(--accent)'
+            : dock.progress > 0.45 && !dock.armed
+              ? `var(--shadow-sidebar), 0 0 0 ${Math.round((dock.progress - 0.45) / 0.55 * 4)}px rgba(var(--accent-rgb), ${((dock.progress - 0.45) / 0.55 * 0.5).toFixed(2)})`
+              : 'var(--shadow-sidebar)',
         }}
-        className="fixed top-0 right-0 z-20 flex items-center px-3 sm:px-5 gap-1.5 sm:gap-4 transition-all"
+        className={`fixed z-20 flex items-center px-4 sm:px-6 gap-1.5 sm:gap-4 transition-[left,right,top,bottom] duration-300 ${dock.armed || dock.dropping ? 'dock-armed' : ''} ${dock.progress > 0.45 && !dock.armed ? 'dock-charging' : ''} ${settling ? 'dock-settling' : ''}`}
       >
         {/* Mobile hamburger */}
         <div className="lg:hidden flex items-center shrink-0">
@@ -158,11 +138,20 @@ export function Header({ paletteOpen, onTogglePalette, onClosePalette }: HeaderP
           </button>
         </div>
 
-        {/* Center: Search / command palette */}
+        {/* Center: Search — opens the ⌘K command palette */}
         <div className="flex-1 flex justify-center min-w-0">
-          <div ref={searchRef} className="w-full max-w-md hidden sm:block relative">
+          <div className="w-full max-w-md hidden sm:block">
             <div
-              className="flex items-center gap-2.5 rounded-xl px-3 py-2 transition-all duration-200"
+              role="button"
+              tabIndex={0}
+              aria-label={tPalette('placeholder')}
+              onClick={() => setCommandPaletteOpen(true)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCommandPaletteOpen(true); } }}
+              onMouseEnter={() => setSearchFocused(true)}
+              onMouseLeave={() => setSearchFocused(false)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              className="flex items-center gap-2.5 rounded-xl px-3 py-2 transition-all duration-200 cursor-pointer outline-none"
               style={{
                 background: searchFocused ? 'var(--color-surface)' : 'var(--color-surface-2)',
                 border: `1px solid ${searchFocused ? 'var(--accent)' : 'var(--color-border)'}`,
@@ -171,82 +160,31 @@ export function Header({ paletteOpen, onTogglePalette, onClosePalette }: HeaderP
             >
               <Search size={15} style={{ color: searchFocused ? 'var(--accent)' : 'var(--color-text-muted)', flexShrink: 0 }} />
               <input
-                ref={inputRef}
                 type="text"
-                role="combobox"
-                aria-expanded={paletteVisible}
-                aria-controls="nav-command-palette"
+                readOnly
+                tabIndex={-1}
                 placeholder={navT('searchPlaceholder')}
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  // A new query means a new result list; keeping the old
-                  // offset would leave Enter pointing at an unrelated page.
-                  setHighlight(0);
-                }}
-                onFocus={() => setSearchFocused(true)}
-                onKeyDown={handleSearchKeyDown}
-                className="flex-1 bg-transparent text-sm outline-none min-w-0"
+                className="flex-1 bg-transparent text-sm outline-none min-w-0 cursor-pointer placeholder-[var(--color-text-muted)] pointer-events-none"
                 style={{ color: 'var(--color-text-primary)' }}
               />
               <kbd
-                className="text-[9px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
-                style={{
-                  color: 'var(--color-text-muted)',
-                  border: '1px solid var(--color-border)',
-                  background: 'var(--color-surface)',
-                  letterSpacing: '0.04em',
-                }}
+                className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold"
+                style={{ background: 'var(--color-surface-3)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }}
               >
                 ⌘K
               </kbd>
             </div>
-
-            {paletteVisible && (
-              <div
-                id="nav-command-palette"
-                role="listbox"
-                className="absolute left-0 right-0 top-full mt-2 rounded-xl py-1.5 z-50 animate-fade-in max-h-[60vh] overflow-y-auto"
-                style={{
-                  background: 'var(--color-surface)',
-                  border: '1px solid var(--color-border)',
-                  boxShadow: 'var(--shadow-dropdown)',
-                }}
-              >
-                {matches.map((match, i) => (
-                  <button
-                    key={match.href}
-                    role="option"
-                    aria-selected={i === highlight}
-                    onMouseEnter={() => setHighlight(i)}
-                    onMouseDown={(e) => {
-                      // mousedown, not click: blur would tear the list down first
-                      e.preventDefault();
-                      go(match.href);
-                    }}
-                    className={`menu-item justify-between ${i === highlight ? 'menu-item-active' : ''}`}
-                  >
-                    <span className="flex items-center gap-2 min-w-0">
-                      <span className="truncate">{match.label}</span>
-                      <span className="text-[10px] uppercase tracking-wider shrink-0" style={{ color: 'var(--color-text-muted)' }}>
-                        {match.group}
-                      </span>
-                    </span>
-                    {i === highlight && <CornerDownLeft size={12} className="shrink-0" />}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Right side controls */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-
+        {/* Right side controls.
+            min-w-0 (not shrink-0): below sm the search spacer collapses to 0,
+            so this cluster is the only thing left to absorb a narrow header. */}
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           {/* Appearance / Theme Palette */}
           <button
-            onClick={onTogglePalette}
-            className={`icon-btn w-9 h-9 hidden md:flex ${paletteOpen ? 'icon-btn-active' : ''}`}
+            onClick={() => setPaletteOpen(!paletteOpen)}
+            className={`icon-btn w-9 h-9 rounded-xl hidden md:flex ${paletteOpen ? 'icon-btn-active' : ''}`}
             title={navT('appearance')}
             aria-label={navT('appearance')}
           >
@@ -256,7 +194,7 @@ export function Header({ paletteOpen, onTogglePalette, onClosePalette }: HeaderP
           {/* Theme toggle */}
           <button
             onClick={(e) => toggleTheme(e)}
-            className="icon-btn w-9 h-9 hidden md:flex"
+            className="icon-btn w-9 h-9 rounded-xl hidden md:flex"
             aria-label={navT('theme')}
           >
             <div style={{ transition: 'transform 0.3s', transform: theme === 'dark' ? 'rotate(20deg)' : 'rotate(0deg)' }}>
@@ -273,7 +211,11 @@ export function Header({ paletteOpen, onTogglePalette, onClosePalette }: HeaderP
               id="user-menu"
               onClick={() => setUserDropOpen((o) => !o)}
               data-open={userDropOpen}
-              className="surface-trigger flex items-center gap-2 rounded-xl p-1 pl-1.5 pr-2.5"
+              className="flex items-center gap-2 rounded-xl p-1 pl-1.5 pr-2.5 transition-all"
+              style={{
+                border: `1.5px solid ${userDropOpen ? 'var(--accent)' : 'var(--color-border)'}`,
+                background: userDropOpen ? 'var(--color-surface-2)' : 'transparent',
+              }}
             >
               <Avatar name={displayName} size="sm" online />
               <div className="hidden sm:block text-left">
@@ -298,7 +240,7 @@ export function Header({ paletteOpen, onTogglePalette, onClosePalette }: HeaderP
 
             {userDropOpen && (
               <div
-                className="absolute right-0 top-full mt-2 w-60 rounded-xl py-1.5 z-50 animate-fade-in"
+                className={`absolute right-0 ${dropSide} w-60 rounded-xl p-1.5 z-50 animate-fade-in flex flex-col gap-0.5`}
                 style={{
                   background: 'var(--color-surface)',
                   border: '1px solid var(--color-border)',
@@ -307,17 +249,29 @@ export function Header({ paletteOpen, onTogglePalette, onClosePalette }: HeaderP
               >
                 {/* Profile info */}
                 <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 mb-2">
                     <Avatar name={displayName} size="md" online />
                     <div className="min-w-0">
                       <p className="text-sm font-bold truncate" style={{ color: 'var(--color-text-primary)' }}>
                         {displayName}
                       </p>
-                      {displayRole && (
-                        <p className="text-xs truncate" style={{ color: 'var(--color-text-muted)' }}>{displayRole}</p>
-                      )}
+                      <p className="text-xs truncate" style={{ color: 'var(--color-text-muted)' }}>
+                        {admin?.email ?? admin?.username}
+                      </p>
                     </div>
                   </div>
+                  {displayRole && (
+                    <div
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                      style={{
+                        background: isSuperadmin ? 'var(--color-danger-bg)' : 'var(--accent-subtle)',
+                        color: isSuperadmin ? 'var(--color-danger)' : 'var(--accent)',
+                        border: `1px solid ${isSuperadmin ? 'var(--color-danger-border)' : 'var(--accent-border)'}`,
+                      }}
+                    >
+                      <Shield size={9} /> {displayRole}
+                    </div>
+                  )}
                 </div>
 
                 {/* Profile link */}
@@ -326,7 +280,10 @@ export function Header({ paletteOpen, onTogglePalette, onClosePalette }: HeaderP
                 </Link>
 
                 {/* Language */}
-                <div style={{ borderTop: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)', padding: '6px 0', margin: '4px 0' }}>
+                <div
+                  style={{ borderTop: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)', padding: '6px 0', margin: '4px 0' }}
+                  className="flex flex-col gap-0.5"
+                >
                   <p className="px-4 py-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
                     {navT('language')}
                   </p>
@@ -358,7 +315,26 @@ export function Header({ paletteOpen, onTogglePalette, onClosePalette }: HeaderP
         </div>
       </header>
 
-      {paletteOpen && <ThemePalette onClose={onClosePalette} />}
+      {/* Press-and-hold pickup hint */}
+      <DockHint progress={dock.progress} armed={dock.armed} dragging={dock.dragging} />
+
+      {/* Drop-target zones (top + bottom) shown while dragging the header */}
+      {dock.dragging && HEADER_POSITIONS.map((side) => (
+        <div
+          key={side}
+          className={`dock-zone ${dock.preview === side ? 'dock-zone-active' : ''}`}
+          style={{
+            left: sidebarPosition === 'left' ? 'calc(var(--sidebar-width) + var(--shell-gutter))' : 'var(--shell-gutter)',
+            right: sidebarPosition === 'right' ? 'calc(var(--sidebar-width) + var(--shell-gutter))' : 'var(--shell-gutter)',
+            height: 'var(--header-height)',
+            [side]: 'var(--shell-gutter)',
+          }}
+        >
+          <span className="dock-zone-label">{tDock(side)}</span>
+        </div>
+      ))}
+
+      {paletteOpen && <ThemePalette onClose={() => setPaletteOpen(false)} />}
     </>
   );
 }

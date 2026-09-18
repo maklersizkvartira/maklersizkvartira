@@ -10,7 +10,7 @@ import { type ReactNode } from 'react';
  * value that came off the wire.
  */
 
-export type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+export type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'purple';
 
 const variantMap: Record<string, BadgeVariant> = {
   // Settled, good outcomes
@@ -45,6 +45,7 @@ const variantStyles: Record<BadgeVariant, string> = {
   danger: 'badge-danger',
   info: 'badge-info',
   neutral: 'badge-neutral',
+  purple: 'bg-purple-50/70 text-purple-600 border border-purple-200/50 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/30',
 };
 
 /** Exported so StatusPill and any page that colours a chart series or an icon

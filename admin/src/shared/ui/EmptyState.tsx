@@ -48,9 +48,9 @@ export function EmptyState({
             width: dims.icon,
             height: dims.icon,
             borderRadius: 'var(--radius-xl)',
-            background: danger ? 'var(--color-danger-bg)' : 'var(--color-surface-2)',
-            border: `1px solid ${danger ? 'var(--color-danger-border)' : 'var(--color-border)'}`,
-            color: danger ? 'var(--color-danger)' : 'var(--color-text-muted)',
+            background: danger ? 'var(--color-danger-bg)' : 'var(--accent-subtle)',
+            border: `1px solid ${danger ? 'var(--color-danger-border)' : 'var(--accent-border)'}`,
+            color: danger ? 'var(--color-danger)' : 'var(--accent)',
           }}
         >
           {icon}

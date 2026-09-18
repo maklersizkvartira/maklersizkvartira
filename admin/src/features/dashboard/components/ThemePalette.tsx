@@ -12,15 +12,16 @@ import { useTheme } from '@/providers';
    Renaming it would silently drop every existing user back to the fallback.
    All three copies must carry the same hex — change one, change all three. */
 const COLOR_SCHEMES = [
-  { id: 'ocean',   label: 'Uyiz', primary: '#1447e6', secondary: '#06b6d4', gradient: 'linear-gradient(135deg,#1447e6,#06b6d4)' },
+  { id: 'ocean',   label: 'Uyiz',    primary: '#0ea5e9', secondary: '#3bd2ff', gradient: 'linear-gradient(135deg,#0ea5e9,#3bd2ff)' },
+  { id: 'indigo',  label: 'Indigo',  primary: '#6366f1', secondary: '#8b5cf6', gradient: 'linear-gradient(135deg,#6366f1,#8b5cf6)' },
   { id: 'violet',  label: 'Violet',  primary: '#7c3aed', secondary: '#a78bfa', gradient: 'linear-gradient(135deg,#7c3aed,#a78bfa)' },
-  { id: 'emerald', label: 'Emerald', primary: '#059669', secondary: '#34d399', gradient: 'linear-gradient(135deg,#059669,#34d399)' },
+  { id: 'emerald', label: 'Emerald', primary: '#10b981', secondary: '#34d399', gradient: 'linear-gradient(135deg,#10b981,#34d399)' },
   { id: 'rose',    label: 'Rose',    primary: '#e11d48', secondary: '#fb7185', gradient: 'linear-gradient(135deg,#e11d48,#fb7185)' },
   { id: 'amber',   label: 'Amber',   primary: '#d97706', secondary: '#fbbf24', gradient: 'linear-gradient(135deg,#d97706,#fbbf24)' },
   { id: 'slate',   label: 'Slate',   primary: '#475569', secondary: '#94a3b8', gradient: 'linear-gradient(135deg,#475569,#94a3b8)' },
   { id: 'pink',    label: 'Pink',    primary: '#db2777', secondary: '#f472b6', gradient: 'linear-gradient(135deg,#db2777,#f472b6)' },
   { id: 'teal',    label: 'Teal',    primary: '#0f766e', secondary: '#2dd4bf', gradient: 'linear-gradient(135deg,#0f766e,#2dd4bf)' },
-  { id: 'orange',  label: 'Orange',  primary: '#ea580c', secondary: '#fb923c', gradient: 'linear-gradient(135deg,#ea580c,#fb923c)' },
+  { id: 'orange',  label: 'Orange',  primary: '#ff7d00', secondary: '#ffaa3a', gradient: 'linear-gradient(135deg,#ff7d00,#ffaa3a)' },
 ];
 
 const FONTS = [
@@ -35,7 +36,7 @@ const FONTS = [
    are — they are proper nouns. */
 const RADIUS_PRESETS = [
   { id: 'compact', labelKey: 'compact', value: { sm: '4px', md: '8px',  lg: '12px', xl: '16px' } },
-  { id: 'default', labelKey: 'default', value: { sm: '8px', md: '12px', lg: '16px', xl: '22px' } },
+  { id: 'default', labelKey: 'default', value: { sm: '8px', md: '10px', lg: '18px', xl: '22px' } },
   { id: 'rounded', labelKey: 'rounded', value: { sm: '12px',md: '18px', lg: '24px', xl: '32px' } },
   { id: 'pill',    labelKey: 'pill',    value: { sm: '20px',md: '28px', lg: '36px', xl: '48px' } },
 ] as const;
@@ -141,25 +142,34 @@ function applyColorScheme(schemeId: string, originX?: number, originY?: number) 
     const b = Math.min(255, Math.max(0, (n & 0xff) + amt));
     return '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
   };
+  // "r, g, b" for the rgba(var(--accent-rgb), a) recipes in globals.css.
+  const rgb = (hex: string) => {
+    const n = parseInt(hex.slice(1), 16);
+    return `${n >> 16}, ${(n >> 8) & 0xff}, ${n & 0xff}`;
+  };
+  const light = adj(sc.primary, 45);
   root.style.setProperty('--accent', sc.primary);
-  root.style.setProperty('--accent-light', adj(sc.primary, 25));
-  root.style.setProperty('--accent-dark', adj(sc.primary, -25));
-  root.style.setProperty('--accent-glow', sc.primary + '4D');
-  root.style.setProperty('--accent-subtle', sc.primary + '12');
-  root.style.setProperty('--accent-border', sc.primary + '33');
+  root.style.setProperty('--accent-rgb', rgb(sc.primary));
+  root.style.setProperty('--accent-light', light);
+  root.style.setProperty('--accent-light-rgb', rgb(light));
+  root.style.setProperty('--accent-dark', adj(sc.primary, -45));
+  root.style.setProperty('--accent-glow', sc.primary + '59');
+  root.style.setProperty('--accent-subtle', sc.primary + '14');
+  root.style.setProperty('--accent-border', sc.primary + '38');
   root.style.setProperty('--gradient-brand', sc.gradient);
   root.style.setProperty('--color-brand-500', sc.primary);
-  root.style.setProperty('--color-brand-400', adj(sc.primary, 25));
-  root.style.setProperty('--color-brand-600', adj(sc.primary, -25));
+  root.style.setProperty('--color-brand-400', light);
+  root.style.setProperty('--color-brand-600', adj(sc.primary, -45));
+  root.style.setProperty('--shadow-glow', `0 0 40px ${sc.primary}59, 0 0 80px ${sc.primary}26`);
   root.style.setProperty('--color-info', sc.primary);
-  root.style.setProperty('--color-info-bg', sc.primary + '12');
-  root.style.setProperty('--color-info-border', sc.primary + '33');
+  root.style.setProperty('--color-info-bg', sc.primary + '14');
+  root.style.setProperty('--color-info-border', sc.primary + '38');
   localStorage.setItem('accent-scheme', schemeId);
 }
 
 function applyFont(fontId: string) {
   const fontMap: Record<string, string> = {
-    inter: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    inter: "var(--font-sans-next), 'Inter', ui-sans-serif, system-ui, sans-serif",
     syne:  "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     mono:  "ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace",
   };

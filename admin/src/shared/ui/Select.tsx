@@ -225,7 +225,6 @@ export function Select({
         // chaining into the page — or into the dialog — behind it.
         overflowY: 'auto',
         overscrollBehavior: 'contain',
-        animation: 'fade-in-dropdown 0.15s ease',
       }}
     >
       {options.map((opt) => {
@@ -297,16 +296,18 @@ export function Select({
         disabled={disabled}
         onClick={handleOpen}
         className={`
-          w-full flex items-center justify-between gap-2 px-3 ${heights}
-          font-medium rounded-[var(--radius-md)]
+          w-full flex items-center justify-between gap-2 px-[14px] ${heights}
+          font-normal rounded-[var(--radius-md)]
           transition-all duration-150 outline-none
+          border-[1.5px]
+          ${open
+            ? 'bg-[var(--color-surface)] border-[var(--accent)] shadow-[0_0_0_3.5px_var(--accent-subtle)]'
+            : 'bg-[var(--color-surface-2)] border-[var(--color-border)] hover:border-[var(--color-border-medium)]'
+          }
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         `}
         style={{
-          background: 'var(--color-surface)',
-          border: `1.5px solid ${open ? 'var(--color-brand-500)' : 'var(--color-border)'}`,
           color: showPlaceholder ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
-          boxShadow: open ? '0 0 0 3px var(--color-info-border)' : 'none',
         }}
         aria-haspopup="listbox"
         aria-expanded={open}

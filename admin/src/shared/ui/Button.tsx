@@ -17,38 +17,40 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<Variant, string> = {
   primary: `
-    text-white
-    disabled:opacity-50
-    active:scale-[0.97]
+    text-white font-semibold
+    hover:-translate-y-px hover:shadow-[0_8px_20px_-6px_rgba(var(--accent-rgb),0.45)]
+    active:scale-[0.97] active:translate-y-0
+    disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none
   `,
   gradient: `
-    text-white
-    disabled:opacity-50
-    active:scale-[0.97]
+    text-white font-semibold
+    hover:-translate-y-px hover:shadow-[0_8px_20px_-6px_rgba(var(--accent-rgb),0.45)]
+    active:scale-[0.97] active:translate-y-0
+    disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none
   `,
   secondary: `
-    bg-[var(--color-surface-2)] text-[var(--color-text-primary)]
-    border border-[var(--color-border)]
-    hover:bg-[var(--color-surface-3)]
+    bg-[var(--color-surface-2)] text-[var(--color-text-primary)] font-medium
+    border border-[var(--color-border-medium)]
+    hover:bg-[var(--color-surface-3)] hover:border-[var(--color-border-medium)]
     active:scale-[0.97]
     disabled:opacity-50
   `,
   ghost: `
-    bg-transparent text-[var(--color-text-secondary)]
+    bg-transparent text-[var(--color-text-secondary)] font-medium
     hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text-primary)]
     active:scale-[0.97]
     disabled:opacity-50
   `,
   danger: `
-    bg-[var(--color-danger)] text-white
+    text-white font-semibold
     hover:opacity-90
     active:scale-[0.97]
     disabled:opacity-50
   `,
   outline: `
-    bg-transparent text-[var(--color-brand-600)]
-    border border-[var(--color-brand-500)]
-    hover:bg-[var(--color-info-bg)]
+    bg-transparent text-[var(--accent)] font-medium
+    border border-[var(--accent-border)]
+    hover:bg-[var(--accent-subtle)]
     active:scale-[0.97]
     disabled:opacity-50
   `,
@@ -58,7 +60,7 @@ const sizeStyles: Record<Size, string> = {
   xs: 'h-7 px-2.5 text-xs gap-1.5 rounded-[var(--radius-sm)]',
   sm: 'h-8 px-3 text-sm gap-1.5 rounded-[var(--radius-md)]',
   md: 'h-9 px-4 text-sm gap-2 rounded-[var(--radius-md)]',
-  lg: 'h-11 px-5 text-base gap-2 rounded-[var(--radius-md)]',
+  lg: 'h-10 px-5 text-sm gap-2 rounded-[var(--radius-md)]',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -80,13 +82,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const isDisabled = disabled || loading;
 
-    const gradientStyle: React.CSSProperties =
-      variant === 'primary' || variant === 'gradient'
-        ? {
-            background: 'var(--gradient-brand)',
-            boxShadow: '0 2px 8px var(--accent-glow)',
-            ...style,
-          }
+    const computedStyle: React.CSSProperties =
+      variant === 'gradient'
+        ? { background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%)', ...style }
+        : variant === 'primary'
+        ? { background: 'var(--accent)', ...style }
+        : variant === 'danger'
+        ? { background: 'var(--color-danger)', ...style }
         : (style ?? {});
 
     return (
@@ -94,7 +96,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={isDisabled}
         className={`
-          inline-flex items-center justify-center font-semibold
+          inline-flex items-center justify-center
           transition-all duration-150 cursor-pointer
           select-none whitespace-nowrap
           ${variantClasses[variant]}
@@ -103,12 +105,12 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           ${isDisabled ? 'cursor-not-allowed' : ''}
           ${className}
         `}
-        style={gradientStyle}
+        style={computedStyle}
         {...props}
       >
         {loading && (
           <span
-            className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin"
+            className="inline-block h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"
             aria-hidden="true"
           />
         )}

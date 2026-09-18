@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
-import { ShieldAlert } from 'lucide-react';
+import { Activity, BarChart3, Eye, ShieldAlert, UserPlus, Users } from 'lucide-react';
 
 import { http } from '@/shared/lib/http';
 import { api } from '@/shared/api/endpoints';
@@ -18,7 +18,8 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { Reveal } from '@/features/dashboard/components/Reveal';
-import { Segmented } from '@/features/dashboard/components/Segmented';
+import { PageTabs } from '@/shared/ui/PageTabs';
+import { PremiumStatCard } from '@/features/dashboard/components/PremiumStatCard';
 import { StatLabel } from '@/features/dashboard/components/stat-kit';
 import { LineChart } from '@/features/dashboard/components/LineChart';
 import { BarChart } from '@/features/dashboard/components/BarChart';
@@ -203,9 +204,18 @@ export default function AnalyticsPage() {
     );
   }
 
+  const total = (values: number[]) => values.reduce((sum, value) => sum + value, 0);
+  const kpis = [
+    { key: 'registrations', label: t('summary.registrations'), value: total(registrations.map((p) => p.count)), icon: <UserPlus size={18} />, loading: registrationsQuery.isLoading },
+    { key: 'visitors', label: t('summary.visitors'), value: total(traffic.map((p) => p.visitors)), icon: <Users size={16} />, loading: trafficQuery.isLoading },
+    { key: 'views', label: t('summary.views'), value: total(traffic.map((p) => p.views)), icon: <Eye size={16} />, loading: trafficQuery.isLoading },
+    { key: 'events', label: t('summary.events'), value: total(activity.map((p) => p.info + p.notice + p.warning + p.critical)), icon: <Activity size={16} />, loading: activityQuery.isLoading },
+  ];
+
   return (
-    <div>
+    <div className="space-y-6 max-w-[1400px] mx-auto pb-10 animate-fade-in">
       <PageHeader
+        icon={<BarChart3 size={18} />}
         title={t('title')}
         subtitle={t('subtitle')}
         actions={
@@ -215,40 +225,54 @@ export default function AnalyticsPage() {
         }
       />
 
+      {/* The window's headline totals, so the charts below have a number to
+          be read against. Each is the sum of ONE measure over the window. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {kpis.map((kpi, index) => (
+          <PremiumStatCard
+            key={kpi.key}
+            variant={index === 0 ? 'hero' : 'default'}
+            label={kpi.label}
+            value={nf.format(kpi.value)}
+            sublabel={t('range.days', { count: days })}
+            icon={kpi.icon}
+            loading={kpi.loading}
+          />
+        ))}
+      </div>
+
       {/* One toolbar for both controls, above the charts rather than inside
           them: the window applies to three of the four cards, so a switcher
           living in one card's header would have looked like it belonged to
-          that card alone. Full-width pills on a phone, an inline row from sm. */}
-      <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          that card alone. */}
+      <div className="card p-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <StatLabel className="shrink-0">{t('range.label')}</StatLabel>
-          <Segmented
-            items={rangeOptions}
+          <PageTabs
+            tabs={rangeOptions}
             value={String(days)}
             onChange={(key) => setDays(Number(key) as RangeDays)}
-            ariaLabel={t('range.label')}
-            className="grid w-full grid-cols-3 gap-1 sm:inline-grid sm:w-auto sm:grid-flow-col"
+            aria-label={t('range.label')}
           />
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <StatLabel className="shrink-0">{t('limit.label')}</StatLabel>
-          <Segmented
-            items={limitOptions}
+          <PageTabs
+            tabs={limitOptions}
             value={String(districtLimit)}
             onChange={(key) => setDistrictLimit(Number(key) as DistrictLimit)}
-            ariaLabel={t('limit.label')}
-            className="grid w-full grid-cols-3 gap-1 sm:inline-grid sm:w-auto sm:grid-flow-col"
+            aria-label={t('limit.label')}
           />
         </div>
-      </div>
 
-      {/* Said once, for the whole page. Every bucket on every chart here is a
-          UTC day, which in Tashkent starts at 05:00 — a reader comparing
-          "today" on this page with a wall clock deserves to know that. */}
-      <p className="mb-4 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-        {t('utcNote')}
-      </p>
+        {/* Said once, for the whole page. Every bucket on every chart here is a
+            UTC day, which in Tashkent starts at 05:00 — a reader comparing
+            "today" on this page with a wall clock deserves to know that. */}
+        <p className="text-[11px] xl:max-w-[260px]" style={{ color: 'var(--color-text-muted)' }}>
+          {t('utcNote')}
+        </p>
+      </div>
 
       {/* Two up from xl, one column everywhere else. The two wide charts go
           full width: a 90-day stacked bar and a 30-row ranked list are both

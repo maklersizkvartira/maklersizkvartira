@@ -75,7 +75,7 @@ export function AnalyticsCard({
   const showFigures = !loading && !error && !empty && summary !== undefined && summary.length > 0;
 
   return (
-    <div className={`card card-cut-bl flex h-full flex-col p-5 sm:p-6 ${className}`}>
+    <div className={`card flex h-full flex-col p-5 sm:p-6 ${className}`}>
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <h2 className="min-w-0 text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
           {title}

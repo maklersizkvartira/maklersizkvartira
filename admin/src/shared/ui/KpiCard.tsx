@@ -34,40 +34,43 @@ export function KpiCard({
   if (loading) {
     return (
       <div className="card p-5 flex flex-col gap-3">
-        <div className="skeleton h-10 w-10 rounded-[var(--radius-md)]" />
-        <div className="skeleton h-4 w-24 rounded" />
-        <div className="skeleton h-7 w-32 rounded" />
-        <div className="skeleton h-3 w-28 rounded" />
+        <div className="skeleton h-9 w-9 rounded-[var(--radius-md)]" />
+        <div className="skeleton h-3 w-20 rounded" />
+        <div className="skeleton h-6 w-28 rounded" />
+        <div className="skeleton h-3 w-24 rounded" />
       </div>
     );
   }
 
   return (
-    <div className="card h-full w-full p-5 flex flex-col animate-fade-in justify-between">
-      <div>
-        {/* Icon */}
-        <div 
-          className={`w-10 h-10 rounded-[var(--radius-md)] flex-center mb-3 ${iconBg || ''}`}
-          style={!iconBg ? { background: 'var(--accent-subtle)', color: 'var(--accent)' } : undefined}
-        >
-          <span className={`w-5 h-5 flex-center ${iconColor || ''}`}>{icon}</span>
-        </div>
+    <div className="card p-5 flex flex-col gap-3 animate-fade-in">
+      {/* Icon */}
+      <div className={`w-9 h-9 rounded-[var(--radius-md)] flex-center flex-shrink-0 ${iconBg || 'icon-box-accent'}`}>
+        <span className={`flex-center ${iconColor || ''}`} style={{ width: 16, height: 16 }}>
+          {icon}
+        </span>
+      </div>
 
+      <div className="flex flex-col gap-1">
         {/* Label */}
-        <p className="text-xs font-medium text-[var(--color-text-secondary)] mb-1">{label}</p>
+        <p className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
+          {label}
+        </p>
 
         {/* Value */}
-        <p className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">
+        <p
+          className="text-2xl font-bold leading-none tracking-tight"
+          style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-heading)', letterSpacing: '-0.04em' }}
+        >
           {value}
         </p>
       </div>
 
-      {/* Change */}
+      {/* Change indicator */}
       {change !== undefined && (
         <p
-          className={`text-xs font-medium flex items-center gap-1 ${
-            isPositive ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'
-          }`}
+          className="text-xs font-medium flex items-center gap-1"
+          style={{ color: isPositive ? 'var(--color-success)' : 'var(--color-danger)' }}
         >
           <span>{isPositive ? '↑' : '↓'}</span>
           <span>{Math.abs(change)}%</span>

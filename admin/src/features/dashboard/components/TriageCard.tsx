@@ -37,8 +37,8 @@ interface QueueDef {
 
 const QUEUES: readonly QueueDef[] = [
   { key: 'pendingListings', href: '/listings', Icon: Clock },
-  { key: 'openReports', href: '/reports', Icon: Flag },
-  { key: 'pendingVerifications', href: '/verifications', Icon: ShieldCheck },
+  { key: 'openReports', href: '/listings?tab=reports', Icon: Flag },
+  { key: 'pendingVerifications', href: '/users?tab=verifications', Icon: ShieldCheck },
 ];
 
 export function TriageCard({ stats }: { stats?: AdminStats }) {
@@ -64,7 +64,7 @@ export function TriageCard({ stats }: { stats?: AdminStats }) {
 
   return (
     <div
-      className={`card card-cut-bl card-hero ${TONE_CLASS[tone]} flex h-full flex-col p-5 sm:p-6`}
+      className={`card ${TONE_CLASS[tone]} flex h-full flex-col p-5 sm:p-6`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
@@ -102,7 +102,7 @@ export function TriageCard({ stats }: { stats?: AdminStats }) {
           <Link
             key={row.key}
             href={row.href}
-            className={`queue-row tap rail ${TONE_CLASS[row.tone]} flex min-h-[56px] items-center gap-3 px-5 sm:px-6`}
+            className={`queue-row tap ${TONE_CLASS[row.tone]} flex min-h-[56px] items-center gap-3 px-5 sm:px-6 hover:bg-[var(--color-surface-2)] transition-colors`}
           >
             <IconTile size={32}>
               <row.Icon size={16} />

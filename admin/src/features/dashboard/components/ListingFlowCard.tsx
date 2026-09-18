@@ -54,7 +54,7 @@ export function ListingFlowCard({ stats }: { stats?: AdminStats }) {
   const largest = Math.max(...stages.map((stage) => stage.value), 1);
 
   return (
-    <div className="card card-cut-tl flex h-full flex-col p-5">
+    <div className="card flex h-full flex-col p-5">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-stretch">
         <div className="shrink-0 xl:w-[168px]">
           <StatLabel className="block truncate">{t('flow.title')}</StatLabel>

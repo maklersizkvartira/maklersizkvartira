@@ -97,7 +97,9 @@
     "searchPlaceholder": "Search...",
     "analytics": "Analytics",
     "payments": "Payments & Revenue",
-    "game": "2048 Game"
+    "game": "2048 Game",
+    "conversations": "Conversations",
+    "notifications": "Notifications"
   },
   "auth": {
     "signIn": "Sign in",
@@ -309,7 +311,16 @@
       "status": "By status",
       "district": "By district",
       "featuredOnly": "Promoted only",
-      "minRisk": "Minimum risk"
+      "minRisk": "Minimum risk",
+      "promo": {
+        "placeholder": "Services / Promotion",
+        "all": "All listings",
+        "REPORTS": "🚩 Reported only",
+        "TOP": "🔥 TOP only",
+        "VIP": "👑 VIP only",
+        "VERIFIED_OWNER": "✓ Verified owners only",
+        "ANY_PROMO": "✨ All paid listings"
+      }
     },
     "safetyBadges": {
       "VERIFIED_OWNER": "Verified owner",
@@ -324,6 +335,14 @@
     "dealType": {
       "rent": "Rent",
       "sale": "Sale"
+    },
+    "stats": {
+      "total": "Total listings",
+      "pending": "In moderation",
+      "approved": "Approved",
+      "featured": "Promoted",
+      "openReports": "Open reports",
+      "todayNew": "Added today"
     }
   },
   "reports": {
@@ -524,7 +543,16 @@
       "repeatedCharacter": "The password cannot be a single repeated character.",
       "whitespace": "The password must not start or end with a space.",
       "tooLong": "The password is too long."
-    }
+    },
+    "stats": {
+      "total": "Total users",
+      "active": "Active",
+      "pending": "Pending",
+      "suspended": "Suspended",
+      "weekNew": "New this week",
+      "pendingVerifications": "Verification requests"
+    },
+    "topUp": "Top up balance"
   },
   "staff": {
     "title": "Staff",
@@ -933,9 +961,11 @@
     "aiEnabledDesc": "AI answers automatically when admins are busy",
     "aiDisabledDesc": "Admins answer manually",
     "aiToggledOn": "AI auto-reply enabled",
-    "aiToggledOff": "AI auto-reply disabled"
+    "aiToggledOff": "AI auto-reply disabled",
+    "listTitle": "Tickets",
+    "customer": "Customer",
+    "tryDifferentSearch": "Try a different search"
   },
-
   "chat": {
     "title": "AI chats",
     "subtitle": "Watch a visitor's conversation with the AI and step in yourself when it needs you",
@@ -975,7 +1005,8 @@
       "send": "Could not send the message",
       "takeover": "Another operator got to this conversation first",
       "notTaken": "Take the conversation over first"
-    }
+    },
+    "listTitle": "Conversations"
   },
   "analytics": {
     "title": "Analytics",
@@ -1060,5 +1091,92 @@
     },
     "success": "Push notification sent successfully!",
     "error": "Failed to send push notification"
+  },
+  "dock": {
+    "hold_hint": "Keep holding to move",
+    "drag_hint": "Drag to a side, then release",
+    "release_hint": "Release to dock here",
+    "left": "Left",
+    "right": "Right",
+    "top": "Top",
+    "bottom": "Bottom"
+  },
+  "commandPalette": {
+    "empty": "No results",
+    "actions_group": "Quick actions",
+    "switch_to_light": "Switch to light mode",
+    "switch_to_dark": "Switch to dark mode",
+    "customize_appearance": "Customize appearance",
+    "hint_navigate": "navigate",
+    "hint_select": "select",
+    "hint_close": "close",
+    "placeholder": "Search pages or actions..."
+  },
+  "sidebarCoach": {
+    "sidebar_move_title": "Move the sidebar",
+    "sidebar_move_desc": "Reposition it your way — see how",
+    "sidebar_move_hint": "Press & hold the sidebar, then drag it to the left or right edge to dock it there.",
+    "coach_got_it": "Got it",
+    "header_move_title": "Move the header",
+    "header_move_hint": "Press & hold the top bar, then drag it to the top or bottom edge to dock it there.",
+    "coach_step": "Step {n} of 2",
+    "coach_good": "Nice!",
+    "coach_keep_question": "Keep this layout?",
+    "coach_keep_hint": "You can always change it again from Appearance.",
+    "coach_keep": "Keep it",
+    "coach_reset": "Reset to default",
+    "coach_skip": "Skip"
+  },
+  "hubs": {
+    "notifications": {
+      "title": "Notifications",
+      "subtitle": "Push notifications and SMS in one place",
+      "tabs": {
+        "push": "Push",
+        "sms": "SMS"
+      }
+    },
+    "system": {
+      "title": "System",
+      "subtitle": "Activity log, sign-in attempts and staff",
+      "tabs": {
+        "audit": "Activity",
+        "security": "Security",
+        "staff": "Staff"
+      }
+    },
+    "settings": {
+      "title": "Settings",
+      "subtitle": "Panel, platform and AI assistant",
+      "tabs": {
+        "general": "General",
+        "ai": "AI assistant"
+      }
+    },
+    "listings": {
+      "title": "Listings",
+      "subtitle": "Moderation queue, complaints and Top requests",
+      "tabs": {
+        "listings": "Listings",
+        "reports": "Complaints",
+        "topRequests": "Top requests"
+      }
+    },
+    "users": {
+      "title": "Users",
+      "subtitle": "Accounts and document verification requests",
+      "tabs": {
+        "users": "Users",
+        "verifications": "Verifications"
+      }
+    },
+    "conversations": {
+      "title": "Conversations",
+      "subtitle": "Customer support and AI assistant conversations in one place",
+      "tabs": {
+        "support": "Support",
+        "ai": "AI conversations"
+      }
+    }
   }
 }

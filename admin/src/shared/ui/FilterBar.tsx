@@ -42,10 +42,9 @@ export function FilterBar({
 
   return (
     <div className={`mb-4 ${className}`}>
-      {leading && <div className="mb-2.5">{leading}</div>}
-
-      {/* ── Mobile: disclosure ── */}
+      {/* ── Mobile: search above the disclosure, always visible ── */}
       <div className="sm:hidden">
+        {leading && <div className="mb-2.5">{leading}</div>}
         <button
           type="button"
           className="filter-toggle"
@@ -78,13 +77,14 @@ export function FilterBar({
         )}
       </div>
 
-      {/* ── sm and up: one row ── */}
-      <div className="hidden sm:flex filter-bar">
+      {/* ── sm and up: search + controls in one filter card, as in SotuvchiAi ── */}
+      <div className="hidden sm:flex filter-bar card p-4 rounded-xl shadow-sm">
+        {leading && <div className="flex-1 min-w-[280px] max-w-md">{leading}</div>}
         {children}
         {activeCount > 0 && onReset && (
           <button
             type="button"
-            className="icon-btn flex w-9 h-9"
+            className="icon-btn row-action flex w-9 h-9"
             onClick={onReset}
             title={resetLabel}
             aria-label={resetLabel ?? label}

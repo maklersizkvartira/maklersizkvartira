@@ -9,7 +9,7 @@ import { http } from '@/shared/lib/http';
 import { api } from '@/shared/api/endpoints';
 import type { AdminBalances } from '@/shared/api/types';
 import { useRole } from '@/providers/role-provider';
-import { PageHeader } from '@/shared/ui/PageHeader';
+import { SectionHeader } from '@/features/hubs/SectionHeader';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { Segmented, type SegmentedItem } from '@/features/dashboard/components/Segmented';
@@ -49,7 +49,7 @@ import { AiSessionsPanel } from '@/features/ai/components/AiSessionsPanel';
 
 type AiTab = 'overview' | 'settings' | 'sessions';
 
-export default function AiPage() {
+export default function AiPage({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useTranslations('ai');
   const c = useTranslations('common');
   const { can } = useRole();
@@ -83,7 +83,8 @@ export default function AiPage() {
     <div>
       {/* No subtitle: `ai.subtitle` describes the conversation log, which is now
           one third of this page, so it sits with the log itself instead. */}
-      <PageHeader
+      <SectionHeader
+        embedded={embedded}
         title={t('title')}
         actions={
           <Segmented

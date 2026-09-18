@@ -23,7 +23,21 @@ export interface ToastMessage {
   duration?: number;
 }
 
+export type SidebarPosition = 'left' | 'right';
+export type HeaderPosition = 'top' | 'bottom';
+
 const COLLAPSED_KEY = 'sidebar-collapsed';
+const SIDEBAR_POSITION_KEY = 'sidebar-position';
+const HEADER_POSITION_KEY = 'header-position';
+
+function writeStorage(key: string, value: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Private mode, or storage disabled. The chrome just forgets; nothing breaks.
+  }
+}
 
 function readCollapsed(): boolean {
   if (typeof window === 'undefined') return false;
@@ -56,6 +70,26 @@ interface UIState {
   /** Call once on mount to pick the remembered rail width up from storage. */
   hydrateSidebar: () => void;
 
+  /** Theme palette (appearance panel). Shared by the sidebar footer, the
+   *  header and the command palette, so it lives here rather than being
+   *  prop-drilled from DashboardLayout. */
+  paletteOpen: boolean;
+  setPaletteOpen: (open: boolean) => void;
+  activityOpen: boolean;
+  setActivityOpen: (open: boolean) => void;
+  /** ⌘K search / actions palette. */
+  commandPaletteOpen: boolean;
+  setCommandPaletteOpen: (open: boolean) => void;
+  /** Drag-to-dock placement of the floating sidebar and header, remembered
+   *  per device — read back from storage on mount by DashboardLayout. */
+  sidebarPosition: SidebarPosition;
+  setSidebarPosition: (position: SidebarPosition) => void;
+  headerPosition: HeaderPosition;
+  setHeaderPosition: (position: HeaderPosition) => void;
+  /** Full-screen "how to move the sidebar" coach-mark, launched from Appearance. */
+  sidebarCoachOpen: boolean;
+  setSidebarCoachOpen: (open: boolean) => void;
+
   toasts: ToastMessage[];
   addToast: (toast: Omit<ToastMessage, 'id'>) => string;
   removeToast: (id: string) => void;
@@ -83,6 +117,25 @@ export const useUIStore = create<UIState>((set) => ({
       return { sidebarCollapsed: next };
     }),
   hydrateSidebar: () => set({ sidebarCollapsed: readCollapsed() }),
+
+  paletteOpen: false,
+  setPaletteOpen: (open) => set({ paletteOpen: open }),
+  activityOpen: false,
+  setActivityOpen: (open) => set({ activityOpen: open }),
+  commandPaletteOpen: false,
+  setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
+  sidebarPosition: 'left',
+  setSidebarPosition: (position) => {
+    writeStorage(SIDEBAR_POSITION_KEY, position);
+    set({ sidebarPosition: position });
+  },
+  headerPosition: 'top',
+  setHeaderPosition: (position) => {
+    writeStorage(HEADER_POSITION_KEY, position);
+    set({ headerPosition: position });
+  },
+  sidebarCoachOpen: false,
+  setSidebarCoachOpen: (open) => set({ sidebarCoachOpen: open }),
 
   toasts: [],
   addToast: (toast) => {

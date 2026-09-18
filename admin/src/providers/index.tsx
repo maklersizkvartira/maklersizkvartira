@@ -99,7 +99,7 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
-  theme: 'dark',
+  theme: 'light',
   toggleTheme: () => {},
 });
 
@@ -112,7 +112,7 @@ function rehydrateThemePalette() {
   try {
     const root = document.documentElement;
     // ── Theme (light/dark) ──
-    const savedTheme = localStorage.getItem('theme') || 'dark';
+    const savedTheme = localStorage.getItem('theme') || 'light';
     root.setAttribute('data-theme', savedTheme);
 
     // ── Accent Color Scheme ──
@@ -120,18 +120,24 @@ function rehydrateThemePalette() {
     // script below and COLOR_SCHEMES in ThemePalette.tsx. All three must carry
     // the same hex per id, and `ocean` must match --accent in globals.css, or
     // the accent visibly changes between the pre-paint, the rehydrate and the
-    // palette's own swatch. `ocean` is the Uyiz brand blue #1447e6.
-    const SCHEMES: Record<string, { p: string; s: string; g: string }> = {
-      ocean:   { p: '#1447e6', s: '#06b6d4', g: 'rgba(20,71,230,0.4)' },
-      violet:  { p: '#7c3aed', s: '#a78bfa', g: 'rgba(124,58,237,0.4)' },
-      emerald: { p: '#059669', s: '#34d399', g: 'rgba(5,150,105,0.4)' },
-      rose:    { p: '#e11d48', s: '#fb7185', g: 'rgba(225,29,72,0.4)' },
-      amber:   { p: '#d97706', s: '#fbbf24', g: 'rgba(217,119,6,0.4)' },
-      slate:   { p: '#475569', s: '#94a3b8', g: 'rgba(71,85,105,0.4)' },
-      pink:    { p: '#db2777', s: '#f472b6', g: 'rgba(219,39,119,0.4)' },
-      teal:    { p: '#0f766e', s: '#2dd4bf', g: 'rgba(15,118,110,0.4)' },
-      orange:  { p: '#ea580c', s: '#fb923c', g: 'rgba(234,88,12,0.4)' },
+    // palette's own swatch. `ocean` is the design's sky blue #0ea5e9.
+    const SCHEMES: Record<string, { p: string; s: string }> = {
+      indigo:  { p: '#6366f1', s: '#8b5cf6' },
+      ocean:   { p: '#0ea5e9', s: '#3bd2ff' },
+      violet:  { p: '#7c3aed', s: '#a78bfa' },
+      emerald: { p: '#10b981', s: '#34d399' },
+      rose:    { p: '#e11d48', s: '#fb7185' },
+      amber:   { p: '#d97706', s: '#fbbf24' },
+      slate:   { p: '#475569', s: '#94a3b8' },
+      pink:    { p: '#db2777', s: '#f472b6' },
+      teal:    { p: '#0f766e', s: '#2dd4bf' },
+      orange:  { p: '#ff7d00', s: '#ffaa3a' },
     };
+    // "r, g, b" for the rgba(var(--accent-rgb), a) recipes in globals.css.
+    function rgb(hex: string) {
+      const n = parseInt(hex.slice(1), 16);
+      return `${n >> 16}, ${(n >> 8) & 0xff}, ${n & 0xff}`;
+    }
     function adj(hex: string, amt: number) {
       const n = parseInt(hex.slice(1), 16);
       const r = Math.min(255, Math.max(0, (n >> 16) + amt));
@@ -141,12 +147,15 @@ function rehydrateThemePalette() {
     }
     const schemeId = localStorage.getItem('accent-scheme') || 'ocean';
     const sc = SCHEMES[schemeId] || SCHEMES.ocean;
+    const light = adj(sc.p, 45);
     root.style.setProperty('--accent', sc.p);
-    root.style.setProperty('--accent-light', adj(sc.p, 25));
-    root.style.setProperty('--accent-dark', adj(sc.p, -25));
-    root.style.setProperty('--accent-glow', sc.p + '4D');
-    root.style.setProperty('--accent-subtle', sc.p + '12');
-    root.style.setProperty('--accent-border', sc.p + '33');
+    root.style.setProperty('--accent-rgb', rgb(sc.p));
+    root.style.setProperty('--accent-light', light);
+    root.style.setProperty('--accent-light-rgb', rgb(light));
+    root.style.setProperty('--accent-dark', adj(sc.p, -45));
+    root.style.setProperty('--accent-glow', sc.p + '59');
+    root.style.setProperty('--accent-subtle', sc.p + '14');
+    root.style.setProperty('--accent-border', sc.p + '38');
     root.style.setProperty('--color-brand-500', sc.p);
     root.style.setProperty('--color-brand-600', adj(sc.p, -15));
     root.style.setProperty('--color-brand-400', adj(sc.p, 15));
@@ -154,14 +163,14 @@ function rehydrateThemePalette() {
     root.style.setProperty('--color-cyan-400', adj(sc.s, 15));
     root.style.setProperty('--color-cyan-600', adj(sc.s, -15));
     root.style.setProperty('--gradient-brand', `linear-gradient(135deg, ${sc.p} 0%, ${sc.s} 100%)`);
-    root.style.setProperty('--shadow-glow', `0 0 40px ${sc.g}, 0 0 80px ${sc.g.replace('0.4', '0.15')}`);
+    root.style.setProperty('--shadow-glow', `0 0 40px ${sc.p}59, 0 0 80px ${sc.p}26`);
     root.style.setProperty('--color-info', sc.p);
-    root.style.setProperty('--color-info-bg', sc.p + '12');
-    root.style.setProperty('--color-info-border', sc.p + '33');
+    root.style.setProperty('--color-info-bg', sc.p + '14');
+    root.style.setProperty('--color-info-border', sc.p + '38');
 
     // ── Font ──
     const FONTS: Record<string, string> = {
-      inter: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      inter: "var(--font-sans-next), 'Inter', ui-sans-serif, system-ui, sans-serif",
       syne:  "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       mono:  "ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace",
     };
@@ -173,7 +182,7 @@ function rehydrateThemePalette() {
     // ── Radius ──
     const RADIUS_PRESETS: Record<string, { sm: string; md: string; lg: string; xl: string }> = {
       compact: { sm: '4px', md: '8px',  lg: '12px', xl: '16px' },
-      default: { sm: '8px', md: '12px', lg: '16px', xl: '22px' },
+      default: { sm: '8px', md: '10px', lg: '18px', xl: '22px' },
       rounded: { sm: '12px',md: '18px', lg: '24px', xl: '32px' },
       pill:    { sm: '20px',md: '28px', lg: '36px', xl: '48px' },
     };
@@ -244,7 +253,7 @@ function rehydrateThemePalette() {
 
 function ThemeProvider({ children, pathname, locale }: { children: ReactNode; pathname: string; locale: string }) {
   // ✅ Default dark mode
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [theme, setTheme] = useState<Theme>('light');
 
   /* The chosen theme is written onto <html> by the pre-paint script, before
      React exists, precisely so the first paint is not the wrong colour. It can
@@ -260,8 +269,8 @@ function ThemeProvider({ children, pathname, locale }: { children: ReactNode; pa
       setTheme(attr);
     } else {
       // Fallback: dark
-      document.documentElement.setAttribute('data-theme', 'dark');
-      localStorage.setItem('theme', 'dark');
+      document.documentElement.setAttribute('data-theme', 'light');
+      localStorage.setItem('theme', 'light');
     }
     // ✅ Fully rehydrate theme palette (colors, fonts, radius) on load and locale/path switch
     rehydrateThemePalette();
@@ -419,27 +428,32 @@ export function Providers({ children, locale, messages }: ProvidersProps) {
               try {
                 // ── Theme (light/dark) ──────────────────────────────
                 var saved = localStorage.getItem('theme');
-                if (saved === 'light') {
-                  document.documentElement.setAttribute('data-theme', 'light');
-                } else {
+                if (saved === 'dark') {
                   document.documentElement.setAttribute('data-theme', 'dark');
-                  if (!saved) localStorage.setItem('theme', 'dark');
+                } else {
+                  document.documentElement.setAttribute('data-theme', 'light');
+                  if (!saved) localStorage.setItem('theme', 'light');
                 }
 
                 // ── Accent color scheme ─────────────────────────────
                 // Keep in step with rehydrateThemePalette() above and with
-                // COLOR_SCHEMES in ThemePalette.tsx — 'ocean' is #1447e6.
+                // COLOR_SCHEMES in ThemePalette.tsx — 'ocean' is #0ea5e9.
                 var SCHEMES = {
-                  ocean:   { p: '#1447e6', s: '#06b6d4', g: 'rgba(20,71,230,0.4)' },
-                  violet:  { p: '#7c3aed', s: '#a78bfa', g: 'rgba(124,58,237,0.4)' },
-                  emerald: { p: '#059669', s: '#34d399', g: 'rgba(5,150,105,0.4)' },
-                  rose:    { p: '#e11d48', s: '#fb7185', g: 'rgba(225,29,72,0.4)' },
-                  amber:   { p: '#d97706', s: '#fbbf24', g: 'rgba(217,119,6,0.4)' },
-                  slate:   { p: '#475569', s: '#94a3b8', g: 'rgba(71,85,105,0.4)' },
-                  pink:    { p: '#db2777', s: '#f472b6', g: 'rgba(219,39,119,0.4)' },
-                  teal:    { p: '#0f766e', s: '#2dd4bf', g: 'rgba(15,118,110,0.4)' },
-                  orange:  { p: '#ea580c', s: '#fb923c', g: 'rgba(234,88,12,0.4)' },
+                  indigo:  { p: '#6366f1', s: '#8b5cf6' },
+                  ocean:   { p: '#0ea5e9', s: '#3bd2ff' },
+                  violet:  { p: '#7c3aed', s: '#a78bfa' },
+                  emerald: { p: '#10b981', s: '#34d399' },
+                  rose:    { p: '#e11d48', s: '#fb7185' },
+                  amber:   { p: '#d97706', s: '#fbbf24' },
+                  slate:   { p: '#475569', s: '#94a3b8' },
+                  pink:    { p: '#db2777', s: '#f472b6' },
+                  teal:    { p: '#0f766e', s: '#2dd4bf' },
+                  orange:  { p: '#ff7d00', s: '#ffaa3a' },
                 };
+                function rgb(hex) {
+                  var n = parseInt(hex.slice(1), 16);
+                  return (n >> 16) + ', ' + ((n >> 8) & 0xff) + ', ' + (n & 0xff);
+                }
                 function adj(hex, amt) {
                   var n = parseInt(hex.slice(1), 16);
                   var r = Math.min(255, Math.max(0, (n >> 16) + amt));
@@ -450,12 +464,15 @@ export function Providers({ children, locale, messages }: ProvidersProps) {
                 var schemeId = localStorage.getItem('accent-scheme') || 'ocean';
                 var sc = SCHEMES[schemeId] || SCHEMES.ocean;
                 var root = document.documentElement;
+                var light = adj(sc.p, 45);
                 root.style.setProperty('--accent', sc.p);
-                root.style.setProperty('--accent-light', adj(sc.p, 25));
-                root.style.setProperty('--accent-dark', adj(sc.p, -25));
-                root.style.setProperty('--accent-glow', sc.p + '4D');
-                root.style.setProperty('--accent-subtle', sc.p + '12');
-                root.style.setProperty('--accent-border', sc.p + '33');
+                root.style.setProperty('--accent-rgb', rgb(sc.p));
+                root.style.setProperty('--accent-light', light);
+                root.style.setProperty('--accent-light-rgb', rgb(light));
+                root.style.setProperty('--accent-dark', adj(sc.p, -45));
+                root.style.setProperty('--accent-glow', sc.p + '59');
+                root.style.setProperty('--accent-subtle', sc.p + '14');
+                root.style.setProperty('--accent-border', sc.p + '38');
                 root.style.setProperty('--color-brand-500', sc.p);
                 root.style.setProperty('--color-brand-600', adj(sc.p, -15));
                 root.style.setProperty('--color-brand-400', adj(sc.p, 15));
@@ -463,14 +480,14 @@ export function Providers({ children, locale, messages }: ProvidersProps) {
                 root.style.setProperty('--color-cyan-400', adj(sc.s, 15));
                 root.style.setProperty('--color-cyan-600', adj(sc.s, -15));
                 root.style.setProperty('--gradient-brand', 'linear-gradient(135deg,' + sc.p + ' 0%,' + sc.s + ' 100%)');
-                root.style.setProperty('--shadow-glow', '0 0 40px ' + sc.g + ', 0 0 80px ' + sc.g.replace('0.4', '0.15'));
+                root.style.setProperty('--shadow-glow', '0 0 40px ' + sc.p + '59, 0 0 80px ' + sc.p + '26');
                 root.style.setProperty('--color-info', sc.p);
-                root.style.setProperty('--color-info-bg', sc.p + '12');
-                root.style.setProperty('--color-info-border', sc.p + '33');
+                root.style.setProperty('--color-info-bg', sc.p + '14');
+                root.style.setProperty('--color-info-border', sc.p + '38');
 
                 // ── Font ────────────────────────────────────────────
                 var FONTS = {
-                  inter: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  inter: "var(--font-sans-next), 'Inter', ui-sans-serif, system-ui, sans-serif",
                   syne:  "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                   mono:  "ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace",
                 };
@@ -482,7 +499,7 @@ export function Providers({ children, locale, messages }: ProvidersProps) {
                 // ── Radius ──────────────────────────────────────────
                 var RADIUS = {
                   compact: { sm: '4px', md: '8px',  lg: '12px', xl: '16px' },
-                  default: { sm: '8px', md: '12px', lg: '16px', xl: '22px' },
+                  default: { sm: '8px', md: '10px', lg: '18px', xl: '22px' },
                   rounded: { sm: '12px',md: '18px', lg: '24px', xl: '32px' },
                   pill:    { sm: '20px',md: '28px', lg: '36px', xl: '48px' },
                 };

@@ -66,7 +66,7 @@ export function StatBand({
 
   if (error) {
     return (
-      <div className="card card-cut-bl">
+      <div className="card">
         <EmptyState
           icon={<AlertTriangle size={26} />}
           tone="danger"
@@ -84,7 +84,7 @@ export function StatBand({
   }
 
   return (
-    <div className="card card-cut-bl">
+    <div className="card">
       <div className="px-5 pt-5 pb-4 xl:hidden">
         <Segmented
           items={tabs}

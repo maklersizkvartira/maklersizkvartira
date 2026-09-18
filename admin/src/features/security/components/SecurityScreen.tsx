@@ -9,7 +9,7 @@ import { api, type LoginAttemptParams } from '@/shared/api/endpoints';
 import type { AdminLoginAttemptRow } from '@/shared/api/types';
 import { maskPhone } from '@/shared/lib/mask';
 import { useAdminList, countActiveFilters, type AdminFilters } from '@/shared/hooks/useAdminList';
-import { PageHeader } from '@/shared/ui/PageHeader';
+import { SectionHeader } from '@/features/hubs/SectionHeader';
 import { FilterBar } from '@/shared/ui/FilterBar';
 import { Select } from '@/shared/ui/Select';
 import { DataTable, type Column } from '@/shared/ui/DataTable';
@@ -51,7 +51,7 @@ interface SecurityFilters extends AdminFilters {
 
 const INITIAL: SecurityFilters = { onlyFailed: '' };
 
-export function SecurityScreen() {
+export function SecurityScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useTranslations('security');
   const c = useTranslations('common');
   const locale = useLocale();
@@ -192,7 +192,7 @@ export function SecurityScreen() {
 
   return (
     <div>
-      <PageHeader title={t('title')} subtitle={t('subtitle')} />
+      <SectionHeader embedded={embedded} title={t('title')} subtitle={t('subtitle')} />
 
       <FilterBar
         label={c('filters')}

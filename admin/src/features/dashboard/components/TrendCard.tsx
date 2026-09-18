@@ -188,7 +188,7 @@ export function TrendCard({
   }
 
   return (
-    <div className="card card-cut-bl p-5 sm:p-6">
+    <div className="card p-5 sm:p-6">
       <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>

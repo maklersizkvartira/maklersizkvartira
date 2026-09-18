@@ -14,7 +14,7 @@ import type {
   AuditSeverity,
 } from '@/shared/api/types';
 import { useAdminList, countActiveFilters, type AdminFilters } from '@/shared/hooks/useAdminList';
-import { PageHeader } from '@/shared/ui/PageHeader';
+import { SectionHeader } from '@/features/hubs/SectionHeader';
 import { FilterBar } from '@/shared/ui/FilterBar';
 import { Input } from '@/shared/ui/Input';
 import { Select } from '@/shared/ui/Select';
@@ -138,7 +138,7 @@ function utcEnd(day: string): string | undefined {
   return day ? `${day}T23:59:59.999999Z` : undefined;
 }
 
-export default function AuditPage() {
+export default function AuditPage({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useTranslations('audit');
   const c = useTranslations('common');
   // `te`, not the `e` the other pages use: every input on this screen already
@@ -304,7 +304,7 @@ export default function AuditPage() {
 
   return (
     <div>
-      <PageHeader title={t('title')} subtitle={t('subtitle')} />
+      <SectionHeader embedded={embedded} title={t('title')} subtitle={t('subtitle')} />
 
       <FilterBar
         label={c('filters')}

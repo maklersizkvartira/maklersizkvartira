@@ -1,6 +1,7 @@
 'use client';
 
-import { type InputHTMLAttributes, type TextareaHTMLAttributes, forwardRef, type ReactNode } from 'react';
+import { type InputHTMLAttributes, type TextareaHTMLAttributes, forwardRef, type ReactNode, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 
 /* ─── Input ──────────────────────────────────────────────────────────────────── */
 
@@ -11,10 +12,35 @@ interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'prefix
   startIcon?: ReactNode;
   endIcon?: ReactNode;
   fullWidth?: boolean;
+  /** When true on a `type="password"` field, renders an eye toggle to reveal/hide the value. */
+  revealable?: boolean;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, startIcon, endIcon, fullWidth, className = '', style, ...props }, ref) => {
+  ({ label, error, hint, startIcon, endIcon, fullWidth, revealable, type, className = '', style, ...props }, ref) => {
+    const [revealed, setRevealed] = useState(false);
+    const canReveal = !!revealable && type === 'password';
+    const effectiveType = canReveal && revealed ? 'text' : type;
+
+    // The reveal toggle takes precedence over a supplied endIcon for password fields.
+    const trailing = canReveal ? (
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={() => setRevealed((v) => !v)}
+        aria-label={revealed ? 'Hide value' : 'Show value'}
+        className="flex-shrink-0 flex items-center justify-center rounded-md transition-colors hover:text-[var(--color-text-secondary)]"
+        style={{ color: 'var(--color-text-muted)', lineHeight: 0 }}
+      >
+        {revealed ? <EyeOff size={16} /> : <Eye size={16} />}
+      </button>
+    ) : endIcon ? (
+      <span className="flex-shrink-0" style={{ color: 'var(--color-text-muted)', lineHeight: 0 }}>
+        {endIcon}
+      </span>
+    ) : null;
+
+    const hasIcon = !!(startIcon || trailing);
     return (
       <div className={`flex flex-col gap-1.5 ${fullWidth ? 'w-full' : ''}`}>
         {label && (
@@ -25,34 +51,47 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {label}
           </label>
         )}
-        <div
-          className={`input-wrapper flex items-center gap-2 rounded-[var(--radius-md)] transition-all ${
-            error ? 'border-danger error-glow' : ''
-          }`}
-          style={{
-            padding: startIcon || endIcon ? '0 12px' : undefined,
-          }}
-        >
-          {startIcon && (
-            <span className="flex-shrink-0" style={{ color: 'var(--color-text-muted)', lineHeight: 0 }}>
-              {startIcon}
-            </span>
-          )}
+        {hasIcon ? (
+          <div
+            className={`input-wrapper flex items-center gap-2 rounded-[var(--radius-md)] transition-all ${
+              error ? 'border-danger error-glow' : ''
+            }`}
+            style={{
+              padding: '0 12px',
+            }}
+          >
+            {startIcon && (
+              <span className="flex-shrink-0" style={{ color: 'var(--color-text-muted)', lineHeight: 0 }}>
+                {startIcon}
+              </span>
+            )}
+            <input
+              ref={ref}
+              type={effectiveType}
+              className={`input-field border-0 bg-transparent shadow-none px-0 ${className}`}
+              style={{
+                height: '40px',
+                flex: 1,
+                minWidth: 0,
+                border: 'none',
+                boxShadow: 'none',
+                padding: '0',
+                outline: 'none',
+                ...style,
+              }}
+              {...props}
+            />
+            {trailing}
+          </div>
+        ) : (
           <input
             ref={ref}
-            className={`input-field ${startIcon || endIcon ? 'border-0 bg-transparent shadow-none px-0' : ''} ${className}`}
-            style={{
-              ...(startIcon || endIcon ? { height: '44px', flex: 1, minWidth: 0, border: 'none', boxShadow: 'none', padding: '0', outline: 'none' } : {}),
-              ...style,
-            }}
+            type={effectiveType}
+            className={`input-field ${error ? 'border-danger error-glow' : ''} ${className}`}
+            style={style}
             {...props}
           />
-          {endIcon && (
-            <span className="flex-shrink-0" style={{ color: 'var(--color-text-muted)', lineHeight: 0 }}>
-              {endIcon}
-            </span>
-          )}
-        </div>
+        )}
         {error && (
           <p className="text-xs font-medium" style={{ color: 'var(--color-danger)' }}>
             {error}

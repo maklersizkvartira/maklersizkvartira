@@ -32,7 +32,7 @@ export function TodayCard({ stats, traffic }: { stats?: AdminStats; traffic: Tra
   ] as const;
 
   return (
-    <div className="card card-cut-tr tone-accent flex h-full flex-col p-5">
+    <div className="card tone-accent flex h-full flex-col p-5">
       <IconTile size={32}>
         <Footprints size={16} />
       </IconTile>

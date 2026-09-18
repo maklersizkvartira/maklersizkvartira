@@ -7,14 +7,14 @@ import { useTranslations } from 'next-intl';
 import { http } from '@/shared/lib/http';
 import { api } from '@/shared/api/endpoints';
 import type { PushStats } from '@/shared/api/types';
-import { PageHeader } from '@/shared/ui/PageHeader';
+import { SectionHeader } from '@/features/hubs/SectionHeader';
 import { Button } from '@/shared/ui/Button';
 import { KpiCard } from '@/shared/ui/KpiCard';
 import { PushComposer } from './PushComposer';
 import { PushHistoryTable } from './PushHistoryTable';
 import { GuestSubscribersTable } from './GuestSubscribersTable';
 
-export function PushScreen() {
+export function PushScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useTranslations('pushPage');
 
   const [stats, setStats] = useState<PushStats | null>(null);
@@ -58,9 +58,9 @@ export function PushScreen() {
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Page Header */}
-      <PageHeader
+    <div className={embedded ? "space-y-6" : "space-y-6 pb-12"}>
+      <SectionHeader
+        embedded={embedded}
         title={t('title')}
         subtitle={t('subtitle')}
         actions={

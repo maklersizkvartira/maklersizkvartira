@@ -114,7 +114,7 @@ export function DataTable<Row>({
       <div className={className}>
         {/* Desktop: skeletons inside the real table so the column widths the
             data will land in are already settled when it arrives. */}
-        <div className="hidden lg:block card table-scroll overflow-x-auto">
+        <div className="hidden lg:block data-table-wrap data-table-scroll">
           <table className="data-table" style={{ minWidth }}>
             <thead>
               <tr>
@@ -162,12 +162,12 @@ export function DataTable<Row>({
   return (
     <div className={className}>
       {/* ── Table (lg and up) ── */}
-      <div className="hidden lg:block relative rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card)] overflow-hidden">
+      <div className="hidden lg:block relative data-table-wrap">
         {/* Horizontal scroll hint & navigation bar when table overflows */}
         {(canScrollLeft || canScrollRight) && (
           <div className="flex items-center justify-between px-3.5 py-1.5 bg-[var(--color-surface-2)]/90 backdrop-blur border-b border-[var(--color-border)] text-xs select-none">
             <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-secondary)]">
-              <ArrowLeftRight size={13} className="text-blue-500 shrink-0" />
+              <ArrowLeftRight size={13} className="shrink-0" style={{ color: 'var(--accent)' }} />
               <span>Jadval keng:</span>
               <span className="text-[var(--color-text-muted)] font-normal">
                 yonga surish uchun tugmalardan yoki trekpaddan foydalaning
@@ -178,7 +178,7 @@ export function DataTable<Row>({
                 type="button"
                 onClick={() => scrollByDirection('left')}
                 disabled={!canScrollLeft}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] disabled:opacity-30 disabled:pointer-events-none transition-all border border-[var(--color-border)] text-[var(--color-text-primary)] shadow-sm active:scale-95"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[var(--radius-sm)] text-[11px] font-semibold bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] disabled:opacity-30 disabled:pointer-events-none transition-all border border-[var(--color-border-medium)] text-[var(--color-text-primary)] active:scale-95"
                 title="Chapga surish"
               >
                 <ChevronLeft size={13} />
@@ -188,7 +188,7 @@ export function DataTable<Row>({
                 type="button"
                 onClick={() => scrollByDirection('right')}
                 disabled={!canScrollRight}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] disabled:opacity-30 disabled:pointer-events-none transition-all border border-[var(--color-border)] text-[var(--color-text-primary)] shadow-sm active:scale-95"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[var(--radius-sm)] text-[11px] font-semibold bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] disabled:opacity-30 disabled:pointer-events-none transition-all border border-[var(--color-border-medium)] text-[var(--color-text-primary)] active:scale-95"
                 title="Oʻngga surish"
               >
                 <span>Oʻngga</span>
@@ -219,7 +219,7 @@ export function DataTable<Row>({
         <div
           ref={scrollRef}
           onScroll={checkScroll}
-          className="table-scroll overflow-x-auto"
+          className="data-table-scroll"
         >
           <table className="data-table" style={{ minWidth }}>
             <thead>
@@ -272,16 +272,26 @@ export function DataTable<Row>({
             </div>
           ));
 
+          // A div with a role, not a <button>: a cell may render its own
+          // button (the balance "+" on the users table did), and a button
+          // inside a button is invalid HTML that React refuses to hydrate.
           return clickable ? (
-            <button
+            <div
               key={keyOf(row)}
-              type="button"
+              role="button"
+              tabIndex={0}
               className="data-card"
               data-clickable="true"
               onClick={() => onRowClick?.(row)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onRowClick?.(row);
+                }
+              }}
             >
               {body}
-            </button>
+            </div>
           ) : (
             <div key={keyOf(row)} className="data-card">
               {body}

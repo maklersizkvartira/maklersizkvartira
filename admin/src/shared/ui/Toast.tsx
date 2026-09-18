@@ -50,14 +50,14 @@ const Z_TOAST = Z_DIALOG_POPOVER + 1;
 const MAX_VISIBLE = 3;
 
 const ICONS: Record<ToastType, React.ReactNode> = {
-  success: <CheckCircle2 className="text-[var(--color-success)]" size={20} />,
+  success: <CheckCircle2 className="text-[var(--accent)]" size={20} />,
   error: <AlertCircle className="text-[var(--color-danger)]" size={20} />,
   info: <Info className="text-[var(--accent)]" size={20} />,
 };
 
 const BG_COLORS: Record<ToastType, string> = {
-  success: 'bg-[var(--color-success-bg)] border-[var(--color-success-border)]',
-  error: 'bg-[var(--color-danger-bg)] border-[var(--color-danger-border)]',
+  success: 'bg-[var(--accent-subtle)] border-[var(--accent-border)]',
+  error: 'bg-[var(--color-danger-bg)] border-[var(--color-danger)]/20',
   info: 'bg-[var(--accent-subtle)] border-[var(--accent-border)]',
 };
 
@@ -76,9 +76,10 @@ function ToastItem({ toast }: { toast: ToastMessage }) {
     <div
       className={`
         pointer-events-auto w-full max-w-sm overflow-hidden rounded-[var(--radius-lg)]
-        border shadow-lg transition-all animate-slide-in-right
+        border transition-all animate-slide-up
         flex items-start p-4 ${BG_COLORS[toast.type]}
       `}
+      style={{ boxShadow: 'var(--shadow-dropdown)' }}
     >
       <div className="flex-shrink-0">{ICONS[toast.type]}</div>
       <div className="ml-3 w-0 flex-1 pt-0.5">

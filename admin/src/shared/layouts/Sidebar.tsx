@@ -5,7 +5,7 @@ import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
-import { useUIStore } from '@/store/ui.store';
+import { useUIStore, type SidebarPosition } from '@/store/ui.store';
 import { Avatar } from '@/shared/ui/Avatar';
 import { useEscapeToClose } from '@/shared/ui/escape-layer';
 import { Wordmark } from '@/shared/ui/Wordmark';
@@ -13,6 +13,10 @@ import { useTheme } from '@/providers';
 import { useRole } from '@/providers/role-provider';
 import { atLeast, ROUTE_MIN_ROLE } from '@/shared/lib/permissions';
 import { useLogout } from '@/features/auth/hooks';
+import { useDockDrag } from './useDockDrag';
+import { DockHint } from './DockHint';
+
+const SIDEBAR_POSITIONS = ['left', 'right'] as const satisfies readonly SidebarPosition[];
 
 /* ─── Icons ──────────────────────────────────────────────────────────────────
    Inline rather than imported: at 17×17 / strokeWidth 1.8 the nav glyphs sit
@@ -20,6 +24,22 @@ import { useLogout } from '@/features/auth/hooks';
    should not wait on an icon package chunk. Only the glyphs the Uyiz nav
    and the sidebar chrome actually use live here. */
 const Icons = {
+  conversations: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  ),
+  notifications: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  ),
+  system: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+    </svg>
+  ),
   dashboard: (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -241,42 +261,24 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: 'dashboard', href: '/dashboard', icon: Icons.dashboard },
       { key: 'payments', href: '/payments', icon: Icons.payments },
       { key: 'analytics', href: '/analytics', icon: Icons.analytics },
-      { key: 'game', href: '/game', icon: Icons.game },
     ],
   },
   {
-    // The three queues first, in the order the dashboard's triage card counts
-    // them, so the rail and the hero agree about what is waiting.
+    // Three hubs instead of seven queues: the listings hub carries complaints
+    // and Top requests as tabs, the conversations hub carries support and the
+    // AI desk, the users hub carries verifications.
     key: 'moderation',
     items: [
       { key: 'listings', href: '/listings', icon: Icons.listings },
-      { key: 'reports', href: '/reports', icon: Icons.reports },
-      { key: 'verifications', href: '/verifications', icon: Icons.verifications },
-      { key: 'topRequests', href: '/top-requests', icon: Icons.topRequests },
-      { key: 'support', href: '/support', icon: Icons.support },
-      // Beside `support` and not down in `system` with `/ai`: it is the same
-      // desk work on a different channel, and an operator taking a
-      // conversation over reaches for it from the same part of the rail.
-      { key: 'chat', href: '/chat', icon: Icons.chat },
-      { key: 'push', href: '/push', icon: Icons.push },
-    ],
-  },
-  {
-    key: 'people',
-    items: [
+      { key: 'conversations', href: '/conversations', icon: Icons.conversations },
       { key: 'users', href: '/users', icon: Icons.users },
-      { key: 'staff', href: '/staff', icon: Icons.staff },
     ],
   },
   {
     key: 'system',
     items: [
-      // The two paid services first — see the note above about the group they
-      // would have had to themselves.
-      { key: 'ai', href: '/ai', icon: Icons.ai },
-      { key: 'sms', href: '/sms', icon: Icons.sms },
-      { key: 'audit', href: '/audit', icon: Icons.audit },
-      { key: 'security', href: '/security', icon: Icons.security },
+      { key: 'notifications', href: '/notifications', icon: Icons.notifications },
+      { key: 'system', href: '/system', icon: Icons.system },
       { key: 'settings', href: '/settings', icon: Icons.settings },
     ],
   },
@@ -298,19 +300,13 @@ export const NAV_GROUPS: NavGroup[] = [
  * here either: it is somewhere you go on purpose, not somewhere you jump to
  * between decisions.
  */
-const DOCK_ROUTES = ['/dashboard', '/listings', '/reports', '/verifications', '/users'] as const;
+const DOCK_ROUTES = ['/dashboard', '/listings', '/conversations', '/users', '/payments'] as const;
 const DOCK_STRIDE = 64;
 const DOCK_MAX_DRAG = (DOCK_ROUTES.length - 1) * DOCK_STRIDE;
 
-interface SidebarProps {
-  /** Theme-palette visibility. It lives in DashboardLayout because the header
-   *  owns the panel itself and both chrome pieces offer the toggle. */
-  paletteOpen: boolean;
-  onTogglePalette: () => void;
-}
-
-export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
+export function Sidebar() {
   const t = useTranslations('nav');
+  const tDock = useTranslations('dock');
   // Role labels live in the staff namespace, next to the screen that assigns
   // them, so the sidebar chip and the staff table can never disagree.
   const roleT = useTranslations('staff');
@@ -321,6 +317,10 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed);
+  const paletteOpen = useUIStore((s) => s.paletteOpen);
+  const setPaletteOpen = useUIStore((s) => s.setPaletteOpen);
+  const sidebarPosition = useUIStore((s) => s.sidebarPosition);
+  const setSidebarPosition = useUIStore((s) => s.setSidebarPosition);
   const { theme, toggleTheme } = useTheme();
   const { role } = useRole();
   const logout = useLogout();
@@ -405,6 +405,108 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
   // Escape backs out of the drawer, through the shared stack so a dialog
   // raised over it takes the press first.
   useEscapeToClose(drawerOpen, () => setSidebarOpen(false));
+
+  // ── Navigation sliding background indicator ──
+  const navRef = useRef<HTMLElement>(null);
+  const [indicatorStyle, setIndicatorStyle] = useState<React.CSSProperties>({
+    position: 'absolute',
+    left: '12px',
+    width: 'calc(100% - 24px)',
+    height: '0px',
+    transform: 'translateY(0px)',
+    opacity: 0,
+    pointerEvents: 'none',
+  });
+
+  useEffect(() => {
+    const updateIndicator = () => {
+      if (!navRef.current) return;
+      const activeEl = navRef.current.querySelector('.nav-item-active') as HTMLElement | null;
+      if (activeEl) {
+        const navRect = navRef.current.getBoundingClientRect();
+        const activeRect = activeEl.getBoundingClientRect();
+        setIndicatorStyle({
+          position: 'absolute',
+          left: '12px',
+          width: 'calc(100% - 24px)',
+          height: `${activeRect.height}px`,
+          transform: `translateY(${activeRect.top - navRect.top + navRef.current.scrollTop}px)`,
+          opacity: 1,
+          pointerEvents: 'none',
+        });
+      } else {
+        setIndicatorStyle((prev) => ({ ...prev, opacity: 0 }));
+      }
+    };
+
+    updateIndicator();
+
+    // Several timeouts to capture the initial load / translation hydration
+    // updates, which shift the nav rows after the first measurement.
+    const tids = [
+      setTimeout(updateIndicator, 50),
+      setTimeout(updateIndicator, 150),
+      setTimeout(updateIndicator, 350),
+      setTimeout(updateIndicator, 600),
+    ];
+
+    window.addEventListener('resize', updateIndicator);
+
+    return () => {
+      tids.forEach(clearTimeout);
+      window.removeEventListener('resize', updateIndicator);
+    };
+  }, [pathname, sidebarCollapsed, isDesktop]);
+
+  // ── Press-and-hold-then-drag repositioning (desktop only, left/right) ──
+  const panelRef = useRef<HTMLElement | null>(null);
+  const dock = useDockDrag<SidebarPosition>({
+    axis: 'horizontal',
+    positions: SIDEBAR_POSITIONS,
+    current: sidebarPosition,
+    onDrop: setSidebarPosition,
+    panelRef,
+    panelSize: sidebarCollapsed ? 80 : 260,
+    disabled: !isDesktop,
+  });
+
+  // Play a brief "settle" fade when the sidebar actually changes sides, so the
+  // re-dock reads as an intentional move rather than a teleport.
+  const [settling, setSettling] = useState(false);
+  const prevPositionRef = useRef(sidebarPosition);
+  useEffect(() => {
+    if (prevPositionRef.current !== sidebarPosition) {
+      prevPositionRef.current = sidebarPosition;
+      setSettling(true);
+      const id = setTimeout(() => setSettling(false), 380);
+      return () => clearTimeout(id);
+    }
+  }, [sidebarPosition]);
+
+  // ── Mobile dock show/hide on scroll ──
+  const [dockVisible, setDockVisible] = useState(true);
+  const lastScrollYRef = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const diff = currentScrollY - lastScrollYRef.current;
+
+      // Ignore tiny scroll changes (within 12px) to prevent flickering.
+      if (Math.abs(diff) < 12) return;
+
+      if (diff > 0 && currentScrollY > 80) {
+        setDockVisible(false); // scrolling down -> hide
+      } else if (diff < 0) {
+        setDockVisible(true); // scrolling up -> show
+      }
+
+      lastScrollYRef.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // ── Apple Glass Dock Drag State ──
   const [isDragging, setIsDragging] = useState(false);
@@ -513,14 +615,25 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
       )}
 
       <aside
-        className="sidebar-panel fixed left-0 top-0 bottom-0 z-40 flex flex-col overflow-visible transition-transform duration-300 ease-in-out"
+        ref={panelRef}
+        className={`sidebar-panel z-40 flex flex-col overflow-visible transition-[left,right] duration-300 ease-in-out ${dock.armed || dock.dropping ? 'dock-armed' : ''} ${dock.progress > 0.45 && !dock.armed ? 'dock-charging' : ''} ${settling ? 'dock-settling' : ''}`}
         data-sidebar-collapsed={sidebarCollapsed}
+        data-sidebar-position={sidebarPosition}
         inert={drawerInert}
+        onPointerDown={dock.onPointerDown}
         style={{
           width: railCollapsed ? '80px' : '260px',
-          background: 'var(--color-surface)',
-          borderRight: '1px solid var(--color-border)',
-          boxShadow: 'var(--shadow-sidebar)',
+          left: sidebarPosition === 'left' ? 'var(--shell-gutter)' : 'auto',
+          right: sidebarPosition === 'right' ? 'var(--shell-gutter)' : 'auto',
+          background: 'var(--shell-bg)',
+          backdropFilter: 'var(--shell-glass-blur)',
+          WebkitBackdropFilter: 'var(--shell-glass-blur)',
+          border: '1px solid var(--color-border)',
+          boxShadow: dock.armed || dock.dropping
+            ? '0 32px 70px -18px rgba(2, 64, 105, 0.5), 0 0 0 2px var(--accent)'
+            : dock.progress > 0.45 && !dock.armed
+              ? `var(--shadow-sidebar), 0 0 0 ${Math.round((dock.progress - 0.45) / 0.55 * 4)}px rgba(var(--accent-rgb), ${((dock.progress - 0.45) / 0.55 * 0.5).toFixed(2)})`
+              : 'var(--shadow-sidebar)',
         }}
       >
         {/* Header */}
@@ -573,7 +686,8 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
 
         {/* Navigation — a link the current role cannot open is never drawn, so
             nobody discovers a page by clicking it into a 403. */}
-        <nav className="flex-1 overflow-y-auto px-3 py-2">
+        <nav ref={navRef} className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-2 relative">
+          <div className="nav-indicator" style={indicatorStyle} />
           {visibleGroups.map((group, gIdx) => {
             return (
               <div key={group.key}>
@@ -614,7 +728,7 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
         </nav>
 
         {/* Bottom Section */}
-        <div className="mt-auto border-t border-[var(--color-border)] bg-[linear-gradient(180deg,transparent,rgba(0,0,0,0.06))] py-2 space-y-2">
+        <div className="mt-auto border-t border-[var(--color-border)] py-2 space-y-2">
           {/* Toolbar & User Area */}
           <div className="px-3 space-y-2">
             {/* The Capsule Toolbar */}
@@ -633,7 +747,7 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
               </button>
 
               <button
-                onClick={onTogglePalette}
+                onClick={() => setPaletteOpen(!paletteOpen)}
                 title={t('appearance')}
                 className={`icon-btn flex group relative w-9 h-9 rounded-full ${paletteOpen ? 'icon-btn-active' : ''}`}
               >
@@ -726,8 +840,8 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
                   }
                 }}
                 data-open={userMenuOpen}
-                className="sidebar-user-trigger surface-trigger w-full flex items-center gap-3 px-3 py-3 rounded-[var(--radius-xl)] group relative"
-                style={{ boxShadow: '0 10px 24px rgba(0,0,0,0.14)' }}
+                className="sidebar-user-trigger surface-trigger w-full flex items-center gap-3 px-3 py-3 rounded-[var(--radius-xl)] transition-all group relative"
+                style={{ boxShadow: 'var(--shadow-sm)' }}
               >
                 <Avatar name={displayName} size="sm" />
                 <div className="sidebar-footer-copy flex-1 text-left min-w-0">
@@ -756,11 +870,31 @@ export function Sidebar({ paletteOpen, onTogglePalette }: SidebarProps) {
         </div>
       </aside>
 
+      {/* Press-and-hold pickup hint (fills over the hold, then flips to "drag") */}
+      <DockHint progress={dock.progress} armed={dock.armed} dragging={dock.dragging} />
+
+      {/* Drop-target zones (both sides) shown while dragging the sidebar */}
+      {dock.dragging && SIDEBAR_POSITIONS.map((side) => (
+        <div
+          key={side}
+          className={`dock-zone ${dock.preview === side ? 'dock-zone-active' : ''}`}
+          style={{
+            top: 'var(--shell-gutter)',
+            bottom: 'var(--shell-gutter)',
+            [side]: 'var(--shell-gutter)',
+            width: sidebarCollapsed ? '80px' : '260px',
+          }}
+        >
+          <span className="dock-zone-label">{tDock(side)}</span>
+        </div>
+      ))}
+
       {/* ── Apple VisionOS Liquid Glass Mobile Dock ── */}
       {/* The mirror of `drawerInert`: with the drawer open the dock is pushed
           off the bottom edge by a transform, so without this its five links
-          stay tabbable and announced from behind the backdrop. */}
-      <div className="apple-glass-dock-wrapper" data-hidden={sidebarOpen} inert={drawerOpen}>
+          stay tabbable and announced from behind the backdrop. Scrolling down
+          also tucks it away; scrolling up brings it back. */}
+      <div className="apple-glass-dock-wrapper" data-hidden={!dockVisible || sidebarOpen} inert={drawerOpen}>
         <div className="apple-glass-dock">
           {/* 3D Crystal Glass Sliding Thumb */}
           <div

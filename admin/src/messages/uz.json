@@ -97,7 +97,9 @@
     "searchPlaceholder": "Qidirish...",
     "analytics": "Tahlil",
     "payments": "To‘lovlar & Daromad",
-    "game": "2048 O‘yini"
+    "game": "2048 O‘yini",
+    "conversations": "Suhbatlar",
+    "notifications": "Xabarnomalar"
   },
   "auth": {
     "signIn": "Kirish",
@@ -309,7 +311,16 @@
       "status": "Holat boʻyicha",
       "district": "Tuman boʻyicha",
       "featuredOnly": "Faqat reklamadagilar",
-      "minRisk": "Minimal xavf"
+      "minRisk": "Minimal xavf",
+      "promo": {
+        "placeholder": "Xizmatlar / Reklama",
+        "all": "Barcha eʼlonlar",
+        "REPORTS": "🚩 Faqat shikoyat tushganlar",
+        "TOP": "🔥 Faqat TOP eʼlonlar",
+        "VIP": "👑 Faqat VIP eʼlonlar",
+        "VERIFIED_OWNER": "✓ Faqat galochkali egalar",
+        "ANY_PROMO": "✨ Barcha pullik eʼlonlar"
+      }
     },
     "safetyBadges": {
       "VERIFIED_OWNER": "Tasdiqlangan uy egasi",
@@ -324,6 +335,14 @@
     "dealType": {
       "rent": "Ijara",
       "sale": "Sotuv"
+    },
+    "stats": {
+      "total": "Jami eʼlonlar",
+      "pending": "Moderatsiyada",
+      "approved": "Tasdiqlangan",
+      "featured": "Reklamada",
+      "openReports": "Ochiq shikoyatlar",
+      "todayNew": "Bugun qoʻshilgan"
     }
   },
   "reports": {
@@ -524,7 +543,16 @@
       "repeatedCharacter": "Parol faqat bir xil belgidan iborat boʻlmasligi kerak.",
       "whitespace": "Parol boshida yoki oxirida boʻsh joy boʻlmasligi kerak.",
       "tooLong": "Parol juda uzun."
-    }
+    },
+    "stats": {
+      "total": "Jami foydalanuvchilar",
+      "active": "Faol",
+      "pending": "Kutilmoqda",
+      "suspended": "Bloklangan",
+      "weekNew": "Shu hafta yangi",
+      "pendingVerifications": "Tasdiqlash soʻrovlari"
+    },
+    "topUp": "Balans toʻldirish"
   },
   "staff": {
     "title": "Xodimlar",
@@ -933,9 +961,11 @@
     "aiEnabledDesc": "Adminlar band payti AI avtomatik javob beradi",
     "aiDisabledDesc": "Adminlar oʻzlari javob berishadi",
     "aiToggledOn": "AI avtomatik javob berishi yoqildi",
-    "aiToggledOff": "AI avtomatik javob berishi oʻchirildi"
+    "aiToggledOff": "AI avtomatik javob berishi oʻchirildi",
+    "listTitle": "Murojaatlar",
+    "customer": "Foydalanuvchi",
+    "tryDifferentSearch": "Boshqa soʻz bilan qidirib koʻring"
   },
-
   "chat": {
     "title": "AI suhbatlari",
     "subtitle": "Mijozlar bilan AI suhbatini kuzating va kerak boʻlsa oʻzingiz javob bering",
@@ -975,7 +1005,8 @@
       "send": "Xabarni yuborishda xatolik yuz berdi",
       "takeover": "Suhbatni boshqa operator olib ulgurdi",
       "notTaken": "Avval suhbatni oʻz zimmangizga oling"
-    }
+    },
+    "listTitle": "Suhbatlar"
   },
   "analytics": {
     "title": "Tahlil",
@@ -1060,5 +1091,92 @@
     },
     "success": "Push xabar muvaffaqiyatli yuborildi!",
     "error": "Push xabar yuborishda xatolik yuz berdi"
+  },
+  "dock": {
+    "hold_hint": "Ko‘chirish uchun ushlab turing",
+    "drag_hint": "Chetga torting va qo‘yib yuboring",
+    "release_hint": "Shu yerga qo‘yish uchun qo‘yvoring",
+    "left": "Chap",
+    "right": "O‘ng",
+    "top": "Tepa",
+    "bottom": "Past"
+  },
+  "commandPalette": {
+    "empty": "Hech narsa topilmadi",
+    "actions_group": "Tezkor amallar",
+    "switch_to_light": "Yorug‘ rejimga o‘tish",
+    "switch_to_dark": "Qorong‘i rejimga o‘tish",
+    "customize_appearance": "Ko‘rinishni sozlash",
+    "hint_navigate": "harakat",
+    "hint_select": "tanlash",
+    "hint_close": "yopish",
+    "placeholder": "Sahifa yoki amalni qidiring..."
+  },
+  "sidebarCoach": {
+    "sidebar_move_title": "Menyuni ko‘chirish",
+    "sidebar_move_desc": "Joyini o‘zingizga moslang — qanday ekanini ko‘ring",
+    "sidebar_move_hint": "Yon menyuni bosib turing, so‘ng chap yoki o‘ng chetiga sudrab joylashtiring.",
+    "coach_got_it": "Tushunarli",
+    "header_move_title": "Sarlavhani ko‘chirish",
+    "header_move_hint": "Yuqoridagi panelni bosib turing, so‘ng yuqori yoki pastki chetiga sudrab joylashtiring.",
+    "coach_step": "{n}-qadam / 2",
+    "coach_good": "Zo‘r!",
+    "coach_keep_question": "Shu ko‘rinish qolsinmi?",
+    "coach_keep_hint": "Uni istalgan vaqtda Ko‘rinish sozlamalaridan qayta o‘zgartirishingiz mumkin.",
+    "coach_keep": "Ha, qoldirish",
+    "coach_reset": "Standartga qaytarish",
+    "coach_skip": "O‘tkazib yuborish"
+  },
+  "hubs": {
+    "notifications": {
+      "title": "Xabarnomalar",
+      "subtitle": "Push bildirishnomalar va SMS — bitta joyda",
+      "tabs": {
+        "push": "Push",
+        "sms": "SMS"
+      }
+    },
+    "system": {
+      "title": "Tizim",
+      "subtitle": "Harakatlar jurnali, kirish urinishlari va xodimlar",
+      "tabs": {
+        "audit": "Barcha harakatlar",
+        "security": "Xavfsizlik",
+        "staff": "Xodimlar"
+      }
+    },
+    "settings": {
+      "title": "Sozlamalar",
+      "subtitle": "Panel, platforma va AI yordamchi sozlamalari",
+      "tabs": {
+        "general": "Umumiy",
+        "ai": "AI yordamchi"
+      }
+    },
+    "listings": {
+      "title": "Eʼlonlar",
+      "subtitle": "Moderatsiya navbati, shikoyatlar va Top soʻrovlari",
+      "tabs": {
+        "listings": "Eʼlonlar",
+        "reports": "Shikoyatlar",
+        "topRequests": "Top soʻrovlari"
+      }
+    },
+    "users": {
+      "title": "Foydalanuvchilar",
+      "subtitle": "Hisoblar va hujjat orqali tasdiqlash soʻrovlari",
+      "tabs": {
+        "users": "Foydalanuvchilar",
+        "verifications": "Tasdiqlashlar"
+      }
+    },
+    "conversations": {
+      "title": "Suhbatlar",
+      "subtitle": "Mijozlar murojaatlari va AI yordamchi suhbatlari — bitta joyda",
+      "tabs": {
+        "support": "Qoʻllab-quvvatlash",
+        "ai": "AI suhbatlari"
+      }
+    }
   }
 }
