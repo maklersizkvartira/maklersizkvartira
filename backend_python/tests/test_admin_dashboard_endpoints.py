@@ -59,3 +59,15 @@ async def test_both_require_staff(client):
     for path in ("/api/v1/admin/balances", "/api/v1/admin/stats"):
         response = await client.get(path)
         assert response.status_code in (401, 403), f"{path}: {response.status_code}"
+
+
+async def test_payment_stats_answers(client, admin_account):
+    """The dashboard's revenue cards read this; `todayRevenue` is what the
+    first row of the panel shows beside the all-time total."""
+    tokens = await _admin_tokens(client)
+    response = await client.get("/api/v1/admin/payments/stats", headers=_auth(tokens))
+    assert response.status_code == 200, response.text
+    data = response.json()
+    for key in ("totalRevenue", "todayRevenue", "todayCount", "totalCount"):
+        assert key in data, f"{key} missing from {data}"
+    assert data["todayRevenue"] <= data["totalRevenue"]

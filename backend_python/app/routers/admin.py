@@ -3463,6 +3463,17 @@ async def get_payment_stats(admin: RequireModerator, db: DbSession) -> dict[str,
     total_revenue = click_revenue + payme_revenue + uzum_revenue
     total_count = click_count + payme_count + uzum_count
 
+    # Today's revenue — same day boundary as the rest of /admin/stats.
+    today_start = admin_service._start_of_day()
+    today_rev_stmt = select(func.coalesce(func.sum(PaymentTransaction.amount), 0.0)).where(
+        real_pay_filter, PaymentTransaction.completed_at >= today_start
+    )
+    today_revenue = float((await db.execute(today_rev_stmt)).scalar() or 0.0)
+    today_count_stmt = select(func.count(PaymentTransaction.id)).where(
+        real_pay_filter, PaymentTransaction.completed_at >= today_start
+    )
+    today_count = (await db.execute(today_count_stmt)).scalar() or 0
+
     now_utc = datetime.now(timezone.utc)
     # 4. Verified badges (active users with is_verified=True or wallet purchases)
     verified_count_stmt = select(func.count(distinct(User.id))).where(
@@ -3525,6 +3536,8 @@ async def get_payment_stats(admin: RequireModerator, db: DbSession) -> dict[str,
         "status": "success",
         "totalRevenue": float(total_revenue),
         "totalCount": total_count,
+        "todayRevenue": float(today_revenue),
+        "todayCount": today_count,
         "clickRevenue": float(click_revenue),
         "clickCount": click_count,
         "paymeRevenue": float(payme_revenue),

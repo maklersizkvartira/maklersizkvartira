@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import uuid
-from typing import Any
 
 import httpx
 import structlog
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import session_scope
