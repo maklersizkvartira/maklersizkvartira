@@ -19,6 +19,7 @@ import {
 import { http } from '@/shared/lib/http';
 import { api } from '@/shared/api/endpoints';
 import { toast } from '@/shared/ui/Toast';
+import { useAuthStore } from '@/store/auth.store';
 
 function cn(...classes: (string | boolean | undefined | null)[]): string {
   return classes.filter(Boolean).join(' ');
@@ -50,6 +51,8 @@ export interface AdminSupportMessage {
   conversation_id: string;
   sender_type: 'USER' | 'ADMIN';
   sender_id: string;
+  /** The operator's name on an ADMIN message; absent on the seeded welcome. */
+  sender_name?: string | null;
   text: string;
   created_at: string;
   read_at: string | null;
@@ -105,6 +108,7 @@ const playSupportNotificationSound = () => {
 
 export default function SupportPage() {
   const t = useTranslations('support');
+  const myAdminId = useAuthStore((state) => state.admin?.id ?? null);
   const [conversations, setConversations] = useState<AdminSupportConversation[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [detail, setDetail] = useState<AdminSupportDetail | null>(null);
@@ -823,6 +827,16 @@ export default function SupportPage() {
                 ) : (
                   activeDetail.messages.map((msg) => {
                     const isAdmin = msg.sender_type === 'ADMIN';
+                    // Whose reply this is. The welcome has no author; a
+                    // colleague's reply is named, so two operators sharing a
+                    // queue can see who already answered.
+                    const operatorLabel = !isAdmin
+                      ? null
+                      : msg.sender_id === myAdminId
+                        ? t('senderOperator')
+                        : msg.sender_name
+                          ? t('senderColleague', { name: msg.sender_name })
+                          : t('senderSystem');
 
                     return (
                       <div
@@ -856,10 +870,8 @@ export default function SupportPage() {
                               : 'rounded-bl-xs border border-neutral-200/80 bg-white text-neutral-900 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100'
                           )}
                         >
-                          {isAdmin && (
-                            <p className="mb-0.5 text-[10px] font-bold text-blue-200">
-                              {t('senderOperator')}
-                            </p>
+                          {operatorLabel && (
+                            <p className="mb-0.5 text-[10px] font-bold text-blue-200">{operatorLabel}</p>
                           )}
                           <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
                           <p

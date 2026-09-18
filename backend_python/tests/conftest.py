@@ -20,6 +20,8 @@ os.environ.setdefault(
 os.environ.setdefault("OTP_DEBUG_RETURN_CODE", "true")
 os.environ.setdefault("SMS_ENABLED", "false")
 os.environ.setdefault("RATE_LIMIT_GLOBAL_PER_MINUTE", "100000")
+# Never page the operations group from a test run.
+os.environ.setdefault("OPS_ALERTS_ENABLED", "false")
 
 from app.core import platform as _platform  # noqa: E402
 

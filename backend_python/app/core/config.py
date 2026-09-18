@@ -273,6 +273,11 @@ class Settings(BaseSettings):
 
     TELEGRAM_BOT_TOKEN: str = "8760567987:AAHcTk6EozLrx4gKsdaOMy3gZDmrn3y9sF4"
     TELEGRAM_GROUP_ID: str = "-1004486550551"
+    #: The queue alerts (new verification, complaint, Top request, support
+    #: message, payment) to the operations group. Off in the test suite and
+    #: on a laptop, because the bot token above is a literal: with it on, a
+    #: test that files a complaint pages the real group.
+    OPS_ALERTS_ENABLED: bool = True
     #: A SECOND bot and chat, for the AI transcripts only.
     TELEGRAM_AI_BOT_TOKEN: str = "8760567987:AAHcTk6EozLrx4gKsdaOMy3gZDmrn3y9sF4"
     TELEGRAM_AI_CHAT_ID: str = "-1004486550551"

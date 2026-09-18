@@ -287,14 +287,19 @@ async def test_topup_rejects_bad_amounts_and_stray_fields(client, unique_phone):
     assert res.status_code == 422
 
 
-async def test_topup_auto_cancels_previous_pending(client, unique_phone):
+async def test_a_new_topup_supersedes_the_previous_open_one(client, db, unique_phone):
     tokens, _, _ = await _user(client, unique_phone)
-    first = await _topup(client, tokens)
-    for _ in range(5):
-        latest = await _topup(client, tokens)
-    assert latest["transactionId"] != first["transactionId"]
-    res = await client.post("/api/v1/payments/topup", json={"amount": 20000}, headers=auth_headers(tokens))
-    assert res.status_code == 200
+    first = (await _topup(client, tokens))["transactionId"]
+    second = (await _topup(client, tokens))["transactionId"]
+    assert first != second
+
+    db.expire_all()
+    assert (await db.get(PaymentTransaction, uuid.UUID(first))).status == "CANCELLED"
+    assert (await db.get(PaymentTransaction, uuid.UUID(second))).status == "PENDING"
+
+    # The superseded link can no longer be paid into.
+    res = await client.post(CLICK, data=_click_form(merchant_trans_id=first, amount="20000.00", action=0))
+    assert res.json()["error"] == -9
 
 
 async def test_topup_needs_a_configured_gateway(client, unique_phone, monkeypatch):

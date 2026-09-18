@@ -121,6 +121,7 @@ from app.schemas.auth import AdminLoginRequest, AdminOut, RefreshRequest, TokenR
 from app.schemas.common import MessageResponse, PaginationParams, build_page_meta
 from app.schemas.listing import ListingFeatureRequest, ListingModerationRequest
 from app.services import admin as admin_service
+from app.services import support as support_service
 from app.services import ai_settings
 from app.services import sms as sms_service
 
@@ -2869,9 +2870,11 @@ async def admin_get_support_messages(
     # detail schema straight off the ORM row would read `conv.messages`, and
     # that relationship is no longer loaded — an implicit lazy load inside an
     # async request raises instead of quietly emitting the query.
+    named_messages = [SupportMessageOut.model_validate(msg) for msg in messages]
+    await support_service.name_operators(db, named_messages)
     out = SupportConversationDetailOut(
         **SupportConversationOut.model_validate(conv).model_dump(),
-        messages=[SupportMessageOut.model_validate(msg) for msg in messages],
+        messages=named_messages,
     )
     if messages:
         last = messages[-1]

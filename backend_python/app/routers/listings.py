@@ -23,6 +23,7 @@ from app.schemas.listing import (
     TopRequestOut,
 )
 from app.services import listings as listing_service
+from app.services import ops_alerts
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 
@@ -306,6 +307,9 @@ async def report_listing(
         summary=f"{user.name} reported '{listing.title}' ({payload.reason})",
         meta={"reason": payload.reason, "priority": priority},
     )
+    await ops_alerts.report_filed(
+        db, listing_title=listing.title, reason=payload.reason, reporter=user.name, priority=priority
+    )
     return MessageResponse(
         message={
             "uz": "Shikoyatingiz qabul qilindi. Tez orada ko‘rib chiqamiz.",
@@ -342,6 +346,7 @@ async def request_top(
     request = await listing_service.request_top(
         db, listing=listing, user=user, days=payload.days, note=payload.note
     )
+    await ops_alerts.top_requested(db, listing_title=listing.title, owner_name=user.name, days=payload.days)
     return {
         "status": "success",
         "data": TopRequestOut.model_validate(request).model_dump(by_alias=True),

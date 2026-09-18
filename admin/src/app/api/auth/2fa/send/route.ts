@@ -407,7 +407,15 @@ export async function POST(req: NextRequest) {
   let anySent = false;
   let sendDescription: string | undefined;
 
-  try {
+  // Local development only: with ADMIN_2FA_DEV_ECHO=1 under `next dev` the
+  // code is printed to the terminal instead of sent to the real channel, so
+  // the panel can be exercised on a laptop without paging the operations
+  // group. `NODE_ENV` is 'production' on every Vercel build, so this branch
+  // cannot exist there whatever the variable says.
+  if (process.env.NODE_ENV !== 'production' && process.env.ADMIN_2FA_DEV_ECHO === '1') {
+    console.info('[2fa] DEV ECHO — code for %s: %s', safeUsername, code);
+    anySent = true;
+  } else try {
     const resp = await fetch(`https://api.telegram.org/bot${config.botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

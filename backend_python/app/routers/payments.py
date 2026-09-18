@@ -51,6 +51,7 @@ from app.schemas.payment import (
     WalletTransactionOut,
 )
 from app.services import click as click_service
+from app.services import ops_alerts
 from app.services import payme as payme_service
 
 log = structlog.get_logger(__name__)
@@ -68,7 +69,6 @@ PRICES = {
 #: Payme both give up on a checkout within hours; a PENDING row a week old is
 #: an abandoned one, and the webhook must not let it be paid into later.
 PENDING_TOPUP_TTL = timedelta(hours=24)
-
 
 #: The keys under which the gateways have been seen to send a masked card
 #: number. Only the last four digits are kept, whatever arrives.
@@ -156,6 +156,14 @@ async def _credit_wallet(
         )
     )
     return float(new_balance)
+
+
+async def _announce_payment(db: DbSession, *, user_id: uuid.UUID, amount: float, provider: str) -> None:
+    """Tell the operations group a wallet was funded. After the commit, never before it."""
+    payer = await db.get(User, user_id)
+    if payer is None:
+        return
+    await ops_alerts.payment_received(db, user_name=payer.name, phone=payer.phone, amount=amount, provider=provider)
 
 
 async def _lock_transaction(db: DbSession, tx_id: uuid.UUID) -> PaymentTransaction | None:
@@ -479,6 +487,7 @@ async def click_webhook(
         amount=payment_tx.amount,
         new_balance=new_balance,
     )
+    await _announce_payment(db, user_id=payment_tx.user_id, amount=payment_tx.amount, provider="Click")
     return await _respond(
         click_service.CLICK_SUCCESS,
         "Success",
@@ -513,8 +522,13 @@ async def create_topup(
     if not configured:
         raise ServiceUnavailable("payments_unavailable")
 
-    # Cancel previous uncompleted pending top-ups for this user so they never
-    # pile up or block the customer from completing their payment.
+    # A new checkout link supersedes the ones before it. Every "top up" press
+    # opens a PENDING row, and most are abandoned on the gateway's page; the
+    # first version capped a person at five open rows and then refused them
+    # with "too many unfinished payments" — which is what somebody trying the
+    # button a few times saw on their sixth try. Now the older links are
+    # closed instead (a Prepare against one answers "cancelled"), so there is
+    # never more than one live checkout per account and no cap to hit.
     await db.execute(
         update(PaymentTransaction)
         .where(
@@ -522,7 +536,7 @@ async def create_topup(
             PaymentTransaction.status == "PENDING",
             PaymentTransaction.service_type == "TOPUP",
         )
-        .values(status="CANCELLED")
+        .values(status="CANCELLED", error_note="superseded")
     )
 
     tx = PaymentTransaction(
@@ -684,6 +698,9 @@ async def buy_service(
         )
     )
     await db.commit()
+    await ops_alerts.service_purchased(
+        db, user_name=user.name, phone=user.phone, service=payload.service_type, cost=cost
+    )
 
     return BuyServiceResponse(
         status="success",
@@ -1054,6 +1071,8 @@ async def payme_webhook(
                     reference_id=tx.id,
                 )
             log.info("payme.payment_completed", user_id=str(tx.user_id), amount=tx.amount, payme_trans_id=payme_trans_id)
+            if tx.service_type != "SANDBOX_TEST":
+                await _announce_payment(db, user_id=tx.user_id, amount=tx.amount, provider="Payme")
 
             return await _send_response(
                 _ok({"transaction": str(tx.id), "perform_time": now_ms, "state": payme_service.STATE_DONE})

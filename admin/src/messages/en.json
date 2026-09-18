@@ -921,6 +921,8 @@
     "back": "Back",
     "senderYou": "You",
     "senderOperator": "Operator (you)",
+    "senderColleague": "Operator: {name}",
+    "senderSystem": "Uyiz Support (automatic)",
     "quick1": "Hello! How can we help you?",
     "quick2": "We have received your message. We will look into it and reply shortly.",
     "quick3": "Please send the title or the ID of your listing.",

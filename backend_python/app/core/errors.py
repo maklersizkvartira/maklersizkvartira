@@ -327,11 +327,6 @@ MESSAGES: dict[str, dict[str, str]] = {
         "ru": "Сумма пополнения должна быть от {min} до {max} сум.",
         "en": "The top-up amount must be between {min} and {max} so'm.",
     },
-    "topup_too_many_pending": {
-        "uz": "Sizda tugallanmagan to‘lovlar ko‘p. Avval ularni yakunlang yoki birozdan so‘ng urinib ko‘ring.",
-        "ru": "У вас слишком много незавершённых платежей. Завершите их или попробуйте позже.",
-        "en": "You have too many unfinished payments. Finish them or try again later.",
-    },
     "insufficient_balance": {
         "uz": "Balansingizda mablag‘ yetarli emas. Avval hisobni to‘ldiring.",
         "ru": "На балансе недостаточно средств. Сначала пополните счёт.",

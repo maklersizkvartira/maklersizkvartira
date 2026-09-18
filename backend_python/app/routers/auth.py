@@ -49,6 +49,7 @@ from app.schemas.auth import (
 )
 from app.schemas.common import MessageResponse
 from app.services import auth as auth_service
+from app.services import ops_alerts
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -657,6 +658,13 @@ async def submit_verification(
         entity_id=request.id,
         entity_label=f"{user.name} -> level {payload.target_level}",
         summary=f"{user.name} submitted {payload.document_type.value} for verification",
+    )
+    await ops_alerts.verification_submitted(
+        db,
+        user_name=user.name,
+        phone=user.phone,
+        document_type=payload.document_type.value,
+        target_level=payload.target_level,
     )
     return {
         "status": "success",

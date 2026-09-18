@@ -921,6 +921,8 @@
     "back": "Orqaga",
     "senderYou": "Siz",
     "senderOperator": "Operator (Siz)",
+    "senderColleague": "Operator: {name}",
+    "senderSystem": "Uyiz Support (avtomatik)",
     "quick1": "Assalomu alaykum! Sizga qanday yordam bera olamiz?",
     "quick2": "Murojaatingiz qabul qilindi. Tez orada masalani ko‘rib chiqib javob beramiz.",
     "quick3": "Iltimos, e’loningiz sarlavhasi yoki ID raqamini yozib yuborsangiz.",
