@@ -221,6 +221,8 @@ export const api = {
     setPassword: (id: string) => `/admin/users/${id}/set-password`,
     /** `POST`, ADMIN+. Signs the user out of every device. */
     revokeSessions: (id: string) => `/admin/users/${id}/revoke-sessions`,
+    /** `POST`, ADMIN+. Body: { amount: number; reason: string }. Adjusts or tops up user wallet balance directly. */
+    adjustBalance: (id: string) => `/admin/users/${id}/adjust-balance`,
     /** `DELETE`, SUPERADMIN only. */
     remove: (id: string) => `/admin/users/${id}`,
   },

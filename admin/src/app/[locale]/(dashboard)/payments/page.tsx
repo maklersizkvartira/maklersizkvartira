@@ -13,6 +13,8 @@ import {
   Crown,
   Flame,
   Building2,
+  Wallet,
+  Plus,
 } from 'lucide-react';
 
 import { http } from '@/shared/lib/http';
@@ -21,6 +23,7 @@ import { FilterBar } from '@/shared/ui/FilterBar';
 import { Select } from '@/shared/ui/Select';
 import { DataTable, type Column } from '@/shared/ui/DataTable';
 import { Pagination } from '@/shared/ui/Pagination';
+import { AdjustBalanceModal } from '@/features/users/components/AdjustBalanceModal';
 
 function formatNumber(num: number): string {
   return (num || 0).toLocaleString('uz-UZ');
@@ -90,6 +93,7 @@ export default function PaymentsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [providerFilter, setProviderFilter] = useState('');
   const [serviceTypeFilter, setServiceTypeFilter] = useState('');
+  const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
 
   const dateFormat = useMemo(
     () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }),
@@ -429,6 +433,16 @@ export default function PaymentsPage() {
       <PageHeader
         title="To‘lovlar & Daromad boshqaruvi"
         subtitle="Click, Payme va Uzum Bank real tushumlari, pullik xizmatlar xaridi va shaffof balans auditi"
+        actions={
+          <button
+            type="button"
+            onClick={() => setIsBalanceModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+          >
+            <Wallet className="w-4 h-4" />
+            + Balans to‘ldirish
+          </button>
+        }
       />
 
       {/* KPI Stats Cards - Row 1: Tizimlar bo'yicha Tushumlar */}
@@ -800,6 +814,11 @@ export default function PaymentsPage() {
           )}
         </>
       )}
+
+      <AdjustBalanceModal
+        open={isBalanceModalOpen}
+        onClose={() => setIsBalanceModalOpen(false)}
+      />
     </div>
   );
 }

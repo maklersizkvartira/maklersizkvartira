@@ -44,6 +44,7 @@ import { maskPhone } from '@/shared/lib/mask';
 import { Sheet, TOUCH_SELECT } from '@/features/listings/components/moderation-kit';
 import { auditActionLabel } from '@/features/audit/components/action-label';
 import { AUDIT_SEVERITIES, severityVariant } from '@/features/audit/components/severity';
+import { AdjustBalanceModal } from '@/features/users/components/AdjustBalanceModal';
 
 /**
  * One account: the row, its last 50 audit events and its live sessions.
@@ -101,6 +102,7 @@ export default function UserDetailPage() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [balanceModalOpen, setBalanceModalOpen] = useState(false);
   const [revealed, setRevealed] = useState<RevealPasswordResponse | null>(null);
   const [hidden, setHidden] = useState(true);
 
@@ -330,9 +332,18 @@ export default function UserDetailPage() {
             <Field
               label="Balans"
               value={
-                <span className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
-                  {((user as any).balance || 0).toLocaleString('uz-UZ')} so‘m
-                </span>
+                <div className="flex items-center justify-end gap-2 flex-wrap">
+                  <span className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
+                    {((user as any).balance || 0).toLocaleString('uz-UZ')} so‘m
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setBalanceModalOpen(true)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-300 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 transition-colors"
+                  >
+                    + Balansni to‘ldirish
+                  </button>
+                </div>
               }
             />
             <Field label={t('columns.trust')} value={String(user.trustScore)} />
@@ -584,6 +595,18 @@ export default function UserDetailPage() {
             submit: t('setPassword.submit'),
             cancel: c('cancel'),
             close: c('close'),
+          }}
+        />
+      )}
+
+      {user && (
+        <AdjustBalanceModal
+          open={balanceModalOpen}
+          onClose={() => setBalanceModalOpen(false)}
+          targetUser={user}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['user', id] });
+            queryClient.invalidateQueries({ queryKey: ['users'] });
           }}
         />
       )}

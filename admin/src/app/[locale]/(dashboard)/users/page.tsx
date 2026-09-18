@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
-import { Users as UsersIcon } from 'lucide-react';
+import { Users as UsersIcon, Plus } from 'lucide-react';
 
 import { useRouter } from '@/i18n/routing';
 import { http } from '@/shared/lib/http';
@@ -12,6 +12,7 @@ import { useAdminList, countActiveFilters, type AdminFilters } from '@/shared/ho
 import { enumLabeller } from '@/shared/lib/enum-label';
 import { USER_ROLES, USER_STATUSES } from '@/features/users/constants';
 import { PageHeader } from '@/shared/ui/PageHeader';
+import { Button } from '@/shared/ui/Button';
 import { FilterBar } from '@/shared/ui/FilterBar';
 import { Input } from '@/shared/ui/Input';
 import { Select } from '@/shared/ui/Select';
@@ -21,6 +22,7 @@ import { Pagination } from '@/shared/ui/Pagination';
 import { StatusPill } from '@/shared/ui/StatusPill';
 import { Avatar } from '@/shared/ui/Avatar';
 import { TOUCH_SELECT } from '@/features/listings/components/moderation-kit';
+import { AdjustBalanceModal } from '@/features/users/components/AdjustBalanceModal';
 
 /**
  * Every account on the platform. The list engine (`useAdminList`) owns the
@@ -60,6 +62,9 @@ export default function UsersPage() {
   const c = useTranslations('common');
   const locale = useLocale();
   const router = useRouter();
+
+  const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
+  const [balanceModalUser, setBalanceModalUser] = useState<AdminUserRow | null>(null);
 
   const dateFormat = useMemo(
     () => new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'short', day: 'numeric' }),
@@ -134,16 +139,30 @@ export default function UsersPage() {
     {
       key: 'balance',
       header: 'Balans',
-      width: '115px',
+      width: '145px',
       align: 'right',
       render: (row) => (
-        <span
-          className={`font-mono font-bold text-xs whitespace-nowrap ${
-            (row.balance || 0) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--color-text-muted)]'
-          }`}
-        >
-          {(row.balance || 0).toLocaleString('uz-UZ')} so‘m
-        </span>
+        <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+          <span
+            className={`font-mono font-bold text-xs ${
+              (row.balance || 0) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--color-text-muted)]'
+            }`}
+          >
+            {(row.balance || 0).toLocaleString('uz-UZ')} so‘m
+          </span>
+          <button
+            type="button"
+            title="Balansni to‘ldirish / o‘zgartirish"
+            onClick={(e) => {
+              e.stopPropagation();
+              setBalanceModalUser(row);
+              setIsBalanceModalOpen(true);
+            }}
+            className="p-1 rounded-md bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:scale-110 active:scale-95 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-900/50 transition-all cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        </div>
       ),
     },
     {
@@ -173,7 +192,23 @@ export default function UsersPage() {
 
   return (
     <div>
-      <PageHeader title={t('title')} subtitle={t('subtitle')} />
+      <PageHeader
+        title={t('title')}
+        subtitle={t('subtitle')}
+        actions={
+          <Button
+            variant="primary"
+            onClick={() => {
+              setBalanceModalUser(null);
+              setIsBalanceModalOpen(true);
+            }}
+            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Balans to‘ldirish
+          </Button>
+        }
+      />
 
       <FilterBar
         label={c('filters')}
@@ -278,6 +313,18 @@ export default function UsersPage() {
         navLabel={c('pagination.label')}
         previousLabel={c('pagination.previousPage')}
         nextLabel={c('pagination.nextPage')}
+      />
+
+      <AdjustBalanceModal
+        open={isBalanceModalOpen}
+        onClose={() => {
+          setIsBalanceModalOpen(false);
+          setBalanceModalUser(null);
+        }}
+        targetUser={balanceModalUser}
+        onSuccess={() => {
+          list.refetch();
+        }}
       />
     </div>
   );
