@@ -231,19 +231,28 @@ export const WalletCard: React.FC<WalletCardProps> = ({ embedded = false }) => {
           </div>
         </div>
 
-        {/* Top-up action button & payment methods */}
-        <button
-          type="button"
-          onClick={() => openTopUp('click')}
-          className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-brand text-sm font-black text-on-brand shadow-brand hover:brightness-105 active:scale-[0.99] transition-all"
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          {t('account.wallet.topUp')}
-        </button>
+        {/* Top-up action buttons (Click & Payme dual quick buttons) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            onClick={() => openTopUp('click')}
+            className="press flex min-h-12 items-center justify-center gap-2.5 rounded-2xl bg-[#0065FF] px-4 py-3 text-sm font-black text-white shadow-md shadow-blue-500/20 hover:brightness-110 active:scale-[0.99] transition-all"
+          >
+            <img src="/brand/click-icon.svg" alt="Click" className="h-5 w-5 rounded-md object-contain bg-white p-0.5" />
+            <span>Click orqali to‘ldirish</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => openTopUp('payme')}
+            className="press flex min-h-12 items-center justify-center gap-2.5 rounded-2xl bg-[#00CCCC] px-4 py-3 text-sm font-black text-[#042825] shadow-md shadow-teal-500/20 hover:brightness-105 active:scale-[0.99] transition-all"
+          >
+            <img src="/brand/payme-app-icon.png" alt="Payme" className="h-5 w-5 rounded-md object-cover" />
+            <span>Payme orqali to‘ldirish</span>
+          </button>
+        </div>
         <p className="flex items-center justify-center gap-2 text-center text-[11px] text-muted">
-          <img src="/brand/click-icon.svg" alt="Click" className="h-3.5 w-3.5 rounded object-contain" />
-          <img src="/brand/payme-app-icon.png" alt="Payme" className="h-3.5 w-3.5 rounded object-cover" />
-          <span>{t('account.wallet.methods')}</span>
+          <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Click va Payme tizimlari 100% rasmiy ulangan</span>
         </p>
       </div>
 

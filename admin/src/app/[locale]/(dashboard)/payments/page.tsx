@@ -491,11 +491,12 @@ export default function PaymentsPage() {
             <div className="text-2xl font-black text-[var(--color-text)]">
               {statsLoading ? '...' : `${formatNumber(statsData?.paymeRevenue ?? 0)} so‘m`}
             </div>
-            <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium">
-              {statsData && statsData.paymeRevenue === 0
-                ? 'Merchant tasdiqlanishi kutilmoqda (Sandbox)'
-                : `${statsData?.paymeCount ?? 0} ta to‘lov`}
-            </p>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                Faol ulangan {statsData?.paymeCount ? `· ${statsData.paymeCount} ta to‘lov` : '· To‘lovga tayyor'}
+              </span>
+            </div>
           </div>
 
           {/* Card 4: Uzum Bank */}
@@ -622,6 +623,48 @@ export default function PaymentsPage() {
       {/* Tab 1: Payments */}
       {activeTab === 'click' && (
         <>
+          {/* Tezkor to'lov tizimlari filtri */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-[var(--color-text-muted)]">To‘lov tizimi:</span>
+            {[
+              { id: '', label: 'Barchasi' },
+              { id: 'CLICK', label: 'Click' },
+              { id: 'PAYME', label: 'Payme' },
+              { id: 'UZUM', label: 'Uzum Bank' },
+            ].map((p) => {
+              const active = providerFilter === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    setProviderFilter(p.id);
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    active
+                      ? p.id === 'PAYME'
+                        ? 'bg-cyan-600 text-white shadow-sm'
+                        : p.id === 'CLICK'
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : p.id === 'UZUM'
+                            ? 'bg-purple-600 text-white shadow-sm'
+                            : 'bg-slate-800 text-white shadow-sm'
+                      : 'bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                  }`}
+                >
+                  {p.label}
+                  {p.id === 'PAYME' && (
+                    <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-cyan-300"></span>
+                  )}
+                  {p.id === 'CLICK' && (
+                    <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-sky-300"></span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
           <FilterBar
             label="Filtrlar"
             resetLabel="Tozalash"
