@@ -339,7 +339,7 @@ export function ListingsScreen({ embedded = false }: { embedded?: boolean } = {}
     },
     {
       key: 'reportCount',
-      header: 'Shikoyatlar',
+      header: t('columns.reports'),
       width: '105px',
       align: 'center',
       render: (row) =>
@@ -354,7 +354,7 @@ export function ListingsScreen({ embedded = false }: { embedded?: boolean } = {}
     },
     {
       key: 'featured',
-      header: 'Reklama / Xizmat',
+      header: t('columns.featured'),
       width: '125px',
       render: (row) => {
         const isVip = isVipNow(row);

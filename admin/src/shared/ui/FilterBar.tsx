@@ -79,7 +79,7 @@ export function FilterBar({
 
       {/* ── sm and up: search + controls in one filter card, as in SotuvchiAi ── */}
       <div className="hidden sm:flex filter-bar card p-4 rounded-xl shadow-sm">
-        {leading && <div className="flex-1 min-w-[280px] max-w-md">{leading}</div>}
+        {leading && <div className="flex-1 max-w-md" style={{ minWidth: 280 }}>{leading}</div>}
         {children}
         {activeCount > 0 && onReset && (
           <button

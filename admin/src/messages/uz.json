@@ -65,7 +65,12 @@
       "label": "Sahifalar",
       "previousPage": "Oldingi sahifa",
       "nextPage": "Keyingi sahifa"
-    }
+    },
+    "tableWide": "Jadval keng:",
+    "tableWideHint": "yonga surish uchun tugmalardan yoki trekpaddan foydalaning",
+    "scrollLeft": "Chapga",
+    "scrollRight": "Oʻngga",
+    "currency": "soʻm"
   },
   "nav": {
     "dashboard": "Boshqaruv paneli",
@@ -471,7 +476,8 @@
       "trust": "Ishonch",
       "listings": "Eʼlonlar",
       "lastLogin": "Oxirgi kirish",
-      "created": "Roʻyxatdan oʻtgan"
+      "created": "Roʻyxatdan oʻtgan",
+      "balance": "Balans"
     },
     "role": {
       "STUDENT": "Talaba",
@@ -552,7 +558,8 @@
       "weekNew": "Shu hafta yangi",
       "pendingVerifications": "Tasdiqlash soʻrovlari"
     },
-    "topUp": "Balans toʻldirish"
+    "topUp": "Balans toʻldirish",
+    "adjustBalance": "Balansni toʻldirish / oʻzgartirish"
   },
   "staff": {
     "title": "Xodimlar",

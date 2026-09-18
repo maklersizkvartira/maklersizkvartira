@@ -65,7 +65,12 @@
       "label": "Pagination",
       "previousPage": "Previous page",
       "nextPage": "Next page"
-    }
+    },
+    "tableWide": "Wide table:",
+    "tableWideHint": "use the buttons or your trackpad to scroll sideways",
+    "scrollLeft": "Left",
+    "scrollRight": "Right",
+    "currency": "UZS"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -471,7 +476,8 @@
       "trust": "Trust",
       "listings": "Listings",
       "lastLogin": "Last sign-in",
-      "created": "Registered"
+      "created": "Registered",
+      "balance": "Balance"
     },
     "role": {
       "STUDENT": "Student",
@@ -552,7 +558,8 @@
       "weekNew": "New this week",
       "pendingVerifications": "Verification requests"
     },
-    "topUp": "Top up balance"
+    "topUp": "Top up balance",
+    "adjustBalance": "Top up / adjust balance"
   },
   "staff": {
     "title": "Staff",

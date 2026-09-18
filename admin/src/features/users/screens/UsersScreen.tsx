@@ -138,7 +138,7 @@ export function UsersScreen({ embedded = false }: { embedded?: boolean } = {}) {
     { key: 'listingsCount', header: t('columns.listings'), width: '65px', align: 'right' },
     {
       key: 'balance',
-      header: 'Balans',
+      header: t('columns.balance'),
       width: '145px',
       align: 'right',
       render: (row) => (
@@ -148,11 +148,11 @@ export function UsersScreen({ embedded = false }: { embedded?: boolean } = {}) {
               (row.balance || 0) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--color-text-muted)]'
             }`}
           >
-            {(row.balance || 0).toLocaleString('uz-UZ')} so‘m
+            {(row.balance || 0).toLocaleString(locale)} {c('currency')}
           </span>
           <button
             type="button"
-            title="Balansni to‘ldirish / o‘zgartirish"
+            title={t('adjustBalance')}
             onClick={(e) => {
               e.stopPropagation();
               setBalanceModalUser(row);

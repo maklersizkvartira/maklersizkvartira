@@ -2,6 +2,7 @@
 
 import { type ReactNode, useRef, useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, ArrowLeftRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Skeleton } from './Skeleton';
 
 /**
@@ -67,6 +68,7 @@ export function DataTable<Row>({
   className = '',
   minWidth = '980px',
 }: DataTableProps<Row>) {
+  const c = useTranslations('common');
   const clickable = Boolean(onRowClick);
   const cardColumns = columns.filter((c) => !c.hideOnCard);
 
@@ -168,9 +170,9 @@ export function DataTable<Row>({
           <div className="flex items-center justify-between px-3.5 py-1.5 bg-[var(--color-surface-2)]/90 backdrop-blur border-b border-[var(--color-border)] text-xs select-none">
             <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-secondary)]">
               <ArrowLeftRight size={13} className="shrink-0" style={{ color: 'var(--accent)' }} />
-              <span>Jadval keng:</span>
+              <span>{c('tableWide')}</span>
               <span className="text-[var(--color-text-muted)] font-normal">
-                yonga surish uchun tugmalardan yoki trekpaddan foydalaning
+                {c('tableWideHint')}
               </span>
             </span>
             <div className="flex items-center gap-1.5">
@@ -179,19 +181,19 @@ export function DataTable<Row>({
                 onClick={() => scrollByDirection('left')}
                 disabled={!canScrollLeft}
                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[var(--radius-sm)] text-[11px] font-semibold bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] disabled:opacity-30 disabled:pointer-events-none transition-all border border-[var(--color-border-medium)] text-[var(--color-text-primary)] active:scale-95"
-                title="Chapga surish"
+                title={c('scrollLeft')}
               >
                 <ChevronLeft size={13} />
-                <span>Chapga</span>
+                <span>{c('scrollLeft')}</span>
               </button>
               <button
                 type="button"
                 onClick={() => scrollByDirection('right')}
                 disabled={!canScrollRight}
                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[var(--radius-sm)] text-[11px] font-semibold bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] disabled:opacity-30 disabled:pointer-events-none transition-all border border-[var(--color-border-medium)] text-[var(--color-text-primary)] active:scale-95"
-                title="Oʻngga surish"
+                title={c('scrollRight')}
               >
-                <span>Oʻngga</span>
+                <span>{c('scrollRight')}</span>
                 <ChevronRight size={13} />
               </button>
             </div>
