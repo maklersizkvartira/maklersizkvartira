@@ -89,7 +89,7 @@
     "audit": "Barcha harakatlar",
     "security": "Xavfsizlik",
     "sms": "SMS",
-    "ai": "AI",
+    "ai": "AI yordamchi",
     "settings": "Sozlamalar",
     "overview": "Umumiy",
     "signOut": "Chiqish",
@@ -706,8 +706,8 @@
     }
   },
   "ai": {
-    "title": "AI suhbatlari",
-    "subtitle": "Saytdagi AI bilan suhbatlar",
+    "title": "AI yordamchi",
+    "subtitle": "Avtomatik javob, sarf, model sozlamalari va suhbatlar",
     "columns": {
       "session": "Sessiya",
       "user": "Mijoz",
@@ -802,7 +802,8 @@
         "provider_unreachable": "OpenAI serveriga ulanib boʻlmadi. Biroz vaqtdan keyin qayta urinib koʻring.",
         "provider_error": "OpenAI xato qaytardi. Biroz vaqtdan keyin qayta urinib koʻring."
       }
-    }
+    },
+    "sessionsSubtitle": "Saytdagi AI bilan suhbatlar"
   },
   "settings": {
     "title": "Sozlamalar",
@@ -982,7 +983,8 @@
     "aiToggledOff": "AI avtomatik javob berishi oʻchirildi",
     "listTitle": "Murojaatlar",
     "customer": "Foydalanuvchi",
-    "tryDifferentSearch": "Boshqa soʻz bilan qidirib koʻring"
+    "tryDifferentSearch": "Boshqa soʻz bilan qidirib koʻring",
+    "aiTab": "AI"
   },
   "chat": {
     "title": "AI suhbatlari",

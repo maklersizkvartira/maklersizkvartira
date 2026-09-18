@@ -8,18 +8,16 @@
  * The behaviour is the old /support page's, kept whole: the 2.5s thread poll
  * de-duplicated by message id, the 4s list poll, the visibility guard on
  * both, the ref-checked thread switch, the chime on an incoming customer
- * message, the OPEN/RESOLVED toggle, the global AI auto-reply switch and
- * the quick-reply chips. Only the paint changed.
+ * message, the OPEN/RESOLVED toggle, and the quick-reply chips; the global AI auto-reply switch moved to /ai. Only the paint changed.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ArrowLeft, Bot, CheckCircle2, Headphones, Phone, RefreshCw, RotateCcw, Shield } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Headphones, Phone, RefreshCw, RotateCcw, Shield } from 'lucide-react';
 
 import { http } from '@/shared/lib/http';
 import { api } from '@/shared/api/endpoints';
 import { toast } from '@/shared/ui/Toast';
-import { IOSToggle } from '@/shared/ui/IOSToggle';
 import { Spinner } from '@/shared/ui/Spinner';
 import { useAuthStore } from '@/store/auth.store';
 import { cn } from '@/shared/lib/cn';
@@ -84,7 +82,9 @@ export interface AdminSupportDetail {
   messages: AdminSupportMessage[];
 }
 
-type StatusFilter = 'ALL' | 'OPEN' | 'RESOLVED';
+export type StatusFilter = 'ALL' | 'OPEN' | 'RESOLVED';
+/** The list's source pills: the three support statuses plus the AI desk. */
+export type SourceTab = StatusFilter | 'AI';
 
 /** The four canned replies, as message keys — the panel ships uz/ru/en. */
 const QUICK_REPLY_KEYS = ['quick1', 'quick2', 'quick3', 'quick4'] as const;
@@ -113,7 +113,14 @@ export const playSupportNotificationSound = () => {
   }
 };
 
-export function SupportDesk() {
+export interface SupportDeskProps {
+  /** Status the hub remembers across the AI switch; defaults to ALL. */
+  initialStatus?: StatusFilter;
+  /** Called when the operator picks the AI pill; the hub swaps the desk. */
+  onOpenAi?: (currentStatus: StatusFilter) => void;
+}
+
+export function SupportDesk({ initialStatus = 'ALL', onOpenAi }: SupportDeskProps = {}) {
   const t = useTranslations('support');
   const c = useTranslations('common');
   const locale = useLocale();
@@ -128,38 +135,10 @@ export function SupportDesk() {
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialStatus);
   const [searchQuery, setSearchQuery] = useState('');
   const [replyText, setReplyText] = useState('');
-  const [aiEnabled, setAiEnabled] = useState<boolean>(true);
-  const [togglingAi, setTogglingAi] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    http
-      .get<{ enabled: boolean }>(api.support.aiStatus)
-      .then((res) => {
-        if (typeof res?.enabled === 'boolean') setAiEnabled(res.enabled);
-      })
-      .catch(() => null);
-  }, []);
-
-  const handleToggleAi = async (next: boolean) => {
-    if (togglingAi) return;
-    setTogglingAi(true);
-    setAiEnabled(next);
-    try {
-      const res = await http.post<{ enabled: boolean; message?: string }>(api.support.toggleAi, { enabled: next });
-      if (typeof res?.enabled === 'boolean') setAiEnabled(res.enabled);
-      toast.success(next ? t('aiToggledOn') : t('aiToggledOff'));
-    } catch {
-      setAiEnabled(!next);
-      toast.error(t('errors.status'));
-    } finally {
-      setTogglingAi(false);
-    }
-  };
-
   /** Which customer the pane is FOR, readable from a late callback. */
   const selectedRef = useRef<string | null>(null);
   useEffect(() => {
@@ -364,60 +343,16 @@ export function SupportDesk() {
 
           <ListSearch value={searchQuery} onChange={setSearchQuery} placeholder={t('search')} />
 
-          <GlassTabs<StatusFilter>
+          <GlassTabs<SourceTab>
             tabs={[
               { key: 'ALL', label: t('all') },
               { key: 'OPEN', label: t('open') },
               { key: 'RESOLVED', label: t('resolved') },
+              ...(onOpenAi ? [{ key: 'AI' as const, label: t('aiTab') }] : []),
             ]}
             value={statusFilter}
-            onChange={setStatusFilter}
+            onChange={(key) => (key === 'AI' ? onOpenAi?.(statusFilter) : setStatusFilter(key))}
           />
-
-          {/* Global AI auto-reply switch — the one control that changes what
-              every customer hears while nobody is at this desk. */}
-          <div
-            style={{
-              marginTop: 12,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '8px 10px',
-              borderRadius: 12,
-              background: aiEnabled ? 'rgba(16,185,129,0.08)' : 'var(--color-surface-2)',
-              border: `1px solid ${aiEnabled ? 'var(--color-success-border)' : 'var(--color-border)'}`,
-              transition: 'background 0.2s, border-color 0.2s',
-            }}
-          >
-            <div
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 9,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                background: aiEnabled ? 'rgba(16,185,129,0.15)' : 'var(--color-surface-3)',
-                color: aiEnabled ? 'var(--color-success)' : 'var(--color-text-muted)',
-              }}
-            >
-              <Bot size={15} />
-            </div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)' }}>{t('aiAssistant')}</span>
-                <span
-                  className={cn(aiEnabled && 'animate-pulse')}
-                  style={{ width: 6, height: 6, borderRadius: '50%', background: aiEnabled ? 'var(--color-success)' : 'var(--color-text-muted)', display: 'inline-block' }}
-                />
-              </div>
-              <p style={{ margin: 0, fontSize: 10.5, color: 'var(--color-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {aiEnabled ? t('aiEnabledDesc') : t('aiDisabledDesc')}
-              </p>
-            </div>
-            <IOSToggle checked={aiEnabled} onChange={(next) => void handleToggleAi(next)} disabled={togglingAi} />
-          </div>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>

@@ -279,6 +279,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: 'notifications', href: '/notifications', icon: Icons.notifications },
       { key: 'system', href: '/system', icon: Icons.system },
+      { key: 'ai', href: '/ai', icon: Icons.ai },
       { key: 'settings', href: '/settings', icon: Icons.settings },
     ],
   },

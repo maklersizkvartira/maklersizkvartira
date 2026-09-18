@@ -89,7 +89,7 @@
     "audit": "Все действия",
     "security": "Безопасность",
     "sms": "SMS",
-    "ai": "AI",
+    "ai": "AI-ассистент",
     "settings": "Настройки",
     "overview": "Обзор",
     "signOut": "Выйти",
@@ -706,8 +706,8 @@
     }
   },
   "ai": {
-    "title": "Диалоги AI",
-    "subtitle": "Диалоги с помощником AI на сайте",
+    "title": "AI-ассистент",
+    "subtitle": "Автоответ, расходы, настройки модели и диалоги",
     "columns": {
       "session": "Сессия",
       "user": "Клиент",
@@ -802,7 +802,8 @@
         "provider_unreachable": "Не удалось связаться с OpenAI. Попробуйте чуть позже.",
         "provider_error": "OpenAI вернул ошибку. Попробуйте чуть позже."
       }
-    }
+    },
+    "sessionsSubtitle": "Диалоги с помощником AI на сайте"
   },
   "settings": {
     "title": "Настройки",
@@ -982,7 +983,8 @@
     "aiToggledOff": "Автоответчик AI выключен",
     "listTitle": "Обращения",
     "customer": "Пользователь",
-    "tryDifferentSearch": "Попробуйте другой запрос"
+    "tryDifferentSearch": "Попробуйте другой запрос",
+    "aiTab": "AI"
   },
   "chat": {
     "title": "Диалоги AI",

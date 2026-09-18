@@ -55,17 +55,6 @@ import { RiskPill, Thumb, TOUCH_SELECT } from '@/features/listings/components/mo
  * unfiltered list — so every request is built through `api.listings.list()`.
  */
 
-/**
- * Risk floors offered in the filter. The backend accepts any 0..100.
- *
- * The number itself changed meaning when publish-time AI scoring was removed:
- * it is now the inverse of the listing's reliability score, so it rises only as
- * complaints against that listing are confirmed. A new listing therefore sits
- * at 0 and stays there, and this filter reads as "listings with upheld
- * complaints against them".
- */
-const RISK_STEPS = [40, 60, 80];
-
 interface ListingFilters extends AdminFilters {
   search: string;
   status: string;
@@ -464,16 +453,6 @@ export function ListingsScreen({ embedded = false }: { embedded?: boolean } = {}
           options={[
             { value: '', label: t('filters.promo.all') },
             ...PROMO_FILTERS.map((key) => ({ value: key, label: t(`filters.promo.${key}`) })),
-          ]}
-        />
-        <Select
-          className={TOUCH_SELECT}
-          value={list.filters.minRiskScore}
-          onChange={(value) => list.setFilter('minRiskScore', value, { immediate: true })}
-          placeholder={t('filters.minRisk')}
-          options={[
-            { value: '', label: c('all') },
-            ...RISK_STEPS.map((step) => ({ value: String(step), label: `≥ ${step}` })),
           ]}
         />
         <Select

@@ -6,20 +6,17 @@ import { useLocale } from 'next-intl';
 import {
   CreditCard,
   DollarSign,
-  CheckCircle2,
-  Clock,
   ShieldCheck,
   Crown,
   Flame,
-  Building2,
   Wallet,
 } from 'lucide-react';
 
 import { http } from '@/shared/lib/http';
 import { PageHeader } from '@/shared/ui/PageHeader';
-import { PageTabs } from '@/shared/ui/PageTabs';
 import { Button } from '@/shared/ui/Button';
 import { StatusPill } from '@/shared/ui/StatusPill';
+import { Badge } from '@/shared/ui/Badge';
 import { PremiumStatCard } from '@/features/dashboard/components/PremiumStatCard';
 import { FilterBar } from '@/shared/ui/FilterBar';
 import { Select } from '@/shared/ui/Select';
@@ -171,15 +168,32 @@ export default function PaymentsPage() {
     ? purchasesData.total
     : purchaseRows.length;
 
+  const serviceLabel = (type?: string | null) => {
+    if (type === 'VERIFIED_BADGE') return { label: 'Galochka', variant: 'purple' as const };
+    if (type === 'TOP_LISTING') return { label: 'TOP e’lon', variant: 'warning' as const };
+    if (type === 'VIP_LISTING') return { label: 'VIP e’lon', variant: 'info' as const };
+    return { label: 'Hisob to‘ldirish', variant: 'neutral' as const };
+  };
+
+  const providerName = (provider?: string | null) => {
+    const name = (provider || '').toUpperCase();
+    if (name === 'UZUM' || name === 'UZUMBANK') return 'Uzum Bank';
+    if (name === 'CLICK') return 'Click';
+    if (name === 'PAYME') return 'Payme';
+    return name || '—';
+  };
+
   const columns: Column<PaymentRow>[] = [
     {
       key: 'user',
       header: 'Foydalanuvchi',
-      width: '180px',
+      width: '190px',
       render: (row) => (
-        <div className="whitespace-nowrap">
-          <div className="font-bold text-sm text-[var(--color-text)]">{row.userName || 'Noma‘lum'}</div>
-          <div className="text-xs text-[var(--color-text-muted)]">{row.userPhone}</div>
+        <div className="whitespace-nowrap min-w-0">
+          <div className="text-sm font-semibold truncate" style={{ color: 'var(--color-text-primary)' }}>
+            {row.userName || 'Noma‘lum'}
+          </div>
+          <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{row.userPhone}</div>
         </div>
       ),
     },
@@ -189,224 +203,140 @@ export default function PaymentsPage() {
       width: '140px',
       align: 'right',
       render: (row) => (
-        <span className="font-extrabold text-sm whitespace-nowrap" style={{ color: 'var(--color-success)' }}>
+        <span className="text-sm font-semibold whitespace-nowrap" style={{ color: 'var(--color-success)' }}>
           +{formatNumber(row.amount)} {row.currency}
         </span>
       ),
     },
     {
       key: 'service',
-      header: 'To‘lov maqsadi',
-      width: '150px',
+      header: 'Maqsad',
+      width: '130px',
       render: (row) => {
-        let label = 'Hisob to‘ldirish';
-        let badgeColor = 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400';
-        if (row.serviceType === 'VERIFIED_BADGE') {
-          label = 'Galochka (Verified)';
-          badgeColor = 'bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400';
-        } else if (row.serviceType === 'TOP_LISTING') {
-          label = 'TOP E’lon';
-          badgeColor = 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400';
-        } else if (row.serviceType === 'VIP_LISTING') {
-          label = 'VIP E’lon';
-          badgeColor = 'bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-950/40 dark:text-purple-400';
-        }
-        return (
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border whitespace-nowrap ${badgeColor}`}>
-            {label}
-          </span>
-        );
+        const { label, variant } = serviceLabel(row.serviceType);
+        return <Badge variant={variant} label={label} />;
       },
-    },
-    {
-      key: 'cardPan',
-      header: 'Karta raqami (boshi & oxiri)',
-      width: '170px',
-      render: (row) => (
-        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--color-text)] whitespace-nowrap">
-          <CreditCard className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--accent)' }} />
-          {row.cardPan || '—'}
-        </span>
-      ),
     },
     {
       key: 'provider',
-      header: 'To‘lov tizimi',
-      width: '130px',
-      render: (row) => {
-        const name = (row.provider || '').toUpperCase();
-        let badgeStyle = 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300';
-        if (name === 'CLICK') {
-          badgeStyle = 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300';
-        } else if (name === 'PAYME') {
-          badgeStyle = 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300';
-        } else if (name === 'UZUM' || name === 'UZUMBANK') {
-          badgeStyle = 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300';
-        }
-        return (
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-bold whitespace-nowrap ${badgeStyle}`}>
-            <CreditCard className="w-3.5 h-3.5" />
-            {name}
-          </span>
-        );
-      },
+      header: 'Tizim',
+      width: '110px',
+      render: (row) => (
+        <span className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--color-text-primary)' }}>
+          {providerName(row.provider)}
+        </span>
+      ),
     },
     {
       key: 'status',
       header: 'Holat',
-      width: '140px',
+      width: '130px',
       render: (row) => {
         if (row.status === 'SUCCESS') return <StatusPill status="SUCCESS" label="Muvaffaqiyatli" />;
-        if (row.status === 'PENDING') return <StatusPill status="PENDING" label="Kutilmoqda" pulse />;
+        if (row.status === 'PENDING') return <StatusPill status="PENDING" label="Kutilmoqda" />;
         return <StatusPill status="FAILED" label="Bekor qilingan" />;
       },
     },
     {
-      key: 'transId',
-      header: 'Tranzaksiya ID',
-      width: '180px',
-      render: (row) => (
-        <div className="text-xs text-[var(--color-text-muted)] space-y-0.5 whitespace-nowrap">
-          {row.clickTransId && <div>Click: {row.clickTransId}</div>}
-          {row.paymeTransId && <div>Payme: {row.paymeTransId}</div>}
-          {!row.clickTransId && !row.paymeTransId && <div>—</div>}
-        </div>
-      ),
-    },
-    {
       key: 'date',
-      header: 'Sana & Soat',
-      width: '160px',
+      header: 'Sana',
+      width: '170px',
       align: 'right',
-      render: (row) => (
-        <span className="text-xs text-[var(--color-text-muted)] whitespace-nowrap">
-          {dateFormat.format(new Date(row.createdAt))}
-        </span>
-      ),
-    },
-  ];
-
-  const purchaseColumns: Column<PurchaseRow>[] = [
-    {
-      key: 'user',
-      header: 'Foydalanuvchi (Xaridor)',
-      width: '190px',
-      render: (row) => (
-        <div className="whitespace-nowrap">
-          <div className="font-bold text-sm text-[var(--color-text)]">{row.userName || 'Noma‘lum'}</div>
-          <div className="text-xs text-[var(--color-text-muted)]">{row.userPhone}</div>
-          <div className="text-[10px] text-[var(--color-text-muted)]">ID: {row.userId?.slice(0, 8)}...</div>
-        </div>
-      ),
-    },
-    {
-      key: 'service',
-      header: 'Xizmat turi',
-      width: '190px',
       render: (row) => {
-        let label = 'Xizmat';
-        let badgeColor = 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400';
-        let icon = null;
-        if (row.type === 'VERIFIED_BADGE' || row.type.includes('VERIFIED')) {
-          label = 'Galochka (Tasdiqlangan profil)';
-          badgeColor = 'bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400';
-          icon = <ShieldCheck className="w-3 h-3 shrink-0" />;
-        } else if (row.type === 'TOP_LISTING' || row.type.includes('TOP')) {
-          label = 'TOP E’lon (7 kun)';
-          badgeColor = 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400';
-          icon = <Flame className="w-3 h-3 shrink-0" />;
-        } else if (row.type === 'VIP_LISTING' || row.type.includes('VIP')) {
-          label = 'VIP E’lon (15 kun)';
-          badgeColor = 'bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-950/40 dark:text-purple-400';
-          icon = <Crown className="w-3 h-3 shrink-0" />;
-        }
+        const ref = row.clickTransId || row.paymeTransId;
         return (
-          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border whitespace-nowrap ${badgeColor}`}>
-            {icon}
-            {label}
-          </span>
-        );
-      },
-    },
-    {
-      key: 'listing',
-      header: 'Qaysi e‘longa sotib olingan?',
-      width: '280px',
-      render: (row) => {
-        if (!row.listingId && !row.listingTitle) {
-          return (
-            <div className="text-xs text-[var(--color-text-muted)] italic whitespace-nowrap">
-              {row.description || 'Profil tasdiqlash uchun (Galochka)'}
+          <div className="whitespace-nowrap text-right">
+            <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+              {dateFormat.format(new Date(row.createdAt))}
             </div>
-          );
-        }
-        return (
-          <div className="space-y-1 min-w-[240px]">
-            <div className="font-semibold text-xs text-[var(--color-text)] flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--accent)' }} />
-              <span className="line-clamp-1 max-w-[220px]" title={row.listingTitle || ''}>
-                {row.listingTitle || 'E‘lon'}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-[11px] text-[var(--color-text-muted)]">
-              {(row.listingDistrict || row.listingCity) && (
-                <span className="whitespace-nowrap">📍 {[row.listingDistrict, row.listingCity].filter(Boolean).join(', ')}</span>
-              )}
-              {row.listingPrice != null && (
-                <span className="text-sm font-semibold whitespace-nowrap" style={{ color: 'var(--color-success)' }}>
-                  {formatNumber(row.listingPrice)} so‘m
-                </span>
-              )}
-            </div>
-            {row.validUntil && (
-              <div className="text-[10px] whitespace-nowrap">
-                {row.isStillActive ? (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-bold" style={{ color: 'var(--color-success)', background: 'var(--color-success-bg)' }}>
-                    <CheckCircle2 className="w-3 h-3" /> Faol ({dateFormat.format(new Date(row.validUntil))} gacha)
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--color-text-muted)] bg-[var(--color-surface-2)]">
-                    <Clock className="w-3 h-3" /> Muddati tugagan ({dateFormat.format(new Date(row.validUntil))})
-                  </span>
-                )}
+            {ref && (
+              <div className="text-[10px]" style={{ color: 'var(--color-text-muted)' }} title={ref}>
+                ID {ref}
               </div>
             )}
           </div>
         );
       },
     },
+  ];
+
+  const purchaseColumns: Column<PurchaseRow>[] = [
     {
-      key: 'amount',
-      header: 'Yechilgan summa',
-      width: '140px',
-      align: 'right',
+      key: 'user',
+      header: 'Xaridor',
+      width: '180px',
       render: (row) => (
-        <span className="font-extrabold text-sm whitespace-nowrap" style={{ color: 'var(--color-danger)' }}>
-          -{formatNumber(row.amount)} so‘m
-        </span>
+        <div className="whitespace-nowrap min-w-0">
+          <div className="text-sm font-semibold truncate" style={{ color: 'var(--color-text-primary)' }}>
+            {row.userName || 'Noma‘lum'}
+          </div>
+          <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{row.userPhone}</div>
+        </div>
       ),
     },
     {
-      key: 'balanceAfter',
-      header: 'Balans holati',
-      width: '140px',
+      key: 'service',
+      header: 'Xizmat',
+      width: '150px',
+      render: (row) => {
+        const type = row.type || '';
+        if (type.includes('VERIFIED')) return <Badge variant="purple" label="Galochka" />;
+        if (type.includes('TOP')) return <Badge variant="warning" label="TOP e’lon" />;
+        if (type.includes('VIP')) return <Badge variant="info" label="VIP e’lon" />;
+        return <Badge variant="neutral" label="Xizmat" />;
+      },
+    },
+    {
+      key: 'listing',
+      header: 'E‘lon',
+      width: '260px',
+      render: (row) => {
+        if (!row.listingId && !row.listingTitle) {
+          return (
+            <span className="text-xs italic" style={{ color: 'var(--color-text-muted)' }}>
+              {row.description || 'Profil tasdiqlash (Galochka)'}
+            </span>
+          );
+        }
+        const place = [row.listingDistrict, row.listingCity].filter(Boolean).join(', ');
+        const term = row.validUntil
+          ? `${row.isStillActive ? 'faol' : 'muddati tugagan'} (${dateFormat.format(new Date(row.validUntil))})`
+          : '';
+        return (
+          <div className="min-w-0">
+            <div className="text-sm font-medium truncate max-w-[240px]" style={{ color: 'var(--color-text-primary)' }} title={row.listingTitle || ''}>
+              {row.listingTitle || 'E‘lon'}
+            </div>
+            <div className="text-xs truncate" style={{ color: 'var(--color-text-muted)' }}>
+              {[place, term].filter(Boolean).join(' · ')}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'amount',
+      header: 'Summa',
+      width: '150px',
       align: 'right',
       render: (row) => (
-        <div className="text-right whitespace-nowrap">
-          <span className="text-sm font-semibold" style={{ color: 'var(--color-success)' }}>
-            {formatNumber(row.balanceAfter)} so‘m
-          </span>
-          <div className="text-[10px] text-[var(--color-text-muted)]">qolgan balans</div>
+        <div className="whitespace-nowrap text-right">
+          <div className="text-sm font-semibold" style={{ color: 'var(--color-danger)' }}>
+            -{formatNumber(row.amount)} so‘m
+          </div>
+          <div className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
+            qoldi: {formatNumber(row.balanceAfter)} so‘m
+          </div>
         </div>
       ),
     },
     {
       key: 'date',
-      header: 'Xarid vaqti',
-      width: '160px',
+      header: 'Sana',
+      width: '150px',
       align: 'right',
       render: (row) => (
-        <span className="text-xs text-[var(--color-text-muted)] whitespace-nowrap">
+        <span className="text-xs whitespace-nowrap" style={{ color: 'var(--color-text-secondary)' }}>
           {dateFormat.format(new Date(row.createdAt))}
         </span>
       ),
@@ -509,63 +439,39 @@ export default function PaymentsPage() {
         </div>
       </section>
 
-      <PageTabs
-        aria-label="To‘lovlar bo‘limlari"
-        value={activeTab}
-        onChange={(key) => {
-          setActiveTab(key);
+      {/* One filter card: which list, then that list's own filters. */}
+      <FilterBar
+        label="Filtrlar"
+        resetLabel="Tozalash"
+        activeCount={
+          activeTab === 'click'
+            ? (statusFilter ? 1 : 0) + (providerFilter ? 1 : 0)
+            : serviceTypeFilter
+              ? 1
+              : 0
+        }
+        onReset={() => {
+          setStatusFilter('');
+          setProviderFilter('');
+          setServiceTypeFilter('');
           setPage(1);
         }}
-        tabs={[
-          { key: 'click', label: 'Tushumlar (Click, Payme, Uzum)', icon: <CreditCard size={13} /> },
-          { key: 'purchases', label: 'Xarid qilingan xizmatlar', icon: <Crown size={13} /> },
-        ]}
-      />
-
-      {/* Tab 1: Payments */}
-      {activeTab === 'click' && (
-        <>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-[var(--color-text-muted)]">To‘lov tizimi:</span>
-            <PageTabs
-              aria-label="To‘lov tizimi"
-              value={providerFilter}
-              onChange={(key) => {
-                setProviderFilter(key);
-                setPage(1);
-              }}
-              tabs={[
-                { key: '', label: 'Barchasi' },
-                { key: 'CLICK', label: 'Click' },
-                { key: 'PAYME', label: 'Payme' },
-                { key: 'UZUM', label: 'Uzum Bank' },
-              ]}
-            />
-          </div>
-
-          <FilterBar
-            label="Filtrlar"
-            resetLabel="Tozalash"
-            activeCount={(statusFilter ? 1 : 0) + (providerFilter ? 1 : 0)}
-            onReset={() => {
-              setStatusFilter('');
-              setProviderFilter('');
+        leading={
+          <Select
+            value={activeTab}
+            onChange={(val) => {
+              setActiveTab(val as 'click' | 'purchases');
+              setPage(1);
             }}
-          >
-            <Select
-              value={statusFilter}
-              onChange={(val) => {
-                setStatusFilter(val);
-                setPage(1);
-              }}
-              placeholder="To‘lov holati"
-              options={[
-                { value: '', label: 'Barcha holatlar' },
-                { value: 'SUCCESS', label: 'Muvaffaqiyatli' },
-                { value: 'PENDING', label: 'Kutilmoqda' },
-                { value: 'FAILED', label: 'Bekor qilingan' },
-              ]}
-            />
+            options={[
+              { value: 'click', label: 'Tushumlar (Click, Payme, Uzum)' },
+              { value: 'purchases', label: 'Xarid qilingan xizmatlar' },
+            ]}
+          />
+        }
+      >
+        {activeTab === 'click' ? (
+          <>
             <Select
               value={providerFilter}
               onChange={(val) => {
@@ -580,16 +486,50 @@ export default function PaymentsPage() {
                 { value: 'UZUM', label: 'Uzum Bank' },
               ]}
             />
-          </FilterBar>
+            <Select
+              value={statusFilter}
+              onChange={(val) => {
+                setStatusFilter(val);
+                setPage(1);
+              }}
+              placeholder="To‘lov holati"
+              options={[
+                { value: '', label: 'Barcha holatlar' },
+                { value: 'SUCCESS', label: 'Muvaffaqiyatli' },
+                { value: 'PENDING', label: 'Kutilmoqda' },
+                { value: 'FAILED', label: 'Bekor qilingan' },
+              ]}
+            />
+          </>
+        ) : (
+          <Select
+            value={serviceTypeFilter}
+            onChange={(val) => {
+              setServiceTypeFilter(val);
+              setPage(1);
+            }}
+            placeholder="Xizmat turi"
+            options={[
+              { value: '', label: 'Barcha xizmatlar' },
+              { value: 'TOP_LISTING', label: 'TOP E’lon' },
+              { value: 'VIP_LISTING', label: 'VIP E’lon' },
+              { value: 'VERIFIED_BADGE', label: 'Galochka (Verified)' },
+            ]}
+          />
+        )}
+      </FilterBar>
 
-          <div className="card overflow-x-auto p-0">
+      {/* Tab 1: Payments */}
+      {activeTab === 'click' && (
+        <>
+          <div>
             <DataTable
               columns={columns}
               rows={paymentRows}
               keyOf={(row) => row.id}
               loading={listLoading}
               loadingRows={10}
-              minWidth="1100px"
+              minWidth="0"
               empty={
                 <div className="py-16 text-center text-sm text-[var(--color-text-muted)]">
                   Hech qanday to‘lovlar topilmadi
@@ -621,36 +561,14 @@ export default function PaymentsPage() {
       {/* Tab 2: Service Purchases (TOP / VIP / Verified) */}
       {activeTab === 'purchases' && (
         <>
-          <FilterBar
-            label="Xizmat filtrlari"
-            resetLabel="Tozalash"
-            activeCount={serviceTypeFilter ? 1 : 0}
-            onReset={() => setServiceTypeFilter('')}
-          >
-            <Select
-              value={serviceTypeFilter}
-              onChange={(val) => {
-                setServiceTypeFilter(val);
-                setPage(1);
-              }}
-              placeholder="Xizmat turi"
-              options={[
-                { value: '', label: 'Barcha xizmatlar' },
-                { value: 'TOP_LISTING', label: 'TOP E’lon' },
-                { value: 'VIP_LISTING', label: 'VIP E’lon' },
-                { value: 'VERIFIED_BADGE', label: 'Galochka (Verified)' },
-              ]}
-            />
-          </FilterBar>
-
-          <div className="card overflow-x-auto p-0">
+          <div>
             <DataTable
               columns={purchaseColumns}
               rows={purchaseRows}
               keyOf={(row) => row.id}
               loading={purchasesLoading}
               loadingRows={10}
-              minWidth="1200px"
+              minWidth="0"
               empty={
                 <div className="py-16 text-center text-sm text-[var(--color-text-muted)]">
                   Hali hech qanday pullik xizmatlar xaridi amalga oshirilmagan

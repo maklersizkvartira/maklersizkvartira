@@ -58,7 +58,16 @@ const FILTERS: readonly ChatFilter[] = ['all', 'liveOnly', 'withLead'];
 /** Which side and colour a role draws as; unknown roles render as AI turns. */
 const ROLE_SIDE: Record<string, BubbleSide> = { user: 'user', assistant: 'ai', admin: 'operator' };
 
-export function AiDesk() {
+export interface AiDeskProps {
+  /** When mounted inside the conversations hub: the source pills (support
+   *  statuses + AI) drawn above the AI desk's own filters, with AI active. */
+  sourceTabs?: { key: string; label: string }[];
+  onSource?: (key: string) => void;
+  /** Card title override — the hub keeps "Murojaatlar" across both desks. */
+  listTitle?: string;
+}
+
+export function AiDesk({ sourceTabs, onSource, listTitle }: AiDeskProps = {}) {
   const t = useTranslations('chat');
   const c = useTranslations('common');
   const locale = useLocale();
@@ -198,7 +207,7 @@ export function AiDesk() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
               <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text-primary)', letterSpacing: '-0.02em', margin: 0, whiteSpace: 'nowrap' }}>
-                {t('listTitle')}
+                {listTitle ?? t('listTitle')}
               </h2>
               {conversations.data && <CountChip value={rows.length} />}
             </div>
@@ -218,6 +227,7 @@ export function AiDesk() {
           </div>
 
           <ListSearch value={search} onChange={setSearch} placeholder={t('search')} />
+          {sourceTabs && onSource && <GlassTabs<string> tabs={sourceTabs} value="AI" onChange={onSource} />}
           <GlassTabs<ChatFilter> tabs={FILTERS.map((key) => ({ key, label: t(key) }))} value={filter} onChange={setFilter} />
         </div>
 

@@ -89,7 +89,7 @@
     "audit": "All activity",
     "security": "Security",
     "sms": "SMS",
-    "ai": "AI",
+    "ai": "AI assistant",
     "settings": "Settings",
     "overview": "Overview",
     "signOut": "Sign out",
@@ -706,8 +706,8 @@
     }
   },
   "ai": {
-    "title": "AI conversations",
-    "subtitle": "Conversations with the AI assistant on the public site",
+    "title": "AI assistant",
+    "subtitle": "Auto-reply, spend, model settings and conversations",
     "columns": {
       "session": "Session",
       "user": "Client",
@@ -802,7 +802,8 @@
         "provider_unreachable": "OpenAI could not be reached. Try again shortly.",
         "provider_error": "OpenAI answered with an error. Try again shortly."
       }
-    }
+    },
+    "sessionsSubtitle": "Conversations with the AI assistant on the public site"
   },
   "settings": {
     "title": "Settings",
@@ -982,7 +983,8 @@
     "aiToggledOff": "AI auto-reply disabled",
     "listTitle": "Tickets",
     "customer": "Customer",
-    "tryDifferentSearch": "Try a different search"
+    "tryDifferentSearch": "Try a different search",
+    "aiTab": "AI"
   },
   "chat": {
     "title": "AI chats",

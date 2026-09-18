@@ -113,7 +113,7 @@ export function AiSessionsPanel() {
 
   return (
     <section>
-      <SectionHead icon={<Bot size={17} />} title={t('sessionsTitle')} subtitle={t('subtitle')} />
+      <SectionHead icon={<Bot size={17} />} title={t('sessionsTitle')} subtitle={t('sessionsSubtitle')} />
 
       {/* A refetch that fails leaves the previous page on screen and says
           nothing — `keepPreviousData` holds those rows. The empty-state

@@ -141,8 +141,11 @@ export function PremiumStatCard({
           <div className="flex items-center gap-1.5 mt-1.5 text-xs">
             {isHero ? (
               <span
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full"
-                style={{ background: 'rgba(255,255,255,0.92)', color: 'var(--color-text-primary)' }}
+                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full font-semibold"
+                /* The pill is white in both themes, so its ink must not follow
+                   the theme's text token — in dark mode that token is near
+                   white and the caption vanished. Fixed navy instead. */
+                style={{ background: 'rgba(255,255,255,0.92)', color: '#0f2a44' }}
               >
                 {sublabel}
               </span>

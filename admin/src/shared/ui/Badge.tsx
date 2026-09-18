@@ -17,6 +17,10 @@ const variantMap: Record<string, BadgeVariant> = {
   ACTIVE: 'success',
   APPROVED: 'success',
   SENT: 'success',
+  SUCCESS: 'success',
+  COMPLETED: 'success',
+  PAID: 'success',
+  VERIFIED: 'success',
   RESOLVED: 'success',
   // Waiting on a human or on the queue
   PENDING: 'warning',
@@ -30,6 +34,9 @@ const variantMap: Record<string, BadgeVariant> = {
   SUSPENDED: 'danger',
   FAILED: 'danger',
   OPEN: 'danger',
+  CANCELLED: 'danger',
+  CANCELED: 'danger',
+  EXPIRED: 'neutral',
   // Out of play
   ARCHIVED: 'neutral',
   DRAFT: 'neutral',

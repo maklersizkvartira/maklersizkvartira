@@ -106,9 +106,9 @@ export function UsersScreen({ embedded = false }: { embedded?: boolean } = {}) {
     {
       key: 'name',
       header: t('columns.name'),
-      width: '190px',
+      width: '200px',
       render: (row) => (
-        <div className="flex items-center gap-2.5 min-w-0 max-w-[210px]">
+        <div className="flex items-center gap-2.5 min-w-0 max-w-[220px]">
           <Avatar src={row.avatar} name={row.name} size="sm" />
           <div className="min-w-0">
             <p className="text-sm font-medium truncate" style={{ color: 'var(--color-text-primary)' }}>
@@ -134,21 +134,19 @@ export function UsersScreen({ embedded = false }: { embedded?: boolean } = {}) {
       width: '95px',
       render: (row) => <StatusPill status={row.status} label={statusLabel(row.status)} />,
     },
-    { key: 'trustScore', header: t('columns.trust'), width: '65px', align: 'right' },
     { key: 'listingsCount', header: t('columns.listings'), width: '65px', align: 'right' },
     {
       key: 'balance',
       header: t('columns.balance'),
-      width: '145px',
+      width: '150px',
       align: 'right',
       render: (row) => (
-        <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
-          <span
-            className={`text-sm font-semibold ${
-              (row.balance || 0) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--color-text-muted)]'
-            }`}
-          >
-            {(row.balance || 0).toLocaleString(locale)} {c('currency')}
+        <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+          <span className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+            {(row.balance || 0).toLocaleString(locale)}{' '}
+            <span className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
+              {c('currency')}
+            </span>
           </span>
           <button
             type="button"
@@ -158,7 +156,7 @@ export function UsersScreen({ embedded = false }: { embedded?: boolean } = {}) {
               setBalanceModalUser(row);
               setIsBalanceModalOpen(true);
             }}
-            className="p-1 rounded-md bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:scale-110 active:scale-95 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-900/50 transition-all cursor-pointer"
+            className="row-action"
           >
             <Plus className="w-3.5 h-3.5" />
           </button>
@@ -172,17 +170,6 @@ export function UsersScreen({ embedded = false }: { embedded?: boolean } = {}) {
       render: (row) => (
         <span className="text-xs whitespace-nowrap text-[var(--color-text-muted)]">
           {showDate(row.lastLoginAt)}
-        </span>
-      ),
-    },
-    {
-      key: 'createdAt',
-      header: t('columns.created'),
-      width: '110px',
-      hideOnCard: true,
-      render: (row) => (
-        <span className="text-xs whitespace-nowrap text-[var(--color-text-muted)]">
-          {showDate(row.createdAt)}
         </span>
       ),
     },
@@ -293,7 +280,7 @@ export function UsersScreen({ embedded = false }: { embedded?: boolean } = {}) {
           loading={list.isLoading}
           loadingRows={PAGE_SIZE}
           onRowClick={(row) => router.push(`/users/${row.id}`)}
-          minWidth="965px"
+          minWidth="0"
           empty={
             <ListState
               icon={<UsersIcon size={26} />}
