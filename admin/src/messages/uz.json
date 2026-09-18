@@ -253,6 +253,17 @@
       "openAiPage": "AI sahifasi",
       "asOf": "{time} holatiga koʻra",
       "cached": "Keshdan olindi"
+    },
+    "hero": {
+      "totalRevenue": "Umumiy daromad",
+      "totalRevenueSub": "{count} ta muvaffaqiyatli toʻlov",
+      "smsBalance": "SMS balansi",
+      "smsBalanceSub": "{count} ta SMS qoldi",
+      "smsBalanceUnknown": "Provayder javob bermadi",
+      "todayRevenue": "Bugungi tushum",
+      "todayRevenueSub": "{count} ta toʻlov bugun",
+      "listingsTotal": "Eʼlonlar soni",
+      "listingsTotalSub": "{pending} ta moderatsiyada · {today} ta bugun"
     }
   },
   "listings": {

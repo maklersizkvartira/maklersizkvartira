@@ -6,13 +6,11 @@ import { useTranslations, useLocale } from 'next-intl';
 import {
   Activity,
   Building2,
-  Flag,
-  Inbox,
   Layers,
+  MessageSquareText,
   ShieldAlert,
-  ShieldCheck,
-  Star,
   TrendingUp,
+  Wallet,
 } from 'lucide-react';
 
 import { Link } from '@/i18n/routing';
@@ -25,6 +23,14 @@ import type {
   RegistrationPoint,
   TrafficPoint,
 } from '@/shared/api/types';
+
+/** `GET /admin/payments/stats` — the slice the first row reads. */
+interface PaymentStatsSummary {
+  totalRevenue: number;
+  totalCount: number;
+  todayRevenue: number;
+  todayCount: number;
+}
 import { useRole } from '@/providers/role-provider';
 import { useConfirm } from '@/providers/confirm-provider';
 import { PageHeader } from '@/shared/ui/PageHeader';
@@ -121,18 +127,26 @@ export default function DashboardPage() {
     onError: (error: Error) => toast.error(c('error'), error.message),
   });
 
-  const queries = [statsQuery, balancesQuery, trafficQuery, registrationsQuery, monetizationQuery];
+  // Revenue for the first row — the same summary the payments page reads.
+  const paymentStatsQuery = useQuery({
+    queryKey: ['admin-payment-stats'],
+    queryFn: ({ signal }) =>
+      http.get<PaymentStatsSummary>('/admin/payments/stats', { signal }),
+    staleTime: 60_000,
+  });
+
+  const queries = [statsQuery, balancesQuery, trafficQuery, registrationsQuery, monetizationQuery, paymentStatsQuery];
   const refreshing = queries.some((query) => query.isFetching);
   const refreshAll = () => {
     void Promise.all(queries.map((query) => query.refetch()));
   };
 
   const stats = statsQuery.data;
+  const pay = paymentStatsQuery.data;
+  const smsProvider = balancesQuery.data?.sms ?? null;
+  const money = (n: number) => `${Math.round(n).toLocaleString(locale)} ${c('currency')}`;
   const traffic = trafficQuery.data ?? [];
   const registrations = registrationsQuery.data ?? [];
-  const queueTotal = stats
-    ? stats.pendingListings + stats.openReports + stats.pendingVerifications + stats.pendingTopRequests
-    : 0;
 
   const dayLabel = useMemo(
     () => (iso: string) =>
@@ -208,44 +222,70 @@ export default function DashboardPage() {
           <Reveal index={0} className="h-full">
             <PremiumStatCard
               variant="hero"
-              label={t('triage.title')}
-              value={stats ? <AnimatedCounter value={queueTotal} /> : '—'}
+              label={t('hero.totalRevenue')}
+              value={pay ? <AnimatedCounter value={Math.round(pay.totalRevenue)} format={money} /> : '—'}
               sublabel={
-                <span className="font-semibold">{queueTotal === 0 ? t('triage.clear') : t('triage.caption')}</span>
+                <span className="font-semibold">
+                  {pay ? t('hero.totalRevenueSub', { count: pay.totalCount }) : ''}
+                </span>
               }
-              icon={<Inbox size={18} />}
-              loading={statsQuery.isLoading}
-              href="#triage"
+              icon={<Wallet size={18} />}
+              loading={paymentStatsQuery.isLoading}
+              href="/payments"
             />
           </Reveal>
           <Reveal index={1} className="h-full">
             <PremiumStatCard
-              label={t('kpi.openReports')}
-              value={stats ? <AnimatedCounter value={stats.openReports} /> : '—'}
-              sublabel={<span style={{ color: 'var(--color-text-muted)' }}>{n('reports')}</span>}
-              icon={<Flag size={16} />}
-              loading={statsQuery.isLoading}
-              href="/listings?tab=reports"
+              label={t('hero.smsBalance')}
+              value={
+                balancesQuery.isLoading
+                  ? '—'
+                  : smsProvider
+                    ? <AnimatedCounter value={Math.round(smsProvider.balance)} format={money} />
+                    : '—'
+              }
+              sublabel={
+                <span style={{ color: smsProvider ? 'var(--color-text-muted)' : 'var(--color-warning)' }}>
+                  {smsProvider
+                    ? smsProvider.remaining_sms !== null
+                      ? t('hero.smsBalanceSub', { count: smsProvider.remaining_sms })
+                      : ''
+                    : t('hero.smsBalanceUnknown')}
+                </span>
+              }
+              icon={<MessageSquareText size={16} />}
+              loading={balancesQuery.isLoading}
+              href="/notifications?tab=sms"
             />
           </Reveal>
           <Reveal index={2} className="h-full">
             <PremiumStatCard
-              label={t('kpi.pendingVerifications')}
-              value={stats ? <AnimatedCounter value={stats.pendingVerifications} /> : '—'}
-              sublabel={<span style={{ color: 'var(--color-text-muted)' }}>{n('verifications')}</span>}
-              icon={<ShieldCheck size={16} />}
-              loading={statsQuery.isLoading}
-              href="/users?tab=verifications"
+              label={t('hero.todayRevenue')}
+              value={pay ? <AnimatedCounter value={Math.round(pay.todayRevenue ?? 0)} format={money} /> : '—'}
+              sublabel={
+                <span style={{ color: 'var(--color-text-muted)' }}>
+                  {pay ? t('hero.todayRevenueSub', { count: pay.todayCount ?? 0 }) : ''}
+                </span>
+              }
+              icon={<TrendingUp size={16} />}
+              loading={paymentStatsQuery.isLoading}
+              href="/payments"
             />
           </Reveal>
           <Reveal index={3} className="h-full">
             <PremiumStatCard
-              label={t('kpi.pendingTopRequests')}
-              value={stats ? <AnimatedCounter value={stats.pendingTopRequests} /> : '—'}
-              sublabel={<span style={{ color: 'var(--color-text-muted)' }}>{n('topRequests')}</span>}
-              icon={<Star size={16} />}
+              label={t('hero.listingsTotal')}
+              value={stats ? <AnimatedCounter value={stats.totalListings} /> : '—'}
+              sublabel={
+                <span style={{ color: 'var(--color-text-muted)' }}>
+                  {stats
+                    ? t('hero.listingsTotalSub', { pending: stats.pendingListings, today: stats.todayNewListings })
+                    : ''}
+                </span>
+              }
+              icon={<Building2 size={16} />}
               loading={statsQuery.isLoading}
-              href="/listings?tab=top"
+              href="/listings"
             />
           </Reveal>
         </div>

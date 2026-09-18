@@ -179,7 +179,7 @@ export default function PaymentsPage() {
       render: (row) => (
         <div className="whitespace-nowrap">
           <div className="font-bold text-sm text-[var(--color-text)]">{row.userName || 'Noma‘lum'}</div>
-          <div className="text-xs text-[var(--color-text-muted)] font-mono">{row.userPhone}</div>
+          <div className="text-xs text-[var(--color-text-muted)]">{row.userPhone}</div>
         </div>
       ),
     },
@@ -223,7 +223,7 @@ export default function PaymentsPage() {
       header: 'Karta raqami (boshi & oxiri)',
       width: '170px',
       render: (row) => (
-        <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-[var(--color-text)] whitespace-nowrap">
+        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--color-text)] whitespace-nowrap">
           <CreditCard className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--accent)' }} />
           {row.cardPan || '—'}
         </span>
@@ -266,7 +266,7 @@ export default function PaymentsPage() {
       header: 'Tranzaksiya ID',
       width: '180px',
       render: (row) => (
-        <div className="text-xs font-mono text-[var(--color-text-muted)] space-y-0.5 whitespace-nowrap">
+        <div className="text-xs text-[var(--color-text-muted)] space-y-0.5 whitespace-nowrap">
           {row.clickTransId && <div>Click: {row.clickTransId}</div>}
           {row.paymeTransId && <div>Payme: {row.paymeTransId}</div>}
           {!row.clickTransId && !row.paymeTransId && <div>—</div>}
@@ -279,7 +279,7 @@ export default function PaymentsPage() {
       width: '160px',
       align: 'right',
       render: (row) => (
-        <span className="text-xs font-mono text-[var(--color-text-muted)] whitespace-nowrap">
+        <span className="text-xs text-[var(--color-text-muted)] whitespace-nowrap">
           {dateFormat.format(new Date(row.createdAt))}
         </span>
       ),
@@ -294,8 +294,8 @@ export default function PaymentsPage() {
       render: (row) => (
         <div className="whitespace-nowrap">
           <div className="font-bold text-sm text-[var(--color-text)]">{row.userName || 'Noma‘lum'}</div>
-          <div className="text-xs text-[var(--color-text-muted)] font-mono">{row.userPhone}</div>
-          <div className="text-[10px] text-[var(--color-text-muted)] font-mono">ID: {row.userId?.slice(0, 8)}...</div>
+          <div className="text-xs text-[var(--color-text-muted)]">{row.userPhone}</div>
+          <div className="text-[10px] text-[var(--color-text-muted)]">ID: {row.userId?.slice(0, 8)}...</div>
         </div>
       ),
     },
@@ -353,13 +353,13 @@ export default function PaymentsPage() {
                 <span className="whitespace-nowrap">📍 {[row.listingDistrict, row.listingCity].filter(Boolean).join(', ')}</span>
               )}
               {row.listingPrice != null && (
-                <span className="font-mono font-medium whitespace-nowrap" style={{ color: 'var(--color-success)' }}>
+                <span className="text-sm font-semibold whitespace-nowrap" style={{ color: 'var(--color-success)' }}>
                   {formatNumber(row.listingPrice)} so‘m
                 </span>
               )}
             </div>
             {row.validUntil && (
-              <div className="text-[10px] font-mono whitespace-nowrap">
+              <div className="text-[10px] whitespace-nowrap">
                 {row.isStillActive ? (
                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-bold" style={{ color: 'var(--color-success)', background: 'var(--color-success-bg)' }}>
                     <CheckCircle2 className="w-3 h-3" /> Faol ({dateFormat.format(new Date(row.validUntil))} gacha)
@@ -393,7 +393,7 @@ export default function PaymentsPage() {
       align: 'right',
       render: (row) => (
         <div className="text-right whitespace-nowrap">
-          <span className="font-mono font-bold text-xs" style={{ color: 'var(--color-success)' }}>
+          <span className="text-sm font-semibold" style={{ color: 'var(--color-success)' }}>
             {formatNumber(row.balanceAfter)} so‘m
           </span>
           <div className="text-[10px] text-[var(--color-text-muted)]">qolgan balans</div>
@@ -406,7 +406,7 @@ export default function PaymentsPage() {
       width: '160px',
       align: 'right',
       render: (row) => (
-        <span className="text-xs font-mono text-[var(--color-text-muted)] whitespace-nowrap">
+        <span className="text-xs text-[var(--color-text-muted)] whitespace-nowrap">
           {dateFormat.format(new Date(row.createdAt))}
         </span>
       ),

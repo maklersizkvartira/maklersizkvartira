@@ -253,6 +253,17 @@
       "openAiPage": "AI page",
       "asOf": "As of {time}",
       "cached": "From cache"
+    },
+    "hero": {
+      "totalRevenue": "Total revenue",
+      "totalRevenueSub": "{count} successful payments",
+      "smsBalance": "SMS balance",
+      "smsBalanceSub": "{count} SMS left",
+      "smsBalanceUnknown": "Provider did not answer",
+      "todayRevenue": "Today's revenue",
+      "todayRevenueSub": "{count} payments today",
+      "listingsTotal": "Listings",
+      "listingsTotalSub": "{pending} in moderation · {today} today"
     }
   },
   "listings": {

@@ -253,6 +253,17 @@
       "openAiPage": "Страница AI",
       "asOf": "По состоянию на {time}",
       "cached": "Из кэша"
+    },
+    "hero": {
+      "totalRevenue": "Общий доход",
+      "totalRevenueSub": "{count} успешных платежей",
+      "smsBalance": "Баланс SMS",
+      "smsBalanceSub": "Осталось {count} SMS",
+      "smsBalanceUnknown": "Провайдер не ответил",
+      "todayRevenue": "Выручка за сегодня",
+      "todayRevenueSub": "{count} платежей сегодня",
+      "listingsTotal": "Объявления",
+      "listingsTotalSub": "{pending} на модерации · {today} сегодня"
     }
   },
   "listings": {

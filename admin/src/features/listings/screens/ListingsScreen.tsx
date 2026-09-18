@@ -282,7 +282,7 @@ export function ListingsScreen({ embedded = false }: { embedded?: boolean } = {}
               </span>
             )}
           </div>
-          <p className="text-xs font-mono mt-0.5 text-[var(--color-text-muted)]">
+          <p className="text-xs mt-0.5 text-[var(--color-text-muted)]">
             {[row.ownerPhone, row.ownerTrustScore === null ? null : `★ ${row.ownerTrustScore}`]
               .filter(Boolean)
               .join(' · ') || c('unknown')}
@@ -306,7 +306,7 @@ export function ListingsScreen({ embedded = false }: { embedded?: boolean } = {}
       width: '110px',
       align: 'right',
       render: (row) => (
-        <span className="text-sm font-bold whitespace-nowrap text-emerald-600 dark:text-emerald-400">
+        <span className="text-sm font-semibold whitespace-nowrap text-[var(--color-text-primary)]">
           {numberFormat.format(row.price)} {row.currency}
         </span>
       ),
@@ -334,7 +334,7 @@ export function ListingsScreen({ embedded = false }: { embedded?: boolean } = {}
       width: '75px',
       align: 'right',
       render: (row) => (
-        <span className="font-mono text-xs font-semibold">{numberFormat.format(row.viewsCount)}</span>
+        <span className="text-sm font-semibold">{numberFormat.format(row.viewsCount)}</span>
       ),
     },
     {
@@ -349,7 +349,7 @@ export function ListingsScreen({ embedded = false }: { embedded?: boolean } = {}
             {row.reportCount} ta
           </span>
         ) : (
-          <span className="font-mono text-xs text-[var(--color-text-muted)]">0</span>
+          <span className=" text-xs text-[var(--color-text-muted)]">0</span>
         ),
     },
     {
@@ -368,7 +368,7 @@ export function ListingsScreen({ embedded = false }: { embedded?: boolean } = {}
                 VIP
               </span>
               {row.vipUntil && (
-                <div className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                <div className="text-[10px] text-[var(--color-text-muted)]">
                   {showDate(row.vipUntil)}
                 </div>
               )}
@@ -384,7 +384,7 @@ export function ListingsScreen({ embedded = false }: { embedded?: boolean } = {}
                 TOP
               </span>
               {row.featuredUntil && (
-                <div className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                <div className="text-[10px] text-[var(--color-text-muted)]">
                   {showDate(row.featuredUntil)}
                 </div>
               )}
@@ -402,7 +402,7 @@ export function ListingsScreen({ embedded = false }: { embedded?: boolean } = {}
       hideOnCard: true,
       align: 'right',
       render: (row) => (
-        <span className="whitespace-nowrap font-mono text-xs text-[var(--color-text-muted)]">
+        <span className="whitespace-nowrap text-xs text-[var(--color-text-muted)]">
           {showDate(row.createdAt)}
         </span>
       ),

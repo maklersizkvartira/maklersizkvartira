@@ -1,22 +1,20 @@
 'use client';
 
-import { Badge, statusVariant, type BadgeVariant } from './Badge';
+import { statusVariant, type BadgeVariant } from './Badge';
 
 /**
- * A status badge with a leading dot.
- *
- * Badge alone is a coloured chip; in a dense table the dot is what lets a
- * moderator scan a column of thirty rows without reading any of the words.
- * Colour is never the only signal — the label still carries the meaning for
- * anyone who cannot separate the hues.
+ * The status chip SotuvchiAi draws in every table column: a rounded-full
+ * pill, 10px bold uppercase, tinted with the status colour at ~12% and the
+ * text in the full colour. No border, no dot — the same recipe as its
+ * orders / leads / payments tables so the two panels read identically.
  */
 
-const dotColor: Record<BadgeVariant, string> = {
+const tone: Record<BadgeVariant, string> = {
   success: 'var(--color-success)',
   warning: 'var(--color-warning)',
   danger: 'var(--color-danger)',
   info: 'var(--accent)',
-  neutral: 'var(--color-text-muted)',
+  neutral: 'var(--color-text-secondary)',
   purple: '#9333ea',
 };
 
@@ -25,27 +23,24 @@ interface StatusPillProps {
   status: string;
   /** Translated text; falls back to the prettified enum. */
   label?: string;
-  /** Pulse the dot — for states that are actively being worked. */
+  /** Kept for callers; the pill itself no longer animates. */
   pulse?: boolean;
   className?: string;
 }
 
-export function StatusPill({ status, label, pulse = false, className = '' }: StatusPillProps) {
+export function StatusPill({ status, label, className = '' }: StatusPillProps) {
   const variant = statusVariant(status);
+  const color = tone[variant];
 
   return (
-    <Badge
-      variant={variant}
-      className={`gap-1.5 ${className}`}
-      label={
-        <>
-          <span
-            className={`status-dot ${pulse ? 'animate-pulse-status' : ''}`}
-            style={{ width: 6, height: 6, background: dotColor[variant] }}
-          />
-          {label ?? status.replace(/_/g, ' ')}
-        </>
-      }
-    />
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${className}`}
+      style={{
+        color,
+        background: `color-mix(in srgb, ${color} 13%, transparent)`,
+      }}
+    >
+      {label ?? status.replace(/_/g, ' ')}
+    </span>
   );
 }

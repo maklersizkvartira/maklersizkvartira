@@ -144,7 +144,7 @@ export function UsersScreen({ embedded = false }: { embedded?: boolean } = {}) {
       render: (row) => (
         <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
           <span
-            className={`font-mono font-bold text-xs ${
+            className={`text-sm font-semibold ${
               (row.balance || 0) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--color-text-muted)]'
             }`}
           >
@@ -170,7 +170,7 @@ export function UsersScreen({ embedded = false }: { embedded?: boolean } = {}) {
       header: t('columns.lastLogin'),
       width: '115px',
       render: (row) => (
-        <span className="text-xs whitespace-nowrap font-mono text-[var(--color-text-muted)]">
+        <span className="text-xs whitespace-nowrap text-[var(--color-text-muted)]">
           {showDate(row.lastLoginAt)}
         </span>
       ),
@@ -181,7 +181,7 @@ export function UsersScreen({ embedded = false }: { embedded?: boolean } = {}) {
       width: '110px',
       hideOnCard: true,
       render: (row) => (
-        <span className="text-xs whitespace-nowrap font-mono text-[var(--color-text-muted)]">
+        <span className="text-xs whitespace-nowrap text-[var(--color-text-muted)]">
           {showDate(row.createdAt)}
         </span>
       ),

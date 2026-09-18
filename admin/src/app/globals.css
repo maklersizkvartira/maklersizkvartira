@@ -2216,8 +2216,7 @@ body.dock-dragging * {
    UYIZ ADMIN — blocks the panel owns that the source design has no
    counterpart for. Appended AFTER the shared kit on purpose: `.card-cut-*`,
    `.card-hero`, `.card-wash` and `.seg-grid` win over `.card` / `.seg` on
-   source order alone, and admin's denser `.data-table` th/td override the
-   source's roomier ones the same way.
+   source order alone.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Select.tsx portals its listbox to <body> and asks for this by name. */
@@ -2300,29 +2299,8 @@ body.dock-dragging * {
   border-color: var(--accent-border);
 }
 
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13.5px;
-}
-.data-table thead th {
-  padding: 10px 12px;
-  background: var(--color-surface-2);
-  border-bottom: 1px solid var(--color-border);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-  text-align: left;
-}
-.data-table tbody td {
-  padding: 11px 12px;
-  border-bottom: 1px solid var(--color-border-light);
-  color: var(--color-text-primary);
-  vertical-align: middle;
-}
+/* Table th/td come from the shared kit above (13px/18px header, 14px/18px
+   cells) — the panel adds only the clickable-row affordances below. */
 .data-table tbody tr:last-child td { border-bottom: none; }
 .data-table tbody tr { transition: background var(--t-fast); }
 .data-table tbody tr[data-clickable="true"] { cursor: pointer; }
