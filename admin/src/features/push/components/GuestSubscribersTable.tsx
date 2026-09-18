@@ -74,7 +74,7 @@ export function GuestSubscribersTable({ onSendToGuest, refreshTrigger = 0 }: Gue
   });
 
   return (
-    <div className="card p-5 md:p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+    <div className="card p-5 md:p-6 space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
         <div className="flex items-center gap-2.5">
@@ -85,7 +85,7 @@ export function GuestSubscribersTable({ onSendToGuest, refreshTrigger = 0 }: Gue
             <h3 className="text-base font-semibold text-slate-900 dark:text-white">
               Mehmon foydalanuvchilar (Tomosha qilib ketganlar)
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-xs text-[var(--color-text-muted)]">
               Saytga kirib roʻyxatdan oʻtmasdan xabarnomalarga ruxsat bergan mehmonlar
             </p>
           </div>
@@ -118,33 +118,33 @@ export function GuestSubscribersTable({ onSendToGuest, refreshTrigger = 0 }: Gue
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+        <div className="data-table-wrap">
+          <div className="data-table-scroll">
+          <table className="data-table min-w-[700px]">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">
-                <th className="py-3 px-3 font-semibold">Mehmon ID</th>
-                <th className="py-3 px-3 font-semibold">Qurilma va Brauzer</th>
-                <th className="py-3 px-3 font-semibold">Qoʻshilgan sana</th>
-                <th className="py-3 px-3 font-semibold">Soʻnggi faollik</th>
-                <th className="py-3 px-3 font-semibold">Qurilmalar</th>
-                <th className="py-3 px-3 font-semibold text-right">Amal</th>
+              <tr>
+                <th>Mehmon ID</th>
+                <th>Qurilma va Brauzer</th>
+                <th>Qoʻshilgan sana</th>
+                <th>Soʻnggi faollik</th>
+                <th>Qurilmalar</th>
+                <th className="text-right">Amal</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+            <tbody>
               {filtered.map((g) => {
                 const device = parseDevice(g.user_agent);
                 return (
                   <tr
                     key={g.guest_id}
-                    className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition"
                   >
                     {/* Guest ID */}
-                    <td className="py-3 px-3 font-mono font-semibold text-indigo-600 dark:text-indigo-400">
+                    <td className="text-sm font-semibold text-[var(--accent)]">
                       {g.guest_id}
                     </td>
 
                     {/* Device & Browser */}
-                    <td className="py-3 px-3">
+                    <td>
                       <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
                         {device.isMobile ? (
                           <Smartphone className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
@@ -156,7 +156,7 @@ export function GuestSubscribersTable({ onSendToGuest, refreshTrigger = 0 }: Gue
                     </td>
 
                     {/* Created date */}
-                    <td className="py-3 px-3 text-slate-500 dark:text-slate-400">
+                    <td className="text-xs text-[var(--color-text-muted)]">
                       <div className="flex items-center gap-1">
                         <Clock className="w-3 h-3 flex-shrink-0" />
                         {formatDate(g.created_at)}
@@ -164,19 +164,19 @@ export function GuestSubscribersTable({ onSendToGuest, refreshTrigger = 0 }: Gue
                     </td>
 
                     {/* Last active */}
-                    <td className="py-3 px-3 text-slate-500 dark:text-slate-400">
+                    <td className="text-xs text-[var(--color-text-muted)]">
                       {formatDate(g.last_active)}
                     </td>
 
                     {/* Devices count */}
-                    <td className="py-3 px-3">
+                    <td>
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                         {g.devices_count} ta qurilma
                       </span>
                     </td>
 
                     {/* Send push button */}
-                    <td className="py-3 px-3 text-right">
+                    <td className="text-right">
                       <Button
                         size="sm"
                         variant="outline"
@@ -192,7 +192,7 @@ export function GuestSubscribersTable({ onSendToGuest, refreshTrigger = 0 }: Gue
               })}
             </tbody>
           </table>
-        </div>
+        </div></div>
       )}
     </div>
   );

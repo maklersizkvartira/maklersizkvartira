@@ -60,7 +60,7 @@ export function PushHistoryTable({ refreshTrigger = 0 }: PushHistoryTableProps) 
   const totalPages = Math.max(1, Math.ceil(total / 10));
 
   return (
-    <div className="card p-5 md:p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+    <div className="card p-5 md:p-6 space-y-4">
       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center">
@@ -70,7 +70,7 @@ export function PushHistoryTable({ refreshTrigger = 0 }: PushHistoryTableProps) 
             <h3 className="text-base font-semibold text-slate-900 dark:text-white">
               {t('title')}
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-xs text-[var(--color-text-muted)]">
               Ilgari yuborilgan barcha xabarnomalar arxivi va yetkazilish natijalari
             </p>
           </div>
@@ -91,19 +91,21 @@ export function PushHistoryTable({ refreshTrigger = 0 }: PushHistoryTableProps) 
           <p className="text-sm font-medium">{t('empty')}</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+        <div>
+        <div className="data-table-wrap">
+          <div className="data-table-scroll">
+          <table className="data-table min-w-[700px]">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">
-                <th className="py-3 px-3 font-semibold">{t('tableTitle')}</th>
-                <th className="py-3 px-3 font-semibold">{t('tableTarget')}</th>
-                <th className="py-3 px-3 font-semibold">{t('tableListing')}</th>
-                <th className="py-3 px-3 font-semibold">{t('tableSentBy')}</th>
-                <th className="py-3 px-3 font-semibold">{t('tableDate')}</th>
-                <th className="py-3 px-3 font-semibold text-right">{t('tableStatus')}</th>
+              <tr>
+                <th>{t('tableTitle')}</th>
+                <th>{t('tableTarget')}</th>
+                <th>{t('tableListing')}</th>
+                <th>{t('tableSentBy')}</th>
+                <th>{t('tableDate')}</th>
+                <th className="text-right">{t('tableStatus')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+            <tbody>
               {items.map((row) => {
                 const aud = audienceLabels[row.target_audience] || {
                   label: row.target_audience,
@@ -112,20 +114,19 @@ export function PushHistoryTable({ refreshTrigger = 0 }: PushHistoryTableProps) 
                 return (
                   <tr
                     key={row.id}
-                    className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition"
                   >
                     {/* Message Title & Body */}
-                    <td className="py-3 px-3 max-w-[280px]">
+                    <td className="max-w-[280px]">
                       <div className="font-semibold text-slate-900 dark:text-white truncate">
                         {row.title}
                       </div>
-                      <div className="text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">
+                      <div className="text-xs text-[var(--color-text-muted)] line-clamp-2 mt-0.5">
                         {row.body}
                       </div>
                     </td>
 
                     {/* Audience */}
-                    <td className="py-3 px-3 whitespace-nowrap">
+                    <td className="whitespace-nowrap">
                       <span
                         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium border ${aud.color}`}
                       >
@@ -135,7 +136,7 @@ export function PushHistoryTable({ refreshTrigger = 0 }: PushHistoryTableProps) 
                     </td>
 
                     {/* Attached Listing */}
-                    <td className="py-3 px-3 max-w-[180px]">
+                    <td className="max-w-[180px]">
                       {row.listing_id ? (
                         <a
                           href={`https://uyiz.uz/?listing=${row.listing_id}`}
@@ -154,12 +155,12 @@ export function PushHistoryTable({ refreshTrigger = 0 }: PushHistoryTableProps) 
                     </td>
 
                     {/* Sent by */}
-                    <td className="py-3 px-3 whitespace-nowrap text-slate-600 dark:text-slate-300">
+                    <td className="whitespace-nowrap text-slate-600 dark:text-slate-300">
                       {row.sent_by || 'Admin'}
                     </td>
 
                     {/* Date */}
-                    <td className="py-3 px-3 whitespace-nowrap text-slate-500 dark:text-slate-400">
+                    <td className="whitespace-nowrap text-xs text-[var(--color-text-muted)]">
                       <div className="flex items-center gap-1">
                         <Clock className="w-3 h-3 flex-shrink-0" />
                         {formatDate(row.created_at)}
@@ -167,7 +168,7 @@ export function PushHistoryTable({ refreshTrigger = 0 }: PushHistoryTableProps) 
                     </td>
 
                     {/* Status / Delivery */}
-                    <td className="py-3 px-3 whitespace-nowrap text-right">
+                    <td className="whitespace-nowrap text-right">
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800">
                         <CheckCircle2 className="w-3 h-3" />
                         {row.sent_count} ta qurilma
@@ -178,6 +179,7 @@ export function PushHistoryTable({ refreshTrigger = 0 }: PushHistoryTableProps) 
               })}
             </tbody>
           </table>
+          </div></div>
 
           {/* Pagination controls if needed */}
           {totalPages > 1 && (
