@@ -33,14 +33,10 @@ import { ListingCard, ListingCardSkeleton } from '../listings/ListingCard';
 import { canPublishListings } from '../../types/roles';
 
 /**
- * One request, and it holds the whole catalogue at today's size.
- *
- * 100 is the API's per-request maximum, not a target to paginate up to:
- * `page_size` is declared `le=100` and rejects 101 with a 422 rather than
- * clamping it. Past a hundred listings the button at the foot of the section
- * fetches the next page.
+ * 16 listings for the home page provides the ideal balance between full initial
+ * content and fast rendering/networking without choking on mobile devices.
  */
-const PAGE_SIZE = MAX_PAGE_SIZE;
+const HOME_PAGE_SIZE = 16;
 
 /** How many placeholder cards to draw while the first page is in flight. */
 const SKELETON_COUNT = 8;
@@ -91,7 +87,7 @@ export const AIRecommended: React.FC = () => {
         const query: ListingQuery = {
           sortBy: 'RECOMMENDED',
           page: nextPage,
-          pageSize: PAGE_SIZE,
+          pageSize: HOME_PAGE_SIZE,
           dealType: 'ALL',
           audience: 'ALL',
         };
@@ -204,9 +200,9 @@ export const AIRecommended: React.FC = () => {
           </div>
 
           <div className="hide-scrollbar -mx-4 flex snap-x snap-mandatory gap-3.5 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-            {promotedListings.map((listing) => (
+            {promotedListings.map((listing, index) => (
               <div key={listing.id} className="w-[280px] sm:w-[310px] shrink-0 snap-start">
-                <ListingCard listing={listing} priority />
+                <ListingCard listing={listing} priority={index < 2} />
               </div>
             ))}
           </div>
@@ -285,8 +281,11 @@ export const AIRecommended: React.FC = () => {
             className="grid w-full grid-cols-2 gap-2.5 sm:gap-6 md:grid-cols-3 lg:grid-cols-4"
           >
             {listings.map((listing, index) => (
-              <li key={listing.id} className="min-w-0">
-                <ListingCard listing={listing} priority={index < 4} />
+              <li
+                key={listing.id}
+                className="min-w-0 [content-visibility:auto] [contain-intrinsic-size:350px]"
+              >
+                <ListingCard listing={listing} priority={index < 2} />
               </li>
             ))}
           </ul>

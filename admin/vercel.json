@@ -7,6 +7,15 @@
   "outputDirectory": null,
   "headers": [
     {
+      "source": "/(.*)\\.(ico|png|jpg|jpeg|svg|webp|gif|mp4|webm|woff2|woff)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {

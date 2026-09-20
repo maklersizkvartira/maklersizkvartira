@@ -191,15 +191,13 @@ export const ChatPage: React.FC = () => {
   useEffect(() => {
     if (!activeConversationId || !currentUser) return;
 
-    const interval = setInterval(async () => {
+    const pollChat = async () => {
+      if (document.visibilityState !== 'visible') return;
       try {
         if (activeConversationId === 'support') {
           const freshSupport = await chatApi.getSupportConversation();
           setSupportConv((prev) => {
             if (!prev) return freshSupport;
-            // By id, not by count: an optimistic append and a poll landing
-            // in the same second used to disagree on the count and either
-            // beep twice or never.
             const known = new Set(prev.messages.map((m) => m.id));
             const arrived = freshSupport.messages.filter((m) => !known.has(m.id));
             if (arrived.some((m) => m.sender_type === 'ADMIN')) playNotificationSound();
@@ -221,9 +219,21 @@ export const ChatPage: React.FC = () => {
       } catch {
         // Background polling errors are silent
       }
-    }, 4000);
+    };
 
-    return () => clearInterval(interval);
+    const interval = setInterval(pollChat, 5000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void pollChat();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [activeConversationId, currentUser]);
 
   // Close swipe actions when clicking elsewhere

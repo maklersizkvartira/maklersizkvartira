@@ -121,22 +121,31 @@ export const OfflineDetector: React.FC = () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    const timer = setTimeout(() => {
-      performCheck(false);
-    }, 1500);
+    // Modern NetworkInformation API: listen to effectiveType changes without network pings
+    const navConn = (navigator as unknown as { connection?: EventTarget & { effectiveType?: string } }).connection;
+    const handleConnectionChange = () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        handleOffline();
+      }
+    };
+    if (navConn && 'addEventListener' in navConn) {
+      navConn.addEventListener('change', handleConnectionChange);
+    }
 
-    const interval = setInterval(() => {
-      performCheck(false);
-    }, networkStatus === 'online' ? 30000 : 7000);
+    // Only do a single non-blocking check on initial mount if browser reports offline
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setNetworkStatus('offline');
+    }
 
     return () => {
-      clearTimeout(timer);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      clearInterval(interval);
+      if (navConn && 'removeEventListener' in navConn) {
+        navConn.removeEventListener('change', handleConnectionChange);
+      }
       if (pingAbortControllerRef.current) pingAbortControllerRef.current.abort();
     };
-  }, [networkStatus, performCheck]);
+  }, [performCheck]);
 
   useEffect(() => {
     if (videoRef.current && (networkStatus === 'offline' || networkStatus === 'slow')) {

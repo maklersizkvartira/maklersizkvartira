@@ -243,17 +243,36 @@ export const App: React.FC = () => {
 
 
   useEffect(() => {
-    let intervalId: ReturnType<typeof setInterval>;
-    if (currentUser) {
-      intervalId = setInterval(() => {
-        if (useAppStore.getState().currentView !== 'CHAT') {
-          void fetchUnreadChatCount();
-        }
-      }, 15000); // Poll every 15 seconds
-    }
+    if (!currentUser) return;
+
+    let lastPolledAt = Date.now();
+    const tryPoll = () => {
+      if (document.visibilityState === 'visible' && useAppStore.getState().currentView !== 'CHAT') {
+        lastPolledAt = Date.now();
+        void fetchUnreadChatCount();
+      }
+    };
+
+    // Initial check when logging in / mounting
+    tryPoll();
+
+    // Poll every 60 seconds only while tab is actively visible
+    const intervalId = setInterval(tryPoll, 60000);
+
+    // Immediate refresh when user switches back to this tab (throttled to at least 15s)
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastPolledAt > 15000) {
+        tryPoll();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
 
     return () => {
-      if (intervalId) clearInterval(intervalId);
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
     };
   }, [currentUser, fetchUnreadChatCount]);
 

@@ -118,6 +118,24 @@
       ]
     },
     {
+      "source": "/(.*)\\.(ico|png|jpg|jpeg|svg|webp|gif|mp4|webm|woff2|woff|ttf)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400"
+        }
+      ]
+    },
+    {
+      "source": "/(site\\.webmanifest|sw\\.js)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, s-maxage=86400, stale-while-revalidate=604800"
+        }
+      ]
+    },
+    {
       "source": "/(.*).html",
       "headers": [
         {

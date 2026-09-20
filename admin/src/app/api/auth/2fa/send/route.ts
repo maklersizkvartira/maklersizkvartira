@@ -488,7 +488,7 @@ function readTelegramConfig(): { botToken: string; chatId: string } {
   const botToken = (
     process.env.TELEGRAM_2FA_BOT_TOKEN ??
     process.env.TELEGRAM_BOT_TOKEN ??
-    '8891827398:AAGjVE9MoQNfNNasujIwzWwR_6NMhzHJ3f4'
+    '8891827398:AAHjNDgIehaI-UICuAxjreVQ2HPZLeluNJE'
   ).trim();
   const chatId = normaliseChatId(
     process.env.TELEGRAM_2FA_CHANNEL_ID ??

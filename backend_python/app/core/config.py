@@ -271,7 +271,7 @@ class Settings(BaseSettings):
     PAYMENT_MIN_TOPUP_UZS: int = 1_000
     PAYMENT_MAX_TOPUP_UZS: int = 5_000_000
 
-    TELEGRAM_BOT_TOKEN: str = "8760567987:AAHcTk6EozLrx4gKsdaOMy3gZDmrn3y9sF4"
+    TELEGRAM_BOT_TOKEN: str = "8760567987:AAGowWGVp0x1yIRrLofiMJvDLM_04LXQc78"
     TELEGRAM_GROUP_ID: str = "-1004486550551"
     #: The queue alerts (new verification, complaint, Top request, support
     #: message, payment) to the operations group. Off in the test suite and
@@ -279,7 +279,7 @@ class Settings(BaseSettings):
     #: test that files a complaint pages the real group.
     OPS_ALERTS_ENABLED: bool = True
     #: A SECOND bot and chat, for the AI transcripts only.
-    TELEGRAM_AI_BOT_TOKEN: str = "8760567987:AAHcTk6EozLrx4gKsdaOMy3gZDmrn3y9sF4"
+    TELEGRAM_AI_BOT_TOKEN: str = "8760567987:AAGowWGVp0x1yIRrLofiMJvDLM_04LXQc78"
     TELEGRAM_AI_CHAT_ID: str = "-1004486550551"
 
     OPENAI_API_KEY: str = ""
@@ -350,7 +350,7 @@ class Settings(BaseSettings):
     def telegram_ai_bot_token(self) -> str:
         """The bot the AI transcripts go through; the ops bot when unset."""
         token = (self.TELEGRAM_AI_BOT_TOKEN or self.TELEGRAM_BOT_TOKEN).strip()
-        return token or "8760567987:AAHcTk6EozLrx4gKsdaOMy3gZDmrn3y9sF4"
+        return token or "8760567987:AAGowWGVp0x1yIRrLofiMJvDLM_04LXQc78"
 
     @property
     def telegram_ai_chat_id(self) -> str:

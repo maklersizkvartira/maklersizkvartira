@@ -89,6 +89,36 @@ function subscribeToTicker(subscriber: TickSubscriber): () => void {
   };
 }
 
+// Single shared IntersectionObserver for all mounted cards rather than creating
+// one per card, which stalls the main thread and drops frames during fast scrolls.
+const visibilityCallbacks = new WeakMap<Element, (visible: boolean) => void>();
+let sharedCardObserver: IntersectionObserver | null = null;
+
+function observeCardVisibility(element: Element, callback: (visible: boolean) => void): () => void {
+  if (typeof IntersectionObserver === 'undefined') {
+    callback(true);
+    return () => {};
+  }
+  if (!sharedCardObserver) {
+    sharedCardObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const cb = visibilityCallbacks.get(entry.target);
+          if (cb) cb(entry.isIntersecting);
+        });
+      },
+      { threshold: 0.3 },
+    );
+  }
+  visibilityCallbacks.set(element, callback);
+  sharedCardObserver.observe(element);
+
+  return () => {
+    sharedCardObserver?.unobserve(element);
+    visibilityCallbacks.delete(element);
+  };
+}
+
 /** The previous slot that actually has a picture, or the current one if none has. */
 function prevSlide(current: number, total: number, failed: ReadonlySet<number>): number {
   for (let step = 1; step <= total; step += 1) {
@@ -130,7 +160,7 @@ function trustTone(score: number): { label: string; className: string } {
   return { label: 'low', className: 'bg-danger-soft text-danger' };
 }
 
-export const ListingCard: React.FC<ListingCardProps> = ({
+const ListingCardComponent: React.FC<ListingCardProps> = ({
   listing,
   variant = 'grid',
   promoted = false,
@@ -220,28 +250,22 @@ export const ListingCard: React.FC<ListingCardProps> = ({
     };
 
     const node = mediaRef.current;
-    if (!node || typeof IntersectionObserver === 'undefined') {
-      // Nothing to ask about visibility: rotate rather than freeze.
+    if (!node) {
       return subscribeToTicker(advance);
     }
 
-    // A card three screens down is burning bandwidth and layout work for a
-    // picture nobody is looking at.
     let onScreen = false;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        onScreen = entries.some((entry) => entry.isIntersecting);
-      },
-      { threshold: 0.4 },
-    );
-    observer.observe(node);
+    const unobserve = observeCardVisibility(node, (visible) => {
+      onScreen = visible;
+    });
 
-    const unsubscribe = subscribeToTicker(() => {
+    const unsubscribeTicker = subscribeToTicker(() => {
       if (onScreen) advance();
     });
+
     return () => {
-      observer.disconnect();
-      unsubscribe();
+      unobserve();
+      unsubscribeTicker();
     };
   }, [rotates, reducedMotion, handled, images.length]);
 
@@ -331,7 +355,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
                 decoding="async"
                 onError={() => handleImageError(index)}
                 className={cn(
-                  'crossfade absolute inset-0 h-full w-full object-cover',
+                  'crossfade absolute inset-0 h-full w-full object-cover transform-gpu',
                   index === activeSlide ? 'opacity-100' : 'opacity-0',
                 )}
               />
@@ -621,7 +645,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
     <article
       onClick={open}
       className={`group press-sm cursor-pointer overflow-hidden rounded-2xl border bg-surface shadow-card
-        transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised
+        transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised transform-gpu [contain:paint]
         has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand
         ${
           isVipListing
@@ -637,6 +661,8 @@ export const ListingCard: React.FC<ListingCardProps> = ({
     </article>
   );
 };
+
+export const ListingCard: React.FC<ListingCardProps> = React.memo(ListingCardComponent);
 
 // ---------------------------------------------------------------------------
 export const ListingCardSkeleton: React.FC<{ variant?: 'grid' | 'list' }> = ({
