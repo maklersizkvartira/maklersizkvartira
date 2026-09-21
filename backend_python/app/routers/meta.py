@@ -9,8 +9,8 @@ from fastapi import APIRouter
 from pydantic import Field
 from sqlalchemy import text
 
-from app.core.config import settings
 from app.core.context import anonymise_ip
+from app.core.rate_limit import enforce
 from app.core.deps import DbSession, Lang, OptionalUser, RequestCtx
 from app.models.analytics import TrafficEvent
 from app.schemas.auth import SUPPORTED_LANGUAGE_LIST
@@ -29,12 +29,13 @@ async def health(db: DbSession) -> dict:
         await db.execute(text("SELECT 1"))
     except Exception:  # noqa: BLE001 - the probe must never raise
         database_ok = False
+    # Liveness only. The probe that reads this is the container's HEALTHCHECK
+    # and it looks at the status code; the environment name, the version and
+    # whether the database is reachable are free reconnaissance for anybody
+    # else, on a route that is deliberately exempt from rate limiting.
     return {
         "status": "ok" if database_ok else "degraded",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "environment": settings.ENVIRONMENT,
-        "database": "up" if database_ok else "down",
-        "version": "2.0.0",
     }
 
 
@@ -88,6 +89,11 @@ async def track(
     ctx: RequestCtx,
     lang: Lang,
 ) -> MessageResponse:
+    # Analytics writes are still writes: unauthenticated, one row each, and
+    # keyed only by the global ceiling until now. `stat_ip` is the rule the
+    # listing-view counter already uses for exactly this shape.
+    await enforce("stat_ip", ctx.ip or "unknown")
+
     user_agent = (ctx.user_agent or "").lower()
     db.add(
         TrafficEvent(

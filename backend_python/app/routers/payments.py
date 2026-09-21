@@ -47,6 +47,7 @@ from app.schemas.payment import (
     BuyServiceResponse,
     CreateTopUpRequest,
     CreateTopUpResponse,
+    TopUpStatusResponse,
     WalletInfoResponse,
     WalletTransactionOut,
 )
@@ -120,17 +121,71 @@ def _safe_return_url(candidate: str | None) -> str:
         target = urlsplit(candidate.strip())
     except ValueError:
         return fallback
-    if target.scheme not in ("https", "http") or not target.netloc:
+    if not target.netloc:
         return fallback
-    allowed_hosts = {site.netloc.lower()}
-    allowed_hosts.update(
-        urlsplit(origin).netloc.lower() for origin in settings.cors_origin_list if "://" in origin
-    )
+    # In production the customer comes back over https to the site itself.
+    # The old version accepted every CORS origin, which includes the two
+    # loopback entries and the admin panel's host, so a link could land a
+    # customer on http://localhost after paying — and any origin added to
+    # CORS for an unrelated reason silently became a valid payment return.
+    if settings.is_production:
+        if target.scheme != "https":
+            return fallback
+        allowed_hosts = {site.netloc.lower()}
+    else:
+        if target.scheme not in ("https", "http"):
+            return fallback
+        allowed_hosts = {site.netloc.lower()}
+        allowed_hosts.update(
+            urlsplit(origin).netloc.lower() for origin in settings.cors_origin_list if "://" in origin
+        )
     if target.netloc.lower() not in allowed_hosts:
         return fallback
     if ";" in candidate or "\n" in candidate or "\r" in candidate:
         return fallback
     return candidate.strip()
+
+
+#: The fields Click's protocol actually defines. Anything else in the form is
+#: noise at best and ballast at worst, so it is not stored.
+_CLICK_FORM_KEYS = frozenset(
+    {
+        "click_trans_id",
+        "service_id",
+        "click_paydoc_id",
+        "merchant_trans_id",
+        "merchant_prepare_id",
+        "merchant_confirm_id",
+        "amount",
+        "action",
+        "error",
+        "error_note",
+        "sign_time",
+        "sign_datetime",
+        "transaction_param",
+        "payment_status",
+        "card_type",
+        "phone_number",
+    }
+)
+
+#: Never stored in the audit row: `sign_string` is the material a replay would
+#: need, and the card fields are a PAN we are not allowed to keep. The masked
+#: last four digits live on the transaction row instead.
+_CLICK_FORM_DROP = frozenset({"sign_string", *_CARD_KEYS})
+
+#: Longest value kept per field in an audit row. Every real Click field is far
+#: shorter than this; the cap exists for what is not a real Click field.
+_RAW_VALUE_MAX = 512
+
+
+def _trim_raw_form(form: dict[str, str]) -> dict[str, str]:
+    """Keep the protocol's fields, bounded, and drop the rest."""
+    return {
+        key: value[:_RAW_VALUE_MAX]
+        for key, value in form.items()
+        if key.lower() in _CLICK_FORM_KEYS and key.lower() not in _CLICK_FORM_DROP
+    }
 
 
 async def _credit_wallet(
@@ -156,6 +211,84 @@ async def _credit_wallet(
         )
     )
     return float(new_balance)
+
+
+async def _reverse_wallet_credit(db: DbSession, *, tx: PaymentTransaction, provider: str) -> float:
+    """Take a credited top-up back out of the wallet after the gateway reversed it.
+
+    Both gateways can undo a settled payment — Payme with CancelTransaction
+    against a DONE transaction, Click with a signed Complete carrying a
+    negative `error`. Either way the customer's card is made whole, so the
+    so'm we put in their wallet has to come back out.
+
+    Two things this is careful about, because the obvious version got both
+    wrong:
+
+    * **The ledger must not lie.** The wallet is never driven negative — the
+      rest of the code is not written for a debt — so when the balance has
+      already been spent down we can only take what is there. The
+      WalletTransaction therefore records what was *actually* taken, not what
+      we wished we could take, or `SUM(wallet_transactions.amount)` drifts
+      away from `users.balance` permanently and reconciliation is lost.
+    * **The shortfall is a human problem.** Money that was spent on a VIP or
+      a badge before the reversal cannot be recovered by arithmetic; the
+      promotion is already running. That gap is paged to the operations
+      group rather than silently absorbed.
+
+    The user row is locked for the read-modify-write so a purchase landing at
+    the same moment cannot make the delta we record wrong. Returns the amount
+    actually taken back.
+    """
+    if tx.service_type == "SANDBOX_TEST":
+        # A sandbox row never credited a wallet, so it must not debit one.
+        return 0.0
+
+    locked = (
+        await db.execute(
+            select(User)
+            .where(User.id == tx.user_id)
+            .options(lazyload("*"))
+            .with_for_update(of=User)
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+    if locked is None:
+        return 0.0
+
+    before = float(locked.balance)
+    amount = float(tx.amount)
+    taken = round(min(before, amount), 2)
+    if taken <= 0:
+        shortfall_only = amount
+    else:
+        shortfall_only = round(amount - taken, 2)
+    new_balance = round(before - taken, 2)
+
+    if taken > 0:
+        await db.execute(update(User).where(User.id == tx.user_id).values(balance=new_balance))
+        note = f"{provider} to'lovi bekor qilindi (-{int(taken):,} so'm)"
+        if shortfall_only > 0:
+            note += f"; {int(shortfall_only):,} so'm qoplanmadi"
+        db.add(
+            WalletTransaction(
+                user_id=tx.user_id,
+                type="REFUND",
+                amount=-taken,
+                balance_after=new_balance,
+                description=note,
+                reference_id=tx.id,
+            )
+        )
+
+    await ops_alerts.payment_reversed(
+        db,
+        user_name=locked.name,
+        phone=locked.phone,
+        amount=amount,
+        taken=taken,
+        provider=provider,
+    )
+    return taken
 
 
 async def _announce_payment(db: DbSession, *, user_id: uuid.UUID, amount: float, provider: str) -> None:
@@ -314,7 +447,16 @@ async def click_webhook(
         client_ip=client_ip,
     )
 
-    # 1. Base log record (will update with response)
+    # 1. Base log record (will update with response).
+    #
+    # Written before the signature is checked — on purpose, because a forged
+    # request is exactly what an audit trail is for — which means anyone on
+    # the internet can put a row in this table. What they cannot do is choose
+    # its size: the body is capped at 6 MiB by the middleware, and a JSONB
+    # blob of that size per request, retained forever, fills the volume long
+    # before anything else notices. Only the protocol's own fields are kept,
+    # each one bounded.
+    raw_form = _trim_raw_form(raw_form)
     audit_log = ClickPaymentLog(
         action="PREPARE" if action == 0 else "COMPLETE",
         click_trans_id=click_trans_id[:64],
@@ -390,10 +532,21 @@ async def click_webhook(
     #    paid into later, and answer with Click's own code.
     if error < 0:
         log.warning("click.reported_error", error=error, error_note=error_note)
-        if payment_tx is not None and payment_tx.status == "PENDING":
-            payment_tx.status = "CANCELLED"
-            payment_tx.error_code = error
-            payment_tx.error_note = error_note[:500] if error_note else None
+        if payment_tx is not None:
+            if payment_tx.status == "PENDING":
+                payment_tx.status = "CANCELLED"
+                payment_tx.error_code = error
+                payment_tx.error_note = error_note[:500] if error_note else None
+            elif payment_tx.status == "SUCCESS":
+                # Click is reversing a payment we already credited. Payme's
+                # CancelTransaction has always done this; Click's side of it
+                # was missing, so the so'm stayed in the wallet while the
+                # card was refunded. REFUNDED is a terminal status, so a
+                # repeated cancellation cannot debit twice.
+                payment_tx.status = "REFUNDED"
+                payment_tx.error_code = error
+                payment_tx.error_note = error_note[:500] if error_note else None
+                await _reverse_wallet_credit(db, tx=payment_tx, provider="Click")
         return await _respond(click_service.CLICK_TRANSACTION_CANCELLED, error_note or "Click reported error")
 
     if not _amount_ok(amount):
@@ -535,6 +688,16 @@ async def create_topup(
             PaymentTransaction.user_id == user.id,
             PaymentTransaction.status == "PENDING",
             PaymentTransaction.service_type == "TOPUP",
+            PaymentTransaction.provider == provider,
+            # Never supersede a checkout the gateway has already engaged
+            # with. A customer who presses "top up" a second time while the
+            # Click page from the first press is still open would otherwise
+            # cancel the transaction Click had already Prepared, and the
+            # payment they then complete answers "transaction cancelled"
+            # after their card has been charged.
+            PaymentTransaction.merchant_prepare_id.is_(None),
+            PaymentTransaction.click_trans_id.is_(None),
+            PaymentTransaction.payme_trans_id.is_(None),
         )
         .values(status="CANCELLED", error_note="superseded")
     )
@@ -574,6 +737,43 @@ async def create_topup(
         click_url=click_url,
         click_card_url=click_url,
         payme_url=payme_url,
+    )
+
+
+@router.get(
+    "/topup/{transaction_id}/status",
+    response_model=TopUpStatusResponse,
+    summary="Status of one of my top-up checkouts",
+)
+async def get_topup_status(
+    transaction_id: uuid.UUID,
+    user: CurrentUser,
+    db: DbSession,
+) -> TopUpStatusResponse:
+    """Answer "did that checkout go through?" for the person who opened it.
+
+    The site asks this when the customer comes back from the gateway's page —
+    which they do by paying, but just as often by pressing Back. Without an
+    answer the sheet cannot tell a completed payment from an abandoned one,
+    and it used to sit on "redirecting…" forever.
+
+    Scoped to the caller's own rows: `user_id` is in the WHERE clause, so a
+    transaction id belonging to somebody else is a 404 rather than a status
+    leak, and the ids are UUIDs so there is nothing to enumerate.
+    """
+    stmt = select(PaymentTransaction).where(
+        PaymentTransaction.id == transaction_id,
+        PaymentTransaction.user_id == user.id,
+    )
+    tx = (await db.execute(stmt.options(lazyload("*")))).scalar_one_or_none()
+    if tx is None:
+        raise NotFound("payment_not_found")
+
+    return TopUpStatusResponse(
+        status=tx.status,
+        amount=float(tx.amount),
+        balance=float(user.balance),
+        paid=tx.status == "SUCCESS",
     )
 
 
@@ -651,39 +851,80 @@ async def buy_service(
     # covers the cost at the moment it runs, so two purchases racing for the
     # same money cannot both go through. Checking `user.balance` in Python
     # first was exactly that race.
+    #
+    # The badge adds its flag to the same statement, for the same reason. The
+    # `user.is_verified` test above reads a row loaded by an unlocked SELECT,
+    # so two requests arriving together both saw False and both paid 20 000
+    # so'm for one badge. Folding `is_verified = FALSE` into the WHERE makes
+    # the database the arbiter: the second UPDATE matches nothing.
+    buying_badge = payload.service_type == "VERIFIED_BADGE"
+    conditions = [User.id == user.id, User.balance >= float(cost)]
+    values: dict[str, Any] = {"balance": User.balance - float(cost)}
+    if buying_badge:
+        conditions.append(User.is_verified.is_(False))
+        values["is_verified"] = True
+        values["verification_level"] = func.greatest(User.verification_level, 2)
+
+    # `synchronize_session=False` because the criteria below cannot be
+    # evaluated in Python: with the default strategy SQLAlchemy falls back to
+    # expiring the matched `user` object, and the next attribute read on it
+    # would then be a lazy database call from a sync context. The attributes
+    # this statement changes are mirrored by hand a few lines down.
     new_balance = (
         await db.execute(
             update(User)
-            .where(User.id == user.id, User.balance >= float(cost))
-            .values(balance=User.balance - float(cost))
+            .where(*conditions)
+            .values(**values)
             .returning(User.balance)
+            .execution_options(synchronize_session=False)
         )
     ).scalar_one_or_none()
     if new_balance is None:
+        # Two reasons the statement can match nothing, and the caller is owed
+        # the right one: a re-read says which.
+        if buying_badge:
+            already = (
+                await db.execute(select(User.is_verified).where(User.id == user.id))
+            ).scalar_one_or_none()
+            if already:
+                raise BadRequest("already_verified")
         raise BadRequest("insufficient_balance")
 
-    if payload.service_type == "VERIFIED_BADGE":
+    if buying_badge:
+        # Mirrored onto the in-session object so the response and the audit
+        # row see what the UPDATE just wrote.
         user.is_verified = True
         user.verification_level = max(user.verification_level, 2)
         description = "Tasdiqlanganlik (Galochka) sotib olindi"
     else:
         assert listing is not None
         days = 7
-        expire_at = (
-            max(listing.featured_until, now) + timedelta(days=days)
-            if listing.featured_until and listing.featured_until > now
-            else now + timedelta(days=days)
-        )
+
+        def _extend(current: datetime | None) -> datetime:
+            """Seven more days, from now or from what is left, whichever is later."""
+            base = current if current and current > now else now
+            return base + timedelta(days=days)
+
         if payload.service_type == "TOP_LISTING":
             listing.is_featured = True
-            listing.featured_until = expire_at
+            listing.featured_until = _extend(listing.featured_until)
             listing.promotion_weight = max(listing.promotion_weight, 10)
             description = f"Top e'lon xarid qilindi: '{listing.title[:30]}'"
         else:
+            # VIP extends VIP. It used to extend from `featured_until`, which
+            # every Top purchase and every admin promotion also writes, so a
+            # listing with a month of Top left was handed a month of VIP for
+            # the price of a week.
             listing.is_vip = True
-            listing.vip_until = expire_at
+            listing.vip_until = _extend(listing.vip_until)
+            # VIP implies Top, so Top runs at least as long as VIP does — but
+            # never shorter than the Top the owner already paid for.
             listing.is_featured = True
-            listing.featured_until = expire_at
+            listing.featured_until = (
+                max(listing.featured_until, listing.vip_until)
+                if listing.featured_until
+                else listing.vip_until
+            )
             listing.promotion_weight = max(listing.promotion_weight, 20)
             description = f"VIP e'lon xarid qilindi: '{listing.title[:30]}'"
 
@@ -746,8 +987,15 @@ def _as_int(value: Any) -> int | None:
         return value
     if isinstance(value, float) and value.is_integer():
         return int(value)
-    if isinstance(value, str) and value.strip().lstrip("-").isdigit():
-        return int(value.strip())
+    if isinstance(value, str):
+        # `str.isdigit()` is True for superscripts and other Unicode digit
+        # characters that `int()` then refuses, and stripping every leading
+        # minus let "--5" through the guard as well. Both raised out of the
+        # webhook as a 500; asking int() itself is the only honest test.
+        try:
+            return int(value.strip())
+        except ValueError:
+            return None
     return None
 
 
@@ -1123,26 +1371,7 @@ async def payme_webhook(
             tx.payme_reason = reason
             tx.status = "REFUNDED"
 
-            if tx.service_type != "SANDBOX_TEST":
-                new_balance = (
-                    await db.execute(
-                        update(User)
-                        .where(User.id == tx.user_id)
-                        .values(balance=func.greatest(0.0, User.balance - float(tx.amount)))
-                        .returning(User.balance)
-                    )
-                ).scalar_one_or_none()
-                if new_balance is not None:
-                    db.add(
-                        WalletTransaction(
-                            user_id=tx.user_id,
-                            type="REFUND",
-                            amount=-float(tx.amount),
-                            balance_after=float(new_balance),
-                            description=f"Payme to'lovi bekor qilindi (-{int(tx.amount):,} so'm)",
-                            reference_id=tx.id,
-                        )
-                    )
+            await _reverse_wallet_credit(db, tx=tx, provider="Payme")
 
             return await _send_response(
                 _ok({"transaction": str(tx.id), "cancel_time": now_ms, "state": payme_service.STATE_POST_CANCELED})
@@ -1186,6 +1415,9 @@ async def payme_webhook(
             select(PaymentTransaction)
             .where(
                 PaymentTransaction.provider == "PAYME",
+                # Sandbox rows never moved money and must not appear in a
+                # statement Payme reconciles against its own ledger.
+                PaymentTransaction.service_type != "SANDBOX_TEST",
                 PaymentTransaction.payme_trans_id.is_not(None),
                 PaymentTransaction.payme_time >= from_time,
                 PaymentTransaction.payme_time <= to_time,

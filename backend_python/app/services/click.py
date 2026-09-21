@@ -100,7 +100,14 @@ def verify_click_signature(
     except (ValueError, TypeError):
         pass
 
+    # `compare_digest` on two str objects raises TypeError the moment either
+    # side is not ASCII, and this one is whatever the caller posted — a single
+    # Cyrillic character in `sign_string` turned a forged webhook into a 500
+    # instead of a SIGN CHECK FAILED. A non-ASCII signature is wrong by
+    # definition: an MD5 hex digest is [0-9a-f].
     provided = sign_string.strip().lower()
+    if not provided.isascii():
+        return False
     prep_id = merchant_prepare_id or ""
     for amt in dict.fromkeys(candidates):
         if action == 0:

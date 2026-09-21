@@ -6,7 +6,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ChatMessageCreate(BaseModel):
-    text: str
+    #: Bounded like `SupportMessageCreate` below, which has always been. An
+    #: unbounded field let one participant push megabytes per message into a
+    #: thread the other party then had to load in full to open it.
+    text: str = Field(min_length=1, max_length=4000)
 
 
 class ChatMessageOut(BaseModel):

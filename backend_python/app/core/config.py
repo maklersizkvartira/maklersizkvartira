@@ -86,6 +86,18 @@ class Settings(BaseSettings):
 
     # -- Database ------------------------------------------------------------
     DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@localhost:5432/uyiz"
+    #: How long one assistant turn may run before it is abandoned, and how
+    #: many may run at once.
+    #:
+    #: A turn holds a pooled database connection across every OpenAI round
+    #: trip it makes — up to eleven of them — so thirty concurrent turns
+    #: emptied the pool (DB_POOL_SIZE + DB_MAX_OVERFLOW) and every other
+    #: request on the worker, the payment webhooks included, waited behind
+    #: them. The hourly rate limit does not help: it counts calls, not calls
+    #: in flight.
+    AI_TURN_TIMEOUT_SECONDS: int = 90
+    AI_TURN_CONCURRENCY: int = 6
+
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
     DB_POOL_RECYCLE_SECONDS: int = 1800
@@ -271,16 +283,16 @@ class Settings(BaseSettings):
     PAYMENT_MIN_TOPUP_UZS: int = 1_000
     PAYMENT_MAX_TOPUP_UZS: int = 5_000_000
 
-    TELEGRAM_BOT_TOKEN: str = "8760567987:AAGowWGVp0x1yIRrLofiMJvDLM_04LXQc78"
-    TELEGRAM_GROUP_ID: str = "-1004486550551"
+    TELEGRAM_BOT_TOKEN: str = ""
+    TELEGRAM_GROUP_ID: str = ""
     #: The queue alerts (new verification, complaint, Top request, support
     #: message, payment) to the operations group. Off in the test suite and
     #: on a laptop, because the bot token above is a literal: with it on, a
     #: test that files a complaint pages the real group.
     OPS_ALERTS_ENABLED: bool = True
     #: A SECOND bot and chat, for the AI transcripts only.
-    TELEGRAM_AI_BOT_TOKEN: str = "8760567987:AAGowWGVp0x1yIRrLofiMJvDLM_04LXQc78"
-    TELEGRAM_AI_CHAT_ID: str = "-1004486550551"
+    TELEGRAM_AI_BOT_TOKEN: str = ""
+    TELEGRAM_AI_CHAT_ID: str = ""
 
     OPENAI_API_KEY: str = ""
     #: Read-only organisation key, used for one thing: reading what the
@@ -335,32 +347,70 @@ class Settings(BaseSettings):
     def support_phones(self) -> list[str]:
         return [p.strip() for p in self.SUPPORT_PHONES.split(",") if p.strip()]
 
+    #: There is no literal fallback in any of the three properties below. A
+    #: live bot token and the real operations channel id used to sit here as
+    #: defaults, so anybody with the repository could post into the ops group
+    #: (and delete the bot's own messages inside a 2FA code's 60-second
+    #: window). Unset now means the feature is off, which is the honest
+    #: behaviour for a credential that is missing.
+    #:
     #: The raw TELEGRAM_* fields are deliberately left un-normalised: they show
     #: up in logs and in /admin/settings exactly as the operator typed them, so
     #: a mistyped id stays visible instead of being quietly rewritten
     #: underneath them. The repair happens here, at the point of use, and
     #: nowhere else.
     @property
+    def google_client_id_list(self) -> list[str]:
+        return [part.strip() for part in self.GOOGLE_CLIENT_IDS.split(",") if part.strip()]
+
+    @property
     def telegram_chat_id(self) -> str:
         """The operations group, in the form the API accepts."""
-        chat_id = normalise_chat_id(self.TELEGRAM_GROUP_ID)
-        return chat_id or "-1004486550551"
+        return normalise_chat_id(self.TELEGRAM_GROUP_ID)
 
     @property
     def telegram_ai_bot_token(self) -> str:
         """The bot the AI transcripts go through; the ops bot when unset."""
-        token = (self.TELEGRAM_AI_BOT_TOKEN or self.TELEGRAM_BOT_TOKEN).strip()
-        return token or "8760567987:AAGowWGVp0x1yIRrLofiMJvDLM_04LXQc78"
+        return (self.TELEGRAM_AI_BOT_TOKEN or self.TELEGRAM_BOT_TOKEN).strip()
 
     @property
     def telegram_ai_chat_id(self) -> str:
         """Where AI transcripts land; the ops group when unset."""
-        chat_id = normalise_chat_id(self.TELEGRAM_AI_CHAT_ID or self.TELEGRAM_GROUP_ID)
-        return chat_id or "-1004486550551"
+        return normalise_chat_id(self.TELEGRAM_AI_CHAT_ID or self.TELEGRAM_GROUP_ID)
+
+    #: Web-push (RFC 8291/8292) signing pair.
+    #:
+    #: Both halves were literals in `app/routers/chat.py`, which put the
+    #: PRIVATE one in a public repository: anyone holding it can sign a push
+    #: to every device that ever subscribed to this site and have the browser
+    #: display it as ours. It has to be treated as burned and rotated, and a
+    #: rotation must be a variable change rather than a deploy.
+    #:
+    #: The public half is not a secret — the browser is handed it to create a
+    #: subscription — but it is paired: change it and every existing
+    #: subscription stops working and has to be created again.
+    #:
+    #: Unset means web push is off. That is deliberate: sending with a key an
+    #: attacker also holds is not "working".
+    VAPID_PUBLIC_KEY: str = ""
+    VAPID_PRIVATE_KEY: str = ""
+    VAPID_SUBJECT: str = "mailto:support@uyiz.uz"
 
     # Required to verify Firebase ID tokens on /auth/google. Empty disables
     # Google sign-in rather than accepting unverified identities.
     FIREBASE_PROJECT_ID: str = ""
+
+    #: OAuth client ids that may appear in a Google ID token's `aud`.
+    #:
+    #: `_verify_google` asked PyJWT to require an `aud` claim while passing
+    #: `audience=None`, which makes PyJWT raise on every token that has one —
+    #: that is, on every genuine Google token. The path has therefore always
+    #: answered 401. Setting this makes it work; leaving it empty keeps the
+    #: path closed, which is the correct default, because the alternative
+    #: (skipping the check) would accept a token minted for any third party's
+    #: client id as a sign-in here. Comma-separated.
+    GOOGLE_CLIENT_IDS: str = ""
+
 
     # UZS per 1 USD, served to the client so the rate is not hardcoded in
     # three separate frontend files.
@@ -557,6 +607,17 @@ class Settings(BaseSettings):
             raise ValueError("OTP_DEBUG_RETURN_CODE must be false in production")
         if "*" in self.cors_origin_list:
             raise ValueError("CORS_ORIGINS may not contain '*' in production")
+        # Sandbox mode is what lets a gateway's *test* credentials authenticate
+        # against the real money paths: Payme's test key would pass
+        # verify_payme_auth, list live transactions through GetStatement and
+        # cancel settled ones. It is a switch for certification, and
+        # certification does not happen against production.
+        if self.PAYME_TEST_MODE:
+            raise ValueError("PAYME_TEST_MODE must be false in production")
+        if self.CLICK_TEST_MODE:
+            raise ValueError("CLICK_TEST_MODE must be false in production")
+        if self.PAYME_TEST_SECRET_KEY:
+            raise ValueError("PAYME_TEST_SECRET_KEY must be unset in production")
         return self
 
 

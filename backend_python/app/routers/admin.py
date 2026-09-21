@@ -14,11 +14,11 @@ import secrets
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Header, Query, Request
 import structlog
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import String, and_, cast, distinct, func, or_, select, true, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
@@ -27,6 +27,7 @@ from app.core import audit as audit_log
 from app.core.config import settings
 from app.core.database import commit_then_raise
 from app.core.deps import (
+    _ADMIN_RANK,
     CurrentAdmin,
     DbSession,
     Lang,
@@ -597,7 +598,9 @@ async def admin_face_delete(
     payload: FaceDeleteRequest | None = None,
 ) -> MessageResponse:
     target_id = admin.id
-    if payload and payload.username and admin.role in ("SUPERADMIN", "ADMIN"):
+    # Rank, not membership: an ADMIN naming the SUPERADMIN used to pass this
+    # test and clear their face login.
+    if payload and payload.username and _ADMIN_RANK.get(admin.role, 0) >= _ADMIN_RANK[AdminRole.ADMIN.value]:
         target_adm = (
             await db.execute(select(AdminUser).where(AdminUser.username == payload.username.strip()))
         ).scalar_one_or_none()
@@ -1983,6 +1986,13 @@ async def review_verification(
     ).unique().scalar_one_or_none()
     if request is None:
         raise NotFound("not_found")
+    # Decided once, like a Top request a few hundred lines up. Re-posting
+    # APPROVED re-ran every effect below — the verified flag, the level, and
+    # another +15 trust each time — and re-notified the user.
+    if request.status != VerificationStatus.PENDING.value:
+        raise Conflict("verification_already_reviewed")
+    if payload.status == VerificationStatus.PENDING:
+        raise BadRequest("verification_status_invalid", field="status")
 
     before = request.status
     request.status = payload.status.value
@@ -3014,13 +3024,40 @@ async def toggle_support_ai(
 
 
 class AdminPushCreate(BaseModel):
-    title: str
-    body: str
+    #: Bounded, because these are rendered by the operating system's own
+    #: notification surface and the row they are stored in is not a blob.
+    title: str = Field(min_length=1, max_length=255)
+    body: str = Field(min_length=1, max_length=1000)
     listing_id: str | None = None
     target_audience: str = "all"  # 'all', 'students', 'tenants', 'owners', 'specific'
     target_user_id: str | None = None
-    custom_url: str | None = None
-    image_url: str | None = None
+    #: Where tapping the notification goes, and what it illustrates.
+    #:
+    #: Both were bare strings, so a broadcast could point every subscriber at
+    #: any address on the internet — a notification that looks like ours,
+    #: opening a page that is not. A relative path, or one of our own hosts.
+    custom_url: str | None = Field(default=None, max_length=512)
+    image_url: str | None = Field(default=None, max_length=512)
+
+    @field_validator("custom_url", "image_url")
+    @classmethod
+    def _our_own_destination(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        candidate = value.strip()
+        if not candidate:
+            return None
+        if candidate.startswith("/") and not candidate.startswith("//"):
+            return candidate
+        from urllib.parse import urlsplit
+
+        target = urlsplit(candidate)
+        allowed = {urlsplit(settings.SITE_URL).netloc.lower()}
+        if settings.R2_PUBLIC_BASE_URL:
+            allowed.add(urlsplit(settings.R2_PUBLIC_BASE_URL).netloc.lower())
+        if target.scheme != "https" or target.netloc.lower() not in allowed:
+            raise ValueError("must be a path on this site")
+        return candidate
 
 
 # Persistent in-memory history log for admin-sent push notifications
@@ -3617,8 +3654,11 @@ async def adjust_user_balance(
 # Omad Spinner & Coin Withdrawals Admin
 # ===========================================================================
 class ProcessWithdrawalRequest(BaseModel):
-    status: str  # "APPROVED" or "REJECTED"
-    admin_note: str | None = None
+    #: A decision, not a string. `str` accepted anything at all — including
+    #: "PENDING", which reopened a settled request, and any typo, which wrote
+    #: a status nothing else in the system recognises.
+    status: Literal["APPROVED", "REJECTED"]
+    admin_note: str | None = Field(default=None, max_length=500)
 
 
 @router.get("/spinner/withdrawals", summary="List coin withdrawal requests")
@@ -3626,7 +3666,7 @@ async def list_spinner_withdrawals(
     admin: RequireModerator,
     db: DbSession,
     status: str | None = None,
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=200),
 ) -> dict[str, Any]:
     from app.models.spinner import CoinWithdrawalRequest
 
@@ -3643,7 +3683,10 @@ async def list_spinner_withdrawals(
             "userId": str(req.user_id),
             "userName": u.name,
             "userPhone": u.phone,
-            "cardNumber": req.card_number,
+            # Masked like every other card in the panel. This one route
+            # handed the full PAN to any MODERATOR — a number we should not
+            # be storing, let alone re-serving.
+            "cardNumber": mask_card(req.card_number),
             "cardHolder": req.card_holder,
             "amountUzs": req.amount_uzs,
             "coinsSpent": req.coins_spent,
@@ -3664,22 +3707,42 @@ async def process_spinner_withdrawal(
 ) -> dict[str, Any]:
     from app.models.spinner import CoinWithdrawalRequest
 
-    req = await db.get(CoinWithdrawalRequest, request_id)
+    # Locked, because the refund below is a read-modify-write on the user's
+    # coin balance and two moderators pressing "reject" together would both
+    # pass the guard.
+    req = (
+        await db.execute(
+            select(CoinWithdrawalRequest)
+            .where(CoinWithdrawalRequest.id == request_id)
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
     if not req:
         raise NotFound("withdrawal_request_not_found")
+    # A decision is final. Without this, REJECTED → APPROVED → REJECTED
+    # refunded the coins again on every lap, minting them.
+    if req.status != "PENDING":
+        raise Conflict("withdrawal_already_reviewed")
 
-    old_status = req.status
-    req.status = payload.status.upper()
+    req.status = payload.status
     req.admin_note = payload.admin_note
     req.processed_by_id = admin.id
     req.processed_at = _now()
 
-    # If rejected, refund coins back to user
-    if req.status == "REJECTED" and old_status != "REJECTED":
-        user = await db.get(User, req.user_id)
-        if user:
-            user.coins += req.coins_spent
+    # If rejected, refund coins back to user — atomically, for the same
+    # reason every other balance move in this codebase is.
+    if req.status == "REJECTED":
+        await db.execute(
+            update(User).where(User.id == req.user_id).values(coins=User.coins + req.coins_spent)
+        )
 
+    await audit_log.record(
+        db,
+        action="SPINNER_WITHDRAWAL_REVIEWED",
+        entity_type="COIN_WITHDRAWAL",
+        entity_id=req.id,
+        meta={"status": req.status, "coins": req.coins_spent},
+    )
     await db.commit()
     return {"status": "success", "id": str(req.id), "newStatus": req.status}
 

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 from typing import Annotated
 
+import structlog
 from fastapi import APIRouter
 from pydantic import Field as PField
 from sqlalchemy import func, select
@@ -75,6 +77,17 @@ def _start_of_day() -> datetime:
 # ---------------------------------------------------------------------------
 # Session handling
 # ---------------------------------------------------------------------------
+log = structlog.get_logger(__name__)
+
+#: Caps how many assistant turns are inside the agent loop at once.
+#:
+#: Sized well below the connection pool, because each turn holds one of its
+#: connections for the whole loop. Past the cap a caller waits here — briefly,
+#: bounded by the turn timeout — instead of taking the last connection the
+#: Click webhook needs.
+_agent_slots = asyncio.Semaphore(settings.AI_TURN_CONCURRENCY)
+
+
 @router.post("/assistant/session", response_model=SessionResponse)
 async def create_session(
     db: DbSession, viewer: OptionalUser, ctx: RequestCtx
@@ -84,6 +97,10 @@ async def create_session(
     Clients must call this instead of inventing their own key, so a session
     identifier cannot be guessed by a third party.
     """
+    # One row per call, unauthenticated, with nothing above it but the global
+    # per-IP ceiling. A browser needs one of these per visit.
+    await enforce("ai_chat", ctx.ip or "unknown")
+
     session = AISession(
         session_key=generate_token(24),
         user_id=viewer.id if viewer else None,
@@ -306,21 +323,32 @@ async def assistant(
         state.pop("pendingAction", None)
         session.agent_state = state or None
 
-    agent = await ai_agent.run_turn(
-        db=db,
-        viewer=viewer,
-        session=session,
-        message=payload.message,
-        history=history,
-        language=language,
-        user_name=(viewer.name if viewer else payload.user_name),
-        is_first_turn=is_first_turn,
-        shown_ids=shown_ids,
-        approved=approved,
-        declined=declined,
-    )
+    # Bounded in both directions: how many turns may be in the loop at once,
+    # and how long any one of them may stay there. A provider that stops
+    # answering used to park a database connection for as long as it liked.
+    try:
+        async with _agent_slots:
+            async with asyncio.timeout(settings.AI_TURN_TIMEOUT_SECONDS):
+                agent = await ai_agent.run_turn(
+                    db=db,
+                    viewer=viewer,
+                    session=session,
+                    message=payload.message,
+                    history=history,
+                    language=language,
+                    user_name=(viewer.name if viewer else payload.user_name),
+                    is_first_turn=is_first_turn,
+                    shown_ids=shown_ids,
+                    approved=approved,
+                    declined=declined,
+                )
+    except TimeoutError:
+        # Not a 500: the visitor asked a question and deserves an answer, and
+        # the search path below can still produce one without the model.
+        log.warning("ai.turn_timeout", session=str(session.id))
+        agent = None
 
-    if agent.reply:
+    if agent is not None and agent.reply:
         return await _finish(
             db,
             session=session,

@@ -63,8 +63,12 @@ def client_ip(request: Request) -> str | None:
             candidate = parts[index]
             if _is_ip(candidate):
                 return candidate
+    # `X-Real-IP` gets the same trust gate as the header above it. It used to
+    # have none at all, which handed every client a free choice of rate-limit
+    # bucket and of the address written into audit rows — the exact thing the
+    # `TRUSTED_PROXY_COUNT` rule above exists to prevent.
     real_ip = request.headers.get("x-real-ip")
-    if real_ip and _is_ip(real_ip.strip()):
+    if real_ip and settings.TRUSTED_PROXY_COUNT > 0 and _is_ip(real_ip.strip()):
         return real_ip.strip()
     if request.client and request.client.host:
         return request.client.host
@@ -90,6 +94,30 @@ def anonymise_ip(value: str | None) -> str | None:
     if isinstance(addr, ipaddress.IPv4Address):
         return str(ipaddress.ip_network(f"{addr}/24", strict=False).network_address)
     return str(ipaddress.ip_network(f"{addr}/48", strict=False).network_address)
+
+
+def limiter_key(value: str | None) -> str:
+    """The key an IP-based rate limit should count against.
+
+    Not the address: a single rented IPv6 /64 — the smallest block anyone is
+    assigned — holds 18 quintillion of them, and binding a fresh source
+    address per request gave every bucket a fresh window. `bootstrap_admin`
+    (3/hour) and `admin_login_ip` (8/15min) were effectively unlimited from
+    any v6 host. IPv4 is narrowed to /24 for the same reason at a far smaller
+    scale, which also happens to fold a NAT pool onto one bucket.
+
+    The full address is still what goes into `audit_logs` and `LoginAttempt`;
+    only the counter key is truncated.
+    """
+    if not value:
+        return "unknown"
+    try:
+        addr = ipaddress.ip_address(value)
+    except ValueError:
+        return value
+    if isinstance(addr, ipaddress.IPv4Address):
+        return str(ipaddress.ip_network(f"{addr}/24", strict=False))
+    return str(ipaddress.ip_network(f"{addr}/64", strict=False))
 
 
 #: `audit_logs.request_id` is VARCHAR(36); anything longer would fail the

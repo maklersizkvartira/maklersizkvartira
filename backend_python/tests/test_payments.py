@@ -11,12 +11,14 @@ from __future__ import annotations
 import base64
 import hashlib
 import uuid
+from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import select
 
 from app.core.config import settings
 from app.services.payme import current_time_ms
+from app.models.listing import Listing
 from app.models.payment import PaymentTransaction, WalletTransaction
 from app.models.user import User
 from tests.conftest import auth_headers, register_and_verify
@@ -302,6 +304,58 @@ async def test_a_new_topup_supersedes_the_previous_open_one(client, db, unique_p
     assert res.json()["error"] == -9
 
 
+async def test_topup_status_is_scoped_to_its_owner(client, db, unique_phone):
+    """The site asks this the moment a customer comes back from the gateway.
+
+    It must answer for the person who opened the checkout, distinguish an
+    abandoned checkout from a paid one, and say nothing at all to anybody
+    else — the sheet that hung on "redirecting" had no way to ask before.
+    """
+    tokens, phone, _ = await _user(client, unique_phone)
+    other_tokens, _, _ = await _user(client, unique_phone)
+    created = await _topup(client, tokens, 20000)
+    tx_id = created["transactionId"]
+
+    pending = await client.get(f"/api/v1/payments/topup/{tx_id}/status", headers=auth_headers(tokens))
+    assert pending.status_code == 200, pending.text
+    assert pending.json()["status"] == "PENDING"
+    assert pending.json()["paid"] is False
+    assert pending.json()["amount"] == 20000.0
+
+    # Somebody else's checkout is not visible, not even as a status.
+    theirs = await client.get(f"/api/v1/payments/topup/{tx_id}/status", headers=auth_headers(other_tokens))
+    assert theirs.status_code == 404
+
+    missing = await client.get(f"/api/v1/payments/topup/{uuid.uuid4()}/status", headers=auth_headers(tokens))
+    assert missing.status_code == 404
+
+    anonymous = await client.get(f"/api/v1/payments/topup/{tx_id}/status")
+    assert anonymous.status_code in (401, 403)
+
+    prepare = await client.post(
+        "/api/v1/payments/click/prepare-or-complete",
+        data=_click_form(merchant_trans_id=tx_id, amount="20000.00", action="0"),
+    )
+    assert prepare.json()["error"] == 0, prepare.text
+    complete = await client.post(
+        "/api/v1/payments/click/prepare-or-complete",
+        data=_click_form(
+            merchant_trans_id=tx_id,
+            amount="20000.00",
+            action="1",
+            merchant_prepare_id=str(prepare.json()["merchant_prepare_id"]),
+        ),
+    )
+    assert complete.json()["error"] == 0, complete.text
+
+    paid = await client.get(f"/api/v1/payments/topup/{tx_id}/status", headers=auth_headers(tokens))
+    assert paid.status_code == 200
+    assert paid.json()["paid"] is True
+    assert paid.json()["status"] == "SUCCESS"
+    assert paid.json()["balance"] == 20000.0
+    assert await _balance(db, phone) == 20000.0
+
+
 async def test_topup_needs_a_configured_gateway(client, unique_phone, monkeypatch):
     tokens, _, _ = await _user(client, unique_phone)
     monkeypatch.setattr(settings, "PAYME_MERCHANT_ID", "")
@@ -359,6 +413,196 @@ async def test_buying_a_badge_debits_once_and_never_overdraws(client, db, unique
     assert wallet.status_code == 200
     assert wallet.json()["isVerified"] is True
     assert wallet.json()["balance"] == 5000.0
+
+
+async def test_click_reversal_after_success_takes_the_money_back(client, db, unique_phone):
+    """Click can cancel a payment it already settled; the wallet has to follow.
+
+    Only the PENDING case was handled, so a signed cancellation of a credited
+    top-up left the so'm in the wallet while the card was refunded.
+    """
+    tokens, phone, _ = await _user(client, unique_phone)
+    created = await _topup(client, tokens, 20000)
+    tx_id = created["transactionId"]
+
+    prepare = await client.post(
+        "/api/v1/payments/click/prepare-or-complete",
+        data=_click_form(merchant_trans_id=tx_id, amount="20000.00", action="0"),
+    )
+    assert prepare.json()["error"] == 0, prepare.text
+    complete = await client.post(
+        "/api/v1/payments/click/prepare-or-complete",
+        data=_click_form(
+            merchant_trans_id=tx_id,
+            amount="20000.00",
+            action="1",
+            merchant_prepare_id=str(prepare.json()["merchant_prepare_id"]),
+        ),
+    )
+    assert complete.json()["error"] == 0, complete.text
+    assert await _balance(db, phone) == 20000.0
+
+    reversal = await client.post(
+        "/api/v1/payments/click/prepare-or-complete",
+        data=_click_form(
+            merchant_trans_id=tx_id,
+            amount="20000.00",
+            action="1",
+            merchant_prepare_id=str(prepare.json()["merchant_prepare_id"]),
+            error=-9,
+        ),
+    )
+    assert reversal.json()["error"] == -9, reversal.text
+    assert await _balance(db, phone) == 0.0
+
+    db.expire_all()
+    tx = (await db.execute(select(PaymentTransaction).where(PaymentTransaction.id == uuid.UUID(tx_id)))).scalar_one()
+    assert tx.status == "REFUNDED"
+    refunds = (
+        await db.execute(
+            select(WalletTransaction).where(
+                WalletTransaction.reference_id == uuid.UUID(tx_id),
+                WalletTransaction.type == "REFUND",
+            )
+        )
+    ).scalars().all()
+    assert len(refunds) == 1
+    assert refunds[0].amount == -20000.0
+
+    # A repeated cancellation must not debit twice: REFUNDED is terminal.
+    again = await client.post(
+        "/api/v1/payments/click/prepare-or-complete",
+        data=_click_form(
+            merchant_trans_id=tx_id,
+            amount="20000.00",
+            action="1",
+            merchant_prepare_id=str(prepare.json()["merchant_prepare_id"]),
+            error=-9,
+        ),
+    )
+    assert again.json()["error"] == -9
+    assert await _balance(db, phone) == 0.0
+
+
+async def test_a_reversal_records_what_it_could_actually_take(client, db, unique_phone):
+    """The ledger must state the real delta, not the wished-for one.
+
+    When the wallet has been spent down, the clawback is partial. Writing the
+    full amount into wallet_transactions made SUM(amount) and users.balance
+    disagree for good.
+    """
+    tokens, phone, _ = await _user(client, unique_phone)
+    created = await _topup(client, tokens, 25000)
+    tx_id = created["transactionId"]
+
+    prepare = await client.post(
+        "/api/v1/payments/click/prepare-or-complete",
+        data=_click_form(merchant_trans_id=tx_id, amount="25000.00", action="0"),
+    )
+    complete = await client.post(
+        "/api/v1/payments/click/prepare-or-complete",
+        data=_click_form(
+            merchant_trans_id=tx_id,
+            amount="25000.00",
+            action="1",
+            merchant_prepare_id=str(prepare.json()["merchant_prepare_id"]),
+        ),
+    )
+    assert complete.json()["error"] == 0
+    spent = await client.post(
+        "/api/v1/payments/buy-service", json={"serviceType": "VERIFIED_BADGE"}, headers=auth_headers(tokens)
+    )
+    assert spent.status_code == 200, spent.text
+    assert await _balance(db, phone) == 5000.0
+
+    reversal = await client.post(
+        "/api/v1/payments/click/prepare-or-complete",
+        data=_click_form(
+            merchant_trans_id=tx_id,
+            amount="25000.00",
+            action="1",
+            merchant_prepare_id=str(prepare.json()["merchant_prepare_id"]),
+            error=-9,
+        ),
+    )
+    assert reversal.json()["error"] == -9
+    # Never negative, and the row says what really moved.
+    assert await _balance(db, phone) == 0.0
+    refund = (
+        await db.execute(
+            select(WalletTransaction).where(
+                WalletTransaction.reference_id == uuid.UUID(tx_id),
+                WalletTransaction.type == "REFUND",
+            )
+        )
+    ).scalar_one()
+    assert refund.amount == -5000.0
+    assert refund.balance_after == 0.0
+    assert "qoplanmadi" in refund.description
+
+
+async def test_two_badge_purchases_racing_pay_for_one_badge(client, db, unique_phone):
+    """`user.is_verified` was read off an unlocked row, so both requests passed."""
+    import asyncio
+
+    tokens, phone, _ = await _user(client, unique_phone)
+    await _fund(client, tokens, 45000)
+
+    first, second = await asyncio.gather(
+        client.post("/api/v1/payments/buy-service", json={"serviceType": "VERIFIED_BADGE"}, headers=auth_headers(tokens)),
+        client.post("/api/v1/payments/buy-service", json={"serviceType": "VERIFIED_BADGE"}, headers=auth_headers(tokens)),
+    )
+    codes = sorted([first.status_code, second.status_code])
+    assert codes == [200, 400], f"{first.status_code}/{first.text} {second.status_code}/{second.text}"
+    loser = first if first.status_code == 400 else second
+    assert loser.json()["code"] == "already_verified"
+    assert await _balance(db, phone) == 25000.0
+
+    charges = (
+        await db.execute(
+            select(WalletTransaction).where(
+                WalletTransaction.type == "PURCHASE_VERIFIED_BADGE",
+                WalletTransaction.user_id == (
+                    select(User.id).where(User.phone == phone).scalar_subquery()
+                ),
+            )
+        )
+    ).scalars().all()
+    assert len(charges) == 1
+
+
+async def test_vip_extends_vip_not_whatever_top_was_left(client, db, unique_phone):
+    """VIP read its expiry from `featured_until`, so leftover Top became free VIP."""
+    tokens, phone, _ = await _user(client, unique_phone)
+    await _fund(client, tokens, 100000)
+    mine = await client.post("/api/v1/listings", json=VALID_LISTING, headers=auth_headers(tokens))
+    assert mine.status_code == 201, mine.text
+    listing_id = mine.json()["data"]["id"]
+
+    for _ in range(3):
+        res = await client.post(
+            "/api/v1/payments/buy-service",
+            json={"serviceType": "TOP_LISTING", "listingId": listing_id},
+            headers=auth_headers(tokens),
+        )
+        assert res.status_code == 200, res.text
+
+    res = await client.post(
+        "/api/v1/payments/buy-service",
+        json={"serviceType": "VIP_LISTING", "listingId": listing_id},
+        headers=auth_headers(tokens),
+    )
+    assert res.status_code == 200, res.text
+
+    db.expire_all()
+    listing = (await db.execute(select(Listing).where(Listing.id == uuid.UUID(listing_id)))).scalar_one()
+    now = datetime.now(timezone.utc)
+    vip_days = (listing.vip_until - now).total_seconds() / 86400
+    top_days = (listing.featured_until - now).total_seconds() / 86400
+    # One week of VIP was bought, so one week of VIP is what it gets — while
+    # the three weeks of Top already paid for are untouched.
+    assert 6.5 < vip_days < 7.5, vip_days
+    assert 20.5 < top_days < 21.5, top_days
 
 
 async def test_top_purchase_needs_your_own_public_listing(client, db, unique_phone):
@@ -484,3 +728,54 @@ async def test_health_endpoints_do_not_leak_merchant_ids(client):
     assert SERVICE_ID not in res.text
     res = await client.get(PAYME)
     assert "0123456789abcdef01234567" not in res.text
+
+
+async def test_click_audit_row_keeps_only_bounded_protocol_fields(client, db, unique_phone):
+    """An unsigned stranger can put a row in this table; they cannot choose its size.
+
+    The webhook stores its audit row before the signature is checked — which
+    is what an audit trail is for — so the body was a 6 MiB JSONB blob per
+    request from anyone on the internet, retained forever. The signature
+    material and the card number are dropped as well: one is what a replay
+    would need, the other is a PAN.
+    """
+    junk = "x" * 200_000
+    res = await client.post(
+        "/api/v1/payments/click/prepare-or-complete",
+        data={
+            **_click_form(merchant_trans_id=str(uuid.uuid4()), amount="20000.00", action="0"),
+            "card_number": "8600123412341234",
+            "junk_field": junk,
+        },
+    )
+    assert res.status_code == 200
+    from app.models.payment import ClickPaymentLog
+
+    row = (
+        await db.execute(select(ClickPaymentLog).order_by(ClickPaymentLog.created_at.desc()).limit(1))
+    ).scalar_one()
+    stored = row.raw_request or {}
+    assert "junk_field" not in stored
+    assert "sign_string" not in stored
+    assert "card_number" not in stored
+    assert stored.get("amount") == "20000.00"
+    assert all(len(str(v)) <= 512 for v in stored.values())
+
+
+async def test_click_non_ascii_signature_is_a_refusal_not_a_crash(client, db):
+    """`compare_digest` raises TypeError on non-ASCII; that used to be a 500."""
+    form = _click_form(merchant_trans_id=str(uuid.uuid4()), amount="20000.00", action="0")
+    form["sign_string"] = "ü" * 32
+    res = await client.post("/api/v1/payments/click/prepare-or-complete", data=form)
+    assert res.status_code == 200, res.text
+    assert res.json()["error"] == -1
+
+
+async def test_payme_rejects_malformed_integers_without_raising(client):
+    """'--5' and Unicode digits passed `str.isdigit()` and then broke `int()`."""
+    from app.routers.payments import _as_int
+
+    assert _as_int("--5") is None
+    assert _as_int("²") is None
+    assert _as_int(" 42 ") == 42
+    assert _as_int(True) is None

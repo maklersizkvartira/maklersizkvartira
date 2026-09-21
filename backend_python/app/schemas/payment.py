@@ -58,3 +58,19 @@ class BuyServiceResponse(CamelModel):
     status: str = "success"
     message: str
     balance_after: float
+
+
+class TopUpStatusResponse(CamelModel):
+    """Where one checkout got to, asked by the person who opened it.
+
+    The site needs this the moment a customer comes back from the gateway's
+    page — by pressing Back, by closing the tab, or by paying. Nothing else
+    on the account tells the two apart quickly enough: the wallet balance
+    only moves once the webhook lands, and a person staring at a sheet that
+    still says "redirecting" has no way to know which happened.
+    """
+
+    status: str
+    amount: float
+    balance: float
+    paid: bool

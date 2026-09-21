@@ -29,7 +29,7 @@ from app.schemas.spinner import (
     WithdrawRequest,
     WithdrawResponse,
 )
-from app.services.telegram import send_message
+from app.services.telegram import _esc, send_message
 
 router = APIRouter(prefix="/spinner", tags=["spinner"])
 
@@ -308,7 +308,8 @@ async def withdraw_cash(
     # 2. Send Telegram alert to operations channel via @Uyiz_ai_chat_bot
     telegram_text = (
         f"🎰 <b>Yangi Omad Barabani Pul Yechish So'rovi!</b>\n\n"
-        f"👤 <b>Foydalanuvchi:</b> {user.name} ({user.phone})\n"
+        # Escaped: parse_mode is HTML and the name is the user's own text.
+        f"👤 <b>Foydalanuvchi:</b> {_esc(user.name)} ({_esc(user.phone)})\n"
         f"💳 <b>Karta:</b> <code>{clean_card}</code>\n"
         f"💰 <b>Miqdor:</b> {int(payload.amount_uzs):,} so'm\n"
         f"🪙 <b>Yechilgan Coin:</b> {required_coins} coin\n"
@@ -377,7 +378,10 @@ async def redeem_listing(
     payload: RedeemListingRequest, user: CurrentUser, db: DbSession
 ) -> dict:
     listing = await db.get(Listing, payload.listing_id)
-    if not listing or listing.user_id != user.id:
+    # `Listing` has no `user_id` — the column is `owner_id`, and reading the
+    # wrong one raised AttributeError instead of refusing the request. Also
+    # refuses a soft-deleted listing, which the original did not.
+    if not listing or listing.owner_id != user.id or listing.deleted_at is not None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="E'lon topilmadi yoki bu e'lon sizga tegishli emas.",

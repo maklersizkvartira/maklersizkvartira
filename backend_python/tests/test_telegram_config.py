@@ -105,3 +105,34 @@ async def test_a_lead_message_carries_the_name_the_number_and_the_ask(monkeypatc
     assert "+998 90 123 45 67" in body
     assert "🔔" in body
     assert "bog'lanishni so'radi" in body
+
+
+def test_no_bot_token_is_hardcoded_in_the_configuration():
+    """The same rule as above, for the file that used to hold the default.
+
+    `TELEGRAM_BOT_TOKEN` and `TELEGRAM_GROUP_ID` carried a live token and the
+    real operations channel as field defaults, and three properties repeated
+    them as `or "..."` fallbacks. Anyone holding the repository could post
+    into the ops group — including forged 2FA prompts, while deleting the
+    bot's genuine ones.
+    """
+    from app.core import config as config_module
+
+    source = Path(config_module.__file__).read_text(encoding="utf-8")
+    assert "8760567987" not in source
+    assert "-1004486550551" not in source
+
+
+def test_alerts_are_off_when_the_credentials_are_absent():
+    """No token means no delivery, not delivery to somebody else's channel."""
+    probe = settings.model_copy(
+        update={
+            "TELEGRAM_BOT_TOKEN": "",
+            "TELEGRAM_GROUP_ID": "",
+            "TELEGRAM_AI_BOT_TOKEN": "",
+            "TELEGRAM_AI_CHAT_ID": "",
+        }
+    )
+    assert probe.telegram_chat_id == ""
+    assert probe.telegram_ai_bot_token == ""
+    assert probe.telegram_ai_chat_id == ""

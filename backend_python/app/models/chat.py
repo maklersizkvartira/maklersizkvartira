@@ -25,6 +25,19 @@ class Conversation(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
 
+    #: When each side hid the thread from their own list.
+    #:
+    #: "Delete" used to be `DELETE FROM conversations`, and the messages
+    #: cascaded — so either party could erase the other party's copy of a
+    #: negotiation, including whatever they had been promised in it. A hide
+    #: is per-viewer; the row goes only when both sides have hidden it.
+    deleted_by_user_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    deleted_by_owner_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     listing = relationship("Listing", lazy="selectin")
     user = relationship("User", foreign_keys=[user_id], lazy="selectin")
     owner = relationship("User", foreign_keys=[owner_id], lazy="selectin")

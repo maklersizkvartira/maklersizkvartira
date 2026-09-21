@@ -57,7 +57,17 @@ async def lifespan(app: FastAPI):
         cors=settings.cors_origin_list,
         reveal_enabled=settings.PASSWORD_REVEAL_ENABLED,
         sms_enabled=settings.SMS_ENABLED and bool(settings.DEVSMS_API_TOKEN),
+        ops_alerts=settings.OPS_ALERTS_ENABLED and bool(settings.TELEGRAM_BOT_TOKEN),
+        web_push=bool(settings.VAPID_PRIVATE_KEY),
     )
+
+    # Credentials that used to have literal defaults in the source tree now
+    # have none, so a deployment that never set them would lose the feature
+    # silently. Say so once, loudly, at the only moment anybody is reading.
+    if settings.OPS_ALERTS_ENABLED and not settings.TELEGRAM_BOT_TOKEN:
+        log.warning("config.telegram_not_configured", hint="set TELEGRAM_BOT_TOKEN and TELEGRAM_GROUP_ID")
+    if not settings.VAPID_PRIVATE_KEY:
+        log.warning("config.web_push_disabled", hint="set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY")
 
     # Auto-heal database schema & bootstrap default admin if missing
     try:
@@ -355,13 +365,23 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
+        # `https://.*\.vercel\.app` used to be the first alternative here,
+        # with `allow_credentials=True` beside it: every project anybody
+        # deploys on Vercel — one signup away — was a trusted origin that
+        # browsers would send our cookies to. Naming the project in a pattern
+        # is no better, because the name of somebody else's project is their
+        # choice too, so the wildcard is gone entirely: the admin panel's
+        # real hostname is listed in CORS_ORIGINS, and a preview deployment
+        # that needs access gets listed there as well.
+        #
+        # The loopback origins are development only; in production they are a
+        # standing invitation to a page on the user's own machine.
         allow_origin_regex=(
-            r"https://.*\.vercel\.app"
-            r"|https://(.*\.)?uyiz\.uz"
+            r"https://(.*\.)?uyiz\.uz"
             r"|https://(.*\.)?maklersiz\.uz"
             r"|https://(.*\.)?maklersizuy\.uz"
-            r"|http://localhost:\d+|http://127\.0\.0\.1:\d+"
-        ),
+        )
+        + ("" if settings.is_production else r"|http://localhost:\d+|http://127\.0\.0\.1:\d+"),
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=[

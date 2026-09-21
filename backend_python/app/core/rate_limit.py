@@ -16,6 +16,7 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 
+from app.core.context import limiter_key
 from app.core.errors import TooManyRequests
 
 
@@ -217,6 +218,18 @@ def _rules() -> dict[str, RateLimitRule]:
         # checkout link; a real person opens a handful an hour, a script
         # would open thousands. Purchases are cheaper but each one is a
         # conditional debit against the same row, so they are capped too.
+        # Person-to-person chat, keyed on the account. A busy negotiation is
+        # a few dozen messages an hour; four a second is a script.
+        "chat_message": RateLimitRule("chat_message", 120, 3600),
+        # Every support message may wake the assistant, and that costs money
+        # per call. The desk is for people, and people do not send 20 in an
+        # hour without meaning to.
+        "support_message": RateLimitRule("support_message", 20, 3600),
+        # One identity document review per submission; a queue is a human
+        # queue, and five an hour is already generous.
+        "verification_submit": RateLimitRule("verification_submit", 5, 3600),
+        # A browser registers one push endpoint per device.
+        "push_subscribe": RateLimitRule("push_subscribe", 20, 3600),
         "payment_topup": RateLimitRule("payment_topup", 15, 3600),
         "payment_buy": RateLimitRule("payment_buy", 30, 3600),
         "password_reveal": RateLimitRule("password_reveal", 30, 3600),
@@ -236,21 +249,37 @@ def rule(name: str) -> RateLimitRule:
         raise KeyError(f"Unknown rate-limit rule: {name}") from exc
 
 
+def _key(identifier: str) -> str:
+    """Normalise the counting key.
+
+    An identifier that is an IP address is folded onto its network — /24 for
+    v4, /64 for v6 — because an address is not a scarce thing to the caller.
+    The smallest IPv6 allocation anyone gets is a /64: 18 quintillion source
+    addresses, each one a fresh window, which made `bootstrap_admin` (3/hour)
+    and `admin_login_ip` (8/15 min) unlimited from any v6 host.
+
+    Done here rather than at the eleven call sites so it cannot be forgotten
+    at the twelfth. Identifiers that are not addresses — user ids, phone
+    numbers — are returned unchanged.
+    """
+    return limiter_key(identifier)
+
+
 async def enforce(name: str, identifier: str, *, cost: int = 1) -> None:
-    await limiter.check(rule(name), identifier, cost=cost)
+    await limiter.check(rule(name), _key(identifier), cost=cost)
 
 
 async def clear(name: str, identifier: str) -> None:
     """Empty a bucket completely. Only correct when the whole window is
     forgiven - a successful login, say. To undo one charge, use ``refund``."""
-    await limiter.reset(rule(name), identifier)
+    await limiter.reset(rule(name), _key(identifier))
 
 
 async def refund(name: str, identifier: str, *, cost: int = 1) -> None:
     """Hand back ``cost`` hits charged for work that provably did not happen."""
-    await limiter.refund(rule(name), identifier, cost=cost)
+    await limiter.refund(rule(name), _key(identifier), cost=cost)
 
 
 async def peek(name: str, identifier: str) -> int:
     """How much of a bucket is left, charging nothing."""
-    return await limiter.peek(rule(name), identifier)
+    return await limiter.peek(rule(name), _key(identifier))

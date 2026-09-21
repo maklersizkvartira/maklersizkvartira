@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
+from datetime import datetime, timezone
+from typing import Any
+
+import structlog
 
 from fastapi import APIRouter
 from pydantic import BaseModel
-from sqlalchemy import select, or_, func
+from sqlalchemy import and_, select, or_, func
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
+from app.core.context import get_context
 from app.core.deps import CurrentUser, DbSession, OptionalUser
+from app.core.rate_limit import enforce
 from app.core.errors import BadRequest, NotFound
 from app.models.chat import ChatMessage, Conversation, SupportConversation, SupportMessage
 from app.models.listing import Listing
@@ -24,6 +32,27 @@ from app.schemas.chat import (
 )
 from app.services import ops_alerts
 from app.services.support import SUPPORT_WELCOME, name_operators
+
+log = structlog.get_logger(__name__)
+
+#: Detached background work, held so the event loop keeps a strong reference.
+#: `asyncio.create_task` alone does not: the loop holds only a weak one, so a
+#: push fan-out or an assistant reply could be garbage-collected halfway
+#: through. The set also bounds the fan-out — past the cap the work is
+#: dropped deliberately rather than by exhausting the connection pool.
+_BACKGROUND: set[asyncio.Task] = set()
+_BACKGROUND_MAX = 64
+
+
+def _spawn(coro: Any, *, context: str) -> None:
+    if len(_BACKGROUND) >= _BACKGROUND_MAX:
+        log.warning("chat.background_saturated", context=context, in_flight=len(_BACKGROUND))
+        coro.close()
+        return
+    task = asyncio.create_task(coro)
+    _BACKGROUND.add(task)
+    task.add_done_callback(_BACKGROUND.discard)
+
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -47,8 +76,14 @@ async def list_conversations(db: DbSession, user: CurrentUser) -> list[Conversat
                 .options(selectinload(Conversation.listing))
                 .where(
                     or_(
-                        Conversation.user_id == user.id,
-                        Conversation.owner_id == user.id,
+                        and_(
+                            Conversation.user_id == user.id,
+                            Conversation.deleted_by_user_at.is_(None),
+                        ),
+                        and_(
+                            Conversation.owner_id == user.id,
+                            Conversation.deleted_by_owner_at.is_(None),
+                        ),
                     )
                 )
                 .order_by(Conversation.updated_at.desc())
@@ -203,6 +238,8 @@ async def send_message(
     user: CurrentUser
 ) -> ChatMessageOut:
     """Send a new message in a conversation."""
+    await enforce("chat_message", str(user.id))
+
     conversation = (await db.execute(select(Conversation).where(Conversation.id == conversation_id))).scalar_one_or_none()
     if not conversation:
         raise BadRequest("conversation_not_found")
@@ -231,8 +268,10 @@ async def send_message(
     push_body = f"{sender_name} sizga xabar yubordi: {payload.text[:80]}"
     
     # Send push in background to all recipient devices
-    import asyncio
-    asyncio.create_task(_dispatch_web_push(recipient_id, push_title, push_body, f"/?view=CHAT&conversation={conversation_id}"))
+    _spawn(
+        _dispatch_web_push(recipient_id, push_title, push_body, f"/?view=CHAT&conversation={conversation_id}"),
+        context="chat_push",
+    )
 
     return msg
 
@@ -285,14 +324,28 @@ async def delete_conversation(
     db: DbSession,
     user: CurrentUser,
 ) -> dict[str, str]:
-    """Delete an entire conversation and all its messages."""
+    """Hide a conversation for the caller.
+
+    Not a DELETE: the thread belongs to two people. Removing the row cascaded
+    to `chat_messages`, so one party pressing "delete" erased the other
+    party's copy of the negotiation as well — including anything they were
+    promised in it. The row is removed only once both sides have hidden it.
+    """
     conversation = (await db.execute(select(Conversation).where(Conversation.id == conversation_id))).scalar_one_or_none()
     if not conversation:
         raise NotFound("conversation_not_found")
     if conversation.user_id != user.id and conversation.owner_id != user.id:
         raise BadRequest("not_your_conversation")
 
-    await db.delete(conversation)
+    now = datetime.now(timezone.utc)
+    if conversation.user_id == user.id:
+        conversation.deleted_by_user_at = now
+    if conversation.owner_id == user.id:
+        conversation.deleted_by_owner_at = now
+
+    if conversation.deleted_by_user_at and conversation.deleted_by_owner_at:
+        await db.delete(conversation)
+
     await db.commit()
     return {"status": "deleted", "id": str(conversation_id)}
 
@@ -320,6 +373,8 @@ async def register_push_subscription(
     from datetime import datetime, timezone
     from app.models.chat import PushSubscription
     import hashlib
+
+    await enforce("push_subscribe", str(user.id) if user else (get_context().ip or "unknown"))
 
     user_id = user.id if user else None
     raw_hash = hashlib.md5(payload.endpoint.encode()).hexdigest()[:10]
@@ -354,9 +409,10 @@ async def register_push_subscription(
     return {"status": "ok", "subscriber_id": subscriber_id}
 
 
-VAPID_PUBLIC_KEY = "BCZzmQm2-JRxUQrL_PWOHJh66m7va4mYFTTH17F5whUz9M72di00zBs0tPDRfQC4wr24LbeEAc8hQkC4W31KAcU"
-VAPID_PRIVATE_KEY = "28-uBeeXVqCXVWqPreG_fWzISh4q6uij_rl5YuB4Oxk"
-VAPID_CLAIMS = {"sub": "mailto:support@uyiz.uz"}
+# The signing pair comes from the environment. It used to be two literals
+# here, so the private half — which is what proves a push is from us — was
+# published with the source and could not be rotated without a deploy.
+VAPID_CLAIMS = {"sub": settings.VAPID_SUBJECT}
 
 
 async def _send_single_webpush(
@@ -372,6 +428,11 @@ async def _send_single_webpush(
     auth = sub_info_dict.get("auth")
     if not endpoint or not p256dh or not auth:
         return "invalid_sub"
+    if not settings.VAPID_PRIVATE_KEY:
+        # No signing key configured: sending is impossible, and pretending
+        # otherwise would raise inside a detached task where nobody sees it.
+        log.warning("webpush.no_vapid_key")
+        return "not_configured"
 
     import json
     import asyncio
@@ -404,7 +465,7 @@ async def _send_single_webpush(
             webpush(
                 subscription_info=sub_info,
                 data=payload,
-                vapid_private_key=VAPID_PRIVATE_KEY,
+                vapid_private_key=settings.VAPID_PRIVATE_KEY,
                 vapid_claims=VAPID_CLAIMS,
                 timeout=10,
             )
@@ -557,6 +618,11 @@ async def send_support_message(
     user: CurrentUser,
 ) -> SupportMessageOut:
     """Send a message to support."""
+    # Each message may wake the assistant, which is a paid API call made in a
+    # detached task — so the request returns in milliseconds and a loop was
+    # never slowed by its own cost. The limit is what makes the loop stop.
+    await enforce("support_message", str(user.id))
+
     stmt = select(SupportConversation).where(SupportConversation.user_id == user.id)
     conversation = (await db.execute(stmt)).scalar_one_or_none()
 
@@ -580,15 +646,15 @@ async def send_support_message(
     await db.commit()
     await db.refresh(msg)
 
-    import asyncio
     from app.services.support_ai import process_incoming_support_message
 
-    asyncio.create_task(
+    _spawn(
         process_incoming_support_message(
             conversation_id=conversation.id,
             user_id=user.id,
             message_text=payload.text.strip(),
-        )
+        ),
+        context="support_ai",
     )
     await ops_alerts.support_message(db, user_name=user.name, phone=user.phone, text=msg.text)
     return msg

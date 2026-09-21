@@ -20,6 +20,7 @@ import jwt
 import structlog
 from jwt import PyJWKClient
 
+from app.core.config import settings
 from app.core.errors import Unauthorized
 
 log = structlog.get_logger(__name__)
@@ -107,6 +108,16 @@ async def verify_id_token(id_token: str, *, firebase_project_id: str) -> GoogleI
 
 
 def _verify_google(id_token: str) -> dict[str, Any]:
+    allowed = settings.google_client_id_list
+    if not allowed:
+        # Without an allowlist there is no way to tell a token minted for us
+        # from one minted for any other site, so the path stays closed. It
+        # was closed in practice anyway: `audience=None` with `aud` required
+        # made PyJWT reject every real Google token, as a 401 nobody could
+        # explain. Firebase sign-in, which is what the app actually uses, is
+        # verified separately below.
+        log.warning("google_auth.not_configured", hint="set GOOGLE_CLIENT_IDS")
+        raise Unauthorized("token_invalid")
     try:
         signing_key = _get_jwk_client().get_signing_key_from_jwt(id_token)
         return jwt.decode(
@@ -114,7 +125,7 @@ def _verify_google(id_token: str) -> dict[str, Any]:
             signing_key.key,
             algorithms=["RS256"],
             options={"require": ["exp", "iat", "sub", "aud"]},
-            audience=None,  # any of our own client ids; checked by issuer + project
+            audience=allowed,
             issuer=list(_GOOGLE_ISSUERS)[0],
         )
     except jwt.InvalidTokenError as exc:

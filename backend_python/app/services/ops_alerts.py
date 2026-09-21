@@ -116,6 +116,37 @@ async def payment_received(db: Any, *, user_name: str, phone: str, amount: float
     )
 
 
+async def payment_reversed(
+    db: Any,
+    *,
+    user_name: str,
+    phone: str,
+    amount: float,
+    taken: float,
+    provider: str,
+) -> None:
+    """A settled payment was reversed by the gateway and clawed back.
+
+    Paged rather than logged because the clawback can be partial: the wallet
+    may have been spent between the credit and the reversal, and whatever
+    could not be taken back is money already gone, on services that are still
+    live. A person has to decide what happens next.
+    """
+    shortfall = max(0.0, float(amount) - float(taken))
+    lines = [
+        "\u26a0\ufe0f <b>To\u2018lov qaytarib olindi</b>",
+        f"\U0001f464 {_esc(user_name)} \u00b7 <code>{_esc(phone)}</code>",
+        f"\U0001f4b8 {int(amount):,} so\u2018m \u00b7 {_esc(provider)}",
+    ]
+    if shortfall > 0:
+        lines.append(
+            f"\u2757 Balansdan faqat {int(taken):,} so\u2018m yechildi \u2014 "
+            f"{int(shortfall):,} so\u2018m qoplanmadi"
+        )
+    lines.append(f"\u27a1\ufe0f {_link('/payments', 'To\u2018lovlar')}")
+    await _alert(db, "\n".join(lines), context="payment_reversed")
+
+
 async def service_purchased(db: Any, *, user_name: str, phone: str, service: str, cost: float) -> None:
     await _alert(
         db,
@@ -129,6 +160,7 @@ async def service_purchased(db: Any, *, user_name: str, phone: str, service: str
 
 __all__ = [
     "payment_received",
+    "payment_reversed",
     "report_filed",
     "service_purchased",
     "support_message",

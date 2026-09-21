@@ -919,7 +919,7 @@ async def _request_callback(ctx: ToolContext, args: dict[str, Any]) -> dict[str,
     phone = normalise_phone(raw)
     note = str(args.get("note") or "")[:400]
 
-    from app.services.telegram import send_message
+    from app.services.telegram import _esc, send_message
 
     intent = ctx.session.last_intent or {}
     details = []
@@ -930,13 +930,17 @@ async def _request_callback(ctx: ToolContext, args: dict[str, Any]) -> dict[str,
     if intent.get("maxPrice"):
         details.append(f"💰 {int(intent['maxPrice']):,}".replace(",", " ") + " so'm")
 
-    who = ctx.viewer.name if ctx.viewer else "Mehmon"
+    # Escaped: this alert is posted with parse_mode=HTML, and the name and
+    # the note are text somebody else wrote. A tag in a profile name would
+    # otherwise restyle the operations message — or break its parse, and
+    # Telegram drops a message it cannot parse.
+    who = _esc(ctx.viewer.name if ctx.viewer else "Mehmon")
     body = (
         "☎️ <b>Qo'ng'iroq so'raldi — Uyiz AI</b>\n\n"
         f"👤 <b>Mijoz:</b> {who}\n"
         f"📱 <b>Telefon:</b> {format_display(phone)}\n"
         + (("\n" + " • ".join(details) + "\n") if details else "")
-        + (f"\n📝 <i>{note}</i>\n" if note else "")
+        + (f"\n📝 <i>{_esc(note)}</i>\n" if note else "")
         + f"\n🔑 Sessiya: <code>{ctx.session.session_key[:12]}…</code>"
     )
     delivered = await send_message(ctx.db, body, context="ai_callback_request")

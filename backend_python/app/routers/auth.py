@@ -11,7 +11,7 @@ from app.core import audit as audit_log
 from app.core.config import settings
 from app.core.database import commit_then_raise
 from app.core.deps import CurrentUser, DbSession, Lang, RequestCtx
-from app.core.errors import NotFound, Unauthorized, translate
+from app.core.errors import Conflict, NotFound, Unauthorized, translate
 from app.core.phone import mask_phone
 from app.core.rate_limit import enforce
 from app.core.security import PasswordPolicyError, password_strength, validate_password
@@ -640,7 +640,24 @@ async def google_login(
 async def submit_verification(
     payload: SubmitVerificationRequest, user: CurrentUser, db: DbSession, lang: Lang
 ) -> dict:
+    from app.models.enums import VerificationStatus
     from app.models.moderation import VerificationRequest
+
+    # Every submission queues a document for a human and pages the operations
+    # group. Unlimited, it was both a queue-flood and a second way to flood
+    # Telegram; and a second request while one is still PENDING is never
+    # something a person meant to do.
+    await enforce("verification_submit", str(user.id))
+    pending_exists = (
+        await db.execute(
+            select(VerificationRequest.id).where(
+                VerificationRequest.user_id == user.id,
+                VerificationRequest.status == VerificationStatus.PENDING.value,
+            )
+        )
+    ).first()
+    if pending_exists:
+        raise Conflict("verification_already_pending")
 
     request = VerificationRequest(
         user_id=user.id,
