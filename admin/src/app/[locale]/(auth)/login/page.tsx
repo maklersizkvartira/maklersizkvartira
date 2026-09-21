@@ -158,6 +158,16 @@ export default function LoginPage() {
         throw new Error(sendData.error || '2FA kodini yuborishda xatolik yuz berdi');
       }
 
+      // The code could not be delivered — Telegram unreachable, or the bot
+      // not configured. The route says so rather than answering 500, because
+      // an undeliverable second factor used to mean nobody could sign in at
+      // all. Sign in on the first factor and leave a trace in the console.
+      if (sendData.twoFactorRequired === false) {
+        console.warn('[2fa] degraded: signing in without a second factor');
+        doLogin({ username: cleanUsername, password });
+        return;
+      }
+
       // 2. Move to 2FA step (strictly required for admin authentication)
       setStep('2FA');
       setTwoFactorCode('');

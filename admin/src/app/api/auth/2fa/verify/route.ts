@@ -141,8 +141,11 @@ function ephemeralMaterial(): string {
 function keyCandidates(): KeyCandidate[] {
   const candidates: KeyCandidate[] = [];
 
-  // (a) The intended path. Falls back to a reliable secret so serverless instances always agree.
-  const secretKey = (process.env.SECRET_KEY ?? 'uyiz-admin-2fa-super-secret-key-2026-v1').trim();
+  // (a) The intended path. No literal fallback: a key that ships in the
+  //     repository is a key everybody has, and this one sealed the cookie
+  //     that carries the 2FA code's challenge. Without SECRET_KEY the ladder
+  //     falls to tier (c), whose material is not in the repository.
+  const secretKey = (process.env.SECRET_KEY ?? '').trim();
   if (secretKey.length >= 32) {
     candidates.push({ tier: 'secret_key', material: secretKey });
   }

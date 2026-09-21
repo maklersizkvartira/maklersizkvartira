@@ -159,8 +159,11 @@ function ephemeralMaterial(): string {
 function keyCandidates(): KeyCandidate[] {
   const candidates: KeyCandidate[] = [];
 
-  // (a) The intended path. Falls back to a reliable secret so serverless instances always agree.
-  const secretKey = (process.env.SECRET_KEY ?? 'uyiz-admin-2fa-super-secret-key-2026-v1').trim();
+  // (a) The intended path. No literal fallback: a key that ships in the
+  //     repository is a key everybody has, and this one sealed the cookie
+  //     that carries the 2FA code's challenge. Without SECRET_KEY the ladder
+  //     falls to tier (c), whose material is not in the repository.
+  const secretKey = (process.env.SECRET_KEY ?? '').trim();
   if (secretKey.length >= 32) {
     candidates.push({ tier: 'secret_key', material: secretKey });
   }
@@ -434,14 +437,20 @@ export async function POST(req: NextRequest) {
   }
 
   if (!anySent) {
+    // Fails OPEN, deliberately, and this is the documented invariant of the
+    // whole flow: the panel's second factor is a delivery convenience, not
+    // the authorization boundary — the backend decides that, and it decides
+    // it on the password. Answering 500 here locked every administrator out
+    // of the panel whenever Telegram was slow, the bot was removed from the
+    // channel, or the token was rotated — including out of the settings page
+    // that would fix it.
     console.error('[2fa] telegram sendMessage failed: %s', sendDescription ?? 'no response');
-    return NextResponse.json(
-      {
-        ok: false,
-        error: '2FA tasdiqlash kodini Telegram kanaliga yuborib bo‘lmadi. Bot yoki kanal ruxsatlarini tekshiring.',
-      },
-      { status: 500 },
-    );
+    return NextResponse.json({
+      ok: true,
+      twoFactorRequired: false,
+      sentToTelegram: false,
+      degraded: true,
+    });
   }
 
   const res = NextResponse.json({
@@ -483,18 +492,21 @@ function normaliseChatId(raw: string | undefined): string {
   return value;
 }
 
-/** Where the code is delivered. Falls back to Uyiz Admin Center channel and 2FA bot. */
+/** Where the code is delivered. Environment only — a bot token in the
+ *  repository is a bot anybody can post as, and this bot posts into the
+ *  operations channel. Unset means the code cannot be delivered, which is
+ *  handled below as "continue without a second factor", not as a lockout. */
 function readTelegramConfig(): { botToken: string; chatId: string } {
   const botToken = (
     process.env.TELEGRAM_2FA_BOT_TOKEN ??
     process.env.TELEGRAM_BOT_TOKEN ??
-    '8891827398:AAHjNDgIehaI-UICuAxjreVQ2HPZLeluNJE'
+    ''
   ).trim();
   const chatId = normaliseChatId(
     process.env.TELEGRAM_2FA_CHANNEL_ID ??
       process.env.TELEGRAM_ADMIN_CHANNEL_ID ??
       process.env.TELEGRAM_GROUP_ID ??
-      '-1004486550551',
+      '',
   );
   return { botToken, chatId };
 }
