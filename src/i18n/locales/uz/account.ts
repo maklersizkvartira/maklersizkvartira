@@ -153,10 +153,17 @@ export const account = {
     noLink: 'To‘lov havolasi olinmadi. Birozdan so‘ng qayta urinib ko‘ring.',
     cardNote: 'Karta ma’lumotlari saytga tushmaydi. To‘lov tasdiqlangach balans bir zumda yangilanadi.',
     close: 'Yopish',
+    cancelledTitle: 'To‘lov yakunlanmadi',
+    cancelledBody: 'Siz to‘lov sahifasidan qaytdingiz. Balans o‘zgarmadi — istasangiz qaytadan urinib ko‘ring.',
+    paidToast: 'Balans {amount} so‘mga to‘ldirildi',
+    checking: 'To‘lov tekshirilmoqda…',
+    leaveNote: 'Siz {gateway} sahifasiga o‘tasiz. To‘lovni bekor qilsangiz, shu yerga qayting.',
   },
 
   // The wallet page (WalletCard / WalletPage).
   wallet: {
+    promoteBought: 'E’lon reklamaga chiqarildi',
+    promoteShortfall: 'Balansda {amount} so‘m yetishmayapti',
     title: 'Hamyon',
     subtitle: 'Balans, to‘ldirish va xizmatlar',
     balance: 'Balans',

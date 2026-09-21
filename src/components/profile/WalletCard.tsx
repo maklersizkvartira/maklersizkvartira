@@ -66,12 +66,16 @@ export const WalletCard: React.FC<WalletCardProps> = ({ embedded = false }) => {
     setLoading(true);
     try {
       setWallet(await PaymentApi.getWalletInfo());
+      // And the store's copy, which the profile header and the promote gate
+      // read. Refreshing only the local one left those two showing a balance
+      // that was already spent.
+      await refreshUser?.();
     } catch {
       // The store's copy of the balance still shows; the ledger stays empty.
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshUser]);
 
   useEffect(() => {
     void fetchWallet();
@@ -404,6 +408,14 @@ export const WalletCard: React.FC<WalletCardProps> = ({ embedded = false }) => {
         onClose={() => {
           setIsTopUpOpen(false);
           setTopUpInitialAmount(undefined);
+        }}
+        // A top-up that completed while the customer was away on the
+        // gateway's page: the ledger and the header's balance both need to
+        // catch up, and neither refetches on its own.
+        onSuccess={() => {
+          setTopUpInitialAmount(undefined);
+          void fetchWallet();
+          void refreshUser?.();
         }}
       />
     </>

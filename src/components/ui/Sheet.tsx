@@ -125,6 +125,9 @@ export const Sheet: React.FC<SheetProps> = ({
   /** How far the panel has been dragged down, in pixels. */
   const [dragY, setDragY] = useState(0);
   const dragStart = useRef<number | null>(null);
+  /** Mirrors `dragY` for the release handler, which must not read state
+   *  through an updater — see `endDrag`. */
+  const dragDistance = useRef(0);
 
   const canSwipe = swipeToDismiss && side === 'bottom';
 
@@ -221,7 +224,9 @@ export const Sheet: React.FC<SheetProps> = ({
       if (dragStart.current === null) return;
       // Upward drag does nothing: the sheet is already at its top stop, and
       // letting it follow the finger up just detaches it from the screen edge.
-      setDragY(Math.max(0, event.clientY - dragStart.current));
+      const travelled = Math.max(0, event.clientY - dragStart.current);
+      dragDistance.current = travelled;
+      setDragY(travelled);
     },
     [],
   );
@@ -229,10 +234,13 @@ export const Sheet: React.FC<SheetProps> = ({
   const endDrag = useCallback(() => {
     if (dragStart.current === null) return;
     dragStart.current = null;
-    setDragY((current) => {
-      if (current > DISMISS_AFTER_PX) onClose();
-      return 0;
-    });
+    // The distance is read from the ref rather than decided inside a
+    // `setDragY` updater. An updater must be pure: React calls it twice in
+    // StrictMode, so `onClose()` from inside it fired twice per gesture.
+    const travelled = dragDistance.current;
+    dragDistance.current = 0;
+    setDragY(0);
+    if (travelled > DISMISS_AFTER_PX) onClose();
   }, [onClose]);
 
   if (!open || typeof document === 'undefined') return null;

@@ -16,6 +16,13 @@ export interface CreateTopUpResponse {
   uzumUrl?: string;
 }
 
+export interface TopUpStatus {
+  status: 'PENDING' | 'SUCCESS' | 'CANCELLED' | 'FAILED' | string;
+  amount: number;
+  balance: number;
+  paid: boolean;
+}
+
 export interface WalletTransaction {
   id: string;
   type: string;
@@ -51,6 +58,15 @@ export const PaymentApi = {
     };
     if (returnUrl) payload.returnUrl = returnUrl;
     return http.post<CreateTopUpResponse>('/payments/topup', payload);
+  },
+
+  /**
+   * Where one checkout got to. Asked when the customer comes back from the
+   * gateway — by paying, or by pressing Back — because those two look
+   * identical from here otherwise.
+   */
+  getTopUpStatus: async (transactionId: string): Promise<TopUpStatus> => {
+    return http.get<TopUpStatus>(`/payments/topup/${encodeURIComponent(transactionId)}/status`);
   },
 
   /** Get user balance and transaction history */

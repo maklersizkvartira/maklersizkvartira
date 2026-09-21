@@ -40,7 +40,11 @@ export const PromoteListingModal: React.FC<PromoteListingModalProps> = ({
 
   const handlePromote = async () => {
     if (currentBalance < cost) {
-      pushToast('common.error.generic', 'warning');
+      // Was `common.error.generic` — "something went wrong" for the one case
+      // the user can actually fix, and can fix in the sheet that opens next.
+      pushToast('account.wallet.promoteShortfall', 'warning', {
+        amount: (cost - currentBalance).toLocaleString(),
+      });
       setIsTopUpOpen(true);
       return;
     }
@@ -48,12 +52,17 @@ export const PromoteListingModal: React.FC<PromoteListingModalProps> = ({
     try {
       setLoading(true);
       await PaymentApi.buyService(selectedPlan, listing.id);
-      pushToast('account.profile.nameSaved', 'success');
+      // Was `account.profile.nameSaved` — "your name has been updated",
+      // after paying for a promotion.
+      pushToast('account.wallet.promoteBought', 'success');
       await refreshUser?.();
       onSuccess();
       onClose();
-    } catch (err: any) {
-      pushToast('common.error.generic', 'error');
+    } catch (err) {
+      // The server says which of insufficient_balance / listing_not_found /
+      // not public it was; swallowing that left the owner with nothing to act on.
+      const message = err instanceof Error && err.message ? err.message : 'common.error.generic';
+      pushToast(message, 'error');
     } finally {
       setLoading(false);
     }
@@ -165,8 +174,12 @@ export const PromoteListingModal: React.FC<PromoteListingModalProps> = ({
 
       <TopUpModal
         isOpen={isTopUpOpen}
+        initialAmount={Math.max(1000, cost - currentBalance)}
         onClose={() => setIsTopUpOpen(false)}
-        onSuccess={() => setIsTopUpOpen(false)}
+        onSuccess={() => {
+          setIsTopUpOpen(false);
+          void refreshUser?.();
+        }}
       />
     </>
   );

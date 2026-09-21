@@ -22,8 +22,8 @@
  * profile page that otherwise follows the visitor's language.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { Loader2, ShieldCheck } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
 
 import { useTranslation } from '../../i18n';
 import { cn } from '../../lib/cn';
@@ -96,6 +96,44 @@ function isGatewayUrl(raw: string): boolean {
   }
 }
 
+/**
+ * The checkout we sent this browser to, remembered across the trip.
+ *
+ * The gateway's page is a *navigation*, not a popup: React is torn down and
+ * rebuilt when the customer comes back, or — on iOS and Android Chrome —
+ * restored wholesale from the back/forward cache with its old state intact.
+ * Neither path tells the sheet anything, so the id is parked in
+ * sessionStorage (per-tab, gone when the tab closes) and read on the way
+ * back to ask our own API what actually happened.
+ */
+const PENDING_KEY = 'uyiz.topup.pending';
+
+interface PendingCheckout {
+  id: string;
+  amount: number;
+}
+
+function readPending(): PendingCheckout | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PendingCheckout;
+    return parsed && typeof parsed.id === 'string' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writePending(value: PendingCheckout | null): void {
+  try {
+    if (value) sessionStorage.setItem(PENDING_KEY, JSON.stringify(value));
+    else sessionStorage.removeItem(PENDING_KEY);
+  } catch {
+    // Private mode, or storage disabled. The sheet still resets on return;
+    // it just cannot tell the customer which way the payment went.
+  }
+}
+
 /** "35000" → "35 000". Digits only in, grouped out; the thousands separator
  *  is a no-break space so the number never wraps. */
 function groupDigits(digits: string): string {
@@ -105,6 +143,7 @@ function groupDigits(digits: string): string {
 export const TopUpModal: React.FC<TopUpModalProps> = ({
   isOpen,
   onClose,
+  onSuccess,
   initialGateway = 'click',
   initialAmount,
 }) => {
@@ -119,7 +158,17 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
    *  and anything more is their choice. */
   const [amountDigits, setAmountDigits] = useState<string>(String(initialAmount || MIN_AMOUNT));
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Shown when the customer came back from the gateway without paying. */
+  const [abandoned, setAbandoned] = useState(false);
+
+  const onSuccessRef = useRef(onSuccess);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onSuccessRef.current = onSuccess;
+    onCloseRef.current = onClose;
+  }, [onSuccess, onClose]);
 
   // Re-seed when the sheet is reopened with a different suggestion, e.g. the
   // exact shortfall for a badge purchase.
@@ -130,6 +179,94 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
     setError(null);
     setLoading(false);
   }, [isOpen, initialGateway, initialAmount]);
+
+  /**
+   * Settle the checkout this browser was sent to, whichever way it went.
+   *
+   * Called when the page comes back into use - restored from the back/forward
+   * cache, made visible again, or simply refocused. Without it the sheet was
+   * unreachable after a Back press: `loading` was still true from before the
+   * navigation, which disabled the pay button, replaced `onClose` with a
+   * no-op and turned off backdrop dismissal, so every control on the sheet -
+   * and the scroll-locked page behind it - was dead.
+   */
+  const settlePending = useCallback(async () => {
+    const pending = readPending();
+    setLoading(false);
+    if (!pending) return;
+
+    setChecking(true);
+    try {
+      const status = await PaymentApi.getTopUpStatus(pending.id);
+      if (status.paid) {
+        writePending(null);
+        setAbandoned(false);
+        pushToast(
+          t('account.topUp.paidToast', { amount: formatNumber(status.amount || pending.amount) }),
+          'success',
+        );
+        onSuccessRef.current?.();
+        onCloseRef.current();
+        return;
+      }
+      if (status.status === 'PENDING') {
+        // Still open on the gateway's side. The customer may be paying in the
+        // bank app right now and come back in a minute, so the marker stays:
+        // clearing it here would make that later return look like a payment
+        // that never existed. Nothing is claimed about it on screen either.
+        setAbandoned(false);
+        return;
+      }
+      // CANCELLED / FAILED / superseded: settled, and settled as unpaid.
+      writePending(null);
+      setAbandoned(true);
+    } catch {
+      // The status call is best-effort: a customer offline on the way back
+      // must still get their sheet unstuck. The marker survives so the next
+      // return can ask again.
+      setAbandoned(false);
+    } finally {
+      setChecking(false);
+    }
+  }, [formatNumber, pushToast, t]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // `pageshow` with persisted=true is the bfcache restore - the case where
+    // React state survives the trip and nothing else fires. `visibilitychange`
+    // and `focus` cover the ordinary reload and the tab-switch back.
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted || readPending()) void settlePending();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void settlePending();
+    };
+
+    window.addEventListener('pageshow', onPageShow);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    // A fresh load after the round trip: the listeners above may have missed
+    // their moment, so ask once on mount too.
+    void settlePending();
+
+    return () => {
+      window.removeEventListener('pageshow', onPageShow);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [settlePending]);
+
+  /**
+   * Last-resort unstick. If the redirect has not actually taken the page
+   * away - a blocked navigation, an in-app webview that refuses the scheme -
+   * the spinner would otherwise spin forever on a page that never left.
+   */
+  useEffect(() => {
+    if (!loading) return;
+    const timer = window.setTimeout(() => setLoading(false), 12_000);
+    return () => window.clearTimeout(timer);
+  }, [loading]);
 
   const amount = Number(amountDigits) || 0;
   const config = GATEWAYS.find((g) => g.id === gateway) ?? GATEWAYS[0];
@@ -155,6 +292,7 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
     if (!canPay) return;
     setLoading(true);
     setError(null);
+    setAbandoned(false);
     try {
       const returnUrl = typeof window !== 'undefined' ? `${window.location.origin}/profile` : undefined;
       const res = await PaymentApi.createTopUp(amount, returnUrl, gateway);
@@ -162,30 +300,53 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
       if (!targetUrl || !isGatewayUrl(targetUrl)) {
         throw new Error(t('account.topUp.noLink'));
       }
-      // The page is leaving; the spinner stays until it has.
+      // Remembered before the navigation, because after it this component no
+      // longer exists - or exists with stale state - and the id is the only
+      // way back to "did that payment go through?".
+      writePending({ id: String(res.transactionId), amount });
       window.location.href = targetUrl;
     } catch (err) {
       const message = err instanceof Error && err.message ? err.message : t('common.error.generic');
+      writePending(null);
       setError(message);
       pushToast(message, 'error');
       setLoading(false);
     }
   };
 
-  const payLabel = loading
-    ? t('account.topUp.redirecting')
-    : t('account.topUp.pay', { gateway: config.name, amount: formatNumber(Math.max(amount, 0)) });
+  const busy = loading || checking;
+  const payLabel = checking
+    ? t('account.topUp.checking')
+    : loading
+      ? t('account.topUp.redirecting')
+      : t('account.topUp.pay', { gateway: config.name, amount: formatNumber(Math.max(amount, 0)) });
 
   return (
     <Sheet
       open={isOpen}
-      onClose={loading ? () => undefined : onClose}
+      onClose={onClose}
       title={t('account.topUp.title')}
       description={t('account.topUp.subtitle', { gateway: config.name })}
       size="sm"
-      dismissOnBackdrop={!loading}
+      dismissOnBackdrop
       footer={
         <div className="space-y-2.5">
+          {abandoned && !error && (
+            <div
+              role="status"
+              className="flex items-start gap-2 rounded-xl border border-warning/50 bg-warning-soft px-3 py-2.5"
+            >
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+              <span className="min-w-0">
+                <span className="block text-xs font-black text-content">
+                  {t('account.topUp.cancelledTitle')}
+                </span>
+                <span className="block text-[11px] leading-snug text-muted">
+                  {t('account.topUp.cancelledBody')}
+                </span>
+              </span>
+            </div>
+          )}
           {error && (
             <p role="alert" className="text-xs font-semibold text-danger">
               {error}
@@ -194,11 +355,11 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
           <button
             type="button"
             onClick={handlePay}
-            disabled={!canPay}
+            disabled={!canPay || busy}
             style={{ backgroundColor: config.accent, color: config.onAccent }}
             className="press flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl px-4 text-sm font-black shadow-lg transition-opacity disabled:opacity-50"
           >
-            {loading ? (
+            {busy ? (
               <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
             ) : (
               <img src={config.iconSrc} alt="" className="h-6 w-6 rounded-md object-cover" />
@@ -207,7 +368,9 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
           </button>
           <p className="flex items-start gap-1.5 text-[11px] leading-snug text-subtle">
             <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
-            <span>{t('account.topUp.cardNote')}</span>
+            <span>
+              {t('account.topUp.cardNote')} {t('account.topUp.leaveNote', { gateway: config.name })}
+            </span>
           </p>
         </div>
       }

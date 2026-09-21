@@ -144,9 +144,16 @@ export const account = {
     noLink: 'Could not get a payment link. Please try again shortly.',
     cardNote: 'Your card details never reach this site. The balance updates as soon as the payment is confirmed.',
     close: 'Close',
+    cancelledTitle: 'Payment not completed',
+    cancelledBody: 'You came back from the payment page. Your balance is unchanged — try again whenever you like.',
+    paidToast: 'Balance topped up by {amount} so‘m',
+    checking: 'Checking the payment…',
+    leaveNote: 'You are about to open {gateway}. If you change your mind, just come back here.',
   },
 
   wallet: {
+    promoteBought: 'Listing promoted',
+    promoteShortfall: 'Your balance is {amount} so‘m short',
     title: 'Wallet',
     subtitle: 'Balance, top-ups and services',
     balance: 'Balance',
