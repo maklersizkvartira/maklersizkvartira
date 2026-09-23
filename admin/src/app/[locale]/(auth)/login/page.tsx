@@ -100,7 +100,8 @@ export default function LoginPage() {
 
   const errorMessage = (() => {
     if (!activeError) return null;
-    if (!apiError || apiError.status === 0) return te('network');
+    if (apiError && apiError.status === 0) return te('network');
+    if (!apiError) return activeError.message || te('unknown');
     switch (code) {
       case 'invalid_credentials':
         return te('invalidCredentials');

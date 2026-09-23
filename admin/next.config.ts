@@ -28,6 +28,14 @@ const nextConfig: NextConfig = {
       dynamic: 30,
     },
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api/v1/:path*',
+        destination: `${process.env.INTERNAL_API_URL ?? 'https://maklersizkvartira-production.up.railway.app/api/v1'}/:path*`,
+      },
+    ];
+  },
 };
 
 export default withNextIntl(nextConfig);
